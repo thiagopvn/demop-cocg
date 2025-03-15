@@ -234,7 +234,7 @@ export default function MenuContext({ children }) {
       <footer>
         <img src={brasao} alt
           ="Brasão Bombeiros" width={20} />
-        <p>&copy; 2025 Todos os direitos reservados.</p>
+        <p>&copy; Desenvolvido por ASP OF BM Thiago Santos.</p>
       </footer>
     </>
   );
