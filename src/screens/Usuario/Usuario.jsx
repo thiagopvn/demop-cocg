@@ -54,27 +54,40 @@ export default function Usuario() {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token");
 
-      if (token) {
-        try {
-          const decodedToken = await verifyToken(token);
-          setUserRole(decodedToken.role);
-          setUserId(decodedToken.userId);
-        } catch (error) {
-          console.error("Erro ao verificar token:", error);
-          setUserRole(null);
-          setUserId(null);
+        if (token) {
+            try {
+                const decodedToken = await verifyToken(token);
+                setUserRole(decodedToken.role);
+                setUserId(decodedToken.userId);
+                
+                // Carregar dados do usuário imediatamente
+                const userRef = doc(db, "users", decodedToken.userId);
+                const userSnap = await getDoc(userRef);
+                
+                if (userSnap.exists()) {
+                    if (decodedToken.role === "admin" || decodedToken.role === "editor") {
+                        // Para admin/editor, não carrega nada inicialmente
+                        setUsers([]);
+                    } else {
+                        // Para usuário comum, carrega apenas seus dados
+                        setUsers([{ id: userSnap.id, ...userSnap.data() }]);
+                    }
+                }
+            } catch (error) {
+                console.error("Erro ao verificar token:", error);
+                setUserRole(null);
+                setUserId(null);
+            }
+        } else {
+            setUserRole(null);
+            setUserId(null);
         }
-      } else {
-        console.log("Token não encontrado");
-        setUserRole(null);
-        setUserId(null);
-      }
     };
 
     fetchUserData();
-  }, []);
+}, []);
 
   // Remover este useEffect que faz a busca inicial
   // useEffect(() => {
@@ -86,68 +99,48 @@ export default function Usuario() {
   // Modificar a função getUsers para não buscar sem critério
   const getUsers = async (searchCritery = "") => {
     if (!userRole || !userId) {
-      setUsers([]); 
-      return;
-    }
-  
-    try {
-      const usersCollection = collection(db, "users");
-      
-      // Se não for admin/editor, busca apenas o próprio usuário
-      if (userRole !== "admin" && userRole !== "editor") {
-        const userDocRef = doc(db, "users", userId);
-        const userDoc = await getDoc(userDocRef);
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          // Se houver critério, filtra pelo nome
-          if (searchCritery.trim()) {
-            if (userData.full_name_lower.includes(searchCritery.toLowerCase())) {
-              setUsers([{ id: userDoc.id, ...userData }]);
-            } else {
-              setUsers([]);
-            }
-          } else {
-            // Se não houver critério, mostra o próprio usuário
-            setUsers([{ id: userDoc.id, ...userData }]);
-          }
-        }
+        setUsers([]);
         return;
-      }
-  
-      // Para admin/editor
-      let queryRef;
-      if (searchCritery.trim()) {
-        // Busca com filtro quando houver critério
-        const searchLower = searchCritery.toLowerCase();
-        const start = searchLower;
-        const end = searchLower + "\uf8ff";
-        
-        queryRef = query(
-          usersCollection,
-          where("full_name_lower", ">=", start),
-          where("full_name_lower", "<=", end),
-          orderBy("full_name_lower")
-        );
-      } else {
-        // Busca todos quando não houver critério
-        queryRef = query(
-          usersCollection,
-          orderBy("full_name_lower")
-        );
-      }
-  
-      const usersSnapshot = await getDocs(queryRef);
-      const usersList = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setUsers(usersList);
-    } catch (error) {
-      console.error("Erro ao buscar usuários:", error);
-      setUsers([]);
     }
-  };
+
+    try {
+        // Se for usuário comum, retorna pois os dados já foram carregados no useEffect
+        if (userRole !== "admin" && userRole !== "editor") {
+            return;
+        }
+
+        const usersCollection = collection(db, "users");
+        let queryRef;
+
+        if (searchCritery.trim()) {
+            const searchLower = searchCritery.toLowerCase();
+            const start = searchLower;
+            const end = searchLower + "\uf8ff";
+            
+            queryRef = query(
+                usersCollection,
+                where("full_name_lower", ">=", start),
+                where("full_name_lower", "<=", end),
+                orderBy("full_name_lower")
+            );
+        } else {
+            queryRef = query(
+                usersCollection,
+                orderBy("full_name_lower")
+            );
+        }
+
+        const usersSnapshot = await getDocs(queryRef);
+        const usersList = usersSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        setUsers(usersList);
+    } catch (error) {
+        console.error("Erro ao buscar usuários:", error);
+        setUsers([]);
+    }
+};
 
   const handlePopoverOpen = (event, userId) => {
     setAnchorEls((prev) => ({
@@ -388,9 +381,11 @@ export default function Usuario() {
                 {users.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={3} sx={{ textAlign: "center" }}>
-                      {critery.trim() 
-                        ? "Nenhum usuário encontrado" 
-                        : "Digite um nome para pesquisar"}
+                      {userRole === "admin" || userRole === "editor" 
+                        ? critery.trim() 
+                            ? "Nenhum usuário encontrado" 
+                            : "Digite um nome para pesquisar"
+                        : "Carregando..."}
                     </TableCell>
                   </TableRow>
                 ) : (
