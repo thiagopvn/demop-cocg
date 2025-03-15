@@ -183,7 +183,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                 />
                 <TextField
                     fullWidth
-                    label="Nome Completo"
+                    label="Nome de Guerra"
                     margin="normal"
                     name="full_name"
                     value={data.full_name}
