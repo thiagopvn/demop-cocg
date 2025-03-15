@@ -1,0 +1,42 @@
+/* Estilos base do botão do menu */
+.menu-button {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  color: white;
+  width: 90px;
+  background: linear-gradient(to bottom, rgb(22,48,102), rgb(55, 112, 236), rgb(22,48,102));
+  justify-content: center;
+  align-items: center;
+  padding: 5px 0;
+  font-size: small;
+  cursor: pointer;
+  border-radius: 5px;
+  font-family: 'Roboto', sans-serif;
+  user-select: none;
+  transition: all 0.3s ease; /* Adiciona transição suave */
+}
+
+
+.menu-button:hover {
+  background: linear-gradient(to bottom, rgb(22,48,102), rgb(153, 182, 247), rgb(22,48,102));
+  color: white;
+}
+
+/* Estilo do botão quando está ativo */
+.active {
+  background: none;
+  background-color: white;
+  color: rgb(22,48,102);
+  border: 1px solid rgb(180, 172, 172);
+  box-shadow: inset 0px 2px 2px rgba(255, 0, 0, 0.3); /* Efeito de baixo relevo */
+}
+.active:hover {
+  background: none;
+  background-color: white;
+  color: rgb(22,48,102);
+  border: 1px solid rgb(127, 136, 156);
+  box-shadow: inset 0px 2px 2px rgba(22,48,102, 0.3); /* Efeito de baixo relevo */
+  cursor: not-allowed;
+}
+

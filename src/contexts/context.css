@@ -1,0 +1,66 @@
+/* Estilos gerais do nav */
+nav {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    padding: 5px 0px;
+}
+
+/* Estilos para o ícone do hambúrguer */
+.hamburger-icon {
+    display: none; /* Escondido por padrão (só aparece em mobile) */
+    cursor: pointer;
+    padding: 10px;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Estilos para mobile */
+@media (max-width: 768px) {
+    .hamburger-icon {
+        display: block; /* Mostra o ícone do hambúrguer em mobile */
+    }
+
+    .main-nav {
+        display: none; /* Esconde o menu por padrão em mobile */
+        position: fixed;
+        top: 50px;
+        left: 0;
+        right: 0;
+        background: white;
+        z-index: 999;
+        flex-direction: column;
+        padding: 10px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .main-nav.active {
+        display: flex; /* Mostra o menu quando a classe 'active' é aplicada */
+    }
+
+    .menu-button {
+        width: 100%;
+        margin: 2px 0;
+        box-sizing: border-box;
+    }
+}
+
+/* Estilos do footer (se necessário) */
+footer {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    align-items: center;
+    background-color: #f1f1f1;
+    font-size: small;
+    border-top: 1px solid #e0e0e0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+}
