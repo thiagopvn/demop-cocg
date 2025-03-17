@@ -14,6 +14,7 @@ export default function Devolucoes() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [includeReparo, setIncludeReparo] = useState(false); // Novo estado para o checkbox
+  const [userCritery, setUserCritery] = useState(""); // Novo estado
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -95,18 +96,24 @@ export default function Devolucoes() {
         <div className="root-protected">
           {userRole === "admin" || userRole === "editor" ? (
             <>
-            <div className="search">
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={includeReparo}
-                    onChange={(e) => setIncludeReparo(e.target.checked)}
-                  />
-                }
-                label="Mostrar Reparos"
-              />
+              <div className="search">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={includeReparo}
+                      onChange={(e) => setIncludeReparo(e.target.checked)}
+                    />
+                  }
+                  label="Mostrar Reparos"
+                />
               </div>
-              {!includeReparo && <UserSearch onSelectUser={setSelectedUser} />}
+              {!includeReparo && (
+                <UserSearch 
+                  onSelectUser={setSelectedUser}
+                  userCritery={userCritery}
+                  onSetUserCritery={setUserCritery}
+                />
+              )}
               {selectedUser || includeReparo ? (
                 <div className="search">
                   <Paper style={{ padding: 10, margin: "20px 0" }}>
