@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import ViaturaSearch from "../../components/ViaturaSearch";
+import UserSearch from "../../components/UserSearch";
 import {
   Paper,
   Button,
@@ -25,7 +25,7 @@ import { query, collection, where, getDocs } from "firebase/firestore";
 
 
 
-export default function Inativos() {
+export default function ConsultaCautela() {
   const [movimentacoes, setMovimentacoes] = useState([]);
 
 
@@ -58,13 +58,22 @@ export default function Inativos() {
       <TableHead>
         <TableRow>
           <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+            Militar
+          </TableCell>
+          <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
             Material
           </TableCell>
           <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-            Local de Reparo
+            Quantidade
           </TableCell>
           <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-            Quantidade
+            Tipo
+          </TableCell>
+            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+            Telefone
+          </TableCell>
+          <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+            Status
           </TableCell>
           <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
             Data
@@ -80,13 +89,22 @@ export default function Inativos() {
 
             <TableRow key={index}>
               <TableCell sx={{ textAlign: "left" }}>
+                {mov.user_name}
+              </TableCell>
+               <TableCell sx={{ textAlign: "left" }}>
                 {mov.material_description}
               </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.repairLocation}
+               <TableCell sx={{ textAlign: "left" }}>
+                {mov.quantity}
+              </TableCell>
+               <TableCell sx={{ textAlign: "left" }}>
+                {mov.type}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.quantity}
+                {mov.telefone_responsavel}
+              </TableCell>
+              <TableCell sx={{ textAlign: "left" }}>
+                {mov.status}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
                 {new Date(mov.date.seconds * 1000).toLocaleDateString()}
