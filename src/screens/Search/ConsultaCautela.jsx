@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import ViaturaSearch from "../../components/ViaturaSearch";
+import UserSearch from "../../components/UserSearch";
 import {
   Paper,
   Button,
