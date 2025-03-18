@@ -181,6 +181,7 @@ export default function Cautelados() {
                 <Typography component="div" sx={{ p: 2, maxWidth: 350 }}>
                   {mov.id && <div><strong>ID:</strong> {mov.id}</div>}
                   {mov.material && (<div><strong>Material ID:</strong> {mov.material}</div>)}
+                  {mov.Telefone && (<div><strong>Telefone:</strong> {mov.Telefone}</div>)}
                   {mov.material_description && (<div><strong>Material:</strong> {mov.material_description}</div>)}
                   {mov.quantity !== undefined && (<div><strong>Quantidade:</strong> {mov.quantity}</div>)}
                   {mov.user_name && (<div><strong>Militar:</strong> {mov.user_name}</div>)}
