@@ -3,7 +3,7 @@ import { IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
 import { AssignmentReturn } from "@mui/icons-material";
 
 export default function ButtonDevolver({ status, onDevolver }) {
-    const [devolvido, setDevolvido] = useState(status === "devolvido");
+    const [devolvido, setDevolvido] = useState(status === "devolvidaDeReparo"||status === "devolvido");
     const [open, setOpen] = useState(false);
 
     const handleDevolver = () => {
@@ -26,6 +26,7 @@ export default function ButtonDevolver({ status, onDevolver }) {
 
     return (
         <>
+            
             <Tooltip title="Devolver Material">
                 <IconButton
                     variant="contained"
