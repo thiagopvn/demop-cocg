@@ -6,7 +6,7 @@ import MaterialViatura from './MaterialViatura';
 import UsuarioMaterial from './UsuarioMaterial';
 import ViaturaMaterial from './ViaturaMaterial';
 import Inativos from './Inativos';
-import Cautelados from './cautelados';
+import Cautelados from './Cautelados';
 import { collection, getDocs } from 'firebase/firestore';
 import db from '../../firebase/db';
 
