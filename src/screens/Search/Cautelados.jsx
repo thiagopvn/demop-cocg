@@ -2,33 +2,37 @@ import { useEffect, useState } from "react";
 import {
   Paper,
   Box,
+  Switch,
+  FormControlLabel,
   Table,
-  TableBody,
   TableHead,
   TableRow,
   TableCell,
-  Tooltip
+  TableBody,
+  Tooltip,
+  Fab,
+  Popover,
+  Typography,
 } from "@mui/material";
 import db from "../../firebase/db";
-import { query, collection, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { exportarMovimentacoes } from "../../firebase/xlsx";
+import excelIcon from "../../assets/excel.svg";
 
-import Popover from "@mui/material/Popover";
-import Typography from "@mui/material/Typography";
-
-export default function Inativos() {
+export default function Cautelados() {
   const [movimentacoes, setMovimentacoes] = useState([]);
-  // Estados para o Popover
+  // null: mostra todas, true: somente assinadas, false: somente não assinadas.
+  const [filterSigned, setFilterSigned] = useState(null);
   const [anchorEls, setAnchorEls] = useState({});
   const [hoverTimers, setHoverTimers] = useState({});
 
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(movimentacoesCollection, where("status", "==", "emReparo"));
+      const q = query(movimentacoesCollection, where("status", "==", "cautelado"));
       const querySnapshot = await getDocs(q);
       const movs = [];
       querySnapshot.forEach((doc) => {
-        // Inclui o id para cada movimentação
         movs.push({ id: doc.id, ...doc.data() });
       });
       setMovimentacoes(movs);
@@ -37,12 +41,17 @@ export default function Inativos() {
     fetchMovimentacoes();
   }, []);
 
+  const filteredMovimentacoes =
+    filterSigned === null
+      ? movimentacoes
+      : movimentacoes.filter((mov) => mov.signed === filterSigned);
+
   const handleMouseEnter = (event, movId) => {
     if (hoverTimers[movId]) {
       clearTimeout(hoverTimers[movId]);
     }
     const timer = setTimeout(() => {
-      setAnchorEls(prev => ({
+      setAnchorEls((prev) => ({
         ...prev,
         [movId]: {
           anchorEl: event.currentTarget,
@@ -50,7 +59,7 @@ export default function Inativos() {
         },
       }));
     }, 500);
-    setHoverTimers(prev => ({
+    setHoverTimers((prev) => ({
       ...prev,
       [movId]: timer,
     }));
@@ -60,7 +69,7 @@ export default function Inativos() {
     if (hoverTimers[movId]) {
       clearTimeout(hoverTimers[movId]);
     }
-    setAnchorEls(prev => ({
+    setAnchorEls((prev) => ({
       ...prev,
       [movId]: {
         anchorEl: null,
@@ -72,20 +81,44 @@ export default function Inativos() {
   // Limpa os timers ao desmontar o componente
   useEffect(() => {
     return () => {
-      Object.values(hoverTimers).forEach(timer => clearTimeout(timer));
+      Object.values(hoverTimers).forEach((timer) => clearTimeout(timer));
     };
   }, [hoverTimers]);
 
   return (
     <Paper sx={{ padding: 2, marginTop: 5 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={filterSigned === true}
+              onChange={(e) =>
+                setFilterSigned(e.target.checked ? true : null)
+              }
+              color="primary"
+            />
+          }
+          label="Somente Assinadas"
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={filterSigned === false}
+              onChange={(e) =>
+                setFilterSigned(e.target.checked ? false : null)
+              }
+              color="primary"
+            />
+          }
+          label="Somente Não Assinadas"
+        />
+      </Box>
+
       <Table size="small" sx={{ width: "100%", tableLayout: "fixed" }}>
         <TableHead>
           <TableRow>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
               Material
-            </TableCell>
-            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Local de Reparo
             </TableCell>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
               Quantidade
@@ -96,7 +129,7 @@ export default function Inativos() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {movimentacoes.map((mov) => (
+          {filteredMovimentacoes.map((mov) => (
             <TableRow
               key={mov.id}
               onMouseEnter={(e) => handleMouseEnter(e, mov.id)}
@@ -107,13 +140,12 @@ export default function Inativos() {
                 {mov.material_description}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.repairLocation}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
                 {mov.quantity}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.date?.seconds ? new Date(mov.date.seconds * 1000).toLocaleDateString() : ""}
+                {mov.date?.seconds
+                  ? new Date(mov.date.seconds * 1000).toLocaleDateString()
+                  : ""}
               </TableCell>
               <Popover
                 id={`popover-${mov.id}`}
@@ -131,7 +163,7 @@ export default function Inativos() {
                 onClose={() => handleMouseLeave(mov.id)}
                 disableRestoreFocus
               >
-                <Typography component={"div"} sx={{ p: 2, maxWidth: 350 }}>
+                <Typography component="div" sx={{ p: 2, maxWidth: 350 }}>
                   {mov.id && <div><strong>ID:</strong> {mov.id}</div>}
                   {mov.material && (
                     <div>
@@ -148,14 +180,14 @@ export default function Inativos() {
                       <strong>Quantidade:</strong> {mov.quantity}
                     </div>
                   )}
-                  {mov.repairLocation && (
-                    <div>
-                      <strong>Local de Reparo:</strong> {mov.repairLocation}
-                    </div>
-                  )}
                   {mov.date?.seconds && (
                     <div>
                       <strong>Data:</strong> {new Date(mov.date.seconds * 1000).toLocaleString()}
+                    </div>
+                  )}
+                  {mov.signed !== undefined && (
+                    <div>
+                      <strong>Assinado:</strong> {mov.signed ? "Sim" : "Não"}
                     </div>
                   )}
                 </Typography>
@@ -165,10 +197,18 @@ export default function Inativos() {
         </TableBody>
       </Table>
       <Tooltip title="Exportar para Excel" placement="left">
-        {/* Implemente a função exportarMovimentacoes conforme sua necessidade */}
-        <Box sx={{ position: "fixed", bottom: 100, right: 16 }}>
-          <span>Exportar</span>
-        </Box>
+        <Fab
+          size="small"
+          onClick={() =>
+            exportarMovimentacoes(
+              filteredMovimentacoes,
+              `movimentacoes_cautelados`
+            )
+          }
+          sx={{ position: "fixed", bottom: 100, right: 16 }}
+        >
+          <img src={excelIcon} alt="Exportar para Excel" width={20} />
+        </Fab>
       </Tooltip>
     </Paper>
   );

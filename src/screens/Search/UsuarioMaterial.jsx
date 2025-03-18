@@ -18,6 +18,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Popover,
+  Typography,
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -33,6 +35,10 @@ export default function UsuarioMaterial({ categorias }) {
   const [filteredMovimentacoes, setFilteredMovimentacoes] = useState([]);
   const [filtro, setFiltro] = useState(0);
   const [categoriaFilter, setCategoriaFilter] = useState("");
+
+  // Estados para o Popover
+  const [anchorEls, setAnchorEls] = useState({});
+  const [hoverTimers, setHoverTimers] = useState({});
 
   const handleSelectUser = (user) => {
     setFilteredMovimentacoes([]);
@@ -50,18 +56,18 @@ export default function UsuarioMaterial({ categorias }) {
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       if (!selectedUser) return;
-
       const movimentacoesCollection = collection(db, "movimentacoes");
       const q = query(
         movimentacoesCollection,
         where("user", "==", selectedUser.id)
       );
       const querySnapshot = await getDocs(q);
-      const movimentacoes = [];
+      const movs = [];
       querySnapshot.forEach((doc) => {
-        movimentacoes.push(doc.data());
+        // Inclui o id para cada movimentação
+        movs.push({ id: doc.id, ...doc.data() });
       });
-      setMovimentacoes(movimentacoes);
+      setMovimentacoes(movs);
     };
 
     fetchMovimentacoes();
@@ -97,6 +103,45 @@ export default function UsuarioMaterial({ categorias }) {
     }
   }, [movimentacoes, filtro, categoriaFilter]);
 
+  const handleMouseEnter = (event, movId) => {
+    if (hoverTimers[movId]) {
+      clearTimeout(hoverTimers[movId]);
+    }
+    const timer = setTimeout(() => {
+      setAnchorEls((prev) => ({
+        ...prev,
+        [movId]: {
+          anchorEl: event.currentTarget,
+          open: true,
+        },
+      }));
+    }, 500);
+    setHoverTimers((prev) => ({
+      ...prev,
+      [movId]: timer,
+    }));
+  };
+
+  const handleMouseLeave = (movId) => {
+    if (hoverTimers[movId]) {
+      clearTimeout(hoverTimers[movId]);
+    }
+    setAnchorEls((prev) => ({
+      ...prev,
+      [movId]: {
+        anchorEl: null,
+        open: false,
+      },
+    }));
+  };
+
+  // Limpa os timers ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      Object.values(hoverTimers).forEach((timer) => clearTimeout(timer));
+    };
+  }, [hoverTimers]);
+
   return (
     <div>
       <Paper sx={{ padding: 2, marginTop: 5 }}>
@@ -128,7 +173,14 @@ export default function UsuarioMaterial({ categorias }) {
         />
 
         {selectedUser && (
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <RadioGroup
               sx={{
                 display: "flex",
@@ -168,7 +220,10 @@ export default function UsuarioMaterial({ categorias }) {
                   <em>Todas</em>
                 </MenuItem>
                 {categorias.map((categoria) => (
-                  <MenuItem key={categoria.description} value={categoria.description}>
+                  <MenuItem
+                    key={categoria.description}
+                    value={categoria.description}
+                  >
                     {categoria.description}
                   </MenuItem>
                 ))}
@@ -180,29 +235,70 @@ export default function UsuarioMaterial({ categorias }) {
         <Table size="small" sx={{ marginTop: 2, width: "100%", tableLayout: "fixed" }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              <TableCell
+                sx={{
+                  textAlign: "left",
+                  backgroundColor: "#ddeeee",
+                  fontWeight: "bold",
+                }}
+              >
                 Material
               </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              <TableCell
+                sx={{
+                  textAlign: "left",
+                  backgroundColor: "#ddeeee",
+                  fontWeight: "bold",
+                }}
+              >
                 Viatura
               </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              <TableCell
+                sx={{
+                  textAlign: "left",
+                  backgroundColor: "#ddeeee",
+                  fontWeight: "bold",
+                }}
+              >
                 Data
               </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              <TableCell
+                sx={{
+                  textAlign: "left",
+                  backgroundColor: "#ddeeee",
+                  fontWeight: "bold",
+                }}
+              >
                 Tipo
               </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              <TableCell
+                sx={{
+                  textAlign: "left",
+                  backgroundColor: "#ddeeee",
+                  fontWeight: "bold",
+                }}
+              >
                 Telefone
               </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              <TableCell
+                sx={{
+                  textAlign: "left",
+                  backgroundColor: "#ddeeee",
+                  fontWeight: "bold",
+                }}
+              >
                 Status
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredMovimentacoes.map((mov) => (
-              <TableRow key={mov.id}>
+              <TableRow
+                key={mov.id}
+                onMouseEnter={(e) => handleMouseEnter(e, mov.id)}
+                onMouseLeave={() => handleMouseLeave(mov.id)}
+                hover
+              >
                 <TableCell sx={{ textAlign: "left" }}>
                   {mov.material_description}
                 </TableCell>
@@ -210,17 +306,109 @@ export default function UsuarioMaterial({ categorias }) {
                   {mov.viatura_description}
                 </TableCell>
                 <TableCell sx={{ textAlign: "left" }}>
-                  {new Date(mov.date.seconds * 1000).toLocaleDateString()}
+                  {mov.date?.seconds ? new Date(mov.date.seconds * 1000).toLocaleDateString() : ""}
                 </TableCell>
-                <TableCell sx={{ textAlign: "left" }}>
-                  {mov.type}
-                </TableCell>
+                <TableCell sx={{ textAlign: "left" }}>{mov.type}</TableCell>
                 <TableCell sx={{ textAlign: "left" }}>
                   {mov.telefone_responsavel}
                 </TableCell>
-                <TableCell sx={{ textAlign: "left" }}>
-                  {mov.status}
-                </TableCell>
+                <TableCell sx={{ textAlign: "left" }}>{mov.status}</TableCell>
+                <Popover
+                  id={`popover-${mov.id}`}
+                  sx={{ pointerEvents: "none" }}
+                  open={Boolean(anchorEls[mov.id]?.open)}
+                  anchorEl={anchorEls[mov.id]?.anchorEl}
+                  anchorOrigin={{
+                    vertical: "center",
+                    horizontal: "right",
+                  }}
+                  transformOrigin={{
+                    vertical: "center",
+                    horizontal: "left",
+                  }}
+                  onClose={() => handleMouseLeave(mov.id)}
+                  disableRestoreFocus
+                >
+                  <Typography component={"div"} sx={{ p: 2, maxWidth: 350 }}>
+                    {mov.id && <div><strong>ID:</strong> {mov.id}</div>}
+                    {mov.material && (
+                      <div>
+                        <strong>Material ID:</strong> {mov.material}
+                      </div>
+                    )}
+                    {mov.material_description && (
+                      <div>
+                        <strong>Material:</strong> {mov.material_description}
+                      </div>
+                    )}
+                    {mov.quantity !== undefined && (
+                      <div>
+                        <strong>Quantidade:</strong> {mov.quantity}
+                      </div>
+                    )}
+                    {mov.user_name && (
+                      <div>
+                        <strong>Militar:</strong> {mov.user_name}
+                      </div>
+                    )}
+                    {mov.user && (
+                      <div>
+                        <strong>ID Militar:</strong> {mov.user}
+                      </div>
+                    )}
+                    {mov.viatura_description && (
+                      <div>
+                        <strong>Viatura:</strong> {mov.viatura_description}
+                      </div>
+                    )}
+                    {mov.date?.seconds && (
+                      <div>
+                        <strong>Data:</strong>{" "}
+                        {new Date(mov.date.seconds * 1000).toLocaleString()}
+                      </div>
+                    )}
+                    {mov.type && (
+                      <div>
+                        <strong>Tipo:</strong> {mov.type}
+                      </div>
+                    )}
+                    {mov.status && (
+                      <div>
+                        <strong>Status:</strong> {mov.status}
+                      </div>
+                    )}
+                    {mov.telefone_responsavel && (
+                      <div>
+                        <strong>Telefone:</strong> {mov.telefone_responsavel}
+                      </div>
+                    )}
+                    {mov.sender_name && (
+                      <div>
+                        <strong>Remetente:</strong> {mov.sender_name}
+                      </div>
+                    )}
+                    {mov.sender && (
+                      <div>
+                        <strong>ID Remetente:</strong> {mov.sender}
+                      </div>
+                    )}
+                    {mov.signed !== undefined && (
+                      <div>
+                        <strong>Assinado:</strong> {mov.signed ? "Sim" : "Não"}
+                      </div>
+                    )}
+                    {mov.obs && (
+                      <div>
+                        <strong>Observações:</strong> {mov.obs}
+                      </div>
+                    )}
+                    {mov.motivo && (
+                      <div>
+                        <strong>Motivo:</strong> {mov.motivo}
+                      </div>
+                    )}
+                  </Typography>
+                </Popover>
               </TableRow>
             ))}
           </TableBody>
