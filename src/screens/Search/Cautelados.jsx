@@ -130,6 +130,9 @@ export default function Cautelados() {
           <TableRow>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
               Material
+            </TableCell>]
+             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              Telefone
             </TableCell>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
               Militar
