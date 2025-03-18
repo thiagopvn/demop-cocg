@@ -6,7 +6,7 @@ import MaterialViatura from './MaterialViatura';
 import UsuarioMaterial from './UsuarioMaterial';
 import ViaturaMaterial from './ViaturaMaterial';
 import Inativos from './Inativos';
-import Inativos from './ConsultaCautela';
+import ConsultaCautela from './ConsultaCautela';
 import { useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import db from '../../firebase/db';
@@ -62,7 +62,7 @@ export default function MainSearch() {
               <FormControlLabel value="usuario-material" control={<Radio />} label="Usuário/Material" />
               <FormControlLabel value="viatura-material" control={<Radio />} label="Viatura/Material" />
               <FormControlLabel value="inoperante" control={<Radio />} label="Inoperante" />
-              <FormControlLabel value="Consultar cautelas" control={<Radio />} label="Consultar cautelas" />
+              <FormControlLabel value="consulta-cautela" control={<Radio />} label="Consultar cautelas" />
             </RadioGroup>
           </Paper>
           {search === 'material-usuario' && <MaterialUsuario />}
