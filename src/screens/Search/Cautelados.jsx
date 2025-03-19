@@ -35,11 +35,12 @@ export default function Cautelados() {
   useEffect(() => {
     const key = `${onlyNonSigned}-${onlyWithoutViatura}`;
     if (!(key in cachedMovimentacoes)) {
+    
       const fetchData = async () => {
         const movimentacoesCollection = collection(db, "movimentacoes");
         const constraints = [where("status", "==", "cautelado")];
         if (onlyWithoutViatura) {
-          constraints.push(where("viatura", "==", ""));
+          constraints.push(where("viatura", "==", null));
         }
         if (onlyNonSigned) {
           constraints.push(where("signed", "==", false));
@@ -50,12 +51,13 @@ export default function Cautelados() {
         querySnapshot.forEach((doc) => {
           movs.push({ id: doc.id, ...doc.data() });
         });
+        console.log[movs]
         setCachedMovimentacoes((prev) => ({ ...prev, [key]: movs }));
       };
       fetchData();
     }
   }, [onlyNonSigned, onlyWithoutViatura, cachedMovimentacoes]);
-
+ 
   // Movimentações a serem exibidas, de acordo com o cache
   const displayedMovimentacoes =
     cachedMovimentacoes[`${onlyNonSigned}-${onlyWithoutViatura}`] || [];
@@ -221,6 +223,7 @@ export default function Cautelados() {
                 disableRestoreFocus
               >
                 <Typography component="div" sx={{ p: 2, maxWidth: 350 }}>
+              
                   {mov.id && <div><strong>ID:</strong> {mov.id}</div>}
                   {mov.material && (
                     <div>
