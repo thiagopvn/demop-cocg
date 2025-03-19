@@ -957,6 +957,24 @@ export const cautelas = async () => {
   batch.commit().then(() => console.log("cautelas inseridas com sucesso"));
 };
 
+
+//função que adciona a todas movimentações que não tem viatura o valor null, ou seja, caso não haja a chave
+//viatura será null e viatura_description será null
+export const addViaturaDescription = async () => {
+  const movimentacoesCollection = collection(db, "movimentacoes");
+  const querySnapshot = await getDocs(movimentacoesCollection);
+  const batch = writeBatch(db);
+  querySnapshot.forEach((doc) => {
+    const data = doc.data();
+    if (!data.viatura) {
+      batch.update(doc.ref, {
+        viatura: null,
+        viatura_description: null,
+      });
+    }
+  });
+  batch.commit().then(() => console.log("viaturas adicionadas com sucesso"));
+};
 /*
    const headers = {
             material: 'ID Material',
