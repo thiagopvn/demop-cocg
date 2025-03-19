@@ -189,6 +189,8 @@ export default function Movimentacao() {
                 sender_name: userName,
                 signed: false,
                 categoria: materialSelected.categoria,
+                viatura: null,
+                viatura_description: null,
             };
 
             if (userSelected) {
