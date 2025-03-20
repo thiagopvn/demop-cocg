@@ -106,8 +106,8 @@ export default function Movimentacao() {
     useEffect(() => {
         if (tipoMovimentacao === "entrada" || tipoMovimentacao === "reparo") {
             setShowMaterialSearch(true);
-            setShowUserSearch(false);
-            setShowViaturaSearch(false);
+            setShowUserSearch(true);
+            setShowViaturaSearch(true);
         } else if (tipoMovimentacao === "cautela") {
             setShowMaterialSearch(true);
             setShowUserSearch(true);
@@ -124,7 +124,7 @@ export default function Movimentacao() {
         const validateFields = () => {
             switch (tipoMovimentacao) {
                 case "entrada":
-                    return materialSelected && quantidade;
+                    return materialSelected && userSelected && quantidade;
                 case "saída":
                     return materialSelected && userSelected && quantidade;
                 case "reparo":
@@ -217,7 +217,7 @@ export default function Movimentacao() {
                 case 'entrada':
                     newEstoqueTotal = materialSelected.estoque_total + parseInt(quantidade);
                     newEstoqueAtual = materialSelected.estoque_atual + parseInt(quantidade);
-                    movementData.status = "emEstoque";
+                    movementData.status = "em Estoque";
                     break;
                 case 'saída':
                     if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
@@ -226,7 +226,7 @@ export default function Movimentacao() {
                     }
                     newEstoqueTotal = materialSelected.estoque_total - parseInt(quantidade);
                     newEstoqueAtual = materialSelected.estoque_atual - parseInt(quantidade);
-                    movementData.status = "descartado";
+                    movementData.status = "saída";
                     break;
                 case 'reparo':
                     if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
@@ -234,7 +234,7 @@ export default function Movimentacao() {
                         return;
                     }
                     newEstoqueAtual = materialSelected.estoque_atual - parseInt(quantidade);
-                    movementData.status = "emReparo";
+                    movementData.status = "em Reparo";
                     break;
                 case 'cautela':
                     if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
