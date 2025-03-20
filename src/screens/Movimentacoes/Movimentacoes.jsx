@@ -378,9 +378,19 @@ export default function Movimentacao() {
                         />
                     )}
 
-                    {tipoMovimentacao === 'reparo' || tipoMovimentacao === "entrada" && (
+                    {tipoMovimentacao === 'reparo' && (
                         <TextField
                             label="Local do Reparo"
+                            fullWidth
+                            value={localReparo}
+                            onChange={(e) => setLocalReparo(e.target.value)}
+                            sx={{ mb: 2 }}
+                        />
+                    )}
+
+                    { tipoMovimentacao === "entrada" && (
+                        <TextField
+                            label="Observações sobre o material"
                             fullWidth
                             value={localReparo}
                             onChange={(e) => setLocalReparo(e.target.value)}
