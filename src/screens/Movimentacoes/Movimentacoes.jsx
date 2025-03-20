@@ -106,8 +106,8 @@ export default function Movimentacao() {
     useEffect(() => {
         if (tipoMovimentacao === "entrada" || tipoMovimentacao === "reparo") {
             setShowMaterialSearch(true);
-            setShowUserSearch(true);
-            setShowViaturaSearch(true);
+            setShowUserSearch(false);
+            setShowViaturaSearch(false);
         } else if (tipoMovimentacao === "cautela") {
             setShowMaterialSearch(true);
             setShowUserSearch(true);
@@ -115,7 +115,7 @@ export default function Movimentacao() {
         } else if (tipoMovimentacao === "saída") {
             setShowMaterialSearch(true);
             setShowUserSearch(true);
-            setShowViaturaSearch(false);
+            setShowViaturaSearch(true);
         }
     }, [tipoMovimentacao]);
 
@@ -124,7 +124,7 @@ export default function Movimentacao() {
         const validateFields = () => {
             switch (tipoMovimentacao) {
                 case "entrada":
-                    return materialSelected && userSelected && quantidade;
+                    return materialSelected && quantidade && localReparo;
                 case "saída":
                     return materialSelected && userSelected && quantidade;
                 case "reparo":
