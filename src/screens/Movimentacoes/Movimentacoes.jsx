@@ -378,7 +378,7 @@ export default function Movimentacao() {
                         />
                     )}
 
-                    {tipoMovimentacao === 'reparo' && (
+                    {tipoMovimentacao === 'reparo' || tipoMovimentacao === "entrada" && (
                         <TextField
                             label="Local do Reparo"
                             fullWidth
