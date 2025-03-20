@@ -114,7 +114,7 @@ export default function Movimentacao() {
             setShowViaturaSearch(true);
         } else if (tipoMovimentacao === "saída") {
             setShowMaterialSearch(true);
-            setShowUserSearch(true);
+            setShowUserSearch(false);
             setShowViaturaSearch(true);
         }
     }, [tipoMovimentacao]);
@@ -126,7 +126,7 @@ export default function Movimentacao() {
                 case "entrada":
                     return materialSelected && quantidade && localReparo;
                 case "saída":
-                    return materialSelected && userSelected && quantidade;
+                    return materialSelected && quantidade && localReparo;
                 case "reparo":
                     return materialSelected && quantidade && localReparo;
                 case "cautela":
@@ -381,6 +381,16 @@ export default function Movimentacao() {
                     {tipoMovimentacao === 'reparo' && (
                         <TextField
                             label="Local do Reparo"
+                            fullWidth
+                            value={localReparo}
+                            onChange={(e) => setLocalReparo(e.target.value)}
+                            sx={{ mb: 2 }}
+                        />
+                    )}
+
+                    {tipoMovimentacao === 'saída' && (
+                        <TextField
+                            label="Observações sobre o material"
                             fullWidth
                             value={localReparo}
                             onChange={(e) => setLocalReparo(e.target.value)}
