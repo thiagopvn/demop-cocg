@@ -24,7 +24,7 @@ export default function Entrada() {
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(movimentacoesCollection, where("status", "==", "em Estoque"));
+      const q = query(movimentacoesCollection, where("status", "==", "emEstoque"));
       const querySnapshot = await getDocs(q);
       const movs = [];
       querySnapshot.forEach((doc) => {
