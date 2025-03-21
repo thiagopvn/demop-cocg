@@ -298,7 +298,7 @@ export default function Movimentacao() {
                             disabled={radioDisabled}
                             value="saída"
                             control={<Radio />}
-                            label="Saída"
+                            label="Saida"
                         />
                         <FormControlLabel
                             disabled={radioDisabled}
