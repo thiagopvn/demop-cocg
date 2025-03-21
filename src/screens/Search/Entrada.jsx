@@ -24,7 +24,7 @@ export default function Entrada() {
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(movimentacoesCollection, where("status", "===", "em Estoque"));
+      const q = query(movimentacoesCollection, where("status", "==", "em Estoque"));
       const querySnapshot = await getDocs(q);
       const movs = [];
       querySnapshot.forEach((doc) => {
@@ -85,7 +85,7 @@ export default function Entrada() {
               Material
             </TableCell>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Local de Reparo
+              Observações
             </TableCell>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
               Quantidade
