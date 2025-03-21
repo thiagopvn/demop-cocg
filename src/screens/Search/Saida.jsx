@@ -15,7 +15,7 @@ import { query, collection, where, getDocs } from "firebase/firestore";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
 
-export default function Saída() {
+export default function Saida() {
   const [movimentacoes, setMovimentacoes] = useState([]);
   // Estados para o Popover
   const [anchorEls, setAnchorEls] = useState({});
