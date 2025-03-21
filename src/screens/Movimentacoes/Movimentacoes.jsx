@@ -217,7 +217,7 @@ export default function Movimentacao() {
                 case 'entrada':
                     newEstoqueTotal = materialSelected.estoque_total + parseInt(quantidade);
                     newEstoqueAtual = materialSelected.estoque_atual + parseInt(quantidade);
-                    movementData.status = "em Estoque";
+                    movementData.status = "emEstoque";
                     break;
                 case 'saída':
                     if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
