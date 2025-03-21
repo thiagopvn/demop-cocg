@@ -15,7 +15,7 @@ import { query, collection, where, getDocs } from "firebase/firestore";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
 
-export default function Entrada() {
+export default function Saída() {
   const [movimentacoes, setMovimentacoes] = useState([]);
   // Estados para o Popover
   const [anchorEls, setAnchorEls] = useState({});
@@ -24,7 +24,7 @@ export default function Entrada() {
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(movimentacoesCollection, where("status", "==", "emEstoque"));
+      const q = query(movimentacoesCollection, where("status", "==", "saída"));
       const querySnapshot = await getDocs(q);
       const movs = [];
       querySnapshot.forEach((doc) => {
