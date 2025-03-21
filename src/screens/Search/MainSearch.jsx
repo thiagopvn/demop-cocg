@@ -8,6 +8,7 @@ import ViaturaMaterial from './ViaturaMaterial';
 import Inativos from './Inativos';
 import Cautelados from './Cautelados';
 import Entrada from './Entrada';
+import Saída from './Saida';
 import { collection, getDocs } from 'firebase/firestore';
 import db from '../../firebase/db';
 
@@ -77,6 +78,11 @@ export default function MainSearch() {
                 label="Inoperante"
               />
               <FormControlLabel
+                value="saída"
+                control={<Radio />}
+                label="Saida"
+              />
+              <FormControlLabel
                 value="cautelados"
                 control={<Radio />}
                 label="Cautelados"
@@ -88,6 +94,7 @@ export default function MainSearch() {
           {search === 'usuario-material' && <UsuarioMaterial categorias={categorias} />}
           {search === 'viatura-material' && <ViaturaMaterial categorias={categorias} />}
           {search === 'entrada' && <Entrada />}
+          {search === 'saída' && <Saida />}
           {search === 'inoperante' && <Inativos categorias={categorias} />}
           {search === 'cautelados' && <Cautelados />}
         </div>
