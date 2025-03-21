@@ -8,7 +8,7 @@ import ViaturaMaterial from './ViaturaMaterial';
 import Inativos from './Inativos';
 import Cautelados from './Cautelados';
 import Entrada from './Entrada';
-import Saída from './Saida';
+import Saida from './Saida';
 import { collection, getDocs } from 'firebase/firestore';
 import db from '../../firebase/db';
 
