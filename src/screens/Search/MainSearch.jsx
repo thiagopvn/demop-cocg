@@ -67,6 +67,11 @@ export default function MainSearch() {
                 label="Viatura/Material"
               />
               <FormControlLabel
+                value="entrada"
+                control={<Radio />}
+                label="Entrada"
+              />
+              <FormControlLabel
                 value="inoperante"
                 control={<Radio />}
                 label="Inoperante"
@@ -82,6 +87,7 @@ export default function MainSearch() {
           {search === 'material-viatura' && <MaterialViatura />}
           {search === 'usuario-material' && <UsuarioMaterial categorias={categorias} />}
           {search === 'viatura-material' && <ViaturaMaterial categorias={categorias} />}
+          {search === 'entrada' && <Inativos categorias={categorias} />}
           {search === 'inoperante' && <Inativos categorias={categorias} />}
           {search === 'cautelados' && <Cautelados />}
         </div>
