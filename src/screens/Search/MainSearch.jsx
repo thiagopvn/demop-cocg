@@ -87,7 +87,7 @@ export default function MainSearch() {
           {search === 'material-viatura' && <MaterialViatura />}
           {search === 'usuario-material' && <UsuarioMaterial categorias={categorias} />}
           {search === 'viatura-material' && <ViaturaMaterial categorias={categorias} />}
-          {search === 'entrada' && <Inativos categorias={categorias} />}
+          {search === 'entrada' && <Entrada categorias={categorias} />}
           {search === 'inoperante' && <Inativos categorias={categorias} />}
           {search === 'cautelados' && <Cautelados />}
         </div>
