@@ -1,0 +1,35 @@
+body{
+
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+.root-protected{
+    padding: 70px 70px;
+}
+.search{
+    padding: 0 100px;
+    margin-bottom: 30px;
+}
+.table{
+    margin-top: 35px;
+    height: 350px;
+    overflow: auto;
+
+    
+}
+@media screen and (max-width: 768px){
+    .root-protected{
+        padding: 70px 20px;
+    }
+    .search{
+        padding: 0 20px;
+        margin-bottom: 10px;
+    }
+
+    .table{
+        padding: 0px 20px;
+    }
+    
+}
