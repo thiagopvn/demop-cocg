@@ -10,6 +10,7 @@ import {
     Checkbox,
     Box,
     Chip,
+    Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import UserSearch from "../components/UserSearch"; // Certifique-se de que o caminho está correto
