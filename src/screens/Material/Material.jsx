@@ -1,7 +1,6 @@
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import {
-  Fab,
   TextField,
   IconButton,
   Table,
@@ -12,7 +11,6 @@ import {
   Popover,
   Typography,
   Tooltip,
-  Icon,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -182,6 +180,7 @@ export default function Material() {
   };
 
   const handleCopyToClipboard = (material) => {
+    const csvText = `ID,Descrição,Categoria,Estoque Disponível,Estoque Total,Última Movimentação,Criado em\n${material.id},${material.description},${material.categoria},${material.estoque_atual},${material.estoque_total},${material.ultima_movimentacao?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'},${material.created_at?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}`;
     navigator.clipboard.writeText(csvText);
     alert("CSV copiado para a área de transferência!");
   };
@@ -228,18 +227,85 @@ export default function Material() {
             </div>
           )}
           <div className="search">
+            {/* Header Section with Title and Add Button */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '24px',
+              padding: '0 4px'
+            }}>
+              <Typography 
+                variant="h4" 
+                component="h1" 
+                sx={{ 
+                  fontWeight: 600,
+                  color: '#1a237e',
+                  fontSize: { xs: '1.75rem', sm: '2.125rem' }
+                }}
+              >
+                📦 Materiais
+              </Typography>
+              
+              {(userRole === "admin" || userRole === "editor") && (
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={handleOpenSaveDialog}
+                  sx={{
+                    backgroundColor: '#4caf50',
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    padding: '10px 24px',
+                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                    '&:hover': {
+                      backgroundColor: '#45a049',
+                      boxShadow: '0 6px 16px rgba(76, 175, 80, 0.4)',
+                      transform: 'translateY(-1px)',
+                    },
+                    transition: 'all 0.2s ease-in-out'
+                  }}
+                >
+                  Novo Material
+                </Button>
+              )}
+            </div>
+
             <TextField
               size="small"
-              label="Pesquisar"
+              label="Pesquisar por descrição..."
               variant="outlined"
               onKeyDown={handleEnterKeyDown}
               fullWidth
               value={critery}
               onChange={(e) => setCritery(e.target.value)}
+              sx={{ 
+                marginBottom: 3,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  backgroundColor: '#f8f9fa',
+                  '&:hover': {
+                    backgroundColor: '#ffffff',
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: '#ffffff',
+                  }
+                }
+              }}
               slotProps={{
                 input: {
                   endAdornment: (
-                    <IconButton position="end" onClick={() => filter(critery)}>
+                    <IconButton 
+                      position="end" 
+                      onClick={() => filter(critery)}
+                      sx={{
+                        color: '#4caf50',
+                        '&:hover': {
+                          backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        }
+                      }}
+                    >
                       <SearchIcon />
                     </IconButton>
                   ),
@@ -247,36 +313,42 @@ export default function Material() {
               }}
             />
 
-            <Table size="small" sx={{ marginTop: 2 }}>
+            <Table 
+              size="small" 
+              sx={{
+                '& .MuiTableHead-root': {
+                  '& .MuiTableRow-root': {
+                    '& .MuiTableCell-root': {
+                      backgroundColor: '#e8f5e8',
+                      borderBottom: '2px solid #4caf50',
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      color: '#2e7d32',
+                    }
+                  }
+                },
+                '& .MuiTableBody-root': {
+                  '& .MuiTableRow-root': {
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5',
+                    },
+                    '& .MuiTableCell-root': {
+                      borderBottom: '1px solid #e0e0e0',
+                    }
+                  }
+                }
+              }}
+            >
               <TableHead>
                 <TableRow>
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      backgroundColor: "#ddeeee",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Descricão
+                  <TableCell sx={{ textAlign: "center" }}>
+                    📝 Descrição
                   </TableCell>
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      backgroundColor: "#ddeeee",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Estoque/Disponível
+                  <TableCell sx={{ textAlign: "center" }}>
+                    📊 Estoque Total/Disponível
                   </TableCell>
-                  <TableCell
-                    sx={{
-                      textAlign: "center",
-                      backgroundColor: "#ddeeee",
-                      fontWeight: "bold",
-                      width: "200px",
-                    }}
-                  >
-                    Ações
+                  <TableCell sx={{ textAlign: "center", width: "200px" }}>
+                    ⚙️ Ações
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -290,19 +362,66 @@ export default function Material() {
                       {material.estoque_total}/{material.estoque_atual}
                     </TableCell>
                     <TableCell sx={{ textAlign: "center" }}>
-                      <IconButton
-                        aria-owns={
-                          anchorEls[material.id]?.open ? "mouse-over-popover" : undefined
-                        }
-                        aria-haspopup="true"
-                        onMouseEnter={(e) => handlePopoverOpen(e, material.id)}
-                        onMouseLeave={() => handlePopoverClose(material.id)}
-                      >
-                        <InfoIcon
-                          color="info"
-                          onClick={() => handleCopyToClipboard(material)}
-                        />
-                      </IconButton>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                        <Tooltip title="Ver informações completas">
+                          <IconButton
+                            aria-owns={
+                              anchorEls[material.id]?.open ? "mouse-over-popover" : undefined
+                            }
+                            aria-haspopup="true"
+                            onMouseEnter={(e) => handlePopoverOpen(e, material.id)}
+                            onMouseLeave={() => handlePopoverClose(material.id)}
+                            onClick={() => handleCopyToClipboard(material)}
+                            sx={{
+                              backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                              '&:hover': {
+                                backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                                transform: 'scale(1.05)',
+                              },
+                              transition: 'all 0.2s ease-in-out',
+                            }}
+                          >
+                            <InfoIcon sx={{ color: '#2196f3' }} />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        {(userRole === "admin" || userRole === "editor") && (
+                          <>
+                            <Tooltip title="Editar material">
+                              <IconButton 
+                                onClick={() => handleOpenEditDialog(material)}
+                                sx={{
+                                  backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                                    transform: 'scale(1.05)',
+                                  },
+                                  transition: 'all 0.2s ease-in-out',
+                                }}
+                              >
+                                <Edit sx={{ color: '#4caf50' }} />
+                              </IconButton>
+                            </Tooltip>
+                            
+                            <Tooltip title="Excluir material">
+                              <IconButton 
+                                onClick={() => handleDelete(material.id)}
+                                sx={{
+                                  backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(244, 67, 54, 0.2)',
+                                    transform: 'scale(1.05)',
+                                  },
+                                  transition: 'all 0.2s ease-in-out',
+                                }}
+                              >
+                                <DeleteIcon sx={{ color: '#f44336' }} />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
+                      </div>
+                      
                       <Popover
                         id="mouse-over-popover"
                         sx={{
@@ -321,32 +440,26 @@ export default function Material() {
                         onClose={() => handlePopoverClose(material.id)}
                         disableRestoreFocus
                       >
-                        <Typography component={"div"} sx={{ p: 1 }}>
-                          <div>id: {material.id}</div>
-                          <div>Descricao: {material.description}</div>
-                          <div>CategoriaId: {material.categoria_id}</div>
-                          <div>Categoria: {material.categoria}</div>
-                          <div>Estoque Disponível: {material.estoque_atual}</div>
-                          <div>Estoque Total: {material.estoque_total}</div>
-                          <div>
-                            Ultima Movimentacao:{" "}
-                            {JSON.stringify(material.ultima_movimentacao.toDate())}
-                          </div>
-                          <div>
-                            Criado em: {JSON.stringify(material.created_at.toDate())}
-                          </div>
+                        <Typography component={"div"} sx={{ 
+                          p: 2, 
+                          minWidth: 300,
+                          '& > div': {
+                            marginBottom: '8px',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: '#f5f5f5',
+                            fontWeight: 500,
+                          }
+                        }}>
+                          <div><strong>📋 ID:</strong> {material.id}</div>
+                          <div><strong>📝 Descrição:</strong> {material.description}</div>
+                          <div><strong>🏷️ Categoria:</strong> {material.categoria}</div>
+                          <div><strong>📦 Estoque Disponível:</strong> {material.estoque_atual}</div>
+                          <div><strong>📊 Estoque Total:</strong> {material.estoque_total}</div>
+                          <div><strong>🔄 Última Movimentação:</strong> {material.ultima_movimentacao?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}</div>
+                          <div><strong>📅 Criado em:</strong> {material.created_at?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}</div>
                         </Typography>
                       </Popover>
-                      {(userRole === "admin" || userRole === "editor") && (
-                        <>
-                          <IconButton onClick={() => handleDelete(material.id)}>
-                            <DeleteIcon color="error" />
-                          </IconButton>
-                          <IconButton onClick={() => handleOpenEditDialog(material)}>
-                            <Edit color="primary" />
-                          </IconButton>
-                        </>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -354,25 +467,6 @@ export default function Material() {
             </Table>
           </div>
         </div>
-        {userRole === "admin" || userRole === "editor" ? (
-          <Tooltip title="Adicionar Material" aria-label="add">
-            <Fab
-              size="small"
-              color="primary"
-              aria-label="add"
-              className="fab"
-              sx={{
-                opacity: 0.9,
-                position: "fixed",
-                bottom: 50,
-                left: 50,
-              }}
-              onClick={() => handleOpenSaveDialog()}
-            >
-              <Add />
-            </Fab>
-          </Tooltip>
-        ) : null}
         <MaterialDialog
           open={dialogSaveOpen}
           onSubmit={handleSaveMaterial}
