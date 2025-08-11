@@ -16,7 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import db from "../../firebase/db";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
@@ -63,10 +63,18 @@ export default function Cautelados() {
         let querySnapshot;
         if (constraints.length === 0) {
           // Para "Todos", busca todas as movimentações de cautela (incluindo devolvidas)
-          const qCautelado = query(movimentacoesCollection, where("type", "==", "cautela"));
+          const qCautelado = query(
+            movimentacoesCollection, 
+            where("type", "==", "cautela"),
+            orderBy("date", "desc")
+          );
           querySnapshot = await getDocs(qCautelado);
         } else {
-          const q = query(movimentacoesCollection, ...constraints);
+          const q = query(
+            movimentacoesCollection, 
+            ...constraints,
+            orderBy("date", "desc")
+          );
           querySnapshot = await getDocs(q);
         }
         
@@ -180,6 +188,15 @@ export default function Cautelados() {
                 fontWeight: "bold",
               }}
             >
+              Material
+            </TableCell>
+            <TableCell
+              sx={{
+                textAlign: "left",
+                backgroundColor: "#ddeeee",
+                fontWeight: "bold",
+              }}
+            >
               Militar
             </TableCell>
             <TableCell
@@ -251,6 +268,9 @@ export default function Cautelados() {
                 }
               }}
             >
+              <TableCell sx={{ textAlign: "left" }}>
+                {mov.material_description || "-"}
+              </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
                 {mov.user_name || "-"}
               </TableCell>
