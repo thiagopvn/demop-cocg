@@ -1,7 +1,6 @@
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import {
-    Fab,
     TextField,
     IconButton,
     Table,
@@ -125,6 +124,7 @@ export default function Rings() {
             militar_id: data.militar_id,
             nome_solicitante: data.nome_solicitante,
             nome_solicitante_lower: data.nome_solicitante.toLowerCase(),
+            telefone_solicitante: data.telefone_solicitante, // NOVO: Campo telefone
             endereco: data.endereco,
             rg: data.rg,
             data_ocorrencia: dataOcorrenciaTimestamp, // Salva como Timestamp
@@ -185,6 +185,7 @@ export default function Rings() {
                 militar_id: data.militar_id,
                 nome_solicitante: data.nome_solicitante,
                 nome_solicitante_lower: data.nome_solicitante.toLowerCase(),
+                telefone_solicitante: data.telefone_solicitante, // NOVO: Campo telefone
                 endereco: data.endereco,
                 rg: data.rg,
                 data_ocorrencia: dataOcorrenciaTimestamp, // Salva como Timestamp
@@ -256,61 +257,134 @@ export default function Rings() {
                         </div>
                     )}
                     <div className="search">
+                        {/* Header Section with Title and Add Button */}
+                        <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            marginBottom: '24px',
+                            padding: '0 4px'
+                        }}>
+                            <Typography 
+                                variant="h4" 
+                                component="h1" 
+                                sx={{ 
+                                    fontWeight: 600,
+                                    color: '#1a237e',
+                                    fontSize: { xs: '1.75rem', sm: '2.125rem' }
+                                }}
+                            >
+                                💍 Anéis
+                            </Typography>
+                            
+                            {(userRole === "admin" || userRole === "editor") && (
+                                <Button
+                                    variant="contained"
+                                    startIcon={<Add />}
+                                    onClick={handleOpenSaveDialog}
+                                    sx={{
+                                        backgroundColor: '#ff9800',
+                                        borderRadius: '12px',
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        padding: '10px 24px',
+                                        boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
+                                        '&:hover': {
+                                            backgroundColor: '#f57c00',
+                                            boxShadow: '0 6px 16px rgba(255, 152, 0, 0.4)',
+                                            transform: 'translateY(-1px)',
+                                        },
+                                        transition: 'all 0.2s ease-in-out'
+                                    }}
+                                >
+                                    Nova Retirada
+                                </Button>
+                            )}
+                        </div>
+
                         <TextField
                             size="small"
-                            label="Pesquisar"
+                            label="Pesquisar por solicitante..."
                             variant="outlined"
                             onKeyDown={handleEnterKeyDown}
                             fullWidth
                             value={critery}
                             onChange={(e) => setCritery(e.target.value)}
-                            InputProps={{
-                                endAdornment: (
-                                    <IconButton position="end" onClick={() => filter(critery)}>
-                                        <SearchIcon />
-                                    </IconButton>
-                                ),
+                            sx={{ 
+                                marginBottom: 3,
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '12px',
+                                    backgroundColor: '#fff8e1',
+                                    '&:hover': {
+                                        backgroundColor: '#ffffff',
+                                    },
+                                    '&.Mui-focused': {
+                                        backgroundColor: '#ffffff',
+                                    }
+                                }
+                            }}
+                            slotProps={{
+                                input: {
+                                    endAdornment: (
+                                        <IconButton 
+                                            position="end" 
+                                            onClick={() => filter(critery)}
+                                            sx={{
+                                                color: '#ff9800',
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                                }
+                                            }}
+                                        >
+                                            <SearchIcon />
+                                        </IconButton>
+                                    ),
+                                },
                             }}
                         />
 
-                        <Table size="small" sx={{ marginTop: 2 }}>
+                        <Table 
+                            size="small" 
+                            sx={{
+                                '& .MuiTableHead-root': {
+                                    '& .MuiTableRow-root': {
+                                        '& .MuiTableCell-root': {
+                                            backgroundColor: '#fff3e0',
+                                            borderBottom: '2px solid #ff9800',
+                                            fontWeight: 700,
+                                            fontSize: '0.875rem',
+                                            color: '#e65100',
+                                        }
+                                    }
+                                },
+                                '& .MuiTableBody-root': {
+                                    '& .MuiTableRow-root': {
+                                        '&:hover': {
+                                            backgroundColor: '#fff8e1',
+                                        },
+                                        '& .MuiTableCell-root': {
+                                            borderBottom: '1px solid #e0e0e0',
+                                        }
+                                    }
+                                }
+                            }}
+                        >
                             <TableHead>
                                 <TableRow>
-                                    <TableCell
-                                        sx={{
-                                            textAlign: "center",
-                                            backgroundColor: "#ddeeee",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        Número da Ocorrência
+                                    <TableCell sx={{ textAlign: "center" }}>
+                                        🔢 Nº Ocorrência
                                     </TableCell>
-                                    <TableCell
-                                        sx={{
-                                            textAlign: "center",
-                                            backgroundColor: "#ddeeee",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        Militar
+                                    <TableCell sx={{ textAlign: "center" }}>
+                                        👨‍✈️ Militar
                                     </TableCell>
-                                    <TableCell
-                                        sx={{
-                                            textAlign: "center",
-                                            backgroundColor: "#ddeeee",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        Solicitante
+                                    <TableCell sx={{ textAlign: "center" }}>
+                                        👤 Solicitante
                                     </TableCell>
-                                    <TableCell
-                                        sx={{
-                                            textAlign: "center",
-                                            backgroundColor: "#ddeeee",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        Ações
+                                    <TableCell sx={{ textAlign: "center" }}>
+                                        📱 Status
+                                    </TableCell>
+                                    <TableCell sx={{ textAlign: "center" }}>
+                                        ⚙️ Ações
                                     </TableCell>
                                 </TableRow>
                             </TableHead>
@@ -321,16 +395,103 @@ export default function Rings() {
                                         <TableCell sx={{ textAlign: "center" }}>{ring.militar_nome}</TableCell>
                                         <TableCell sx={{ textAlign: "center" }}>{ring.nome_solicitante}</TableCell>
                                         <TableCell sx={{ textAlign: "center" }}>
-                                            <IconButton
-                                                aria-owns={
-                                                    anchorEls[ring.id]?.open ? "mouse-over-popover" : undefined
-                                                }
-                                                aria-haspopup="true"
-                                                onMouseEnter={(e) => handlePopoverOpen(e, ring.id)}
-                                                onMouseLeave={() => handlePopoverClose(ring.id)}
+                                            <Button
+                                                size="small"
+                                                variant={ring.devolvido ? "contained" : "outlined"}
+                                                sx={{
+                                                    borderRadius: '20px',
+                                                    padding: '4px 12px',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
+                                                    backgroundColor: ring.devolvido ? '#4caf50' : 'transparent',
+                                                    color: ring.devolvido ? 'white' : '#ff9800',
+                                                    borderColor: ring.devolvido ? '#4caf50' : '#ff9800',
+                                                    '&:hover': {
+                                                        backgroundColor: ring.devolvido ? '#45a049' : 'rgba(255, 152, 0, 0.1)',
+                                                    }
+                                                }}
                                             >
-                                                <Info color="info" />
-                                            </IconButton>
+                                                {ring.devolvido ? '✅ Devolvido' : '⏳ Pendente'}
+                                            </Button>
+                                        </TableCell>
+                                        <TableCell sx={{ textAlign: "center" }}>
+                                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                                <Tooltip title="Ver informações completas">
+                                                    <IconButton
+                                                        aria-owns={
+                                                            anchorEls[ring.id]?.open ? "mouse-over-popover" : undefined
+                                                        }
+                                                        aria-haspopup="true"
+                                                        onMouseEnter={(e) => handlePopoverOpen(e, ring.id)}
+                                                        onMouseLeave={() => handlePopoverClose(ring.id)}
+                                                        sx={{
+                                                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                                                            '&:hover': {
+                                                                backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                                                                transform: 'scale(1.05)',
+                                                            },
+                                                            transition: 'all 0.2s ease-in-out',
+                                                        }}
+                                                    >
+                                                        <Info sx={{ color: '#2196f3' }} />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                
+                                                {(userRole === "admin" || userRole === "editor") && (
+                                                    <>
+                                                        <Tooltip title="Editar anel">
+                                                            <IconButton 
+                                                                onClick={() => handleOpenEditDialog(ring)}
+                                                                sx={{
+                                                                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                                                    '&:hover': {
+                                                                        backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                                                                        transform: 'scale(1.05)',
+                                                                    },
+                                                                    transition: 'all 0.2s ease-in-out',
+                                                                }}
+                                                            >
+                                                                <Edit sx={{ color: '#ff9800' }} />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        
+                                                        <Tooltip title={ring.devolvido ? "Já devolvido" : "Marcar como devolvido"}>
+                                                            <IconButton 
+                                                                onClick={() => handleOpenReturnDialog(ring)}
+                                                                disabled={ring.devolvido}
+                                                                sx={{
+                                                                    backgroundColor: ring.devolvido ? 'rgba(76, 175, 80, 0.2)' : 'rgba(76, 175, 80, 0.1)',
+                                                                    opacity: ring.devolvido ? 0.6 : 1,
+                                                                    '&:hover': {
+                                                                        backgroundColor: ring.devolvido ? 'rgba(76, 175, 80, 0.2)' : 'rgba(76, 175, 80, 0.2)',
+                                                                        transform: ring.devolvido ? 'none' : 'scale(1.05)',
+                                                                    },
+                                                                    transition: 'all 0.2s ease-in-out',
+                                                                }}
+                                                            >
+                                                                <AssignmentReturn sx={{ color: ring.devolvido ? '#9e9e9e' : '#4caf50' }} />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        
+                                                        <Tooltip title="Excluir anel">
+                                                            <IconButton 
+                                                                onClick={() => handleDelete(ring.id)}
+                                                                sx={{
+                                                                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                                                    '&:hover': {
+                                                                        backgroundColor: 'rgba(244, 67, 54, 0.2)',
+                                                                        transform: 'scale(1.05)',
+                                                                    },
+                                                                    transition: 'all 0.2s ease-in-out',
+                                                                }}
+                                                            >
+                                                                <DeleteIcon sx={{ color: '#f44336' }} />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </>
+                                                )}
+                                            </div>
+                                            
                                             <Popover
                                                 id="mouse-over-popover"
                                                 sx={{
@@ -349,43 +510,30 @@ export default function Rings() {
                                                 onClose={() => handlePopoverClose(ring.id)}
                                                 disableRestoreFocus
                                             >
-                                                <Typography component={"div"} sx={{ p: 1 }}>
-                                                    <div>id: {ring.id}</div>
-                                                    <div>Número da Ocorrência: {ring.numero_ocorrencia}</div>
-                                                    <div>Militar: {ring.militar_nome}</div>
-                                                    <div>Solicitante: {ring.nome_solicitante}</div>
-                                                    <div>Endereço: {ring.endereco}</div>
-                                                    <div>RG: {ring.rg}</div>
-                                                    <div>
-                                                        Data do Ocorrido:{" "}
-                                                        {ring.data_ocorrencia
-                                                            ? ring.data_ocorrencia
-                                                                  .toDate()
-                                                                  .toLocaleString()
-                                                            : "Data não informada"}
-                                                    </div>
-                                                    <div>Observações: {ring.observacoes}</div>
-                                                    <div>Devolvido: {ring.devolvido ? "Sim" : "Não"}</div>
-                                                    <div>Criado em: {ring.created_at?.toDate().toLocaleString()}</div>
+                                                <Typography component={"div"} sx={{ 
+                                                    p: 2, 
+                                                    minWidth: 300,
+                                                    '& > div': {
+                                                        marginBottom: '8px',
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        backgroundColor: '#fff8e1',
+                                                        fontWeight: 500,
+                                                    }
+                                                }}>
+                                                    <div><strong>🔢 ID:</strong> {ring.id}</div>
+                                                    <div><strong>📋 Nº Ocorrência:</strong> {ring.numero_ocorrencia}</div>
+                                                    <div><strong>👨‍✈️ Militar:</strong> {ring.militar_nome}</div>
+                                                    <div><strong>👤 Solicitante:</strong> {ring.nome_solicitante}</div>
+                                                    <div><strong>📞 Telefone:</strong> {ring.telefone_solicitante || 'N/A'}</div>
+                                                    <div><strong>📍 Endereço:</strong> {ring.endereco}</div>
+                                                    <div><strong>🆔 RG:</strong> {ring.rg}</div>
+                                                    <div><strong>📅 Data do Ocorrido:</strong> {ring.data_ocorrencia?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}</div>
+                                                    <div><strong>📝 Observações:</strong> {ring.observacoes || 'Nenhuma'}</div>
+                                                    <div><strong>✅ Status:</strong> {ring.devolvido ? "Devolvido" : "Pendente"}</div>
+                                                    <div><strong>📆 Criado em:</strong> {ring.created_at?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}</div>
                                                 </Typography>
                                             </Popover>
-                                            {(userRole === "admin" || userRole === "editor") && (
-                                                <>
-                                                    <IconButton onClick={() => handleDelete(ring.id)}>
-                                                        <DeleteIcon color="error" />
-                                                    </IconButton>
-                                                    <IconButton 
-                                                        onClick={() => handleOpenReturnDialog(ring)}
-                                                        disabled={ring.devolvido}
-                                                        sx={{ opacity: ring.devolvido ? 0.5 : 1 }}
-                                                    >
-                                                        <AssignmentReturn color={ring.devolvido ? "disabled" : "success"} />
-                                                    </IconButton>
-                                                    <IconButton onClick={() => handleOpenEditDialog(ring)}>
-                                                        <Edit color="primary" />
-                                                    </IconButton>
-                                                </>
-                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -393,25 +541,6 @@ export default function Rings() {
                         </Table>
                     </div>
                 </div>
-                {userRole === "admin" || userRole === "editor" ? (
-                    <Tooltip title="Adicionar Anel" aria-label="add">
-                        <Fab
-                            size="small"
-                            color="primary"
-                            aria-label="add"
-                            className="fab"
-                            sx={{
-                                opacity: 0.9,
-                                position: "fixed",
-                                bottom: 50,
-                                left: 50,
-                            }}
-                            onClick={() => handleOpenSaveDialog()}
-                        >
-                            <Add />
-                        </Fab>
-                    </Tooltip>
-                ) : null}
                 <RingDialog
                     open={dialogSaveOpen}
                     onSubmit={handleSaveRing}
