@@ -14,6 +14,8 @@ import {
   Fab,
   Popover,
   Typography,
+  Card,
+  CardContent
 } from "@mui/material";
 import db from "../../firebase/db";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
@@ -143,7 +145,9 @@ export default function Cautelados() {
   }, [hoverTimers]);
 
   return (
-    <Paper sx={{ padding: 2, marginTop: 5, minHeight: '80vh' }}>
+    <Box sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 } }}>
+      <Card elevation={3} sx={{ borderRadius: 3, minHeight: '80vh' }}>
+        <CardContent sx={{ p: 3 }}>
       <Box sx={{ mb: 3 }}>
         <RadioGroup
           sx={{
@@ -410,6 +414,8 @@ export default function Cautelados() {
           <img src={excelIcon} alt="Exportar para Excel" width={20} />
         </Fab>
       </Tooltip>
-    </Paper>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
