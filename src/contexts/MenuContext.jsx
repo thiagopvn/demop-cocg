@@ -568,16 +568,14 @@ export default function MenuContext({ children }) {
             backdropFilter: 'blur(10px)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
             gap: 2,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <img src={brasao} alt="Brasão Bombeiros" width={24} style={{ opacity: 0.7 }} />
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              © 2025 Todos os direitos reservados.
-            </Typography>
-          </Box>
+          <img src={brasao} alt="Brasão Bombeiros" width={24} style={{ opacity: 0.7 }} />
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            © 2025 Todos os direitos reservados.
+          </Typography>
           <Typography
             variant="caption"
             sx={{
@@ -593,7 +591,7 @@ export default function MenuContext({ children }) {
               textAlign: 'center'
             }}
           >
-            desenvolvido por ASP OF BM Thiago Santos
+            Desenvolvido pelo ASP OF BM Thiago Santos
           </Typography>
         </Box>
       </Box>
