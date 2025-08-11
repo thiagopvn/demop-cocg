@@ -14,7 +14,6 @@ import {
   Grow,
   Container,
   Avatar,
-  useTheme,
   alpha,
   Alert,
   AlertTitle,
@@ -39,6 +38,7 @@ import {
   AccountCircle,
   VerifiedUser,
   DonutSmall,
+  Refresh,
 } from "@mui/icons-material";
 import {
   collection,
@@ -74,7 +74,7 @@ import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
 import CautelaStrip from "../../components/CautelaStrip";
 
-const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
+const StatCard = ({ icon: Icon, title, value, color, loading }) => {
   
   return (
     <Card
@@ -139,24 +139,6 @@ const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
                   }}
                 >
                   {value}
-                  {trend && (
-                    <Chip
-                      size="small"
-                      icon={trend > 0 ? <TrendingUp /> : <TrendingDown />}
-                      label={`${trend > 0 ? '+' : ''}${trend}%`}
-                      sx={{
-                        height: { xs: 20, sm: 24 },
-                        backgroundColor: trend > 0 ? alpha('#22c55e', 0.1) : alpha('#ef4444', 0.1),
-                        color: trend > 0 ? '#22c55e' : '#ef4444',
-                        border: `1px solid ${trend > 0 ? alpha('#22c55e', 0.3) : alpha('#ef4444', 0.3)}`,
-                        display: { xs: 'none', sm: 'inline-flex' },
-                        '& .MuiChip-icon': {
-                          fontSize: 16,
-                          color: 'inherit'
-                        }
-                      }}
-                    />
-                  )}
                 </Typography>
               </>
             )}
@@ -302,13 +284,23 @@ export default function Home() {
       try {
         const token = localStorage.getItem("token");
         const user = await verifyToken(token);
-        const movimentacoes = await getDocs(
-          query(collection(db, "movimentacoes"), where("user", "==", user.userId))
+        
+        // Buscar apenas cautelas do usuário que não foram devolvidas
+        const movimentacoesQuery = query(
+          collection(db, "movimentacoes"), 
+          where("user", "==", user.userId),
+          where("type", "==", "cautela")
         );
-        const movimentacoesList = movimentacoes.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const movimentacoes = await getDocs(movimentacoesQuery);
+        
+        // Filtrar apenas as não devolvidas
+        const movimentacoesList = movimentacoes.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          .filter(cautela => !cautela.returned && !cautela.signed);
+        
         setMinhasCautelas(movimentacoesList);
       } catch (error) {
         console.error("Erro ao buscar cautelas:", error);
@@ -317,9 +309,16 @@ export default function Home() {
 
     const fetchData = async () => {
       try {
+        // Buscar total de materiais
         const materialsSnap = await getDocs(collection(db, "materials"));
+        
+        // Buscar total de viaturas
         const viaturasSnap = await getDocs(collection(db, "viaturas"));
+        
+        // Buscar total de usuários
         const usersSnap = await getDocs(collection(db, "users"));
+        
+        // Buscar movimentações recentes
         const recentMovementsSnap = await getDocs(
           query(
             collection(db, "movimentacoes"),
@@ -327,6 +326,8 @@ export default function Home() {
             limit(5)
           )
         );
+        
+        // Buscar todas as movimentações para estatísticas
         const allMovementsSnap = await getDocs(
           query(
             collection(db, "movimentacoes"),
@@ -335,33 +336,66 @@ export default function Home() {
           )
         );
         
-        // Buscar materiais cautelados (não devolvidos)
-        const cauteladosSnap = await getDocs(
-          query(
-            collection(db, "movimentacoes"),
-            where("type", "==", "cautela"),
-            where("returned", "!=", true)
-          )
+        // Buscar APENAS cautelas NÃO devolvidas
+        // Uma cautela não devolvida é quando type='cautela' e não tem returned=true
+        const cautelasQuery = query(
+          collection(db, "movimentacoes"),
+          where("type", "==", "cautela")
         );
+        const cautelasSnap = await getDocs(cautelasQuery);
         
-        // Buscar retiradas de anéis
-        const aneisSnap = await getDocs(collection(db, "aneis"));
+        // Filtrar apenas as cautelas não devolvidas
+        let materiaisCautelados = 0;
+        cautelasSnap.docs.forEach(doc => {
+          const data = doc.data();
+          // Considera como cautelado se não tem o campo returned ou se returned é false
+          if (!data.returned || data.returned === false) {
+            materiaisCautelados++;
+          }
+        });
         
+        // Buscar total de anéis retirados na coleção "rings"
+        let retiradasAneis = 0;
+        try {
+          const ringsSnap = await getDocs(collection(db, "rings"));
+          retiradasAneis = ringsSnap.size;
+        } catch (error) {
+          console.log("Coleção rings não encontrada ou vazia");
+        }
         
-        // Enriquecer movimentações com nomes completos
+        // Criar mapa de usuários para enriquecimento de dados
+        const userMap = {};
+        usersSnap.docs.forEach(userDoc => {
+          const userData = userDoc.data();
+          userMap[userDoc.id] = userData.name || userData.username || userData.email || 'Usuário';
+        });
+        
+        // Enriquecer movimentações recentes com nomes completos
         const enrichedRecentMovements = await Promise.all(
           recentMovementsSnap.docs.map(async (docSnap) => {
             const data = docSnap.data();
             let fullName = 'Usuário';
             
-            if (data.user) {
-              // Buscar usuário específico se necessário
-              const userDocRef = doc(db, "users", data.user);
-              const userDoc = await getDoc(userDocRef);
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                fullName = userData.name || userData.username || 'Usuário';
+            // Primeiro tenta pegar do mapa em memória
+            if (data.user && userMap[data.user]) {
+              fullName = userMap[data.user];
+            } else if (data.user) {
+              // Se não encontrou no mapa, busca individualmente
+              try {
+                const userDocRef = doc(db, "users", data.user);
+                const userDoc = await getDoc(userDocRef);
+                if (userDoc.exists()) {
+                  const userData = userDoc.data();
+                  fullName = userData.name || userData.username || userData.email || 'Usuário';
+                }
+              } catch (userError) {
+                console.log("Erro ao buscar usuário:", userError);
               }
+            }
+            
+            // Também pode ter o nome diretamente no documento
+            if (data.sender_name) {
+              fullName = data.sender_name;
             }
             
             return {
@@ -381,12 +415,12 @@ export default function Home() {
             id: doc.id,
             ...doc.data(),
           })),
-          materiaisCautelados: cauteladosSnap.size,
-          retiradasAneis: aneisSnap.size,
+          materiaisCautelados: materiaisCautelados,
+          retiradasAneis: retiradasAneis,
         });
         setLoading(false);
       } catch (error) {
-        console.error("Erro:", error);
+        console.error("Erro ao buscar dados:", error);
         setLoading(false);
       }
     };
@@ -481,27 +515,46 @@ export default function Home() {
           <Fade in timeout={600}>
             <Box>
               {/* Header */}
-              <Box sx={{ mb: { xs: 3, sm: 4 } }}>
-                <Typography 
-                  variant="h4" 
-                  sx={{ 
-                    fontWeight: 700,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    mb: 1,
-                    fontSize: { xs: '1.75rem', sm: '2.125rem' }
+              <Box sx={{ mb: { xs: 3, sm: 4 }, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+                <Box>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 700,
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      mb: 1,
+                      fontSize: { xs: '1.75rem', sm: '2.125rem' }
+                    }}
+                  >
+                    Dashboard
+                  </Typography>
+                  <Typography 
+                    variant="body1" 
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                  >
+                    Bem-vindo ao sistema de controle de materiais
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  startIcon={<Refresh />}
+                  onClick={() => {
+                    setLoading(true);
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 500);
+                  }}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
                   }}
                 >
-                  Dashboard
-                </Typography>
-                <Typography 
-                  variant="body1" 
-                  color="text.secondary"
-                  sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-                >
-                  Bem-vindo ao sistema de controle de materiais
-                </Typography>
+                  Atualizar
+                </Button>
               </Box>
 
               {/* Stats Cards */}
@@ -510,28 +563,28 @@ export default function Home() {
                   { 
                     icon: Assignment, 
                     title: 'Materiais Cautelados', 
-                    value: stats.materiaisCautelados, 
+                    value: stats.materiaisCautelados || 0, 
                     color: '#ef4444',
                     trend: null 
                   },
                   { 
                     icon: Inventory, 
                     title: 'Total de Materiais', 
-                    value: stats.totalMaterials, 
+                    value: stats.totalMaterials || 0, 
                     color: '#3b82f6',
                     trend: null 
                   },
                   { 
                     icon: Person, 
                     title: 'Total de Usuários', 
-                    value: stats.totalUsers, 
+                    value: stats.totalUsers || 0, 
                     color: '#22c55e',
                     trend: null 
                   },
                   { 
                     icon: DonutSmall, 
-                    title: 'Retiradas de Anéis', 
-                    value: stats.retiradasAneis, 
+                    title: 'Total de Anéis', 
+                    value: stats.retiradasAneis || 0, 
                     color: '#f59e0b',
                     trend: null 
                   },
