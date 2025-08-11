@@ -228,7 +228,7 @@ export default function MenuContext({ children }) {
                     lineHeight: 1.2
                   }}
                 >
-                  DMO
+                  DEMOP
                 </Typography>
                 <Typography 
                   variant="caption" 
@@ -469,7 +469,7 @@ export default function MenuContext({ children }) {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Avatar src={brasao} sx={{ width: 36, height: 36 }} />
           <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>
-            DMO
+            DEMOP
           </Typography>
         </Box>
         <IconButton
@@ -568,13 +568,26 @@ export default function MenuContext({ children }) {
             backdropFilter: 'blur(10px)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
             gap: 2,
           }}
         >
-          <img src={brasao} alt="Brasão Bombeiros" width={24} style={{ opacity: 0.7 }} />
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            © 2025 Todos os direitos reservados.
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <img src={brasao} alt="Brasão Bombeiros" width={24} style={{ opacity: 0.7 }} />
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              © 2025 Todos os direitos reservados.
+            </Typography>
+          </Box>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '10px',
+              color: 'rgba(0,0,0,0.4)',
+              userSelect: 'none',
+              fontWeight: 300
+            }}
+          >
+            desenvolvido por ASP OF BM Thiago Santos
           </Typography>
         </Box>
       </Box>
