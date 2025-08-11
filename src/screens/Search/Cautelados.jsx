@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import {
   Paper,
   Box,
-  Switch,
+  RadioGroup,
   FormControlLabel,
+  Radio,
   Table,
   TableHead,
   TableRow,
@@ -20,47 +21,60 @@ import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
 export default function Cautelados() {
-  // Controle para filtrar apenas os não assinados (true por default)
-  const [onlyNonSigned, setOnlyNonSigned] = useState(true);
-  // Controle para filtrar apenas movimentações sem viatura (true por default)
-  const [onlyWithoutViatura, setOnlyWithoutViatura] = useState(true);
-  // Cache local: a chave é uma string formada por `${onlyNonSigned}-${onlyWithoutViatura}`
+  // Filtro: 0=todos, 1=assinados, 2=devolvidos, 3=não assinados
+  const [filtro, setFiltro] = useState(0);
+  // Cache local: a chave é o valor do filtro
   // e o valor é o array de movimentações para aquela combinação.
   const [cachedMovimentacoes, setCachedMovimentacoes] = useState({});
   // Estados para o Popover relativo aos detalhes
   const [anchorEls, setAnchorEls] = useState({});
   const [hoverTimers, setHoverTimers] = useState({});
 
-  // Efeito para realizar a consulta ao Firestore caso a combinação de filtros não esteja em cache
+  // Efeito para realizar a consulta ao Firestore caso o filtro não esteja em cache
   useEffect(() => {
-    const key = `${onlyNonSigned}-${onlyWithoutViatura}`;
-    if (!(key in cachedMovimentacoes)) {
-    
+    if (!(filtro in cachedMovimentacoes)) {
       const fetchData = async () => {
         const movimentacoesCollection = collection(db, "movimentacoes");
-        const constraints = [where("status", "==", "cautelado")];
-        if (onlyWithoutViatura) {
-          constraints.push(where("viatura", "==", null));
+        let constraints = [];
+        
+        switch (filtro) {
+          case 0: // Todos os cautelados
+            constraints = [where("status", "==", "cautelado")];
+            break;
+          case 1: // Assinados
+            constraints = [
+              where("status", "==", "cautelado"),
+              where("signed", "==", true)
+            ];
+            break;
+          case 2: // Devolvidos
+            constraints = [where("status", "==", "devolvido")];
+            break;
+          case 3: // Não assinados
+            constraints = [
+              where("status", "==", "cautelado"),
+              where("signed", "==", false)
+            ];
+            break;
+          default:
+            constraints = [where("status", "==", "cautelado")];
         }
-        if (onlyNonSigned) {
-          constraints.push(where("signed", "==", false));
-        }
+        
         const q = query(movimentacoesCollection, ...constraints);
         const querySnapshot = await getDocs(q);
         const movs = [];
         querySnapshot.forEach((doc) => {
           movs.push({ id: doc.id, ...doc.data() });
         });
-        console.log[movs]
-        setCachedMovimentacoes((prev) => ({ ...prev, [key]: movs }));
+        console.log(movs);
+        setCachedMovimentacoes((prev) => ({ ...prev, [filtro]: movs }));
       };
       fetchData();
     }
-  }, [onlyNonSigned, onlyWithoutViatura, cachedMovimentacoes]);
+  }, [filtro, cachedMovimentacoes]);
  
   // Movimentações a serem exibidas, de acordo com o cache
-  const displayedMovimentacoes =
-    cachedMovimentacoes[`${onlyNonSigned}-${onlyWithoutViatura}`] || [];
+  const displayedMovimentacoes = cachedMovimentacoes[filtro] || [];
 
   // Lógica para exibir o Popover após 0,5s de hover
   const handleMouseEnter = (event, movId) => {
@@ -102,49 +116,28 @@ export default function Cautelados() {
   }, [hoverTimers]);
 
   return (
-    <Paper sx={{ padding: 2, marginTop: 5 }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-          mb: 2,
-          gap: 2,
-        }}
-      >
-        <FormControlLabel
-          control={
-            <Switch
-              checked={onlyNonSigned}
-              onChange={(e) => setOnlyNonSigned(e.target.checked)}
-              color="primary"
-            />
-          }
-          label="Exibir somente não assinadas"
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={onlyWithoutViatura}
-              onChange={(e) => setOnlyWithoutViatura(e.target.checked)}
-              color="primary"
-            />
-          }
-          label="Exibir somente sem viatura"
-        />
+    <Paper sx={{ padding: 2, marginTop: 5, minHeight: '80vh' }}>
+      <Box sx={{ mb: 3 }}>
+        <RadioGroup
+          sx={{
+            display: "flex",
+            gap: 2,
+            flexDirection: "row",
+            justifyContent: "center",
+          }}
+          value={filtro}
+          onChange={(e) => setFiltro(Number(e.target.value))}
+        >
+          <FormControlLabel value={0} control={<Radio />} label="Todos" />
+          <FormControlLabel value={1} control={<Radio />} label="Assinados" />
+          <FormControlLabel value={2} control={<Radio />} label="Devolvidos" />
+          <FormControlLabel value={3} control={<Radio />} label="Não Assinados" />
+        </RadioGroup>
       </Box>
 
-      <Table size="small" sx={{ width: "100%", tableLayout: "fixed" }}>
+      <Table size="small" sx={{ width: "100%", tableLayout: "fixed", mt: 2 }}>
         <TableHead>
           <TableRow>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Material
-            </TableCell>
             <TableCell
               sx={{
                 textAlign: "left",
@@ -161,7 +154,7 @@ export default function Cautelados() {
                 fontWeight: "bold",
               }}
             >
-              Quantidade
+              Viatura
             </TableCell>
             <TableCell
               sx={{
@@ -179,7 +172,25 @@ export default function Cautelados() {
                 fontWeight: "bold",
               }}
             >
-              Assinado
+              Tipo
+            </TableCell>
+            <TableCell
+              sx={{
+                textAlign: "left",
+                backgroundColor: "#ddeeee",
+                fontWeight: "bold",
+              }}
+            >
+              Telefone
+            </TableCell>
+            <TableCell
+              sx={{
+                textAlign: "left",
+                backgroundColor: "#ddeeee",
+                fontWeight: "bold",
+              }}
+            >
+              Status
             </TableCell>
           </TableRow>
         </TableHead>
@@ -192,19 +203,24 @@ export default function Cautelados() {
               hover
             >
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.material_description}
+                {mov.user_name || "-"}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.user_name}
+                {mov.viatura_description || "-"}
               </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>{mov.quantity}</TableCell>
               <TableCell sx={{ textAlign: "left" }}>
                 {mov.date?.seconds
                   ? new Date(mov.date.seconds * 1000).toLocaleDateString()
-                  : ""}
+                  : "-"}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.signed !== undefined ? (mov.signed ? "Sim" : "Não") : ""}
+                {mov.type || "-"}
+              </TableCell>
+              <TableCell sx={{ textAlign: "left" }}>
+                {mov.telefone_responsavel || "-"}
+              </TableCell>
+              <TableCell sx={{ textAlign: "left" }}>
+                {mov.status || "-"}
               </TableCell>
               <Popover
                 id={`popover-${mov.id}`}
@@ -223,7 +239,6 @@ export default function Cautelados() {
                 disableRestoreFocus
               >
                 <Typography component="div" sx={{ p: 2, maxWidth: 350 }}>
-              
                   {mov.id && <div><strong>ID:</strong> {mov.id}</div>}
                   {mov.material && (
                     <div>
@@ -250,14 +265,14 @@ export default function Cautelados() {
                       <strong>ID Militar:</strong> {mov.user}
                     </div>
                   )}
+                  {mov.viatura_description && (
+                    <div>
+                      <strong>Viatura:</strong> {mov.viatura_description}
+                    </div>
+                  )}
                   {mov.date?.seconds && (
                     <div>
                       <strong>Data:</strong> {new Date(mov.date.seconds * 1000).toLocaleString()}
-                    </div>
-                  )}
-                  {mov.signed !== undefined && (
-                    <div>
-                      <strong>Assinado:</strong> {mov.signed ? "Sim" : "Não"}
                     </div>
                   )}
                   {mov.type && (
@@ -265,9 +280,19 @@ export default function Cautelados() {
                       <strong>Tipo:</strong> {mov.type}
                     </div>
                   )}
+                  {mov.telefone_responsavel && (
+                    <div>
+                      <strong>Telefone:</strong> {mov.telefone_responsavel}
+                    </div>
+                  )}
                   {mov.status && (
                     <div>
                       <strong>Status:</strong> {mov.status}
+                    </div>
+                  )}
+                  {mov.signed !== undefined && (
+                    <div>
+                      <strong>Assinado:</strong> {mov.signed ? "Sim" : "Não"}
                     </div>
                   )}
                   {mov.sender_name && (
