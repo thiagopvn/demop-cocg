@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     RadioGroup,
     FormControlLabel,
@@ -660,20 +660,35 @@ export default function Movimentacao() {
                                     </Card>
                                 </Collapse>
 
-                    {materialSelected && (
-                        <>
-                            <TextField
-                                label="Quantidade"
-                                type="number"
-                                fullWidth
-                                value={quantidade}
-                                onChange={(e) => setQuantidade(e.target.value)}
-                                inputProps={{
-                                    min: 0,
-                                    step: 1,
-                                }}
-                                sx={{ mb: 2 }}
-                            />
+                                    {/* Seção de Detalhes da Movimentação */}
+                                <Collapse in={!!materialSelected}>
+                                    <Card elevation={2} sx={{ mb: 3, borderRadius: 3 }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                                                4. Complete os Detalhes:
+                                            </Typography>
+                                            
+                                            <Grid container spacing={3}>
+                                                <Grid item xs={12} sm={6}>
+                                                    <TextField
+                                                        label="Quantidade"
+                                                        type="number"
+                                                        fullWidth
+                                                        value={quantidade}
+                                                        onChange={(e) => setQuantidade(e.target.value)}
+                                                        inputProps={{
+                                                            min: 0,
+                                                            step: 1,
+                                                        }}
+                                                        variant="outlined"
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                borderRadius: 2,
+                                                            }
+                                                        }}
+                                                    />
+                                                </Grid>
+                                                
                                                 {/* Botão Adicionar à Lista para Cautelas */}
                                                 {tipoMovimentacao === 'cautela' && (
                                                     <Grid item xs={12} sm={6}>
@@ -869,14 +884,23 @@ export default function Movimentacao() {
                                     </Card>
                                 </Collapse>
 
-                    <Button
-                        variant="outlined"
-                        fullWidth
-                        onClick={limparTudo}
-                        sx={{ mt: 2 }}
-                    >
-                        Limpar Tudo
-                    </Button>
+                                {/* Botão Limpar Tudo */}
+                                <Box sx={{ mt: 3 }}>
+                                    <Button
+                                        variant="outlined"
+                                        fullWidth
+                                        onClick={limparTudo}
+                                        startIcon={<ClearIcon />}
+                                        sx={{
+                                            borderRadius: 2,
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            py: 1.5
+                                        }}
+                                    >
+                                        Limpar Tudo
+                                    </Button>
+                                </Box>
                             </Box>
                         </Fade>
                     </Container>
