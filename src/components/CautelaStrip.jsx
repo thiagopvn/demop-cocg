@@ -69,7 +69,7 @@ export default function CautelaStrip({ cautela, onSign }) {
           position: 'relative',
           overflow: 'hidden',
           '&:hover': {
-            transform: signed ? 'none' : 'translateY(-2px)',
+            transform: { xs: 'none', sm: signed ? 'none' : 'translateY(-2px)' },
             boxShadow: signed ? 1 : 4,
             borderColor: signed ? alpha('#22c55e', 0.3) : alpha('#ef4444', 0.6),
           },
@@ -86,33 +86,50 @@ export default function CautelaStrip({ cautela, onSign }) {
           }
         }}
       >
-        <CardContent sx={{ pb: 1 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <CardContent sx={{ pb: 1, p: { xs: 2, sm: 3 } }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between', 
+            alignItems: { xs: 'stretch', sm: 'flex-start' }, 
+            mb: 2,
+            gap: { xs: 2, sm: 0 }
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
               <Avatar
                 sx={{
                   bgcolor: signed ? alpha('#22c55e', 0.1) : alpha('#f59e0b', 0.1),
                   color: signed ? '#22c55e' : '#f59e0b',
-                  width: 48,
-                  height: 48,
+                  width: { xs: 40, sm: 48 },
+                  height: { xs: 40, sm: 48 },
                 }}
               >
-                <Assignment />
+                <Assignment sx={{ fontSize: { xs: 20, sm: 24 } }} />
               </Avatar>
-              <Box>
-                <Typography variant="h6" fontWeight={600}>
+              <Box sx={{ flex: 1 }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight={600}
+                  sx={{ 
+                    fontSize: { xs: '1rem', sm: '1.25rem' },
+                    lineHeight: 1.2,
+                    wordBreak: 'break-word'
+                  }}
+                >
                   {cautela.material_description || "Material não especificado"}
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
                   <Chip
-                    icon={<Schedule sx={{ fontSize: 16 }} />}
+                    icon={<Schedule sx={{ fontSize: { xs: 14, sm: 16 } }} />}
                     label={cautela.date ? formatDate(cautela.date) : "Data não disponível"}
                     size="small"
                     sx={{
-                      height: 24,
+                      height: { xs: 20, sm: 24 },
                       backgroundColor: alpha('#3b82f6', 0.1),
                       color: '#3b82f6',
-                      '& .MuiChip-icon': { color: '#3b82f6' }
+                      fontSize: { xs: '0.7rem', sm: '0.8125rem' },
+                      '& .MuiChip-icon': { color: '#3b82f6' },
+                      '& .MuiChip-label': { px: 1 }
                     }}
                   />
                 </Box>
@@ -123,10 +140,11 @@ export default function CautelaStrip({ cautela, onSign }) {
               color="primary"
               sx={{
                 fontWeight: 700,
-                fontSize: '1rem',
-                height: 36,
-                minWidth: 80,
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                height: { xs: 32, sm: 36 },
+                minWidth: { xs: 70, sm: 80 },
                 backgroundColor: alpha('#3b82f6', 0.9),
+                alignSelf: { xs: 'flex-start', sm: 'center' }
               }}
             />
           </Box>
@@ -134,21 +152,25 @@ export default function CautelaStrip({ cautela, onSign }) {
           {!signed && (
             <Alert 
               severity="warning" 
-              icon={<Warning />}
+              icon={<Warning sx={{ fontSize: { xs: 20, sm: 24 } }} />}
               sx={{ 
                 mt: 2,
                 borderRadius: 1,
                 backgroundColor: alpha('#f59e0b', 0.1),
                 border: `1px solid ${alpha('#f59e0b', 0.3)}`,
                 '& .MuiAlert-icon': {
-                  color: '#f59e0b'
+                  color: '#f59e0b',
+                  mr: { xs: 1, sm: 2 }
+                },
+                '& .MuiAlert-message': {
+                  width: '100%'
                 }
               }}
             >
-              <AlertTitle sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+              <AlertTitle sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                 Assinatura Pendente
               </AlertTitle>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 Clique no botão abaixo para confirmar o recebimento deste material
               </Typography>
             </Alert>
@@ -159,16 +181,21 @@ export default function CautelaStrip({ cautela, onSign }) {
               sx={{ 
                 display: 'flex', 
                 alignItems: 'center', 
-                gap: 1,
+                gap: { xs: 0.5, sm: 1 },
                 mt: 2,
-                p: 1.5,
+                p: { xs: 1, sm: 1.5 },
                 borderRadius: 1,
                 backgroundColor: alpha('#22c55e', 0.1),
                 border: `1px solid ${alpha('#22c55e', 0.3)}`,
               }}
             >
-              <CheckCircle sx={{ color: '#22c55e' }} />
-              <Typography variant="body2" color="#22c55e" fontWeight={600}>
+              <CheckCircle sx={{ color: '#22c55e', fontSize: { xs: 20, sm: 24 } }} />
+              <Typography 
+                variant="body2" 
+                color="#22c55e" 
+                fontWeight={600}
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+              >
                 Material assinado e confirmado
               </Typography>
             </Box>
@@ -176,26 +203,26 @@ export default function CautelaStrip({ cautela, onSign }) {
         </CardContent>
         
         {!signed && (
-          <CardActions sx={{ px: 2, pb: 2 }}>
+          <CardActions sx={{ px: { xs: 2, sm: 2 }, pb: 2, pt: 0 }}>
             <Button
               fullWidth
               variant="contained"
               size="large"
-              startIcon={<Create />}
+              startIcon={<Create sx={{ fontSize: { xs: 18, sm: 20 } }} />}
               onClick={() => setDialogOpen(true)}
               sx={{
                 background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
                 color: 'white',
                 fontWeight: 600,
-                py: 1.5,
+                py: { xs: 1, sm: 1.5 },
                 borderRadius: 2,
                 textTransform: 'none',
-                fontSize: '1rem',
+                fontSize: { xs: '0.875rem', sm: '1rem' },
                 boxShadow: 3,
                 '&:hover': {
                   background: 'linear-gradient(135deg, #dc2626 0%, #ea580c 100%)',
                   boxShadow: 5,
-                  transform: 'translateY(-1px)',
+                  transform: { xs: 'none', sm: 'translateY(-1px)' },
                 }
               }}
             >
@@ -209,12 +236,15 @@ export default function CautelaStrip({ cautela, onSign }) {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         TransitionComponent={Zoom}
+        fullWidth
+        maxWidth="sm"
         PaperProps={{
           sx: {
-            borderRadius: 3,
-            minWidth: 400,
+            borderRadius: { xs: 2, sm: 3 },
             border: '2px solid',
             borderColor: alpha('#f59e0b', 0.3),
+            mx: { xs: 2, sm: 3 },
+            width: { xs: 'calc(100% - 32px)', sm: 'auto' }
           }
         }}
       >
@@ -222,49 +252,69 @@ export default function CautelaStrip({ cautela, onSign }) {
           pb: 1,
           background: `linear-gradient(135deg, ${alpha('#f59e0b', 0.1)} 0%, ${alpha('#ef4444', 0.05)} 100%)`,
           borderBottom: '1px solid',
-          borderColor: 'divider'
+          borderColor: 'divider',
+          px: { xs: 2, sm: 3 }
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Warning sx={{ color: '#f59e0b', fontSize: 28 }} />
-            <Typography variant="h5" fontWeight={700}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
+            <Warning sx={{ color: '#f59e0b', fontSize: { xs: 24, sm: 28 } }} />
+            <Typography 
+              variant="h5" 
+              fontWeight={700}
+              sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}
+            >
               Confirmação Importante
             </Typography>
           </Box>
         </DialogTitle>
 
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ pt: { xs: 2, sm: 3 }, px: { xs: 2, sm: 3 } }}>
           <Alert 
             severity="info" 
-            icon={<VerifiedUser />}
+            icon={<VerifiedUser sx={{ fontSize: { xs: 20, sm: 24 } }} />}
             sx={{ 
-              mb: 3,
+              mb: { xs: 2, sm: 3 },
               borderRadius: 2,
               backgroundColor: alpha('#3b82f6', 0.05),
               border: `1px solid ${alpha('#3b82f6', 0.2)}`,
+              '& .MuiAlert-icon': {
+                mr: { xs: 1, sm: 2 }
+              },
+              '& .MuiAlert-message': {
+                width: '100%'
+              }
             }}
           >
-            <AlertTitle sx={{ fontWeight: 600 }}>
+            <AlertTitle sx={{ fontWeight: 600, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
               Atenção: Ação Irreversível
             </AlertTitle>
-            <Typography variant="body2">
+            <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
               Ao assinar, você confirma ter recebido o material <strong>{cautela.material_description}</strong> em 
               quantidade de <strong>{cautela.quantity} unidades</strong> e assume total responsabilidade pelo mesmo.
             </Typography>
           </Alert>
           
           <Box sx={{ 
-            p: 2, 
+            p: { xs: 1.5, sm: 2 }, 
             borderRadius: 2,
             border: '2px dashed',
             borderColor: alpha('#f59e0b', 0.3),
             backgroundColor: alpha('#f59e0b', 0.02),
             mb: 2
           }}>
-            <Typography variant="body1" fontWeight={600} gutterBottom>
+            <Typography 
+              variant="body1" 
+              fontWeight={600} 
+              gutterBottom
+              sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+            >
               Para confirmar a assinatura:
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Digite exatamente <Chip label="Aceito" size="small" color="warning" sx={{ mx: 0.5 }} /> no campo abaixo
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+            >
+              Digite exatamente <Chip label="Aceito" size="small" color="warning" sx={{ mx: 0.5, height: { xs: 20, sm: 24 } }} /> no campo abaixo
             </Typography>
           </Box>
 

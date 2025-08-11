@@ -80,13 +80,14 @@ const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
     <Card
       sx={{
         height: '100%',
+        minHeight: { xs: 120, sm: 'auto' },
         background: `linear-gradient(135deg, ${alpha(color, 0.1)} 0%, ${alpha(color, 0.05)} 100%)`,
         border: `1px solid ${alpha(color, 0.2)}`,
         position: 'relative',
         overflow: 'hidden',
         transition: 'all 0.3s ease',
         '&:hover': {
-          transform: 'translateY(-4px)',
+          transform: { xs: 'none', sm: 'translateY(-4px)' },
           boxShadow: `0 12px 24px ${alpha(color, 0.2)}`,
           border: `1px solid ${alpha(color, 0.3)}`,
         },
@@ -101,7 +102,7 @@ const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
         }
       }}
     >
-      <CardContent>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ flex: 1 }}>
             {loading ? (
@@ -118,7 +119,9 @@ const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
                     fontWeight: 500,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
-                    fontSize: '0.75rem'
+                    fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                    display: 'block',
+                    lineHeight: 1.2
                   }}
                 >
                   {title}
@@ -131,7 +134,8 @@ const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
                     mt: 0.5,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 1
+                    gap: 1,
+                    fontSize: { xs: '1.5rem', sm: '2.125rem' }
                   }}
                 >
                   {value}
@@ -141,10 +145,11 @@ const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
                       icon={trend > 0 ? <TrendingUp /> : <TrendingDown />}
                       label={`${trend > 0 ? '+' : ''}${trend}%`}
                       sx={{
-                        height: 24,
+                        height: { xs: 20, sm: 24 },
                         backgroundColor: trend > 0 ? alpha('#22c55e', 0.1) : alpha('#ef4444', 0.1),
                         color: trend > 0 ? '#22c55e' : '#ef4444',
                         border: `1px solid ${trend > 0 ? alpha('#22c55e', 0.3) : alpha('#ef4444', 0.3)}`,
+                        display: { xs: 'none', sm: 'inline-flex' },
                         '& .MuiChip-icon': {
                           fontSize: 16,
                           color: 'inherit'
@@ -160,12 +165,12 @@ const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
             sx={{
               bgcolor: alpha(color, 0.1),
               color: color,
-              width: 56,
-              height: 56,
+              width: { xs: 40, sm: 56 },
+              height: { xs: 40, sm: 56 },
               border: `2px solid ${alpha(color, 0.2)}`,
             }}
           >
-            <Icon sx={{ fontSize: 28 }} />
+            <Icon sx={{ fontSize: { xs: 20, sm: 28 } }} />
           </Avatar>
         </Box>
       </CardContent>
@@ -199,7 +204,7 @@ const MovementCard = ({ movement }) => {
   return (
     <Paper
       sx={{
-        p: 2,
+        p: { xs: 1.5, sm: 2 },
         mb: 1.5,
         borderRadius: 2,
         border: '1px solid',
@@ -207,37 +212,70 @@ const MovementCard = ({ movement }) => {
         transition: 'all 0.2s ease',
         '&:hover': {
           boxShadow: 3,
-          transform: 'translateX(4px)',
+          transform: { xs: 'none', sm: 'translateX(4px)' },
           borderColor: getStatusColor(movement.type),
         }
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        flexWrap: { xs: 'wrap', sm: 'nowrap' },
+        gap: { xs: 1, sm: 0 }
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, flex: 1 }}>
           <Avatar
             sx={{
               bgcolor: alpha(getStatusColor(movement.type), 0.1),
               color: getStatusColor(movement.type),
-              width: 40,
-              height: 40,
+              width: { xs: 36, sm: 40 },
+              height: { xs: 36, sm: 40 },
             }}
           >
             {getStatusIcon(movement.type)}
           </Avatar>
-          <Box>
-            <Typography variant="body1" fontWeight={600}>
+          <Box sx={{ flex: 1 }}>
+            <Typography 
+              variant="body1" 
+              fontWeight={600}
+              sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+            >
               {movement.type.charAt(0).toUpperCase() + movement.type.slice(1)}
             </Typography>
-            <Typography variant="body2" fontWeight={500}>
+            <Typography 
+              variant="body2" 
+              fontWeight={500}
+              sx={{ 
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                color: 'text.secondary',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: { xs: '140px', sm: 'none' }
+              }}
+            >
               {movement.sender_name || 'Usuário'}
             </Typography>
           </Box>
         </Box>
-        <Box sx={{ textAlign: 'right' }}>
-          <Typography variant="caption" color="text.secondary" display="block">
+        <Box sx={{ 
+          textAlign: 'right',
+          minWidth: { xs: 'auto', sm: 'auto' }
+        }}>
+          <Typography 
+            variant="caption" 
+            color="text.secondary" 
+            display="block"
+            sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+          >
             {new Date(movement.date?.toDate?.() || movement.date).toLocaleDateString('pt-BR')}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography 
+            variant="caption" 
+            color="text.secondary"
+            sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+          >
             {new Date(movement.date?.toDate?.() || movement.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </Typography>
         </Box>
@@ -439,11 +477,11 @@ export default function Home() {
   return (
     <PrivateRoute>
       <MenuContext>
-        <Container maxWidth="xl" sx={{ py: 3 }}>
+        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 2, sm: 3 } }}>
           <Fade in timeout={600}>
             <Box>
               {/* Header */}
-              <Box sx={{ mb: 4 }}>
+              <Box sx={{ mb: { xs: 3, sm: 4 } }}>
                 <Typography 
                   variant="h4" 
                   sx={{ 
@@ -451,18 +489,23 @@ export default function Home() {
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
-                    mb: 1
+                    mb: 1,
+                    fontSize: { xs: '1.75rem', sm: '2.125rem' }
                   }}
                 >
                   Dashboard
                 </Typography>
-                <Typography variant="body1" color="text.secondary">
+                <Typography 
+                  variant="body1" 
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                >
                   Bem-vindo ao sistema de controle de materiais
                 </Typography>
               </Box>
 
               {/* Stats Cards */}
-              <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
                 {[
                   { 
                     icon: Assignment, 
@@ -494,7 +537,7 @@ export default function Home() {
                   },
                 ].map((item, index) => (
                   <Grow in timeout={300 + index * 100} key={index}>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid item xs={6} sm={6} md={3}>
                       <StatCard {...item} loading={loading} />
                     </Grid>
                   </Grow>
@@ -502,30 +545,40 @@ export default function Home() {
               </Grid>
 
               {/* Charts Section */}
-              <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
                 <Grid item xs={12} md={8}>
                   <Paper 
                     sx={{ 
-                      p: 3, 
-                      height: 400,
+                      p: { xs: 2, sm: 3 }, 
+                      height: { xs: 300, sm: 400 },
                       borderRadius: 2,
                       border: '1px solid',
                       borderColor: 'divider',
                     }}
                   >
-                    <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
+                    <Typography 
+                      variant="h6" 
+                      fontWeight={600} 
+                      sx={{ 
+                        mb: { xs: 2, sm: 3 },
+                        fontSize: { xs: '1rem', sm: '1.25rem' }
+                      }}
+                    >
                       Movimentações por Tipo
                     </Typography>
                     <ResponsiveContainer width="100%" height="85%">
-                      <BarChart data={chartData}>
+                      <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={alpha('#000', 0.08)} />
                         <XAxis 
                           dataKey="name" 
-                          tick={{ fontSize: 12 }}
+                          tick={{ fontSize: { xs: 10, sm: 12 } }}
                           axisLine={{ stroke: alpha('#000', 0.1) }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
                         />
                         <YAxis 
-                          tick={{ fontSize: 12 }}
+                          tick={{ fontSize: { xs: 10, sm: 12 } }}
                           axisLine={{ stroke: alpha('#000', 0.1) }}
                         />
                         <Tooltip content={<CustomTooltip />} />
@@ -546,32 +599,39 @@ export default function Home() {
                 <Grid item xs={12} md={4}>
                   <Paper 
                     sx={{ 
-                      p: 3, 
-                      height: 400,
+                      p: { xs: 2, sm: 3 }, 
+                      height: { xs: 'auto', sm: 400 },
                       borderRadius: 2,
                       border: '1px solid',
                       borderColor: 'divider',
                       background: `linear-gradient(135deg, ${alpha('#3b82f6', 0.05)} 0%, ${alpha('#8b5cf6', 0.05)} 100%)`,
                     }}
                   >
-                    <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
+                    <Typography 
+                      variant="h6" 
+                      fontWeight={600} 
+                      sx={{ 
+                        mb: { xs: 2, sm: 3 },
+                        fontSize: { xs: '1rem', sm: '1.25rem' }
+                      }}
+                    >
                       Estatísticas Rápidas
                     </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '85%', justifyContent: 'center' }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 }, height: { xs: 'auto', sm: '85%' }, justifyContent: 'center' }}>
                       <Paper 
                         elevation={0}
                         sx={{ 
-                          p: 2, 
+                          p: { xs: 1.5, sm: 2 }, 
                           borderRadius: 2,
                           border: '1px solid',
                           borderColor: alpha('#3b82f6', 0.2),
                           background: alpha('#3b82f6', 0.05),
                         }}
                       >
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                           Taxa de Cautela
                         </Typography>
-                        <Typography variant="h4" color="#3b82f6" fontWeight={700}>
+                        <Typography variant="h4" color="#3b82f6" fontWeight={700} sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
                           {stats.totalMaterials > 0 
                             ? `${((stats.materiaisCautelados / stats.totalMaterials) * 100).toFixed(1)}%`
                             : '0%'
@@ -581,17 +641,17 @@ export default function Home() {
                       <Paper 
                         elevation={0}
                         sx={{ 
-                          p: 2, 
+                          p: { xs: 1.5, sm: 2 }, 
                           borderRadius: 2,
                           border: '1px solid',
                           borderColor: alpha('#22c55e', 0.2),
                           background: alpha('#22c55e', 0.05),
                         }}
                       >
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                           Movimentações Hoje
                         </Typography>
-                        <Typography variant="h4" color="#22c55e" fontWeight={700}>
+                        <Typography variant="h4" color="#22c55e" fontWeight={700} sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
                           {stats.allMovements.filter(m => {
                             const moveDate = new Date(m.date?.toDate?.() || m.date);
                             const today = new Date();
@@ -602,17 +662,17 @@ export default function Home() {
                       <Paper 
                         elevation={0}
                         sx={{ 
-                          p: 2, 
+                          p: { xs: 1.5, sm: 2 }, 
                           borderRadius: 2,
                           border: '1px solid',
                           borderColor: alpha('#f59e0b', 0.2),
                           background: alpha('#f59e0b', 0.05),
                         }}
                       >
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                           Pendentes de Assinatura
                         </Typography>
-                        <Typography variant="h4" color="#f59e0b" fontWeight={700}>
+                        <Typography variant="h4" color="#f59e0b" fontWeight={700} sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
                           {minhasCautelas.filter(c => !c.signed).length}
                         </Typography>
                       </Paper>
@@ -622,20 +682,24 @@ export default function Home() {
               </Grid>
 
               {/* Recent Movements & User Cautelas */}
-              <Grid container spacing={3}>
+              <Grid container spacing={{ xs: 2, sm: 3 }}>
                 <Grid item xs={12} md={6}>
                   <Paper 
                     sx={{ 
-                      p: 3,
+                      p: { xs: 2, sm: 3 },
                       borderRadius: 2,
                       border: '1px solid',
                       borderColor: 'divider',
-                      maxHeight: 500,
+                      maxHeight: { xs: 400, sm: 500 },
                       overflow: 'auto'
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="h6" fontWeight={600}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                      <Typography 
+                        variant="h6" 
+                        fontWeight={600}
+                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                      >
                         Movimentações Recentes
                       </Typography>
                       <Chip 
@@ -671,16 +735,20 @@ export default function Home() {
                   {minhasCautelas.length > 0 && (
                     <Paper 
                       sx={{ 
-                        p: 3,
+                        p: { xs: 2, sm: 3 },
                         borderRadius: 2,
                         border: '1px solid',
                         borderColor: 'divider',
-                        maxHeight: 500,
+                        maxHeight: { xs: 400, sm: 500 },
                         overflow: 'auto'
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                        <Typography variant="h6" fontWeight={600}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                        <Typography 
+                          variant="h6" 
+                          fontWeight={600}
+                          sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                        >
                           Suas Movimentações
                         </Typography>
                         <Chip 
