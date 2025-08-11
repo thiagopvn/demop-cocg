@@ -250,13 +250,21 @@ export default function Rings() {
     return (
         <PrivateRoute>
             <MenuContext>
-                <div className="root-protected">
+                <div className="root-protected" style={{ padding: '20px', height: '100vh', display: 'flex', flexDirection: 'column' }}>
                     {userRole === "user" && (
-                        <div style={{ backgroundColor: yellow[500], textAlign: "center" }}>
-                            Você tem permissão apenas para visualizar os registros
+                        <div style={{ 
+                            backgroundColor: '#fff3e0', 
+                            color: '#e65100',
+                            textAlign: "center", 
+                            padding: '12px',
+                            borderRadius: '8px',
+                            marginBottom: '16px',
+                            fontWeight: 600
+                        }}>
+                            ⚠️ Você tem permissão apenas para visualizar os registros
                         </div>
                     )}
-                    <div className="search">
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '100%' }}>
                         {/* Header Section with Title and Add Button */}
                         <div style={{ 
                             display: 'flex', 
@@ -302,73 +310,121 @@ export default function Rings() {
                             )}
                         </div>
 
-                        <TextField
-                            size="small"
-                            label="Pesquisar por solicitante..."
-                            variant="outlined"
-                            onKeyDown={handleEnterKeyDown}
-                            fullWidth
-                            value={critery}
-                            onChange={(e) => setCritery(e.target.value)}
-                            sx={{ 
-                                marginBottom: 3,
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '12px',
-                                    backgroundColor: '#fff8e1',
-                                    '&:hover': {
-                                        backgroundColor: '#ffffff',
-                                    },
-                                    '&.Mui-focused': {
-                                        backgroundColor: '#ffffff',
-                                    }
-                                }
-                            }}
-                            slotProps={{
-                                input: {
-                                    endAdornment: (
-                                        <IconButton 
-                                            position="end" 
-                                            onClick={() => filter(critery)}
-                                            sx={{
-                                                color: '#ff9800',
-                                                '&:hover': {
-                                                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                                                }
-                                            }}
-                                        >
-                                            <SearchIcon />
-                                        </IconButton>
-                                    ),
-                                },
-                            }}
-                        />
-
-                        <Table 
-                            size="small" 
-                            sx={{
-                                '& .MuiTableHead-root': {
-                                    '& .MuiTableRow-root': {
-                                        '& .MuiTableCell-root': {
-                                            backgroundColor: '#fff3e0',
-                                            borderBottom: '2px solid #ff9800',
-                                            fontWeight: 700,
-                                            fontSize: '0.875rem',
-                                            color: '#e65100',
-                                        }
-                                    }
-                                },
-                                '& .MuiTableBody-root': {
-                                    '& .MuiTableRow-root': {
+                        {/* Seção de Pesquisa Moderna */}
+                        <div style={{
+                            backgroundColor: '#ffffff',
+                            padding: '20px',
+                            borderRadius: '16px',
+                            marginBottom: '20px',
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                            border: '1px solid #fff3e0'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                                <SearchIcon sx={{ color: '#ff9800', fontSize: '24px' }} />
+                                <Typography variant="h6" sx={{ fontWeight: 600, color: '#ff9800' }}>
+                                    Pesquisar Anéis
+                                </Typography>
+                            </div>
+                            <TextField
+                                size="medium"
+                                label="Digite o nome do solicitante..."
+                                variant="outlined"
+                                onKeyDown={handleEnterKeyDown}
+                                fullWidth
+                                value={critery}
+                                onChange={(e) => setCritery(e.target.value)}
+                                sx={{ 
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '12px',
+                                        backgroundColor: '#fff8e1',
+                                        fontSize: '1rem',
                                         '&:hover': {
-                                            backgroundColor: '#fff8e1',
+                                            backgroundColor: '#ffffff',
+                                            boxShadow: '0 2px 8px rgba(255, 152, 0, 0.1)',
                                         },
-                                        '& .MuiTableCell-root': {
-                                            borderBottom: '1px solid #e0e0e0',
+                                        '&.Mui-focused': {
+                                            backgroundColor: '#ffffff',
+                                            boxShadow: '0 4px 12px rgba(255, 152, 0, 0.2)',
                                         }
                                     }
-                                }
-                            }}
-                        >
+                                }}
+                                slotProps={{
+                                    input: {
+                                        endAdornment: (
+                                            <Button
+                                                variant="contained"
+                                                onClick={() => filter(critery)}
+                                                sx={{
+                                                    borderRadius: '8px',
+                                                    textTransform: 'none',
+                                                    fontWeight: 600,
+                                                    backgroundColor: '#ff9800',
+                                                    '&:hover': {
+                                                        backgroundColor: '#f57c00',
+                                                    }
+                                                }}
+                                            >
+                                                Pesquisar
+                                            </Button>
+                                        ),
+                                    },
+                                }}
+                            />
+                        </div>
+
+                        {/* Container da Tabela com ocupação total */}
+                        <div style={{
+                            flex: 1,
+                            backgroundColor: '#ffffff',
+                            borderRadius: '16px',
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                            border: '1px solid #fff3e0',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}>
+                            <div style={{ 
+                                padding: '20px 24px 16px', 
+                                borderBottom: '1px solid #fff3e0',
+                                backgroundColor: '#fff8e1'
+                            }}>
+                                <Typography variant="h6" sx={{ fontWeight: 600, color: '#e65100' }}>
+                                    💍 Lista de Retiradas de Anéis
+                                </Typography>
+                            </div>
+                            <div style={{ flex: 1, overflow: 'auto' }}>
+                                <Table 
+                                    size="medium"
+                                    sx={{
+                                        '& .MuiTableHead-root': {
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 1,
+                                            '& .MuiTableRow-root': {
+                                                '& .MuiTableCell-root': {
+                                                    backgroundColor: '#fff3e0',
+                                                    borderBottom: '2px solid #ff9800',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.95rem',
+                                                    color: '#e65100',
+                                                    padding: '16px',
+                                                }
+                                            }
+                                        },
+                                        '& .MuiTableBody-root': {
+                                            '& .MuiTableRow-root': {
+                                                '&:hover': {
+                                                    backgroundColor: '#fff8e1',
+                                                },
+                                                '& .MuiTableCell-root': {
+                                                    borderBottom: '1px solid #e0e0e0',
+                                                    padding: '16px',
+                                                    fontSize: '0.9rem'
+                                                }
+                                            }
+                                        }
+                                    }}
+                                >
                             <TableHead>
                                 <TableRow>
                                     <TableCell sx={{ textAlign: "center" }}>
@@ -537,8 +593,10 @@ export default function Rings() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                            </TableBody>
-                        </Table>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <RingDialog
