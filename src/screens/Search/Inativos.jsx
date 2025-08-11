@@ -13,8 +13,11 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle
+  DialogTitle,
+  IconButton,
+  Chip
 } from "@mui/material";
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import db from "../../firebase/db";
 import { query, collection, where, getDocs, doc, updateDoc } from "firebase/firestore";
 
@@ -32,7 +35,11 @@ export default function Inativos() {
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(movimentacoesCollection, where("status", "in", ["emReparo", "devolvido"]));
+      const q = query(
+        movimentacoesCollection, 
+        where("type", "==", "reparo"),
+        where("status", "in", ["emReparo", "devolvidaDeReparo"])
+      );
       const querySnapshot = await getDocs(q);
       const movs = [];
       querySnapshot.forEach((doc) => {
@@ -100,14 +107,14 @@ export default function Inativos() {
     try {
       const movimentacaoRef = doc(db, "movimentacoes", selectedMovimentacao.id);
       await updateDoc(movimentacaoRef, {
-        status: "devolvido"
+        status: "devolvidaDeReparo"
       });
 
       // Atualizar a lista local
       setMovimentacoes(prev => 
         prev.map(mov => 
           mov.id === selectedMovimentacao.id 
-            ? { ...mov, status: "devolvido" }
+            ? { ...mov, status: "devolvidaDeReparo" }
             : mov
         )
       );
@@ -141,6 +148,9 @@ export default function Inativos() {
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
               Status
             </TableCell>
+            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              Motivo do Reparo
+            </TableCell>
             <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
               Ações
             </TableCell>
@@ -170,18 +180,29 @@ export default function Inativos() {
                 {mov.repairLocation || "-"}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.status === "emReparo" ? "Em Reparo" : "Devolvido"}
+                {mov.status === "emReparo" ? "Em reparo" : "Devolvida"}
+              </TableCell>
+              <TableCell sx={{ textAlign: "left" }}>
+                {mov.motivoReparo || "-"}
               </TableCell>
               <TableCell sx={{ textAlign: "center" }}>
                 {mov.status === "emReparo" && (
-                  <Button 
-                    size="small" 
-                    variant="contained" 
-                    color="success"
-                    onClick={() => handleOpenDialog(mov)}
-                  >
-                    Marcar como Devolvido
-                  </Button>
+                  <Tooltip title="Marcar como Devolvida" arrow>
+                    <Chip
+                      icon={<CheckCircleIcon />}
+                      label="Devolvida"
+                      variant="outlined"
+                      color="success"
+                      clickable
+                      onClick={() => handleOpenDialog(mov)}
+                      sx={{
+                        '&:hover': {
+                          backgroundColor: 'rgba(46, 125, 50, 0.04)',
+                          borderColor: 'success.main'
+                        }
+                      }}
+                    />
+                  </Tooltip>
                 )}
               </TableCell>
               <Popover
@@ -227,9 +248,14 @@ export default function Inativos() {
                       <strong>Número SEI:</strong> {mov.seiNumber}
                     </div>
                   )}
+                  {mov.motivoReparo && (
+                    <div>
+                      <strong>Motivo do Reparo:</strong> {mov.motivoReparo}
+                    </div>
+                  )}
                   {mov.status && (
                     <div>
-                      <strong>Status:</strong> {mov.status === "emReparo" ? "Em Reparo" : "Devolvido"}
+                      <strong>Status:</strong> {mov.status === "emReparo" ? "Em reparo" : "Devolvida"}
                     </div>
                   )}
                   {mov.date?.seconds && (

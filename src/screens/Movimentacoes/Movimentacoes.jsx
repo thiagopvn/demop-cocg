@@ -38,6 +38,7 @@ export default function Movimentacao() {
     const [viaturaSelected, setViaturaSelected] = useState(null);
     const [showViaturaSearch, setShowViaturaSearch] = useState(false);
     const [numeroSei, setNumeroSei] = useState("");
+    const [motivoReparo, setMotivoReparo] = useState("");
 
 
     useEffect(() => {
@@ -91,6 +92,7 @@ export default function Movimentacao() {
         setViaturaCritery("");
         setViaturaSelected(null);
         setNumeroSei("");
+        setMotivoReparo("");
     };
 
     // Função para limpar TUDO, incluindo o tipo de movimentação
@@ -130,7 +132,7 @@ export default function Movimentacao() {
                 case "saída":
                     return materialSelected && userSelected && quantidade;
                 case "reparo":
-                    return materialSelected && quantidade && localReparo && numeroSei;
+                    return materialSelected && quantidade && localReparo && numeroSei && motivoReparo;
                 case "cautela":
                     // Remove a necessidade de ter viaturaSelected
                     return materialSelected && userSelected && quantidade;
@@ -139,7 +141,7 @@ export default function Movimentacao() {
             }
         };
         setShowSaveButton(validateFields());
-    }, [tipoMovimentacao, materialSelected, userSelected, viaturaSelected, quantidade, localReparo, numeroSei]);
+    }, [tipoMovimentacao, materialSelected, userSelected, viaturaSelected, quantidade, localReparo, numeroSei, motivoReparo]);
 
     // Funções para limpar seleção
     const handleClearMaterial = () => {
@@ -209,6 +211,7 @@ export default function Movimentacao() {
 
             if (localReparo) movementData.repairLocation = localReparo;
             if (numeroSei) movementData.seiNumber = numeroSei;
+            if (motivoReparo) movementData.motivoReparo = motivoReparo;
 
             // Atualizar estoque do material
             let updateData = {};
@@ -395,6 +398,15 @@ export default function Movimentacao() {
                                 fullWidth
                                 value={numeroSei}
                                 onChange={(e) => setNumeroSei(e.target.value)}
+                                sx={{ mb: 2 }}
+                            />
+                            <TextField
+                                label="Motivo da Inoperância"
+                                fullWidth
+                                multiline
+                                rows={3}
+                                value={motivoReparo}
+                                onChange={(e) => setMotivoReparo(e.target.value)}
                                 sx={{ mb: 2 }}
                             />
                         </>
