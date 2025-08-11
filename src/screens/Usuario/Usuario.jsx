@@ -317,8 +317,8 @@ export default function Usuario() {
   return (
     <PrivateRoute>
       <MenuContext>
-        <div className="root-protected">
-          <div className="search">
+        <div className="root-protected" style={{ padding: '20px', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '100%' }}>
             {/* Header Section with Title and Add Button */}
             <div style={{ 
               display: 'flex', 
@@ -364,75 +364,123 @@ export default function Usuario() {
               )}
             </div>
 
+            {/* Seção de Pesquisa Moderna */}
             {(userRole === "admin" || userRole === "editor") && (
-              <TextField
-                size="small"
-                label="Pesquisar por nome..."
-                variant="outlined"
-                onKeyDown={handleEnterKeyDown}
-                fullWidth
-                value={critery}
-                onChange={(e) => setCritery(e.target.value)}
-                sx={{ 
-                  marginBottom: 3,
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '12px',
-                    backgroundColor: '#f8f9fa',
-                    '&:hover': {
-                      backgroundColor: '#ffffff',
-                    },
-                    '&.Mui-focused': {
-                      backgroundColor: '#ffffff',
+              <div style={{
+                backgroundColor: '#ffffff',
+                padding: '20px',
+                borderRadius: '16px',
+                marginBottom: '20px',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                border: '1px solid #e3f2fd'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <SearchIcon sx={{ color: '#1976d2', fontSize: '24px' }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>
+                    Pesquisar Usuários
+                  </Typography>
+                </div>
+                <TextField
+                  size="medium"
+                  label="Digite o nome do usuário..."
+                  variant="outlined"
+                  onKeyDown={handleEnterKeyDown}
+                  fullWidth
+                  value={critery}
+                  onChange={(e) => setCritery(e.target.value)}
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                      backgroundColor: '#f8f9ff',
+                      fontSize: '1rem',
+                      '&:hover': {
+                        backgroundColor: '#ffffff',
+                        boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)',
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: '#ffffff',
+                        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
+                      }
                     }
-                  }
-                }}
-                slotProps={{
-                  input: {
-                    endAdornment: (
-                      <IconButton 
-                        position="end"
-                        onClick={() => getUsers(critery)}
-                        sx={{
-                          color: '#1976d2',
-                          '&:hover': {
-                            backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                          }
-                        }}
-                      >
-                        <SearchIcon />
-                      </IconButton>
-                    ),
-                  },
-                }}
-              />
+                  }}
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <Button
+                          variant="contained"
+                          onClick={() => getUsers(critery)}
+                          sx={{
+                            borderRadius: '8px',
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            backgroundColor: '#1976d2',
+                            '&:hover': {
+                              backgroundColor: '#1565c0',
+                            }
+                          }}
+                        >
+                          Pesquisar
+                        </Button>
+                      ),
+                    },
+                  }}
+                />
+              </div>
             )}
 
-            <Table 
-              size="small" 
-              sx={{
-                '& .MuiTableHead-root': {
-                  '& .MuiTableRow-root': {
-                    '& .MuiTableCell-root': {
-                      backgroundColor: '#e3f2fd',
-                      borderBottom: '2px solid #1976d2',
-                      fontWeight: 700,
-                      fontSize: '0.875rem',
-                      color: '#1565c0',
-                    }
-                  }
-                },
-                '& .MuiTableBody-root': {
-                  '& .MuiTableRow-root': {
-                    '&:hover': {
-                      backgroundColor: '#f5f5f5',
+            {/* Container da Tabela com ocupação total */}
+            <div style={{
+              flex: 1,
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #e3f2fd',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <div style={{ 
+                padding: '20px 24px 16px', 
+                borderBottom: '1px solid #e3f2fd',
+                backgroundColor: '#f8f9ff'
+              }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: '#1565c0' }}>
+                  📋 Lista de Usuários
+                </Typography>
+              </div>
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <Table 
+                  size="medium"
+                  sx={{
+                    '& .MuiTableHead-root': {
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 1,
+                      '& .MuiTableRow-root': {
+                        '& .MuiTableCell-root': {
+                          backgroundColor: '#e3f2fd',
+                          borderBottom: '2px solid #1976d2',
+                          fontWeight: 700,
+                          fontSize: '0.95rem',
+                          color: '#1565c0',
+                          padding: '16px',
+                        }
+                      }
                     },
-                    '& .MuiTableCell-root': {
-                      borderBottom: '1px solid #e0e0e0',
+                    '& .MuiTableBody-root': {
+                      '& .MuiTableRow-root': {
+                        '&:hover': {
+                          backgroundColor: '#f8f9ff',
+                        },
+                        '& .MuiTableCell-root': {
+                          borderBottom: '1px solid #e0e0e0',
+                          padding: '16px',
+                          fontSize: '0.9rem'
+                        }
+                      }
                     }
-                  }
-                }
-              }}
-            >
+                  }}
+                >
               <TableHead>
                 <TableRow>
                   <TableCell
@@ -583,8 +631,10 @@ export default function Usuario() {
                     </TableRow>
                   ))
                 )}
-              </TableBody>
-            </Table>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           </div>
         </div>
 
