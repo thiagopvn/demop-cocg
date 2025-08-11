@@ -7,7 +7,13 @@ import {
     TextField,
     Box,
     Chip,
+    Typography,
+    Card,
+    CardContent,
+    IconButton,
+    Grid,
 } from "@mui/material";
+import DeleteIcon from '@mui/icons-material/Delete';
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import MaterialSearch from "../../components/MaterialSearch";
@@ -26,6 +32,7 @@ export default function Movimentacao() {
     const [radioDisabled, setRadioDisabled] = useState(false);
     const [materialCritery, setMaterialCritery] = useState("");
     const [materialSelected, setMaterialSelected] = useState(null);
+    const [materiaisSelected, setMateriaisSelected] = useState([]);
     const [showMaterialSearch, setShowMaterialSearch] = useState(false);
     const [tipoMovimentacao, setTipoMovimentacao] = useState("");
     const [quantidade, setQuantidade] = useState("");
@@ -86,6 +93,7 @@ export default function Movimentacao() {
         setUserSelected(null);
         setMaterialCritery("");
         setMaterialSelected(null);
+        setMateriaisSelected([]);
         setQuantidade("");
         setLocalReparo("");
         setShowSaveButton(false);
@@ -134,19 +142,19 @@ export default function Movimentacao() {
                 case "reparo":
                     return materialSelected && quantidade && localReparo && numeroSei && motivoReparo;
                 case "cautela":
-                    // Remove a necessidade de ter viaturaSelected
-                    return materialSelected && userSelected && quantidade;
+                    // Para cautela, pode ter material único ou múltiplos materiais
+                    return (materialSelected && userSelected && quantidade) || (materiaisSelected.length > 0 && userSelected);
                 default:
                     return false;
             }
         };
         setShowSaveButton(validateFields());
-    }, [tipoMovimentacao, materialSelected, userSelected, viaturaSelected, quantidade, localReparo, numeroSei, motivoReparo]);
+    }, [tipoMovimentacao, materialSelected, userSelected, viaturaSelected, quantidade, localReparo, numeroSei, motivoReparo, materiaisSelected]);
 
     // Funções para limpar seleção
     const handleClearMaterial = () => {
         setMaterialSelected(null);
-
+        setMateriaisSelected([]);
     };
 
     const handleClearUser = () => {
@@ -162,7 +170,42 @@ export default function Movimentacao() {
     // Funções para selecionar itens
     const handleMaterialSelect = (material) => {
         setMaterialSelected(material);
+    };
 
+    const handleAddMaterial = () => {
+        if (materialSelected && quantidade) {
+            const qtd = parseInt(quantidade);
+            if (qtd <= 0) {
+                alert("A quantidade deve ser maior que zero.");
+                return;
+            }
+
+            if (materialSelected.estoque_atual < qtd) {
+                alert("A quantidade selecionada é maior que o estoque atual.");
+                return;
+            }
+
+            // Verificar se o material já foi adicionado
+            const materialExistente = materiaisSelected.find(m => m.material.id === materialSelected.id);
+            if (materialExistente) {
+                alert("Este material já foi adicionado à lista.");
+                return;
+            }
+
+            const novoMaterial = {
+                material: materialSelected,
+                quantidade: qtd
+            };
+
+            setMateriaisSelected([...materiaisSelected, novoMaterial]);
+            setMaterialSelected(null);
+            setQuantidade("");
+            setMaterialCritery("");
+        }
+    };
+
+    const handleRemoveMaterial = (materialId) => {
+        setMateriaisSelected(materiaisSelected.filter(m => m.material.id !== materialId));
     };
 
     const handleUserSelect = (user) => {
@@ -174,9 +217,76 @@ export default function Movimentacao() {
         setViaturaSelected(viatura);
     };
 
+    const handleSaveMultiplosMateriais = async () => {
+        try {
+            // Salvar cada material como uma movimentação separada
+            for (const itemMaterial of materiaisSelected) {
+                const material = itemMaterial.material;
+                const qtd = itemMaterial.quantidade;
+
+                // Verificar estoque atual antes de salvar
+                if (material.estoque_atual < qtd) {
+                    alert(`Estoque insuficiente para o material: ${material.description}`);
+                    return;
+                }
+
+                const movementData = {
+                    type: tipoMovimentacao,
+                    material: material.id,
+                    material_description: material.description,
+                    quantity: qtd,
+                    date: new Date(),
+                    sender: userId,
+                    sender_name: userName,
+                    signed: false,
+                    categoria: material.categoria,
+                    viatura: null,
+                    viatura_description: null,
+                };
+
+                if (userSelected) {
+                    movementData.user = userSelected.id;
+                    movementData.user_name = userSelected.full_name;
+                    movementData.telefone_responsavel = userSelected.telefone;
+                }
+
+                if (viaturaSelected) {
+                    movementData.viatura = viaturaSelected.id;
+                    movementData.viatura_description = viaturaSelected.description;
+                }
+
+                // Atualizar estoque para cautela
+                let newEstoqueAtual = material.estoque_atual - qtd;
+                movementData.status = "cautelado";
+
+                // Atualizar material no banco
+                const materialDocRef = doc(db, "materials", material.id);
+                await updateDoc(materialDocRef, {
+                    estoque_atual: newEstoqueAtual
+                });
+
+                // Salvar movimentação
+                const movimentacoesCollection = collection(db, "movimentacoes");
+                await addDoc(movimentacoesCollection, movementData);
+            }
+
+            alert("Todos os materiais foram cautelados com sucesso!");
+            limparTudo();
+        } catch (error) {
+            console.error("Erro ao salvar múltiplos materiais:", error);
+            alert("Erro ao salvar as movimentações. Tente novamente.");
+        }
+    };
 
     const handleSave = async () => {
         try {
+            // Para cautela com múltiplos materiais
+            if (tipoMovimentacao === "cautela" && materiaisSelected.length > 0) {
+                await handleSaveMultiplosMateriais();
+                return;
+            }
+
+            // Para movimentações com material único
             const qtd = parseInt(quantidade);
             if (!qtd || qtd <= 0) {
                 alert("A quantidade deve ser maior que zero.");
@@ -370,18 +480,73 @@ export default function Movimentacao() {
                     )}
 
                     {materialSelected && (
-                        <TextField
-                            label="Quantidade"
-                            type="number"
-                            fullWidth
-                            value={quantidade}
-                            onChange={(e) => setQuantidade(e.target.value)} // Removida a validação do onChange
-                            inputProps={{
-                                min: 0, // permite zero para poder apagar
-                                step: 1,
-                            }}
-                            sx={{ mb: 2 }}
-                        />
+                        <>
+                            <TextField
+                                label="Quantidade"
+                                type="number"
+                                fullWidth
+                                value={quantidade}
+                                onChange={(e) => setQuantidade(e.target.value)}
+                                inputProps={{
+                                    min: 0,
+                                    step: 1,
+                                }}
+                                sx={{ mb: 2 }}
+                            />
+                            {tipoMovimentacao === 'cautela' && (
+                                <Button
+                                    variant="outlined"
+                                    fullWidth
+                                    onClick={handleAddMaterial}
+                                    disabled={!materialSelected || !quantidade}
+                                    sx={{ mb: 2 }}
+                                >
+                                    Adicionar Material à Lista
+                                </Button>
+                            )}
+                        </>
+                    )}
+
+                    {/* Lista de materiais selecionados para cautela múltipla */}
+                    {tipoMovimentacao === 'cautela' && materiaisSelected.length > 0 && (
+                        <Card sx={{ mb: 2 }}>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom>
+                                    Materiais Selecionados ({materiaisSelected.length})
+                                </Typography>
+                                <Grid container spacing={2}>
+                                    {materiaisSelected.map((item, index) => (
+                                        <Grid item xs={12} key={item.material.id}>
+                                            <Box sx={{ 
+                                                display: 'flex', 
+                                                justifyContent: 'space-between', 
+                                                alignItems: 'center',
+                                                p: 1,
+                                                border: '1px solid #e0e0e0',
+                                                borderRadius: 1,
+                                                backgroundColor: '#f9f9f9'
+                                            }}>
+                                                <Box>
+                                                    <Typography variant="body1" fontWeight="bold">
+                                                        {item.material.description}
+                                                    </Typography>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Quantidade: {item.quantidade} | Estoque atual: {item.material.estoque_atual}
+                                                    </Typography>
+                                                </Box>
+                                                <IconButton
+                                                    color="error"
+                                                    onClick={() => handleRemoveMaterial(item.material.id)}
+                                                    size="small"
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </Box>
+                                        </Grid>
+                                    ))}
+                                </Grid>
+                            </CardContent>
+                        </Card>
                     )}
 
                     {tipoMovimentacao === 'reparo' && (
