@@ -574,7 +574,7 @@ export default function LoginScreen() {
             textAlign: 'center'
           }}
         >
-          desenvolvido por ASP OF BM Thiago Santos
+          Desenvolvido pelo ASP OF BM Thiago Santos
         </Typography>
       </Box>
     </ThemeProvider>
