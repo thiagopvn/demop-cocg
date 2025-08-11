@@ -35,18 +35,18 @@ export default function Inativos() {
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(
-        movimentacoesCollection, 
-        where("type", "==", "reparo"),
-        where("status", "in", ["emReparo", "devolvidaDeReparo"])
-      );
+      const q = query(movimentacoesCollection, where("type", "==", "reparo"));
       const querySnapshot = await getDocs(q);
       const movs = [];
       querySnapshot.forEach((doc) => {
-        // Inclui o id para cada movimentação
-        movs.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        // Filtra apenas os materiais com status de reparo
+        if (data.status === "emReparo" || data.status === "devolvidaDeReparo") {
+          movs.push({ id: doc.id, ...data });
+        }
       });
       setMovimentacoes(movs);
+      console.log("Total de movimentações tipo 'reparo' carregadas:", movs.length);
     };
 
     fetchMovimentacoes();
