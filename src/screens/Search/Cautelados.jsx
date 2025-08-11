@@ -21,7 +21,7 @@ import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
 export default function Cautelados() {
-  // Filtro: 0=todos, 1=assinados, 2=devolvidos, 3=não assinados
+  // Filtro: 0=todos, 1=assinados, 2=devolvidos, 3=não assinados, 4=cautelados
   const [filtro, setFiltro] = useState(0);
   // Cache local: a chave é o valor do filtro
   // e o valor é o array de movimentações para aquela combinação.
@@ -55,6 +55,9 @@ export default function Cautelados() {
               where("status", "==", "cautelado"),
               where("signed", "==", false)
             ];
+            break;
+          case 4: // Cautelados - apenas materiais atualmente cautelados (não devolvidos)
+            constraints = [where("status", "==", "cautelado")];
             break;
           default:
             constraints = [];
@@ -175,6 +178,12 @@ export default function Cautelados() {
             label="Não Assinados"
             sx={{ color: 'red' }}
           />
+          <FormControlLabel 
+            value={4} 
+            control={<Radio sx={{ color: 'orange', '&.Mui-checked': { color: 'orange' } }} />} 
+            label="Cautelados"
+            sx={{ color: 'orange' }}
+          />
         </RadioGroup>
       </Box>
 
@@ -255,12 +264,14 @@ export default function Cautelados() {
               hover
               sx={{
                 backgroundColor: 
+                  filtro === 4 ? 'rgba(255, 165, 0, 0.1)' : // Laranja claro para filtro "Cautelados"
                   mov.status === 'devolvido' ? 'rgba(0, 128, 0, 0.1)' : // Verde claro para devolvidos
                   mov.signed === false ? 'rgba(255, 0, 0, 0.1)' : // Vermelho claro para não assinados
                   mov.signed === true ? 'rgba(0, 0, 255, 0.1)' : // Azul claro para assinados
                   'transparent',
                 '&:hover': {
                   backgroundColor: 
+                    filtro === 4 ? 'rgba(255, 165, 0, 0.2)' : // Laranja mais escuro no hover
                     mov.status === 'devolvido' ? 'rgba(0, 128, 0, 0.2)' : 
                     mov.signed === false ? 'rgba(255, 0, 0, 0.2)' : 
                     mov.signed === true ? 'rgba(0, 0, 255, 0.2)' : 
