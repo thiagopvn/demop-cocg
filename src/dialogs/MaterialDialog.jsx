@@ -38,70 +38,161 @@ export default function MaterialDialog({ onSubmit, onCancel, open, editData = nu
     };
 
     return (
-        <Dialog open={open}>
-            <DialogTitle>{editData?"Editar Material":"Novo Material"}</DialogTitle>
+        <Dialog 
+            open={open} 
+            maxWidth="sm" 
+            fullWidth
+            PaperProps={{
+                sx: {
+                    borderRadius: '16px',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fff8 100%)',
+                }
+            }}
+        >
+            <DialogTitle 
+                sx={{ 
+                    textAlign: 'center', 
+                    fontSize: '1.5rem', 
+                    fontWeight: 700, 
+                    paddingBottom: 1,
+                    background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                    color: 'white',
+                    margin: 0,
+                    borderRadius: '16px 16px 0 0',
+                }}
+            >
+                {editData ? "✏️ Editar Material" : "📦 Novo Material"}
+            </DialogTitle>
             <IconButton
                 aria-label="close"
                 sx={{
                     position: "absolute",
-                    right: 8,
-                    top: 8,
-                    color: (theme) => theme.palette.grey[500],
+                    right: 12,
+                    top: 12,
+                    color: 'white',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    }
                 }}
                 onClick={onCancel}
             >
                 <CloseIcon />
             </IconButton>
 
-            <DialogContent>
-                <TextField
-                    fullWidth
-                    label="Descrição"
-                    margin="normal"
-                    value={data.description}
-                    onChange={(e) => setData({ ...data, description: e.target.value })}
-                />
-                <TextField
-                    fullWidth
-                    label="Estoque Atual"
-                    margin="normal"
-                    type='number'
-                    value={data.estoque_atual}
-                    onChange={(e) => setData({ ...data, estoque_atual: e.target.value })}
-                />
-                <TextField
-                    fullWidth
-                    label="Estoque Total"
-                    type="number"
-                    margin="normal"
-                    value={data.estoque_total}
-                    onChange={(e) => setData({ ...data, estoque_total: e.target.value })}
-                />
-                <FormControl fullWidth margin="normal">
-                    <InputLabel id="categoria-select-label">Categoria</InputLabel>
-                    <Select
-                        labelId="categoria-select-label"
-                        id="categoria-select"
-                        value={data.categoria_id}
-                        label="Categoria"
-                        onChange={handleChangeCategoria}
+            <DialogContent sx={{ padding: '24px' }}>
+                <div style={{ display: 'grid', gap: '20px' }}>
+                    <TextField
+                        fullWidth
+                        label="📝 Descrição"
+                        value={data.description}
+                        onChange={(e) => setData({ ...data, description: e.target.value })}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                borderRadius: '12px',
+                                backgroundColor: '#ffffff',
+                                '&:hover': {
+                                    backgroundColor: '#f8fff8',
+                                },
+                                '&.Mui-focused': {
+                                    backgroundColor: '#ffffff',
+                                }
+                            }
+                        }}
+                    />
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <TextField
+                            fullWidth
+                            label="📦 Estoque Disponível"
+                            type='number'
+                            value={data.estoque_atual}
+                            onChange={(e) => setData({ ...data, estoque_atual: e.target.value })}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '12px',
+                                    backgroundColor: '#ffffff',
+                                    '&:hover': {
+                                        backgroundColor: '#f8fff8',
+                                    },
+                                    '&.Mui-focused': {
+                                        backgroundColor: '#ffffff',
+                                    }
+                                }
+                            }}
+                        />
+                        <TextField
+                            fullWidth
+                            label="📊 Estoque Total"
+                            type="number"
+                            value={data.estoque_total}
+                            onChange={(e) => setData({ ...data, estoque_total: e.target.value })}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '12px',
+                                    backgroundColor: '#ffffff',
+                                    '&:hover': {
+                                        backgroundColor: '#f8fff8',
+                                    },
+                                    '&.Mui-focused': {
+                                        backgroundColor: '#ffffff',
+                                    }
+                                }
+                            }}
+                        />
+                    </div>
+                    
+                    <FormControl fullWidth>
+                        <InputLabel id="categoria-select-label">🏷️ Categoria</InputLabel>
+                        <Select
+                            labelId="categoria-select-label"
+                            id="categoria-select"
+                            value={data.categoria_id}
+                            label="🏷️ Categoria"
+                            onChange={handleChangeCategoria}
+                            sx={{
+                                borderRadius: '12px',
+                                backgroundColor: '#ffffff',
+                                '&:hover': {
+                                    backgroundColor: '#f8fff8',
+                                },
+                                '&.Mui-focused': {
+                                    backgroundColor: '#ffffff',
+                                }
+                            }}
+                        >
+                            {categorias.map((categoria) => (
+                                <MenuItem key={categoria.id} value={categoria.id}>
+                                    {categoria.description}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    
+                    <Button
+                        variant="contained"
+                        onClick={() => onSubmit(data)}
+                        fullWidth
+                        sx={{ 
+                            marginTop: '32px',
+                            padding: '16px',
+                            fontSize: '1.1rem',
+                            fontWeight: 700,
+                            borderRadius: '12px',
+                            background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                            boxShadow: '0 4px 16px rgba(76, 175, 80, 0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(135deg, #45a049 0%, #388e3c 100%)',
+                                boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4)',
+                                transform: 'translateY(-2px)',
+                            },
+                            transition: 'all 0.2s ease-in-out'
+                        }}
                     >
-                        {categorias.map((categoria) => (
-                            <MenuItem key={categoria.id} value={categoria.id}>
-                                {categoria.description}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => onSubmit(data)}
-                    fullWidth
-                    sx={{ marginTop: 5 }}
-                >
-                    Salvar
-                </Button>
+                        {editData ? "💾 Salvar Alterações" : "✨ Criar Material"}
+                    </Button>
+                </div>
             </DialogContent>
         </Dialog>
     );

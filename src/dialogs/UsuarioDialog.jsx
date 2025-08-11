@@ -173,7 +173,6 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                     textAlign: 'center', 
                     fontSize: '1.5rem', 
                     fontWeight: 700, 
-                    color: '#1a237e',
                     paddingBottom: 1,
                     background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
                     color: 'white',
