@@ -365,7 +365,7 @@ export default function LoginScreen() {
                 letterSpacing: '0.5px'
               }}
             >
-              Grupamento Operacional
+              Grupamento Operacional do Comando Geral
             </Typography>
             <Typography 
               variant="subtitle1" 
@@ -375,7 +375,7 @@ export default function LoginScreen() {
                 fontSize: '1.1rem'
               }}
             >
-              Comando Geral - DMO
+              DEMOP
             </Typography>
           </Box>
           
@@ -558,6 +558,22 @@ export default function LoginScreen() {
             {error}
           </Alert>
         </Snackbar>
+
+        {/* Watermark */}
+        <Typography
+          sx={{
+            position: 'fixed',
+            bottom: 8,
+            left: 8,
+            fontSize: '10px',
+            color: 'rgba(241, 245, 249, 0.4)',
+            zIndex: 1000,
+            userSelect: 'none',
+            fontWeight: 300
+          }}
+        >
+          desenvolvido por ASP OF BM Thiago Santos
+        </Typography>
       </Box>
     </ThemeProvider>
   );
