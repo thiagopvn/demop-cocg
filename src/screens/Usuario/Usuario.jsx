@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  Fab,
   IconButton,
   Table,
   TableHead,
@@ -320,6 +319,51 @@ export default function Usuario() {
       <MenuContext>
         <div className="root-protected">
           <div className="search">
+            {/* Header Section with Title and Add Button */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '24px',
+              padding: '0 4px'
+            }}>
+              <Typography 
+                variant="h4" 
+                component="h1" 
+                sx={{ 
+                  fontWeight: 600,
+                  color: '#1a237e',
+                  fontSize: { xs: '1.75rem', sm: '2.125rem' }
+                }}
+              >
+                Usuários
+              </Typography>
+              
+              {userRole === "admin" && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleOpenSaveDialog}
+                  sx={{
+                    backgroundColor: '#1976d2',
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    padding: '10px 24px',
+                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                    '&:hover': {
+                      backgroundColor: '#1565c0',
+                      boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                      transform: 'translateY(-1px)',
+                    },
+                    transition: 'all 0.2s ease-in-out'
+                  }}
+                >
+                  Novo Usuário
+                </Button>
+              )}
+            </div>
+
             {(userRole === "admin" || userRole === "editor") && (
               <TextField
                 size="small"
@@ -329,13 +373,31 @@ export default function Usuario() {
                 fullWidth
                 value={critery}
                 onChange={(e) => setCritery(e.target.value)}
-                sx={{ marginBottom: 2 }}
+                sx={{ 
+                  marginBottom: 3,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    backgroundColor: '#f8f9fa',
+                    '&:hover': {
+                      backgroundColor: '#ffffff',
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: '#ffffff',
+                    }
+                  }
+                }}
                 slotProps={{
                   input: {
                     endAdornment: (
                       <IconButton 
                         position="end"
                         onClick={() => getUsers(critery)}
+                        sx={{
+                          color: '#1976d2',
+                          '&:hover': {
+                            backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                          }
+                        }}
                       >
                         <SearchIcon />
                       </IconButton>
@@ -345,7 +407,32 @@ export default function Usuario() {
               />
             )}
 
-            <Table size="small">
+            <Table 
+              size="small" 
+              sx={{
+                '& .MuiTableHead-root': {
+                  '& .MuiTableRow-root': {
+                    '& .MuiTableCell-root': {
+                      backgroundColor: '#e3f2fd',
+                      borderBottom: '2px solid #1976d2',
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      color: '#1565c0',
+                    }
+                  }
+                },
+                '& .MuiTableBody-root': {
+                  '& .MuiTableRow-root': {
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5',
+                    },
+                    '& .MuiTableCell-root': {
+                      borderBottom: '1px solid #e0e0e0',
+                    }
+                  }
+                }
+              }}
+            >
               <TableHead>
                 <TableRow>
                   <TableCell
@@ -398,16 +485,61 @@ export default function Usuario() {
                         {user.role}
                       </TableCell>
                       <TableCell sx={{ textAlign: "center" }}>
-                        <IconButton
-                          onMouseEnter={(e) => handlePopoverOpen(e, user.id)}
-                          onMouseLeave={() => handlePopoverClose(user.id)}
-                          onClick={(e) => {
-                            e.stopPropagation(); // Impede que o evento de clique se propague para a linha
-                            handleCopyToClipboard(user);
-                          }}
-                        >
-                          <InfoIcon color="info" />
-                        </IconButton>
+                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                          <Tooltip title="Ver informações completas">
+                            <IconButton
+                              onMouseEnter={(e) => handlePopoverOpen(e, user.id)}
+                              onMouseLeave={() => handlePopoverClose(user.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyToClipboard(user);
+                              }}
+                              sx={{
+                                backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                                  transform: 'scale(1.05)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              <InfoIcon sx={{ color: '#2196f3' }} />
+                            </IconButton>
+                          </Tooltip>
+                          
+                          <Tooltip title="Editar usuário">
+                            <IconButton 
+                              onClick={() => handleOpenEditDialog(user)}
+                              sx={{
+                                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                                  transform: 'scale(1.05)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              <EditIcon sx={{ color: '#4caf50' }} />
+                            </IconButton>
+                          </Tooltip>
+                          
+                          <Tooltip title="Excluir usuário">
+                            <IconButton 
+                              onClick={() => handleDelete(user.id)}
+                              sx={{
+                                backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(244, 67, 54, 0.2)',
+                                  transform: 'scale(1.05)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              <DeleteIcon sx={{ color: '#f44336' }} />
+                            </IconButton>
+                          </Tooltip>
+                        </div>
+                        
                         <Popover
                           id="mouse-over-popover"
                           sx={{
@@ -426,25 +558,27 @@ export default function Usuario() {
                           onClose={() => handlePopoverClose(user.id)}
                           disableRestoreFocus
                         >
-                          <Typography component="div" sx={{ p: 1 }}>
-                            <div>Username: {user.username}</div>
-                            <div>Nome: {user.full_name}</div>
-                            <div>Email: {user.email}</div>
-                            <div>Privilégios: {user.role}</div>
-                            <div>RG: {user.rg}</div>
-                            <div>Telefone: {user.telefone}</div>
-                            <div>OBM: {user.OBM}</div>
-                            <div>
-                              Criado em: {JSON.stringify(user.created_at.toDate())}
-                            </div>
+                          <Typography component="div" sx={{ 
+                            p: 2, 
+                            minWidth: 300,
+                            '& > div': {
+                              marginBottom: '8px',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: '#f5f5f5',
+                              fontWeight: 500,
+                            }
+                          }}>
+                            <div><strong>Username:</strong> {user.username}</div>
+                            <div><strong>Nome:</strong> {user.full_name}</div>
+                            <div><strong>Email:</strong> {user.email}</div>
+                            <div><strong>Privilégios:</strong> {user.role}</div>
+                            <div><strong>RG:</strong> {user.rg}</div>
+                            <div><strong>Telefone:</strong> {user.telefone}</div>
+                            <div><strong>OBM:</strong> {user.OBM}</div>
+                            <div><strong>Criado em:</strong> {user.created_at?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}</div>
                           </Typography>
                         </Popover>
-                        <IconButton onClick={() => handleDelete(user.id)}>
-                          <DeleteIcon color="error" />
-                        </IconButton>
-                        <IconButton onClick={() => handleOpenEditDialog(user)}>
-                          <EditIcon color="primary" />
-                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))
@@ -454,25 +588,6 @@ export default function Usuario() {
           </div>
         </div>
 
-        {userRole === "admin" ? (
-          <Tooltip title="Adicionar Usuário" aria-label="add">
-            <Fab
-              size="small"
-              color="primary"
-              aria-label="add"
-              className="fab"
-              sx={{
-                opacity: 0.9,
-                position: "fixed",
-                bottom: 50,
-                left: 50,
-              }}
-              onClick={() => handleOpenSaveDialog()}
-            >
-              <AddIcon />
-            </Fab>
-          </Tooltip>
-        ) : null}
 
         <UsuarioDialog
           open={dialogOpen}
