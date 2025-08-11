@@ -4,28 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a React-based inventory management system ("Controle de Cautela") built with Vite, Firebase Firestore, and Material-UI. The application manages equipment assignments, users, vehicles, and tracks material movements.
+This is a React-based inventory management system ("Controle de Cautela") built with Vite, Firebase Firestore, and Material-UI. The application manages equipment assignments ("cautelas"), users, vehicles, and tracks material movements in what appears to be a military or institutional context.
 
 ## Key Commands
 
 ### Development
 ```bash
-npm run dev         # Start Vite dev server on localhost
-npm run build       # Build for production
-npm run preview     # Preview production build
-npm run lint        # Run ESLint checks
+npm run dev         # Start Vite dev server on localhost:5173
+npm run build       # Build for production using Vite
+npm run preview     # Preview production build locally
+npm run lint        # Run ESLint checks on all JS/JSX files
 ```
+
+### Testing
+- No test scripts are currently configured in package.json
+- No test files exist in the project structure
 
 ## Architecture
 
 ### Technology Stack
-- **Frontend Framework**: React 19 with React Router v7
-- **Build Tool**: Vite
-- **UI Library**: Material-UI v6 with Emotion for styling
-- **Database**: Firebase Firestore
-- **Authentication**: Custom JWT implementation using jose library
-- **Data Export**: xlsx library for Excel exports
-- **Charts**: Recharts for data visualization
+- **Frontend Framework**: React 19 with React Router DOM v7
+- **Build Tool**: Vite 6 with React plugin
+- **UI Library**: Material-UI v6 with Emotion for CSS-in-JS styling
+- **Database**: Firebase v11 Firestore
+- **Authentication**: Custom JWT implementation using jose v6 library
+- **Data Export**: xlsx v0.18 library for Excel exports
+- **Charts**: Recharts v2 for data visualization
+- **Environment**: dotenv for environment variable management
 
 ### Core Structure
 
@@ -53,9 +58,11 @@ All routes are defined in `src/App.jsx`:
 - `PrivateRoute.jsx` - Route protection
 
 #### Component Architecture
-- `components/` - Reusable UI components (search bars, buttons, info displays)
-- `dialogs/` - Modal dialogs for CRUD operations
-- `screens/` - Page-level components organized by feature
+- `components/` - Reusable UI components (search bars, buttons, info displays, cautela strips)
+- `dialogs/` - Modal dialogs for CRUD operations following MUI Dialog patterns
+- `screens/` - Page-level components organized by feature, each in its own subdirectory
+- `contexts/` - React Context providers for global state management
+- `theme/` - Material-UI theme configuration
 
 #### Search System
 The search functionality (`src/screens/Search/`) provides multiple search modes:
@@ -114,10 +121,35 @@ The system tracks equipment assignments through:
 - Location/repair status
 - Automatic status updates in Firestore
 
-## Development Notes
+## File Structure Notes
 
-- No test files currently exist in the project
-- Uses Vite's hot module replacement for development
-- All Firebase operations are abstracted in `src/firebase/`
-- Material-UI theming is applied globally
-- Zone.Identifier files suggest Windows/WSL development environment
+### Zone.Identifier Files
+- Multiple `.Zone.Identifier` files throughout the project indicate Windows/WSL development
+- These files are safe to ignore and can be cleaned up if needed
+
+### CSS Organization
+- Global styles in `src/index.css` and `src/App.css`
+- Component-specific styles in individual CSS files (e.g., `LoginScreen.css`, `Dialog.css`)
+- Material-UI theme configuration centralized in `src/theme/theme.js`
+
+### Assets
+- Static assets (images, icons) stored in `src/assets/`
+- Includes institutional imagery (brasao.png, bolacha.png) suggesting military/government context
+
+## Development Workflow
+
+### Adding New Features
+1. Create new screen component in `src/screens/[FeatureName]/`
+2. Add corresponding dialog in `src/dialogs/` if CRUD operations needed
+3. Update routing in `src/App.jsx`
+4. Add to menu system via `MenuContext.jsx` if navigation required
+
+### Firestore Integration Pattern
+- Collection references defined in `src/firebase/db.js`
+- Real-time listeners used throughout for live data updates
+- Direct Firestore operations in components (no additional abstraction layer)
+
+### Authentication Pattern
+- JWT tokens stored in localStorage
+- Token verification on protected routes via `PrivateRoute.jsx`
+- Role-based access control implemented in `MenuContext.jsx`
