@@ -298,32 +298,6 @@ export default function LoginScreen() {
           }}
         />
         
-        {/* Logo floating above the card */}
-        <Box 
-          sx={{
-            position: 'absolute',
-            top: '15%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            animation: 'float 8s ease-in-out infinite',
-            filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.3))',
-            zIndex: 2,
-            '@media (max-width: 768px)': {
-              top: '8%',
-              transform: 'translateX(-50%) scale(0.8)'
-            }
-          }}
-        >
-          <img 
-            src={bolacha} 
-            alt="bolacha" 
-            style={{ 
-              width: '120px', 
-              height: 'auto',
-              filter: 'brightness(1.1) contrast(1.1)'
-            }} 
-          />
-        </Box>
         
         {/* Main login card */}
         <Card 
@@ -360,13 +334,24 @@ export default function LoginScreen() {
           }}
         >
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Shield sx={{ 
-              fontSize: 56, 
-              color: '#60a5fa', 
-              mb: 2,
-              filter: 'drop-shadow(0 4px 8px rgba(96, 165, 250, 0.3))',
-              animation: 'float 6s ease-in-out infinite'
-            }} />
+            <Box 
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 3,
+                animation: 'float 6s ease-in-out infinite'
+              }}
+            >
+              <img 
+                src={bolacha} 
+                alt="bolacha" 
+                style={{ 
+                  width: '80px', 
+                  height: 'auto',
+                  filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3)) brightness(1.1) contrast(1.1)'
+                }} 
+              />
+            </Box>
             <Typography 
               variant="h4" 
               sx={{ 
