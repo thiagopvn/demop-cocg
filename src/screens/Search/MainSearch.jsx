@@ -96,7 +96,7 @@ export default function MainSearch() {
   return (
     <MenuContext>
       <div className='root-protected'>
-        <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 }, py: 4 }}>
           <Fade in timeout={800}>
             <Box>
               <Box sx={{ textAlign: 'center', mb: 4 }}>
@@ -236,7 +236,7 @@ export default function MainSearch() {
               </Fade>
             </Box>
           </Fade>
-        </Container>
+        </Box>
       </div>
     </MenuContext>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     RadioGroup,
     FormControlLabel,
@@ -12,8 +12,26 @@ import {
     CardContent,
     IconButton,
     Grid,
+    Container,
+    Fade,
+    Alert,
+    AlertTitle,
+    Collapse
 } from "@mui/material";
-import DeleteIcon from '@mui/icons-material/Delete';
+import {
+    Delete as DeleteIcon,
+    SwapHoriz as MovementIcon,
+    Person as PersonIcon,
+    DirectionsCar as CarIcon,
+    Inventory as InventoryIcon,
+    Input as InputIcon,
+    Output as OutputIcon,
+    Assignment as AssignmentIcon,
+    Build as RepairIcon,
+    CheckCircle as CheckIcon,
+    Save as SaveIcon,
+    Clear as ClearIcon
+} from '@mui/icons-material';
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import MaterialSearch from "../../components/MaterialSearch";
@@ -23,8 +41,6 @@ import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 
 import ViaturaSearch from "../../components/ViaturaSearch";   
 import { verifyToken } from "../../firebase/token";
-import UserInfo from "../../components/UserInfo";
-import { yellow } from "@mui/material/colors";
 export default function Movimentacao() {
     const [userCritery, setUserCritery] = useState("");
     const [userSelected, setUserSelected] = useState(null);
@@ -382,102 +398,267 @@ export default function Movimentacao() {
         }
     };
 
+    const movementOptions = [
+        {
+            value: "entrada",
+            label: "Entrada",
+            icon: <InputIcon />,
+            description: "Registrar entrada de material no estoque",
+            color: "success"
+        },
+        {
+            value: "cautela",
+            label: "Cautela",
+            icon: <AssignmentIcon />,
+            description: "Cautelar material para um usuário ou viatura",
+            color: "primary"
+        },
+        {
+            value: "saída",
+            label: "Saída",
+            icon: <OutputIcon />,
+            description: "Registrar saída definitiva de material",
+            color: "warning"
+        },
+        {
+            value: "reparo",
+            label: "Inoperante",
+            icon: <RepairIcon />,
+            description: "Marcar material como inoperante/reparo",
+            color: "error"
+        }
+    ];
+
     return (
         <PrivateRoute>
             <MenuContext>
                 <div className="root-protected">
-                    {radioDisabled && (<div style={{ backgroundColor: yellow[500], textAlign: "center" }}>Sem permissão para acessar este recurso</div>)}
-                    <RadioGroup
-                        sx={{
-                            display: "flex",
-                            flexDirection: "row",
-                            justifyContent: "center",
-                            gap: 2,
-                        }}
-                        row
-                        value={tipoMovimentacao}
-                        onChange={(e) => setTipoMovimentacao(e.target.value)}
-                    >
-                        <FormControlLabel
-                            disabled={radioDisabled}
-                            value="entrada"
-                            control={<Radio />}
-                            label="Entrada"
-                        />
-                        <FormControlLabel
-                            disabled={radioDisabled}
-                            value="cautela"
-                            control={<Radio />}
-                            label="Cautela"
-                        />
-                        <FormControlLabel
-                            disabled={radioDisabled}
-                            value="saída"
-                            control={<Radio />}
-                            label="Saída"
-                        />
-                        <FormControlLabel
-                            disabled={radioDisabled}
-                            value="reparo"
-                            control={<Radio />}
-                            label="Inoperante"
-                        />
+                    <Container maxWidth="lg" sx={{ py: 4 }}>
+                        <Fade in timeout={800}>
+                            <Box>
+                                {/* Header */}
+                                <Box sx={{ textAlign: 'center', mb: 4 }}>
+                                    <MovementIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+                                    <Typography variant="h4" component="h1" gutterBottom
+                                        sx={{ 
+                                            fontWeight: 600,
+                                            background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                                            WebkitBackgroundClip: 'text',
+                                            WebkitTextFillColor: 'transparent',
+                                        }}
+                                    >
+                                        Sistema de Movimentações
+                                    </Typography>
+                                    <Typography variant="h6" color="text.secondary">
+                                        Gerencie entradas, saídas, cautelas e reparos de materiais
+                                    </Typography>
+                                </Box>
 
-                    </RadioGroup>
+                                {/* Alerta de permissão */}
+                                {radioDisabled && (
+                                    <Alert severity="warning" sx={{ mb: 3 }}>
+                                        <AlertTitle>Acesso Restrito</AlertTitle>
+                                        Sem permissão para acessar este recurso.
+                                    </Alert>
+                                )}
 
-                    {showMaterialSearch && (
-                        <Box sx={{ position: 'relative', mb: 2 }}>
-                            <MaterialSearch
-                                materialCritery={materialCritery}
-                                onSetMaterialCritery={setMaterialCritery}
-                                onSelectMaterial={handleMaterialSelect}
-                                selectedItem={materialSelected}
-                            />
-                            {materialSelected && (
-                                <Chip
-                                    label={`Material selecionado: ${materialSelected.description}`}
-                                    onDelete={handleClearMaterial}
-                                    sx={{ mt: 1 }}
-                                />
-                            )}
-                        </Box>
-                    )}
+                                {/* Tipo de Movimentação */}
+                                <Card elevation={3} sx={{ mb: 3, borderRadius: 3 }}>
+                                    <CardContent sx={{ p: 3 }}>
+                                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+                                            1. Selecione o Tipo de Movimentação:
+                                        </Typography>
+                                        
+                                        <RadioGroup
+                                            value={tipoMovimentacao}
+                                            onChange={(e) => setTipoMovimentacao(e.target.value)}
+                                            sx={{ gap: 2 }}
+                                        >
+                                            <Box sx={{ 
+                                                display: 'grid', 
+                                                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, 
+                                                gap: 2 
+                                            }}>
+                                                {movementOptions.map((option) => (
+                                                    <Card
+                                                        key={option.value}
+                                                        variant="outlined"
+                                                        sx={{
+                                                            cursor: radioDisabled ? 'not-allowed' : 'pointer',
+                                                            opacity: radioDisabled ? 0.6 : 1,
+                                                            transition: 'all 0.3s ease',
+                                                            border: tipoMovimentacao === option.value ? 2 : 1,
+                                                            borderColor: tipoMovimentacao === option.value 
+                                                                ? `${option.color}.main` 
+                                                                : 'divider',
+                                                            backgroundColor: tipoMovimentacao === option.value 
+                                                                ? `${option.color}.50` 
+                                                                : 'background.paper',
+                                                            '&:hover': !radioDisabled ? {
+                                                                transform: 'translateY(-2px)',
+                                                                boxShadow: 4,
+                                                                borderColor: `${option.color}.main`
+                                                            } : {},
+                                                            borderRadius: 2
+                                                        }}
+                                                        onClick={() => !radioDisabled && setTipoMovimentacao(option.value)}
+                                                    >
+                                                        <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                                                            <FormControlLabel
+                                                                disabled={radioDisabled}
+                                                                value={option.value}
+                                                                control={
+                                                                    <Radio 
+                                                                        color={option.color}
+                                                                        sx={{ display: 'none' }}
+                                                                    />
+                                                                }
+                                                                label={
+                                                                    <Box>
+                                                                        <Box sx={{ 
+                                                                            display: 'flex', 
+                                                                            justifyContent: 'center',
+                                                                            mb: 2,
+                                                                            color: `${option.color}.main`
+                                                                        }}>
+                                                                            <Box sx={{ fontSize: '2rem' }}>
+                                                                                {option.icon}
+                                                                            </Box>
+                                                                        </Box>
+                                                                        <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                                                                            {option.label}
+                                                                        </Typography>
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            {option.description}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                }
+                                                                sx={{ margin: 0, width: '100%' }}
+                                                            />
+                                                        </CardContent>
+                                                    </Card>
+                                                ))}
+                                            </Box>
+                                        </RadioGroup>
+                                        
+                                        {tipoMovimentacao && (
+                                            <Box sx={{ mt: 3, textAlign: 'center' }}>
+                                                <Chip 
+                                                    icon={movementOptions.find(opt => opt.value === tipoMovimentacao)?.icon}
+                                                    label={`Tipo Selecionado: ${movementOptions.find(opt => opt.value === tipoMovimentacao)?.label}`}
+                                                    color={movementOptions.find(opt => opt.value === tipoMovimentacao)?.color}
+                                                    variant="filled"
+                                                    size="medium"
+                                                />
+                                            </Box>
+                                        )}
+                                    </CardContent>
+                                </Card>
 
-                    {showUserSearch && (
-                        <Box sx={{ position: 'relative', mb: 2 }}>
-                            <UserSearch
-                                userCritery={userCritery}
-                                onSetUserCritery={setUserCritery}
-                                onSelectUser={handleUserSelect}
-                                selectedItem={userSelected}
-                            />
-                            {userSelected && (
-                                <Chip
-                                    label={`Usuário selecionado: ${userSelected.full_name}`}
-                                    onDelete={handleClearUser}
-                                    sx={{ mt: 1 }}
-                                />
-                            )}
-                        </Box>
-                    )}
+                                {/* Seção de Busca de Material */}
+                                <Collapse in={showMaterialSearch}>
+                                    <Card elevation={2} sx={{ mb: 3, borderRadius: 3 }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                                                <InventoryIcon color="primary" />
+                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                    2. Selecione o Material:
+                                                </Typography>
+                                            </Box>
+                                            
+                                            <MaterialSearch
+                                                materialCritery={materialCritery}
+                                                onSetMaterialCritery={setMaterialCritery}
+                                                onSelectMaterial={handleMaterialSelect}
+                                                selectedItem={materialSelected}
+                                            />
+                                            
+                                            {materialSelected && (
+                                                <Box sx={{ mt: 2 }}>
+                                                    <Chip
+                                                        icon={<InventoryIcon />}
+                                                        label={`Material: ${materialSelected.description}`}
+                                                        onDelete={handleClearMaterial}
+                                                        color="primary"
+                                                        variant="filled"
+                                                        deleteIcon={<ClearIcon />}
+                                                        sx={{ fontSize: '0.9rem' }}
+                                                    />
+                                                </Box>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </Collapse>
 
-                    {showViaturaSearch && (
-                        <Box sx={{ position: 'relative', mb: 2 }}>
-                            <ViaturaSearch
-                                viaturaCritery={viaturaCritery}
-                                onSetViaturaCritery={setViaturaCritery}
-                                onSelectViatura={handleViaturaSelect}
-                                selectedItem={viaturaSelected}
-                            />
-                            {viaturaSelected && (
-                                <Chip
-                                    label={`Viatura selecionada: ${viaturaSelected.description}`}
-                                    onDelete={handleClearViatura}
-                                    sx={{ mt: 1 }}
-                                />
-                            )}
-                        </Box>
-                    )}
+                                {/* Seção de Busca de Usuário */}
+                                <Collapse in={showUserSearch}>
+                                    <Card elevation={2} sx={{ mb: 3, borderRadius: 3 }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                                                <PersonIcon color="secondary" />
+                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                    3. Selecione o Usuário:
+                                                </Typography>
+                                            </Box>
+                                            
+                                            <UserSearch
+                                                userCritery={userCritery}
+                                                onSetUserCritery={setUserCritery}
+                                                onSelectUser={handleUserSelect}
+                                                selectedItem={userSelected}
+                                            />
+                                            
+                                            {userSelected && (
+                                                <Box sx={{ mt: 2 }}>
+                                                    <Chip
+                                                        icon={<PersonIcon />}
+                                                        label={`Usuário: ${userSelected.full_name}`}
+                                                        onDelete={handleClearUser}
+                                                        color="secondary"
+                                                        variant="filled"
+                                                        deleteIcon={<ClearIcon />}
+                                                        sx={{ fontSize: '0.9rem' }}
+                                                    />
+                                                </Box>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </Collapse>
+
+                                {/* Seção de Busca de Viatura */}
+                                <Collapse in={showViaturaSearch}>
+                                    <Card elevation={2} sx={{ mb: 3, borderRadius: 3 }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                                                <CarIcon color="info" />
+                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                    3. Selecione a Viatura:
+                                                </Typography>
+                                            </Box>
+                                            
+                                            <ViaturaSearch
+                                                viaturaCritery={viaturaCritery}
+                                                onSetViaturaCritery={setViaturaCritery}
+                                                onSelectViatura={handleViaturaSelect}
+                                                selectedItem={viaturaSelected}
+                                            />
+                                            
+                                            {viaturaSelected && (
+                                                <Box sx={{ mt: 2 }}>
+                                                    <Chip
+                                                        icon={<CarIcon />}
+                                                        label={`Viatura: ${viaturaSelected.description}`}
+                                                        onDelete={handleClearViatura}
+                                                        color="info"
+                                                        variant="filled"
+                                                        deleteIcon={<ClearIcon />}
+                                                        sx={{ fontSize: '0.9rem' }}
+                                                    />
+                                                </Box>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </Collapse>
 
                     {materialSelected && (
                         <>
@@ -493,100 +674,200 @@ export default function Movimentacao() {
                                 }}
                                 sx={{ mb: 2 }}
                             />
-                            {tipoMovimentacao === 'cautela' && (
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    onClick={handleAddMaterial}
-                                    disabled={!materialSelected || !quantidade}
-                                    sx={{ mb: 2 }}
-                                >
-                                    Adicionar Material à Lista
-                                </Button>
-                            )}
-                        </>
-                    )}
+                                                {/* Botão Adicionar à Lista para Cautelas */}
+                                                {tipoMovimentacao === 'cautela' && (
+                                                    <Grid item xs={12} sm={6}>
+                                                        <Button
+                                                            variant="contained"
+                                                            fullWidth
+                                                            onClick={handleAddMaterial}
+                                                            disabled={!materialSelected || !quantidade}
+                                                            startIcon={<CheckIcon />}
+                                                            sx={{
+                                                                height: '56px',
+                                                                borderRadius: 2,
+                                                                background: 'linear-gradient(45deg, #2196f3 30%, #21cbf3 90%)',
+                                                                textTransform: 'none',
+                                                                fontWeight: 600
+                                                            }}
+                                                        >
+                                                            Adicionar Material à Lista
+                                                        </Button>
+                                                    </Grid>
+                                                )}
+                                            </Grid>
+                                        </CardContent>
+                                    </Card>
+                                </Collapse>
 
-                    {/* Lista de materiais selecionados para cautela múltipla */}
-                    {tipoMovimentacao === 'cautela' && materiaisSelected.length > 0 && (
-                        <Card sx={{ mb: 2 }}>
-                            <CardContent>
-                                <Typography variant="h6" gutterBottom>
-                                    Materiais Selecionados ({materiaisSelected.length})
-                                </Typography>
-                                <Grid container spacing={2}>
-                                    {materiaisSelected.map((item, index) => (
-                                        <Grid item xs={12} key={item.material.id}>
-                                            <Box sx={{ 
-                                                display: 'flex', 
-                                                justifyContent: 'space-between', 
-                                                alignItems: 'center',
-                                                p: 1,
-                                                border: '1px solid #e0e0e0',
-                                                borderRadius: 1,
-                                                backgroundColor: '#f9f9f9'
-                                            }}>
-                                                <Box>
-                                                    <Typography variant="body1" fontWeight="bold">
-                                                        {item.material.description}
-                                                    </Typography>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        Quantidade: {item.quantidade} | Estoque atual: {item.material.estoque_atual}
-                                                    </Typography>
-                                                </Box>
-                                                <IconButton
-                                                    color="error"
-                                                    onClick={() => handleRemoveMaterial(item.material.id)}
-                                                    size="small"
-                                                >
-                                                    <DeleteIcon />
-                                                </IconButton>
+                                {/* Lista de Materiais Selecionados */}
+                                <Collapse in={tipoMovimentacao === 'cautela' && materiaisSelected.length > 0}>
+                                    <Card elevation={3} sx={{ mb: 3, borderRadius: 3, background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)' }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                                                <AssignmentIcon color="primary" />
+                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                    Materiais Selecionados para Cautela ({materiaisSelected.length}):
+                                                </Typography>
                                             </Box>
-                                        </Grid>
-                                    ))}
-                                </Grid>
-                            </CardContent>
-                        </Card>
-                    )}
+                                            
+                                            <Grid container spacing={2}>
+                                                {materiaisSelected.map((item, index) => (
+                                                    <Grid item xs={12} key={item.material.id}>
+                                                        <Fade in timeout={300 + (index * 100)}>
+                                                            <Card variant="outlined" sx={{ 
+                                                                borderRadius: 2,
+                                                                backgroundColor: 'background.paper',
+                                                                border: '2px solid',
+                                                                borderColor: 'primary.200',
+                                                                transition: 'all 0.2s ease',
+                                                                '&:hover': {
+                                                                    borderColor: 'primary.main',
+                                                                    boxShadow: 2
+                                                                }
+                                                            }}>
+                                                                <CardContent sx={{ p: 3 }}>
+                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                        <Box sx={{ flex: 1 }}>
+                                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                                                                                <InventoryIcon color="primary" fontSize="small" />
+                                                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                                                    {item.material.description}
+                                                                                </Typography>
+                                                                            </Box>
+                                                                            <Box sx={{ display: 'flex', gap: 3 }}>
+                                                                                <Chip
+                                                                                    label={`Qtd: ${item.quantidade}`}
+                                                                                    color="primary"
+                                                                                    size="small"
+                                                                                    variant="filled"
+                                                                                />
+                                                                                <Chip
+                                                                                    label={`Estoque: ${item.material.estoque_atual}`}
+                                                                                    color="info"
+                                                                                    size="small"
+                                                                                    variant="outlined"
+                                                                                />
+                                                                            </Box>
+                                                                        </Box>
+                                                                        <IconButton
+                                                                            color="error"
+                                                                            onClick={() => handleRemoveMaterial(item.material.id)}
+                                                                            sx={{
+                                                                                backgroundColor: 'error.50',
+                                                                                '&:hover': {
+                                                                                    backgroundColor: 'error.100',
+                                                                                    transform: 'scale(1.1)'
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <DeleteIcon />
+                                                                        </IconButton>
+                                                                    </Box>
+                                                                </CardContent>
+                                                            </Card>
+                                                        </Fade>
+                                                    </Grid>
+                                                ))}
+                                            </Grid>
+                                        </CardContent>
+                                    </Card>
+                                </Collapse>
 
-                    {tipoMovimentacao === 'reparo' && (
-                        <>
-                            <TextField
-                                label="Local do Reparo"
-                                fullWidth
-                                value={localReparo}
-                                onChange={(e) => setLocalReparo(e.target.value)}
-                                sx={{ mb: 2 }}
-                            />
-                            <TextField
-                                label="Número do SEI"
-                                fullWidth
-                                value={numeroSei}
-                                onChange={(e) => setNumeroSei(e.target.value)}
-                                sx={{ mb: 2 }}
-                            />
-                            <TextField
-                                label="Motivo da Inoperância"
-                                fullWidth
-                                multiline
-                                rows={3}
-                                value={motivoReparo}
-                                onChange={(e) => setMotivoReparo(e.target.value)}
-                                sx={{ mb: 2 }}
-                            />
-                        </>
-                    )}
+                                {/* Campos Específicos para Reparo/Inoperante */}
+                                <Collapse in={tipoMovimentacao === 'reparo'}>
+                                    <Card elevation={2} sx={{ mb: 3, borderRadius: 3, background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)' }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                                                <RepairIcon color="error" />
+                                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                    Detalhes do Reparo/Inoperância:
+                                                </Typography>
+                                            </Box>
+                                            
+                                            <Grid container spacing={3}>
+                                                <Grid item xs={12} md={6}>
+                                                    <TextField
+                                                        label="Local do Reparo"
+                                                        fullWidth
+                                                        value={localReparo}
+                                                        onChange={(e) => setLocalReparo(e.target.value)}
+                                                        variant="outlined"
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                borderRadius: 2,
+                                                            }
+                                                        }}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12} md={6}>
+                                                    <TextField
+                                                        label="Número do SEI"
+                                                        fullWidth
+                                                        value={numeroSei}
+                                                        onChange={(e) => setNumeroSei(e.target.value)}
+                                                        variant="outlined"
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                borderRadius: 2,
+                                                            }
+                                                        }}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12}>
+                                                    <TextField
+                                                        label="Motivo da Inoperância"
+                                                        fullWidth
+                                                        multiline
+                                                        rows={4}
+                                                        value={motivoReparo}
+                                                        onChange={(e) => setMotivoReparo(e.target.value)}
+                                                        variant="outlined"
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                borderRadius: 2,
+                                                            }
+                                                        }}
+                                                        placeholder="Descreva detalhadamente o motivo da inoperância do material..."
+                                                    />
+                                                </Grid>
+                                            </Grid>
+                                        </CardContent>
+                                    </Card>
+                                </Collapse>
 
-                    {showSaveButton && (
-                        <Button
-                            variant="contained"
-                            fullWidth
-                            onClick={handleSave}
-                            sx={{ mt: 2 }}
-                        >
-                            Salvar Movimentação
-                        </Button>
-                    )}
+                                {/* Botão Salvar */}
+                                <Collapse in={showSaveButton}>
+                                    <Card elevation={4} sx={{ borderRadius: 3, background: 'linear-gradient(45deg, #4caf50 30%, #81c784 90%)' }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Button
+                                                variant="contained"
+                                                fullWidth
+                                                onClick={handleSave}
+                                                size="large"
+                                                startIcon={<SaveIcon />}
+                                                sx={{
+                                                    background: 'transparent',
+                                                    color: 'white',
+                                                    fontWeight: 600,
+                                                    fontSize: '1.1rem',
+                                                    py: 2,
+                                                    borderRadius: 2,
+                                                    textTransform: 'none',
+                                                    boxShadow: 'none',
+                                                    '&:hover': {
+                                                        background: 'rgba(255,255,255,0.1)',
+                                                        transform: 'translateY(-2px)',
+                                                        boxShadow: 3
+                                                    },
+                                                    transition: 'all 0.3s ease'
+                                                }}
+                                            >
+                                                Salvar Movimentação
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                </Collapse>
 
                     <Button
                         variant="outlined"
@@ -596,6 +877,9 @@ export default function Movimentacao() {
                     >
                         Limpar Tudo
                     </Button>
+                            </Box>
+                        </Fade>
+                    </Container>
                 </div>
             </MenuContext>
         </PrivateRoute>

@@ -20,6 +20,8 @@ import {
   InputLabel,
   Popover,
   Typography,
+  Card,
+  CardContent
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -143,8 +145,9 @@ export default function UsuarioMaterial({ categorias }) {
   }, [hoverTimers]);
 
   return (
-    <div>
-      <Paper sx={{ padding: 2, marginTop: 5 }}>
+    <Box sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 } }}>
+      <Card elevation={3} sx={{ borderRadius: 3, mb: 3 }}>
+        <CardContent sx={{ p: 3 }}>
         <Box
           sx={{
             display: "flex",
@@ -413,7 +416,8 @@ export default function UsuarioMaterial({ categorias }) {
             ))}
           </TableBody>
         </Table>
-      </Paper>
+        </CardContent>
+      </Card>
 
       {selectedUser && filteredMovimentacoes.length > 0 && (
         <Tooltip title="Exportar para Excel" placement="left">
@@ -435,6 +439,6 @@ export default function UsuarioMaterial({ categorias }) {
           </Fab>
         </Tooltip>
       )}
-    </div>
+    </Box>
   );
 }

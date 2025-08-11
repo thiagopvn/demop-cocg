@@ -15,7 +15,9 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
-  Chip
+  Chip,
+  Card,
+  CardContent
 } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import db from "../../firebase/db";
@@ -126,7 +128,9 @@ export default function Inativos() {
   };
 
   return (
-    <Paper sx={{ padding: 2, marginTop: 5 }}>
+    <Box sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 } }}>
+      <Card elevation={3} sx={{ borderRadius: 3 }}>
+        <CardContent sx={{ p: 0 }}>
       <Table size="small" sx={{ width: "100%", tableLayout: "fixed" }}>
         <TableHead>
           <TableRow>
@@ -298,6 +302,8 @@ export default function Inativos() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }

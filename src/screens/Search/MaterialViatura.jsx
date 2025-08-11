@@ -178,7 +178,7 @@ export default function MaterialViatura() {
     };
 
     return (
-        <Container maxWidth="xl">
+        <Box sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 } }}>
             <Fade in timeout={600}>
                 <Box>
                     <Card elevation={3} sx={{ mb: 3, borderRadius: 3 }}>
@@ -305,7 +305,7 @@ export default function MaterialViatura() {
                     )}
 
                     {selectedMaterial && filteredMovimentacoes.length > 0 && (
-                        <Card elevation={3} sx={{ borderRadius: 3 }}>
+                        <Card elevation={3} sx={{ borderRadius: 3, width: '100%', overflow: 'hidden' }}>
                             <CardContent sx={{ p: 0 }}>
                                 <Box sx={{ 
                                     background: 'linear-gradient(135deg, #ed6c02 0%, #ff9800 100%)',
@@ -317,34 +317,35 @@ export default function MaterialViatura() {
                                     </Typography>
                                 </Box>
                                 
-                                <Table sx={{ width: '100%' }}>
+                                <Box sx={{ width: '100%', overflowX: 'auto' }}>
+                                    <Table sx={{ width: '100%', minWidth: 1100 }}>
                                     <TableHead>
                                         <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                                            <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                                            <TableCell sx={{ fontWeight: 'bold', py: 2, minWidth: 180 }}>
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                     <CarIcon fontSize="small" />
                                                     Viatura
                                                 </Box>
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                                            <TableCell sx={{ fontWeight: 'bold', py: 2, minWidth: 180 }}>
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                     <PersonIcon fontSize="small" />
                                                     Militar
                                                 </Box>
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                                            <TableCell sx={{ fontWeight: 'bold', py: 2, minWidth: 140 }}>
                                                 Categoria
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                                            <TableCell sx={{ fontWeight: 'bold', py: 2, minWidth: 120 }}>
                                                 Data
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                                            <TableCell sx={{ fontWeight: 'bold', py: 2, minWidth: 100 }}>
                                                 Tipo
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                                            <TableCell sx={{ fontWeight: 'bold', py: 2, minWidth: 140 }}>
                                                 Telefone
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                                            <TableCell sx={{ fontWeight: 'bold', py: 2, minWidth: 120 }}>
                                                 Status
                                             </TableCell>
                                         </TableRow>
@@ -510,7 +511,8 @@ export default function MaterialViatura() {
                                             </TableRow>
                                         ))}
                                     </TableBody>
-                                </Table>
+                                    </Table>
+                                </Box>
                             </CardContent>
                         </Card>
                     )}
@@ -545,6 +547,6 @@ export default function MaterialViatura() {
                     )}
                 </Box>
             </Fade>
-        </Container>
+        </Box>
     );
 }
