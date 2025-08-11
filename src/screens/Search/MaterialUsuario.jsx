@@ -16,9 +16,27 @@ import {
   Tooltip,
   Popover,
   Typography,
+  Card,
+  CardContent,
+  Chip,
+  IconButton,
+  Fade,
+  Container,
+  Alert,
+  AlertTitle,
+  CircularProgress
 } from "@mui/material";
-import ClearIcon from "@mui/icons-material/Clear";
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import {
+  Clear as ClearIcon,
+  FileDownload as FileDownloadIcon,
+  Person as PersonIcon,
+  Assignment as AssignmentIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  ExitToApp as ExitIcon,
+  Search as SearchIcon,
+  FilterList as FilterIcon
+} from '@mui/icons-material';
 import db from "../../firebase/db";
 import { query, collection, where, getDocs } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
@@ -145,179 +163,384 @@ export default function MaterialUsuario() {
     };
   }, [hoverTimers]);
 
+  const filterOptions = [
+    { value: 0, label: "Todas", icon: <FilterIcon />, color: "default" },
+    { value: 1, label: "Cautelas Abertas", icon: <AssignmentIcon />, color: "warning" },
+    { value: 2, label: "Cautelas Devolvidas", icon: <CheckCircleIcon />, color: "success" },
+    { value: 3, label: "Saídas", icon: <ExitIcon />, color: "info" }
+  ];
+
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'devolvido': return 'success';
+      case 'cautelado': return 'warning';
+      case 'saída': return 'info';
+      default: return 'default';
+    }
+  };
+
+  const getTypeColor = (type) => {
+    switch (type?.toLowerCase()) {
+      case 'cautela': return 'primary';
+      case 'saída': return 'secondary';
+      default: return 'default';
+    }
+  };
+
   return (
-    <div>
-      <Paper sx={{ padding: 2, marginTop: 5 }}>
-        <Box
-          sx={{
-            display: "flex",
-            gap: 2,
-            alignItems: "center",
-            marginBottom: 2,
-          }}
-        >
-          {selectedMaterial && (
-            <Button
-              variant="outlined"
-              startIcon={<ClearIcon />}
-              onClick={handleClearSelection}
-              size="small"
-            >
-              Limpar Seleção
-            </Button>
+    <Container maxWidth="xl">
+      <Fade in timeout={600}>
+        <Box>
+          <Card elevation={3} sx={{ mb: 3, borderRadius: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                <SearchIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+                <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                  Pesquisa Material por Usuário
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 3 }}>
+                {selectedMaterial && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<ClearIcon />}
+                    onClick={handleClearSelection}
+                    color="error"
+                    sx={{ 
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600
+                    }}
+                  >
+                    Limpar Seleção
+                  </Button>
+                )}
+                {selectedMaterial && (
+                  <Chip
+                    icon={<PersonIcon />}
+                    label={`Material Selecionado: ${selectedMaterial.description}`}
+                    color="primary"
+                    variant="filled"
+                    sx={{ fontSize: '0.9rem' }}
+                  />
+                )}
+              </Box>
+              <MaterialSearch
+                materialCritery={materialCritery}
+                onSetMaterialCritery={setMaterialCritery}
+                selectedItem={selectedMaterial}
+                onSelectMaterial={handleSelectMaterial}
+              />
+              {selectedMaterial && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                    Filtros de Movimentação:
+                  </Typography>
+                  <RadioGroup
+                    value={filtro}
+                    onChange={(e) => setFiltro(Number(e.target.value))}
+                    sx={{ gap: 1 }}
+                  >
+                    <Box sx={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, 
+                      gap: 2 
+                    }}>
+                      {filterOptions.map((option) => (
+                        <Card
+                          key={option.value}
+                          variant="outlined"
+                          sx={{
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            border: filtro === option.value ? 2 : 1,
+                            borderColor: filtro === option.value 
+                              ? `${option.color}.main` 
+                              : 'divider',
+                            backgroundColor: filtro === option.value 
+                              ? `${option.color}.50` 
+                              : 'background.paper',
+                            '&:hover': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: 2
+                            },
+                            borderRadius: 2
+                          }}
+                          onClick={() => setFiltro(option.value)}
+                        >
+                          <CardContent sx={{ p: 2, textAlign: 'center' }}>
+                            <FormControlLabel
+                              value={option.value}
+                              control={
+                                <Radio 
+                                  color={option.color}
+                                  size="small"
+                                  sx={{ display: 'none' }}
+                                />
+                              }
+                              label={
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                  <Box sx={{ 
+                                    color: `${option.color}.main`,
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}>
+                                    {option.icon}
+                                  </Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {option.label}
+                                  </Typography>
+                                </Box>
+                              }
+                              sx={{ margin: 0 }}
+                            />
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </Box>
+                  </RadioGroup>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+          {selectedMaterial && filteredMovimentacoes.length === 0 && movimentacoes.length === 0 && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <AlertTitle>Nenhuma movimentação encontrada</AlertTitle>
+              Este material não possui movimentações registradas.
+            </Alert>
+          )}
+
+          {selectedMaterial && filteredMovimentacoes.length > 0 && (
+            <Card elevation={3} sx={{ borderRadius: 3 }}>
+              <CardContent sx={{ p: 0 }}>
+                <Box sx={{ 
+                  background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                  p: 3,
+                  borderRadius: '12px 12px 0 0'
+                }}>
+                  <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
+                    Movimentações Encontradas ({filteredMovimentacoes.length})
+                  </Typography>
+                </Box>
+                
+                <Table sx={{ width: '100%' }}>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PersonIcon fontSize="small" />
+                          Militar
+                        </Box>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                        Viatura
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                        Data
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                        Tipo
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                        Telefone
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 2 }}>
+                        Status
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredMovimentacoes.map((mov) => (
+                      <TableRow
+                        key={mov.id}
+                        onMouseEnter={(e) => handleMouseEnter(e, mov.id)}
+                        onMouseLeave={() => handleMouseLeave(mov.id)}
+                        sx={{
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                            transform: 'scale(1.01)',
+                            transition: 'all 0.2s ease'
+                          },
+                          '&:nth-of-type(even)': {
+                            backgroundColor: 'grey.25'
+                          },
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <TableCell sx={{ py: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <PersonIcon color="primary" fontSize="small" />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {mov.user_name}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ py: 2 }}>
+                          <Typography variant="body2">
+                            {mov.viatura_description || '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ py: 2 }}>
+                          <Chip
+                            label={new Date(mov.date.seconds * 1000).toLocaleDateString()}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell sx={{ py: 2 }}>
+                          <Chip
+                            label={mov.type}
+                            size="small"
+                            color={getTypeColor(mov.type)}
+                            variant="filled"
+                          />
+                        </TableCell>
+                        <TableCell sx={{ py: 2 }}>
+                          <Typography variant="body2">
+                            {mov.telefone_responsavel || '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ py: 2 }}>
+                          <Chip
+                            label={mov.status}
+                            size="small"
+                            color={getStatusColor(mov.status)}
+                            variant="filled"
+                          />
+                        </TableCell>
+
+                        <Popover
+                          id={`popover-${mov.id}`}
+                          sx={{ pointerEvents: "none" }}
+                          open={Boolean(anchorEls[mov.id]?.open)}
+                          anchorEl={anchorEls[mov.id]?.anchorEl}
+                          anchorOrigin={{ vertical: "center", horizontal: "right" }}
+                          transformOrigin={{ vertical: "center", horizontal: "left" }}
+                          onClose={() => handleMouseLeave(mov.id)}
+                          disableRestoreFocus
+                        >
+                          <Card sx={{ maxWidth: 400, m: 1 }}>
+                            <CardContent>
+                              <Typography variant="h6" gutterBottom color="primary">
+                                Detalhes da Movimentação
+                              </Typography>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {mov.id && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">ID:</Typography>
+                                    <Typography variant="body2">{mov.id}</Typography>
+                                  </Box>
+                                )}
+                                {mov.material_description && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Material:</Typography>
+                                    <Typography variant="body2">{mov.material_description}</Typography>
+                                  </Box>
+                                )}
+                                {mov.quantity !== undefined && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Quantidade:</Typography>
+                                    <Typography variant="body2">{mov.quantity}</Typography>
+                                  </Box>
+                                )}
+                                {mov.user_name && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Militar:</Typography>
+                                    <Typography variant="body2">{mov.user_name}</Typography>
+                                  </Box>
+                                )}
+                                {mov.viatura_description && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Viatura:</Typography>
+                                    <Typography variant="body2">{mov.viatura_description}</Typography>
+                                  </Box>
+                                )}
+                                {mov.date?.seconds && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Data:</Typography>
+                                    <Typography variant="body2">
+                                      {new Date(mov.date.seconds * 1000).toLocaleString()}
+                                    </Typography>
+                                  </Box>
+                                )}
+                                {mov.telefone_responsavel && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Telefone:</Typography>
+                                    <Typography variant="body2">{mov.telefone_responsavel}</Typography>
+                                  </Box>
+                                )}
+                                {mov.sender_name && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Remetente:</Typography>
+                                    <Typography variant="body2">{mov.sender_name}</Typography>
+                                  </Box>
+                                )}
+                                {mov.signed !== undefined && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Assinado:</Typography>
+                                    <Chip 
+                                      label={mov.signed ? "Sim" : "Não"} 
+                                      size="small" 
+                                      color={mov.signed ? "success" : "default"}
+                                    />
+                                  </Box>
+                                )}
+                                {mov.obs && (
+                                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Observações:</Typography>
+                                    <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                                      {mov.obs}
+                                    </Typography>
+                                  </Box>
+                                )}
+                                {mov.motivo && (
+                                  <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Typography variant="body2" fontWeight="bold">Motivo:</Typography>
+                                    <Typography variant="body2">{mov.motivo}</Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </Popover>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {selectedMaterial && filteredMovimentacoes.length > 0 && (
+            <Tooltip title="Exportar para Excel" placement="left">
+              <Fab
+                color="success"
+                size="medium"
+                onClick={() => exportarMovimentacoes(
+                  filteredMovimentacoes,
+                  `movimentacoes_${selectedMaterial.description}`
+                )}
+                sx={{
+                  position: 'fixed',
+                  bottom: 120,
+                  right: 24,
+                  background: 'linear-gradient(45deg, #4caf50 30%, #81c784 90%)',
+                  boxShadow: 3,
+                  '&:hover': {
+                    transform: 'scale(1.1)',
+                    boxShadow: 6
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <img src={excelIcon} alt="Exportar para Excel" width={24} />
+              </Fab>
+            </Tooltip>
           )}
         </Box>
-        <MaterialSearch
-          materialCritery={materialCritery}
-          onSetMaterialCritery={setMaterialCritery}
-          selectedItem={selectedMaterial}
-          onSelectMaterial={handleSelectMaterial}
-        />
-        {selectedMaterial && (
-          <Box>
-            <RadioGroup
-              sx={{
-                display: "flex",
-                gap: 2,
-                flexDirection: "row",
-                justifyContent: "center",
-              }}
-              value={filtro}
-              onChange={(e) => setFiltro(Number(e.target.value))} // Convertendo para número
-            >
-              <FormControlLabel value={0} control={<Radio />} label="Todas" />
-              <FormControlLabel
-                value={1}
-                control={<Radio />}
-                label="Cautelas/Aberto"
-              />
-              <FormControlLabel
-                value={2}
-                control={<Radio />}
-                label="Cautelas/Devolvido"
-              />
-              <FormControlLabel
-                value={3}
-                control={<Radio />}
-                label="Saida"
-              />
-            </RadioGroup>
-          </Box>
-        )}
-        <Table size="small" sx={{ marginTop: 2, width: '100%', tableLayout: 'fixed' }}>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-                Militar
-              </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-                Viatura
-              </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-                Data
-              </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-                Tipo
-              </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-                Telefone
-              </TableCell>
-              <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-                Status
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {
-              filteredMovimentacoes.map((mov) => (
-                <TableRow
-                  key={mov.id}
-                  onMouseEnter={(e) => handleMouseEnter(e, mov.id)}
-                  onMouseLeave={() => handleMouseLeave(mov.id)}
-                  hover
-                >
-                  <TableCell sx={{ textAlign: "left" }}>
-                    {mov.user_name}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: "left" }}>
-                    {mov.viatura_description}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: "left" }}>
-                    {new Date(mov.date.seconds * 1000).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: "left" }}>
-                    {mov.type}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: "left" }}>
-                    {mov.telefone_responsavel}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: "left" }}>
-                    {mov.status}
-                  </TableCell>
-
-                  <Popover
-                    id={`popover-${mov.id}`}
-                    sx={{
-                      pointerEvents: "none",
-                    }}
-                    open={Boolean(anchorEls[mov.id]?.open)}
-                    anchorEl={anchorEls[mov.id]?.anchorEl}
-                    anchorOrigin={{
-                      vertical: "center",
-                      horizontal: "right",
-                    }}
-                    transformOrigin={{
-                      vertical: "center",
-                      horizontal: "left",
-                    }}
-                    onClose={() => handleMouseLeave(mov.id)}
-                    disableRestoreFocus
-                  >
-                    <Typography component={"div"} sx={{ p: 2, maxWidth: 350 }}>
-                      {mov.id && <div><strong>ID:</strong> {mov.id}</div>}
-                      {mov.material && <div><strong>Material ID:</strong> {mov.material}</div>}
-                      {mov.material_description && <div><strong>Material:</strong> {mov.material_description}</div>}
-                      {mov.quantity !== undefined && <div><strong>Quantidade:</strong> {mov.quantity}</div>}
-                      {mov.user_name && <div><strong>Militar:</strong> {mov.user_name}</div>}
-                      {mov.user && <div><strong>ID Militar:</strong> {mov.user}</div>}
-                      {mov.viatura_description && <div><strong>Viatura:</strong> {mov.viatura_description}</div>}
-                      {mov.date?.seconds && <div><strong>Data:</strong> {new Date(mov.date.seconds * 1000).toLocaleString()}</div>}
-                      {mov.type && <div><strong>Tipo:</strong> {mov.type}</div>}
-                      {mov.status && <div><strong>Status:</strong> {mov.status}</div>}
-                      {mov.telefone_responsavel && <div><strong>Telefone:</strong> {mov.telefone_responsavel}</div>}
-                      {mov.sender_name && <div><strong>Remetente:</strong> {mov.sender_name}</div>}
-                      {mov.sender && <div><strong>ID Remetente:</strong> {mov.sender}</div>}
-                      {mov.signed !== undefined && <div><strong>Assinado:</strong> {mov.signed ? "Sim" : "Não"}</div>}
-                      {mov.obs && <div><strong>Observações:</strong> {mov.obs}</div>}
-                      {mov.motivo && <div><strong>Motivo:</strong> {mov.motivo}</div>}
-                    </Typography>
-                  </Popover>
-                </TableRow>
-              ))
-            }
-          </TableBody>
-        </Table>
-      </Paper>
-
-      {selectedMaterial && filteredMovimentacoes.length > 0 && (
-        <Tooltip title="Exportar para Excel" placement="left">
-          <Fab
-            size="small"
-            onClick={() => exportarMovimentacoes(
-              filteredMovimentacoes,
-              `movimentacoes_${selectedMaterial.description}`
-            )}
-            sx={{
-              position: 'fixed',
-              bottom: 100,
-              right: 16,
-            }}
-          >
-            <img src={excelIcon} alt="Exportar para Excel" width={20} />
-          </Fab>
-        </Tooltip>
-      )}
-    </div>
+      </Fade>
+    </Container>
   );
 }
 
