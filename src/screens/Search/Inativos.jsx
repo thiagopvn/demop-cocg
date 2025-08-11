@@ -7,10 +7,16 @@ import {
   TableHead,
   TableRow,
   TableCell,
-  Tooltip
+  Tooltip,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle
 } from "@mui/material";
 import db from "../../firebase/db";
-import { query, collection, where, getDocs } from "firebase/firestore";
+import { query, collection, where, getDocs, doc, updateDoc } from "firebase/firestore";
 
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
@@ -20,11 +26,13 @@ export default function Inativos() {
   // Estados para o Popover
   const [anchorEls, setAnchorEls] = useState({});
   const [hoverTimers, setHoverTimers] = useState({});
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedMovimentacao, setSelectedMovimentacao] = useState(null);
 
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(movimentacoesCollection, where("status", "==", "emReparo"));
+      const q = query(movimentacoesCollection, where("status", "in", ["emReparo", "devolvido"]));
       const querySnapshot = await getDocs(q);
       const movs = [];
       querySnapshot.forEach((doc) => {
@@ -76,6 +84,40 @@ export default function Inativos() {
     };
   }, [hoverTimers]);
 
+  const handleOpenDialog = (movimentacao) => {
+    setSelectedMovimentacao(movimentacao);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedMovimentacao(null);
+  };
+
+  const handleMarcarDevolvido = async () => {
+    if (!selectedMovimentacao) return;
+
+    try {
+      const movimentacaoRef = doc(db, "movimentacoes", selectedMovimentacao.id);
+      await updateDoc(movimentacaoRef, {
+        status: "devolvido"
+      });
+
+      // Atualizar a lista local
+      setMovimentacoes(prev => 
+        prev.map(mov => 
+          mov.id === selectedMovimentacao.id 
+            ? { ...mov, status: "devolvido" }
+            : mov
+        )
+      );
+
+      handleCloseDialog();
+    } catch (error) {
+      console.error("Erro ao marcar como devolvido:", error);
+    }
+  };
+
   return (
     <Paper sx={{ padding: 2, marginTop: 5 }}>
       <Table size="small" sx={{ width: "100%", tableLayout: "fixed" }}>
@@ -85,13 +127,22 @@ export default function Inativos() {
               Material
             </TableCell>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Local de Reparo
+              Data
             </TableCell>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
               Quantidade
             </TableCell>
             <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Data
+              Número SEI
+            </TableCell>
+            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              Local de Reparo
+            </TableCell>
+            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              Status
+            </TableCell>
+            <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
+              Ações
             </TableCell>
           </TableRow>
         </TableHead>
@@ -107,13 +158,31 @@ export default function Inativos() {
                 {mov.material_description}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.repairLocation}
+                {mov.date?.seconds ? new Date(mov.date.seconds * 1000).toLocaleDateString() : ""}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
                 {mov.quantity}
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
-                {mov.date?.seconds ? new Date(mov.date.seconds * 1000).toLocaleDateString() : ""}
+                {mov.seiNumber || "-"}
+              </TableCell>
+              <TableCell sx={{ textAlign: "left" }}>
+                {mov.repairLocation || "-"}
+              </TableCell>
+              <TableCell sx={{ textAlign: "left" }}>
+                {mov.status === "emReparo" ? "Em Reparo" : "Devolvido"}
+              </TableCell>
+              <TableCell sx={{ textAlign: "center" }}>
+                {mov.status === "emReparo" && (
+                  <Button 
+                    size="small" 
+                    variant="contained" 
+                    color="success"
+                    onClick={() => handleOpenDialog(mov)}
+                  >
+                    Marcar como Devolvido
+                  </Button>
+                )}
               </TableCell>
               <Popover
                 id={`popover-${mov.id}`}
@@ -153,6 +222,16 @@ export default function Inativos() {
                       <strong>Local de Reparo:</strong> {mov.repairLocation}
                     </div>
                   )}
+                  {mov.seiNumber && (
+                    <div>
+                      <strong>Número SEI:</strong> {mov.seiNumber}
+                    </div>
+                  )}
+                  {mov.status && (
+                    <div>
+                      <strong>Status:</strong> {mov.status === "emReparo" ? "Em Reparo" : "Devolvido"}
+                    </div>
+                  )}
                   {mov.date?.seconds && (
                     <div>
                       <strong>Data:</strong> {new Date(mov.date.seconds * 1000).toLocaleString()}
@@ -170,6 +249,29 @@ export default function Inativos() {
           <span>Exportar</span>
         </Box>
       </Tooltip>
+
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          Confirmar Devolução
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Tem certeza que deseja marcar o material "{selectedMovimentacao?.material_description}" como devolvido?
+            Esta ação não pode ser desfeita.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancelar</Button>
+          <Button onClick={handleMarcarDevolvido} autoFocus color="success">
+            Confirmar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }

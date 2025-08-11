@@ -37,6 +37,7 @@ export default function Movimentacao() {
     const [viaturaCritery, setViaturaCritery] = useState("");
     const [viaturaSelected, setViaturaSelected] = useState(null);
     const [showViaturaSearch, setShowViaturaSearch] = useState(false);
+    const [numeroSei, setNumeroSei] = useState("");
 
 
     useEffect(() => {
@@ -89,6 +90,7 @@ export default function Movimentacao() {
         setShowSaveButton(false);
         setViaturaCritery("");
         setViaturaSelected(null);
+        setNumeroSei("");
     };
 
     // Função para limpar TUDO, incluindo o tipo de movimentação
@@ -128,7 +130,7 @@ export default function Movimentacao() {
                 case "saída":
                     return materialSelected && userSelected && quantidade;
                 case "reparo":
-                    return materialSelected && quantidade && localReparo;
+                    return materialSelected && quantidade && localReparo && numeroSei;
                 case "cautela":
                     // Remove a necessidade de ter viaturaSelected
                     return materialSelected && userSelected && quantidade;
@@ -137,7 +139,7 @@ export default function Movimentacao() {
             }
         };
         setShowSaveButton(validateFields());
-    }, [tipoMovimentacao, materialSelected, userSelected, viaturaSelected, quantidade, localReparo]);
+    }, [tipoMovimentacao, materialSelected, userSelected, viaturaSelected, quantidade, localReparo, numeroSei]);
 
     // Funções para limpar seleção
     const handleClearMaterial = () => {
@@ -206,6 +208,7 @@ export default function Movimentacao() {
             }
 
             if (localReparo) movementData.repairLocation = localReparo;
+            if (numeroSei) movementData.seiNumber = numeroSei;
 
             // Atualizar estoque do material
             let updateData = {};
@@ -379,13 +382,22 @@ export default function Movimentacao() {
                     )}
 
                     {tipoMovimentacao === 'reparo' && (
-                        <TextField
-                            label="Local do Reparo"
-                            fullWidth
-                            value={localReparo}
-                            onChange={(e) => setLocalReparo(e.target.value)}
-                            sx={{ mb: 2 }}
-                        />
+                        <>
+                            <TextField
+                                label="Local do Reparo"
+                                fullWidth
+                                value={localReparo}
+                                onChange={(e) => setLocalReparo(e.target.value)}
+                                sx={{ mb: 2 }}
+                            />
+                            <TextField
+                                label="Número do SEI"
+                                fullWidth
+                                value={numeroSei}
+                                onChange={(e) => setNumeroSei(e.target.value)}
+                                sx={{ mb: 2 }}
+                            />
+                        </>
                     )}
 
                     {showSaveButton && (
