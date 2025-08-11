@@ -38,8 +38,8 @@ export default function Cautelados() {
         let constraints = [];
         
         switch (filtro) {
-          case 0: // Todos os cautelados
-            constraints = [where("status", "==", "cautelado")];
+          case 0: // Todos - busca todas as movimentações de cautela (incluindo devolvidos)
+            constraints = [];
             break;
           case 1: // Assinados
             constraints = [
@@ -57,14 +57,30 @@ export default function Cautelados() {
             ];
             break;
           default:
-            constraints = [where("status", "==", "cautelado")];
+            constraints = [];
         }
         
-        const q = query(movimentacoesCollection, ...constraints);
-        const querySnapshot = await getDocs(q);
+        let querySnapshot;
+        if (constraints.length === 0) {
+          // Para "Todos", busca todas as movimentações de cautela (incluindo devolvidas)
+          const qCautelado = query(movimentacoesCollection, where("type", "==", "cautela"));
+          querySnapshot = await getDocs(qCautelado);
+        } else {
+          const q = query(movimentacoesCollection, ...constraints);
+          querySnapshot = await getDocs(q);
+        }
+        
         const movs = [];
         querySnapshot.forEach((doc) => {
-          movs.push({ id: doc.id, ...doc.data() });
+          const data = doc.data();
+          // Para "Todos", incluir apenas movimentações de cautela
+          if (filtro === 0) {
+            if (data.type === "cautela") {
+              movs.push({ id: doc.id, ...data });
+            }
+          } else {
+            movs.push({ id: doc.id, ...data });
+          }
         });
         console.log(movs);
         setCachedMovimentacoes((prev) => ({ ...prev, [filtro]: movs }));
@@ -128,10 +144,29 @@ export default function Cautelados() {
           value={filtro}
           onChange={(e) => setFiltro(Number(e.target.value))}
         >
-          <FormControlLabel value={0} control={<Radio />} label="Todos" />
-          <FormControlLabel value={1} control={<Radio />} label="Assinados" />
-          <FormControlLabel value={2} control={<Radio />} label="Devolvidos" />
-          <FormControlLabel value={3} control={<Radio />} label="Não Assinados" />
+          <FormControlLabel 
+            value={0} 
+            control={<Radio />} 
+            label="Todos" 
+          />
+          <FormControlLabel 
+            value={1} 
+            control={<Radio sx={{ color: 'blue', '&.Mui-checked': { color: 'blue' } }} />} 
+            label="Assinados"
+            sx={{ color: 'blue' }}
+          />
+          <FormControlLabel 
+            value={2} 
+            control={<Radio sx={{ color: 'green', '&.Mui-checked': { color: 'green' } }} />} 
+            label="Devolvidos"
+            sx={{ color: 'green' }}
+          />
+          <FormControlLabel 
+            value={3} 
+            control={<Radio sx={{ color: 'red', '&.Mui-checked': { color: 'red' } }} />} 
+            label="Não Assinados"
+            sx={{ color: 'red' }}
+          />
         </RadioGroup>
       </Box>
 
@@ -201,6 +236,20 @@ export default function Cautelados() {
               onMouseEnter={(e) => handleMouseEnter(e, mov.id)}
               onMouseLeave={() => handleMouseLeave(mov.id)}
               hover
+              sx={{
+                backgroundColor: 
+                  mov.status === 'devolvido' ? 'rgba(0, 128, 0, 0.1)' : // Verde claro para devolvidos
+                  mov.signed === false ? 'rgba(255, 0, 0, 0.1)' : // Vermelho claro para não assinados
+                  mov.signed === true ? 'rgba(0, 0, 255, 0.1)' : // Azul claro para assinados
+                  'transparent',
+                '&:hover': {
+                  backgroundColor: 
+                    mov.status === 'devolvido' ? 'rgba(0, 128, 0, 0.2)' : 
+                    mov.signed === false ? 'rgba(255, 0, 0, 0.2)' : 
+                    mov.signed === true ? 'rgba(0, 0, 255, 0.2)' : 
+                    'rgba(0, 0, 0, 0.04)',
+                }
+              }}
             >
               <TableCell sx={{ textAlign: "left" }}>
                 {mov.user_name || "-"}
