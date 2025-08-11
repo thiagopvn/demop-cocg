@@ -581,10 +581,18 @@ export default function MenuContext({ children }) {
           <Typography
             variant="caption"
             sx={{
-              fontSize: '10px',
-              color: 'rgba(0,0,0,0.4)',
+              position: 'fixed',
+              bottom: 8,
+              right: 8,
+              fontSize: '9px',
+              color: 'rgba(0,0,0,0.3)',
               userSelect: 'none',
-              fontWeight: 300
+              fontWeight: 300,
+              zIndex: 1000,
+              backgroundColor: 'rgba(255,255,255,0.8)',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              backdropFilter: 'blur(4px)'
             }}
           >
             desenvolvido por ASP OF BM Thiago Santos

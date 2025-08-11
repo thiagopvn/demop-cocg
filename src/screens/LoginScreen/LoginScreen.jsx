@@ -564,12 +564,13 @@ export default function LoginScreen() {
           sx={{
             position: 'fixed',
             bottom: 8,
-            left: 8,
-            fontSize: '10px',
-            color: 'rgba(241, 245, 249, 0.4)',
+            right: 8,
+            fontSize: '9px',
+            color: 'rgba(241, 245, 249, 0.3)',
             zIndex: 1000,
             userSelect: 'none',
-            fontWeight: 300
+            fontWeight: 300,
+            textAlign: 'right'
           }}
         >
           desenvolvido por ASP OF BM Thiago Santos
