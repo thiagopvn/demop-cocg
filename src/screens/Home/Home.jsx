@@ -16,6 +16,9 @@ import {
   Avatar,
   useTheme,
   alpha,
+  Alert,
+  AlertTitle,
+  Button,
 } from "@mui/material";
 import {
   LocalShipping,
@@ -32,6 +35,10 @@ import {
   MoreVert,
   AssignmentTurnedIn,
   Warning,
+  Assignment,
+  AccountCircle,
+  VerifiedUser,
+  DonutSmall,
 } from "@mui/icons-material";
 import {
   collection,
@@ -68,7 +75,6 @@ import { verifyToken } from "../../firebase/token";
 import CautelaStrip from "../../components/CautelaStrip";
 
 const StatCard = ({ icon: Icon, title, value, color, trend, loading }) => {
-  const theme = useTheme();
   
   return (
     <Card
@@ -222,7 +228,7 @@ const MovementCard = ({ movement }) => {
             <Typography variant="body1" fontWeight={600}>
               {movement.type.charAt(0).toUpperCase() + movement.type.slice(1)}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="body2" fontWeight={500}>
               {movement.sender_name || 'Usuário'}
             </Typography>
           </Box>
@@ -247,10 +253,11 @@ export default function Home() {
     totalUsers: 0,
     recentMovements: [],
     allMovements: [],
+    materiaisCautelados: 0,
+    retiradasAneis: 0,
   });
   const [loading, setLoading] = useState(true);
   const [minhasCautelas, setMinhasCautelas] = useState([]);
-  const theme = useTheme();
 
   useEffect(() => {
     const getMinhasCautelas = async () => {
@@ -289,19 +296,55 @@ export default function Home() {
             limit(50)
           )
         );
+        
+        // Buscar materiais cautelados (não devolvidos)
+        const cauteladosSnap = await getDocs(
+          query(
+            collection(db, "movimentacoes"),
+            where("type", "==", "cautela"),
+            where("returned", "!=", true)
+          )
+        );
+        
+        // Buscar retiradas de anéis
+        const aneisSnap = await getDocs(collection(db, "aneis"));
+        
+        
+        // Enriquecer movimentações com nomes completos
+        const enrichedRecentMovements = await Promise.all(
+          recentMovementsSnap.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+            let fullName = 'Usuário';
+            
+            if (data.user) {
+              // Buscar usuário específico se necessário
+              const userDocRef = doc(db, "users", data.user);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                fullName = userData.name || userData.username || 'Usuário';
+              }
+            }
+            
+            return {
+              id: docSnap.id,
+              ...data,
+              sender_name: fullName
+            };
+          })
+        );
 
         setStats({
           totalMaterials: materialsSnap.size,
           totalViaturas: viaturasSnap.size,
           totalUsers: usersSnap.size,
-          recentMovements: recentMovementsSnap.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })),
+          recentMovements: enrichedRecentMovements,
           allMovements: allMovementsSnap.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           })),
+          materiaisCautelados: cauteladosSnap.size,
+          retiradasAneis: aneisSnap.size,
         });
         setLoading(false);
       } catch (error) {
@@ -421,10 +464,34 @@ export default function Home() {
               {/* Stats Cards */}
               <Grid container spacing={3} sx={{ mb: 4 }}>
                 {[
-                  { icon: Inventory, title: 'Total de Materiais', value: stats.totalMaterials, color: '#3b82f6', trend: 12 },
-                  { icon: LocalShipping, title: 'Total de Viaturas', value: stats.totalViaturas, color: '#22c55e', trend: 8 },
-                  { icon: Person, title: 'Usuários Ativos', value: stats.totalUsers, color: '#f59e0b', trend: -3 },
-                  { icon: Timeline, title: 'Movimentações', value: stats.allMovements.length, color: '#8b5cf6', trend: 25 },
+                  { 
+                    icon: Assignment, 
+                    title: 'Materiais Cautelados', 
+                    value: stats.materiaisCautelados, 
+                    color: '#ef4444',
+                    trend: null 
+                  },
+                  { 
+                    icon: Inventory, 
+                    title: 'Total de Materiais', 
+                    value: stats.totalMaterials, 
+                    color: '#3b82f6',
+                    trend: null 
+                  },
+                  { 
+                    icon: Person, 
+                    title: 'Total de Usuários', 
+                    value: stats.totalUsers, 
+                    color: '#22c55e',
+                    trend: null 
+                  },
+                  { 
+                    icon: DonutSmall, 
+                    title: 'Retiradas de Anéis', 
+                    value: stats.retiradasAneis, 
+                    color: '#f59e0b',
+                    trend: null 
+                  },
                 ].map((item, index) => (
                   <Grow in timeout={300 + index * 100} key={index}>
                     <Grid item xs={12} sm={6} md={3}>
@@ -484,31 +551,72 @@ export default function Home() {
                       borderRadius: 2,
                       border: '1px solid',
                       borderColor: 'divider',
+                      background: `linear-gradient(135deg, ${alpha('#3b82f6', 0.05)} 0%, ${alpha('#8b5cf6', 0.05)} 100%)`,
                     }}
                   >
                     <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                      Distribuição
+                      Estatísticas Rápidas
                     </Typography>
-                    <ResponsiveContainer width="100%" height="85%">
-                      <PieChart>
-                        <Pie
-                          data={chartData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                          animationDuration={1000}
-                        >
-                          {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '85%', justifyContent: 'center' }}>
+                      <Paper 
+                        elevation={0}
+                        sx={{ 
+                          p: 2, 
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: alpha('#3b82f6', 0.2),
+                          background: alpha('#3b82f6', 0.05),
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Taxa de Cautela
+                        </Typography>
+                        <Typography variant="h4" color="#3b82f6" fontWeight={700}>
+                          {stats.totalMaterials > 0 
+                            ? `${((stats.materiaisCautelados / stats.totalMaterials) * 100).toFixed(1)}%`
+                            : '0%'
+                          }
+                        </Typography>
+                      </Paper>
+                      <Paper 
+                        elevation={0}
+                        sx={{ 
+                          p: 2, 
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: alpha('#22c55e', 0.2),
+                          background: alpha('#22c55e', 0.05),
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Movimentações Hoje
+                        </Typography>
+                        <Typography variant="h4" color="#22c55e" fontWeight={700}>
+                          {stats.allMovements.filter(m => {
+                            const moveDate = new Date(m.date?.toDate?.() || m.date);
+                            const today = new Date();
+                            return moveDate.toDateString() === today.toDateString();
+                          }).length}
+                        </Typography>
+                      </Paper>
+                      <Paper 
+                        elevation={0}
+                        sx={{ 
+                          p: 2, 
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: alpha('#f59e0b', 0.2),
+                          background: alpha('#f59e0b', 0.05),
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Pendentes de Assinatura
+                        </Typography>
+                        <Typography variant="h4" color="#f59e0b" fontWeight={700}>
+                          {minhasCautelas.filter(c => !c.signed).length}
+                        </Typography>
+                      </Paper>
+                    </Box>
                   </Paper>
                 </Grid>
               </Grid>
