@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, Typography, Tabs, Tab, Paper } from '@mui/material';
-import { MenuContext } from '../../contexts/MenuContext';
+import MenuContext from '../../contexts/MenuContext';
 import MaintenanceDashboard from '../../components/maintenance/MaintenanceDashboard';
 import MaintenanceCalendar from '../../components/maintenance/MaintenanceCalendar';
 import MaintenanceHistory from '../../components/maintenance/MaintenanceHistory';
