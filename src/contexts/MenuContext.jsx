@@ -24,7 +24,8 @@ import {
   SwapHorizOutlined,
   AssignmentReturnOutlined,
   Brightness4,
-  Brightness7
+  Brightness7,
+  CalendarMonth
 } from '@mui/icons-material';
 import { 
   Dialog, 
@@ -81,6 +82,7 @@ export default function MenuContext({ children }) {
     { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5 },
     { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7 },
     { icon: BuildOutlined, label: 'Material', path: '/material', id: 2 },
+    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10 },
     { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3 },
     { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4 },
     { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1 },
