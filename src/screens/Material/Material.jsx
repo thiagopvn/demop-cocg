@@ -30,15 +30,17 @@ import {
     CheckCircle,
     Refresh
 } from '@mui/icons-material';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc } from 'firebase/firestore';
 import db from '../../firebase/db';
 import MenuContext from '../../contexts/MenuContext';
 import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
+import MaterialDialog from '../../dialogs/MaterialDialog';
 
 const Material = () => {
     const [materials, setMaterials] = useState([]);
     const [filteredMaterials, setFilteredMaterials] = useState([]);
     const [openMaintenanceDialog, setOpenMaintenanceDialog] = useState(false);
+    const [openMaterialDialog, setOpenMaterialDialog] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
@@ -111,6 +113,34 @@ const Material = () => {
         if (wasUpdated) {
             // Opcionalmente mostrar mensagem de sucesso
             console.log('Manutenção agendada com sucesso');
+        }
+    };
+
+    const handleOpenMaterialDialog = () => {
+        setSelectedMaterial(null);
+        setOpenMaterialDialog(true);
+    };
+
+    const handleCloseMaterialDialog = () => {
+        setSelectedMaterial(null);
+        setOpenMaterialDialog(false);
+    };
+
+    const handleCreateMaterial = async (materialData) => {
+        try {
+            await addDoc(collection(db, 'materials'), {
+                ...materialData,
+                estoque_atual: parseInt(materialData.estoque_atual) || 0,
+                estoque_total: parseInt(materialData.estoque_total) || 0,
+                maintenance_status: 'operante',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+            handleCloseMaterialDialog();
+            console.log('Material criado com sucesso');
+        } catch (error) {
+            console.error('Erro ao criar material:', error);
+            setError('Erro ao criar material');
         }
     };
 
@@ -271,6 +301,7 @@ const Material = () => {
                         <Button
                             variant="outlined"
                             startIcon={<Add />}
+                            onClick={handleOpenMaterialDialog}
                             sx={{ mr: 1 }}
                         >
                             Novo Material
@@ -390,6 +421,14 @@ const Material = () => {
                     open={openMaintenanceDialog}
                     onClose={handleCloseMaintenanceDialog}
                     material={selectedMaterial}
+                />
+
+                {/* Dialog de Material */}
+                <MaterialDialog
+                    open={openMaterialDialog}
+                    onSubmit={handleCreateMaterial}
+                    onCancel={handleCloseMaterialDialog}
+                    editData={selectedMaterial}
                 />
             </Box>
         </MenuContext>
