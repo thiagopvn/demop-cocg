@@ -3,16 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import brasao from '../assets/brasao.png';
 import "./context.css";
 import { 
-  Home, 
-  Group, 
-  Handyman, 
-  FireTruck, 
-  Category, 
-  Loop, 
   Logout, 
   Menu, 
   Close, 
-  AssignmentReturn, 
   Inventory, 
   Search,
   ChevronLeft,
@@ -23,8 +16,6 @@ import {
   CategoryOutlined,
   SwapHorizOutlined,
   AssignmentReturnOutlined,
-  Brightness4,
-  Brightness7,
   CalendarMonth
 } from '@mui/icons-material';
 import { 
@@ -48,23 +39,17 @@ import {
   Avatar,
   Divider,
   IconButton,
-  Collapse,
   Badge,
   Chip,
-  useTheme,
-  alpha,
-  Paper,
   Zoom,
-  Fade,
-  Slide
+  Fade
 } from '@mui/material';
-import UserInfo from '../components/UserInfo';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import db from '../firebase/db';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { verifyToken } from '../firebase/token';
 
-export default function MenuContext({ children }) {
+function MenuContext({ children }) {
   const [active, setActive] = React.useState(0);
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,7 +60,6 @@ export default function MenuContext({ children }) {
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
-  const theme = useTheme();
 
   const menuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0 },
@@ -332,7 +316,7 @@ export default function MenuContext({ children }) {
 
       {/* Navigation */}
       <List sx={{ flex: 1, px: 1, py: 2 }}>
-        {menuItems.map((item, index) => {
+        {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
           
@@ -342,7 +326,6 @@ export default function MenuContext({ children }) {
                 title={!drawerOpen ? item.label : ''} 
                 placement="right"
                 arrow
-                TransitionComponent={Zoom}
               >
                 <ListItemButton
                   onClick={() => handleNavigation(item.path)}
@@ -629,10 +612,8 @@ export default function MenuContext({ children }) {
       <Dialog
         open={open}
         onClose={handleCloseDialog}
-        TransitionComponent={Slide}
-        TransitionProps={{ direction: 'up' }}
-        PaperProps={{
-          sx: {
+        sx={{
+          '& .MuiDialog-paper': {
             borderRadius: 3,
             minWidth: 320,
             boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
@@ -676,10 +657,8 @@ export default function MenuContext({ children }) {
       <Dialog
         open={cleanupDialogOpen}
         onClose={handleCloseCleanupDialog}
-        TransitionComponent={Slide}
-        TransitionProps={{ direction: 'up' }}
-        PaperProps={{
-          sx: {
+        sx={{
+          '& .MuiDialog-paper': {
             borderRadius: 3,
             minWidth: 400,
             boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
@@ -721,3 +700,5 @@ export default function MenuContext({ children }) {
     </Box>
   );
 }
+
+export default MenuContext;

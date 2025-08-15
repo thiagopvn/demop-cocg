@@ -32,7 +32,7 @@ import {
 } from '@mui/icons-material';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import db from '../../firebase/db';
-import { MenuContext } from '../../contexts/MenuContext';
+import MenuContext from '../../contexts/MenuContext';
 import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
 
 const Material = () => {
