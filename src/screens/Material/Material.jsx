@@ -64,13 +64,16 @@ const Material = () => {
                 try {
                     const materialsData = snapshot.docs.map(doc => {
                         const data = doc.data();
+                        // Remover campo 'id' dos dados se existir e estiver vazio
+                        const { id: dataId, ...cleanData } = data;
+                        
                         const material = { 
-                            ...data,
-                            id: doc.id, // ID depois dos dados para não ser sobrescrito
+                            ...cleanData,
+                            id: doc.id, // Sempre usar o ID real do documento
                             // Garantir que maintenance_status tenha um valor padrão
-                            maintenance_status: data.maintenance_status || 'operante'
+                            maintenance_status: cleanData.maintenance_status || 'operante'
                         };
-                        console.log('Material loaded:', material.description, 'ID:', doc.id);
+                        console.log('Material loaded:', material.description, 'Real ID:', doc.id, 'Data ID:', dataId);
                         return material;
                     });
                     console.log('Total materials loaded:', materialsData.length);
