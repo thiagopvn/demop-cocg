@@ -17,7 +17,13 @@ import {
     Toolbar,
     Tooltip,
     Alert,
-    LinearProgress
+    LinearProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    DialogContentText,
+    Snackbar
 } from '@mui/material';
 import { 
     Add, 
@@ -30,7 +36,7 @@ import {
     CheckCircle,
     Refresh
 } from '@mui/icons-material';
-import { collection, onSnapshot, query, orderBy, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import db from '../../firebase/db';
 import MenuContext from '../../contexts/MenuContext';
 import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
@@ -46,6 +52,10 @@ const Material = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [maintenanceFilter, setMaintenanceFilter] = useState('todos'); // todos, operante, em_manutencao, inoperante
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [materialToDelete, setMaterialToDelete] = useState(null);
+    const [successMessage, setSuccessMessage] = useState('');
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
 
     useEffect(() => {
         const q = query(collection(db, 'materials'), orderBy('description', 'asc'));
@@ -137,11 +147,44 @@ const Material = () => {
                 updated_at: new Date().toISOString()
             });
             handleCloseMaterialDialog();
-            console.log('Material criado com sucesso');
+            setSuccessMessage('Material criado com sucesso!');
+            setSnackbarOpen(true);
         } catch (error) {
             console.error('Erro ao criar material:', error);
             setError('Erro ao criar material');
         }
+    };
+
+    const handleDeleteMaterial = (material) => {
+        setMaterialToDelete(material);
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteMaterial = async () => {
+        if (!materialToDelete) return;
+        
+        try {
+            await deleteDoc(doc(db, 'materials', materialToDelete.id));
+            setDeleteDialogOpen(false);
+            setMaterialToDelete(null);
+            setSuccessMessage('Material excluído com sucesso!');
+            setSnackbarOpen(true);
+        } catch (error) {
+            console.error('Erro ao excluir material:', error);
+            setError('Erro ao excluir material');
+            setDeleteDialogOpen(false);
+            setMaterialToDelete(null);
+        }
+    };
+
+    const cancelDeleteMaterial = () => {
+        setDeleteDialogOpen(false);
+        setMaterialToDelete(null);
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbarOpen(false);
+        setSuccessMessage('');
     };
 
     const getStatusChip = (status) => {
@@ -404,7 +447,11 @@ const Material = () => {
                                             </Tooltip>
                                             
                                             <Tooltip title="Excluir material">
-                                                <IconButton size="small" color="error">
+                                                <IconButton 
+                                                    size="small" 
+                                                    color="error"
+                                                    onClick={() => handleDeleteMaterial(material)}
+                                                >
                                                     <Delete />
                                                 </IconButton>
                                             </Tooltip>
@@ -430,6 +477,59 @@ const Material = () => {
                     onCancel={handleCloseMaterialDialog}
                     editData={selectedMaterial}
                 />
+
+                {/* Dialog de Confirmação de Exclusão */}
+                <Dialog
+                    open={deleteDialogOpen}
+                    onClose={cancelDeleteMaterial}
+                    maxWidth="sm"
+                    fullWidth
+                >
+                    <DialogTitle>
+                        ⚠️ Confirmar Exclusão
+                    </DialogTitle>
+                    <DialogContent>
+                        <DialogContentText>
+                            Tem certeza que deseja excluir o material <strong>{materialToDelete?.description}</strong>?
+                            <br /><br />
+                            Esta ação não pode ser desfeita.
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2, gap: 1 }}>
+                        <Button 
+                            onClick={cancelDeleteMaterial}
+                            variant="outlined"
+                            sx={{ borderRadius: '12px' }}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            onClick={confirmDeleteMaterial}
+                            variant="contained"
+                            color="error"
+                            sx={{ borderRadius: '12px' }}
+                        >
+                            Excluir
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Snackbar de Sucesso */}
+                <Snackbar
+                    open={snackbarOpen}
+                    autoHideDuration={4000}
+                    onClose={handleCloseSnackbar}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                >
+                    <Alert 
+                        onClose={handleCloseSnackbar} 
+                        severity="success" 
+                        variant="filled"
+                        sx={{ borderRadius: '12px' }}
+                    >
+                        {successMessage}
+                    </Alert>
+                </Snackbar>
             </Box>
         </MenuContext>
     );
