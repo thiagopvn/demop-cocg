@@ -156,6 +156,7 @@ const Material = () => {
     };
 
     const handleDeleteMaterial = (material) => {
+        console.log('handleDeleteMaterial called with:', material);
         setMaterialToDelete(material);
         setDeleteDialogOpen(true);
     };
@@ -163,15 +164,25 @@ const Material = () => {
     const confirmDeleteMaterial = async () => {
         if (!materialToDelete) return;
         
+        console.log('Material to delete:', materialToDelete);
+        console.log('Material ID:', materialToDelete.id);
+        
         try {
-            await deleteDoc(doc(db, 'materials', materialToDelete.id));
+            if (!materialToDelete.id) {
+                throw new Error('ID do material não encontrado');
+            }
+            
+            const materialRef = doc(db, 'materials', materialToDelete.id);
+            console.log('Document reference:', materialRef);
+            
+            await deleteDoc(materialRef);
             setDeleteDialogOpen(false);
             setMaterialToDelete(null);
             setSuccessMessage('Material excluído com sucesso!');
             setSnackbarOpen(true);
         } catch (error) {
             console.error('Erro ao excluir material:', error);
-            setError('Erro ao excluir material');
+            setError('Erro ao excluir material: ' + error.message);
             setDeleteDialogOpen(false);
             setMaterialToDelete(null);
         }
