@@ -62,12 +62,18 @@ const Material = () => {
         const unsubscribe = onSnapshot(q, 
             (snapshot) => {
                 try {
-                    const materialsData = snapshot.docs.map(doc => ({ 
-                        id: doc.id, 
-                        ...doc.data(),
-                        // Garantir que maintenance_status tenha um valor padrão
-                        maintenance_status: doc.data().maintenance_status || 'operante'
-                    }));
+                    const materialsData = snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        const material = { 
+                            ...data,
+                            id: doc.id, // ID depois dos dados para não ser sobrescrito
+                            // Garantir que maintenance_status tenha um valor padrão
+                            maintenance_status: data.maintenance_status || 'operante'
+                        };
+                        console.log('Material loaded:', material.description, 'ID:', doc.id);
+                        return material;
+                    });
+                    console.log('Total materials loaded:', materialsData.length);
                     setMaterials(materialsData);
                     setLoading(false);
                 } catch (err) {
