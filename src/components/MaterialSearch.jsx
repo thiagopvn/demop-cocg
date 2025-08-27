@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
     TextField,
     Table,
@@ -9,89 +9,57 @@ import {
     IconButton,
     Typography,
     Popover,
-    styled, // Importe styled do MUI
-    useMediaQuery, // Importe useMediaQuery do MUI
+    styled,
+    useMediaQuery,
+    InputAdornment,
+    CircularProgress,
+    Box
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import InfoIcon from "@mui/icons-material/Info";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
-import db from "../firebase/db";
 import { useTheme } from '@mui/material/styles';
+import { useMaterials } from '../contexts/MaterialContext';
 
-// Crie um styled TableCell para reduzir o preenchimento
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
-    padding: theme.spacing(1), // Reduz o preenchimento para 8px
+    padding: theme.spacing(1),
     textAlign: "center",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
 }));
 
-const MaterialSearch = ({ materialCritery, onSetMaterialCritery, onSelectMaterial, selectedItem }) => {
-    const [materiaisEncontrados, setMateriaisEncontrados] = useState([]);
+const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
+    const { materials, loading } = useMaterials();
+    const [searchTerm, setSearchTerm] = useState("");
     const [anchorEls, setAnchorEls] = useState({});
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
-    const filtrarMateriais = async (criterio) => {
-        const materialCollection = collection(db, "materials");
-        let q;
+    // Filtrar materiais baseado no termo de pesquisa
+    const filteredMaterials = searchTerm 
+        ? materials.filter(material =>
+            material.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            material.description_lower?.includes(searchTerm.toLowerCase()) ||
+            material.categoria?.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        : materials;
 
-        if (criterio) {
-            const critery_lower = criterio.toLowerCase();
-            const start = critery_lower;
-            const end = critery_lower + "\uf8ff";
-            
-            q = query(
-                materialCollection,
-                where("description_lower", ">=", start),
-                where("description_lower", "<=", end),
-                orderBy("description_lower")
-            );
-        } else {
-            // Busca TODOS os materiais quando o critério é vazio
-            q = query(
-                materialCollection,
-                orderBy("description_lower")
-            );
-        }
-
-        const querySnapshot = await getDocs(q);
-        const materiais = [];
-
-        querySnapshot.forEach((doc) => {
-            materiais.push({
-                id: doc.id,
-                ...doc.data(),
-            });
-        });
-
-        setMateriaisEncontrados(materiais);
-    };
-
-    const handleKeyDown = (e) => {
-        if (e.key === "Enter") {
-            filtrarMateriais(materialCritery);
-        }
-    };
+    // Mostrar todos os materiais ao carregar o componente
+    useEffect(() => {
+        // Os materiais já estão sendo carregados pelo contexto
+    }, []);
 
     const handlePopoverOpen = (event, materialId) => {
         setAnchorEls((prev) => ({
             ...prev,
-            [materialId]: {
-                anchorEl: event.currentTarget,
-                open: true,
-            },
+            [materialId]: { anchorEl: event.currentTarget, open: true },
         }));
     };
 
     const handlePopoverClose = (materialId) => {
         setAnchorEls((prev) => ({
             ...prev,
-            [materialId]: {
-                anchorEl: null,
-                open: false,
-            },
+            [materialId]: { anchorEl: null, open: false },
         }));
     };
 
@@ -102,20 +70,14 @@ const MaterialSearch = ({ materialCritery, onSetMaterialCritery, onSelectMateria
                 label="Pesquisar Material"
                 variant="outlined"
                 fullWidth
-                value={materialCritery || ""}
-                onChange={(e) => onSetMaterialCritery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                slotProps={{
-                    input: {
-                        endAdornment: (
-                            <IconButton
-                                position="end"
-                                onClick={() => filtrarMateriais(materialCritery)}
-                            >
-                                <SearchIcon />
-                            </IconButton>
-                        ),
-                    },
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                    endAdornment: (
+                        <InputAdornment position="end">
+                            <SearchIcon />
+                        </InputAdornment>
+                    ),
                 }}
             />
 
@@ -136,65 +98,86 @@ const MaterialSearch = ({ materialCritery, onSetMaterialCritery, onSelectMateria
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {materiaisEncontrados
-                        .filter(material => !selectedItem || material.id === selectedItem.id)
-                        .map((material) => (
-                            <TableRow
-                                key={material.id}
-                                onClick={() => onSelectMaterial(material)}
-                                sx={{
-                                    cursor: "pointer",
-                                    backgroundColor: selectedItem?.id === material.id ? "#e3f2fd" : "inherit",
-                                    "&:hover": {
-                                        backgroundColor: "#f5f5f5",
-                                    },
-                                }}
-                            >
-                                <StyledTableCell sx={{ textAlign: "center", wordBreak: 'break-word' }}>
-                                    {material.description}
-                                </StyledTableCell>
-                                <StyledTableCell sx={{ textAlign: "center" }}>
-                                    {material.estoque_total}/{material.estoque_atual}
-                                </StyledTableCell>
-                                {!isSmallScreen && (
-                                    <StyledTableCell sx={{ textAlign: "center" }}>
-                                        <IconButton
-                                            aria-owns={anchorEls[material.id]?.open ? "material-mouse-over-popover" : undefined}
-                                            aria-haspopup="true"
-                                            onMouseEnter={(e) => handlePopoverOpen(e, material.id)}
-                                            onMouseLeave={() => handlePopoverClose(material.id)}
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <InfoIcon color="info" />
-                                        </IconButton>
-                                        <Popover
-                                            id="material-mouse-over-popover"
-                                            sx={{ pointerEvents: "none" }}
-                                            open={anchorEls[material.id]?.open || false}
-                                            anchorEl={anchorEls[material.id]?.anchorEl}
-                                            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-                                            transformOrigin={{ vertical: "top", horizontal: "left" }}
-                                            onClose={() => handlePopoverClose(material.id)}
-                                            disableRestoreFocus
-                                        >
-                                            <Typography component={"div"} sx={{ p: 1 }}>
-                                                <div>ID: {material.id}</div>
-                                                <div>Descrição: {material.description}</div>
-                                                <div>Estoque Disponível: {material.estoque_atual}</div>
-                                                <div>Estoque Total: {material.estoque_total}</div>
-                                                <div>Categoria: {material.categoria}</div>
-                                                {material.ultima_movimentacao && (
-                                                    <div>Última Movimentação: {new Date(material.ultima_movimentacao.toDate()).toLocaleString()}</div>
-                                                )}
-                                                {material.created_at && (
-                                                    <div>Criado em: {new Date(material.created_at.toDate()).toLocaleString()}</div>
-                                                )}
-                                            </Typography>
-                                        </Popover>
+                    {loading ? (
+                        <TableRow>
+                            <TableCell colSpan={3} align="center">
+                                <CircularProgress size={24} />
+                            </TableCell>
+                        </TableRow>
+                    ) : filteredMaterials.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={3} align="center">
+                                <Typography variant="body2" color="text.secondary">
+                                    {searchTerm ? 'Nenhum material encontrado' : 'Carregando materiais...'}
+                                </Typography>
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        filteredMaterials
+                            .filter(material => !selectedItem || material.id === selectedItem.id)
+                            .map((material) => (
+                                <TableRow
+                                    key={material.id}
+                                    onClick={() => onSelectMaterial(material)}
+                                    sx={{
+                                        cursor: "pointer",
+                                        backgroundColor: selectedItem?.id === material.id ? "#e3f2fd" : "inherit",
+                                        "&:hover": { backgroundColor: "#f5f5f5" },
+                                    }}
+                                >
+                                    <StyledTableCell sx={{ textAlign: "center", wordBreak: 'break-word' }}>
+                                        {material.description}
                                     </StyledTableCell>
-                                )}
-                            </TableRow>
-                        ))}
+                                    <StyledTableCell sx={{ textAlign: "center" }}>
+                                        {material.estoque_total || 0}/{material.estoque_atual || 0}
+                                    </StyledTableCell>
+                                    {!isSmallScreen && (
+                                        <StyledTableCell sx={{ textAlign: "center" }}>
+                                            <IconButton
+                                                onMouseEnter={(e) => handlePopoverOpen(e, material.id)}
+                                                onMouseLeave={() => handlePopoverClose(material.id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                size="small"
+                                            >
+                                                <InfoIcon color="info" fontSize="small" />
+                                            </IconButton>
+                                            <Popover
+                                                sx={{ pointerEvents: "none" }}
+                                                open={anchorEls[material.id]?.open || false}
+                                                anchorEl={anchorEls[material.id]?.anchorEl}
+                                                anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+                                                transformOrigin={{ vertical: "top", horizontal: "left" }}
+                                                onClose={() => handlePopoverClose(material.id)}
+                                                disableRestoreFocus
+                                            >
+                                                <Box sx={{ p: 2 }}>
+                                                    <Typography variant="body2" gutterBottom>
+                                                        <strong>ID:</strong> {material.id}
+                                                    </Typography>
+                                                    <Typography variant="body2" gutterBottom>
+                                                        <strong>Descrição:</strong> {material.description}
+                                                    </Typography>
+                                                    <Typography variant="body2" gutterBottom>
+                                                        <strong>Categoria:</strong> {material.categoria || 'N/A'}
+                                                    </Typography>
+                                                    <Typography variant="body2" gutterBottom>
+                                                        <strong>Estoque Disponível:</strong> {material.estoque_atual || 0}
+                                                    </Typography>
+                                                    <Typography variant="body2" gutterBottom>
+                                                        <strong>Estoque Total:</strong> {material.estoque_total || 0}
+                                                    </Typography>
+                                                    {material.maintenance_status && (
+                                                        <Typography variant="body2">
+                                                            <strong>Status:</strong> {material.maintenance_status}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            </Popover>
+                                        </StyledTableCell>
+                                    )}
+                                </TableRow>
+                            ))
+                    )}
                 </TableBody>
             </Table>
         </div>
