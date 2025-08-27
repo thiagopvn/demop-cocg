@@ -84,21 +84,29 @@ const Material = () => {
 
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+    // CRITICAL: Always recalculate from the complete materials list
     const filteredMaterials = useMemo(() => {
-        if (!debouncedSearchTerm) {
+        // If search is empty, return complete list
+        if (!debouncedSearchTerm || debouncedSearchTerm.trim().length === 0) {
             return materials;
         }
 
-        const searchWords = debouncedSearchTerm.toLowerCase().trim().split(/\s+/);
+        // Parse search keywords
+        const searchWords = debouncedSearchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
         
-        return materials.filter(material => {
+        // ALWAYS filter from the complete materials list from context
+        // NEVER reference previous filteredMaterials state
+        const filtered = materials.filter(material => {
             const description = material.description?.toLowerCase() || '';
             const categoria = material.categoria?.toLowerCase() || '';
             const searchableText = `${description} ${categoria}`;
             
+            // Check if ALL keywords are present
             return searchWords.every(word => searchableText.includes(word));
         });
-    }, [materials, debouncedSearchTerm]);
+
+        return filtered;
+    }, [materials, debouncedSearchTerm]); // Dependencies: only materials and debouncedSearchTerm
 
     return (
         <MenuContext>

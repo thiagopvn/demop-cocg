@@ -38,22 +38,31 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
 
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+    // CRITICAL: Always recalculate from the complete materials list
     const filteredMaterials = useMemo(() => {
+        // If search is empty, return empty array (clean table)
         if (!debouncedSearchTerm || debouncedSearchTerm.trim().length === 0) {
             return [];
         }
 
+        // Parse search keywords
         const searchKeywords = debouncedSearchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
         
-        return materials.filter(material => {
+        // ALWAYS filter from the complete materials list from context
+        // NEVER reference previous filteredMaterials state
+        const filtered = materials.filter(material => {
             const materialDescription = (material.description || '').toLowerCase();
             const materialCategoria = (material.categoria || '').toLowerCase();
             
+            // Combine searchable fields
             const searchableText = `${materialDescription} ${materialCategoria}`;
             
+            // Check if ALL keywords are present
             return searchKeywords.every(keyword => searchableText.includes(keyword));
         });
-    }, [debouncedSearchTerm, materials]);
+
+        return filtered;
+    }, [debouncedSearchTerm, materials]); // Dependencies: only debouncedSearchTerm and materials
 
     const handlePopoverOpen = (event, materialId) => {
         setAnchorEls((prev) => ({
@@ -68,6 +77,16 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
             [materialId]: { anchorEl: null, open: false },
         }));
     };
+
+    // Determine what to display based on current state
+    const displayMaterials = useMemo(() => {
+        // If we have a selected item and it's in the filtered results, show only that
+        if (selectedItem && filteredMaterials.some(m => m.id === selectedItem.id)) {
+            return filteredMaterials.filter(m => m.id === selectedItem.id);
+        }
+        // Otherwise show all filtered results
+        return filteredMaterials;
+    }, [filteredMaterials, selectedItem]);
 
     return (
         <div className="search">
@@ -119,7 +138,7 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
                                 </Typography>
                             </TableCell>
                         </TableRow>
-                    ) : filteredMaterials.length === 0 ? (
+                    ) : displayMaterials.length === 0 ? (
                         <TableRow>
                             <TableCell colSpan={isSmallScreen ? 2 : 3} align="center">
                                 <Typography variant="body2" color="text.secondary">
@@ -128,70 +147,69 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
                             </TableCell>
                         </TableRow>
                     ) : (
-                        filteredMaterials
-                            .filter(material => !selectedItem || material.id === selectedItem.id)
-                            .map((material) => (
-                                <TableRow
-                                    key={material.id}
-                                    onClick={() => onSelectMaterial(material)}
-                                    sx={{
-                                        cursor: "pointer",
-                                        backgroundColor: selectedItem?.id === material.id ? "#e3f2fd" : "inherit",
-                                        "&:hover": { backgroundColor: "#f5f5f5" },
-                                    }}
-                                >
-                                    <StyledTableCell sx={{ textAlign: "center", wordBreak: 'break-word' }}>
-                                        {material.description}
-                                    </StyledTableCell>
+                        // RENDER ONLY the displayMaterials array
+                        displayMaterials.map((material) => (
+                            <TableRow
+                                key={material.id}
+                                onClick={() => onSelectMaterial(material)}
+                                sx={{
+                                    cursor: "pointer",
+                                    backgroundColor: selectedItem?.id === material.id ? "#e3f2fd" : "inherit",
+                                    "&:hover": { backgroundColor: "#f5f5f5" },
+                                }}
+                            >
+                                <StyledTableCell sx={{ textAlign: "center", wordBreak: 'break-word' }}>
+                                    {material.description}
+                                </StyledTableCell>
+                                <StyledTableCell sx={{ textAlign: "center" }}>
+                                    {material.estoque_total || 0}/{material.estoque_atual || 0}
+                                </StyledTableCell>
+                                {!isSmallScreen && (
                                     <StyledTableCell sx={{ textAlign: "center" }}>
-                                        {material.estoque_total || 0}/{material.estoque_atual || 0}
+                                        <IconButton
+                                            onMouseEnter={(e) => handlePopoverOpen(e, material.id)}
+                                            onMouseLeave={() => handlePopoverClose(material.id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            size="small"
+                                        >
+                                            <InfoIcon color="info" fontSize="small" />
+                                        </IconButton>
+                                        <Popover
+                                            sx={{ pointerEvents: "none" }}
+                                            open={anchorEls[material.id]?.open || false}
+                                            anchorEl={anchorEls[material.id]?.anchorEl}
+                                            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+                                            transformOrigin={{ vertical: "top", horizontal: "left" }}
+                                            onClose={() => handlePopoverClose(material.id)}
+                                            disableRestoreFocus
+                                        >
+                                            <Box sx={{ p: 2 }}>
+                                                <Typography variant="body2" gutterBottom>
+                                                    <strong>ID:</strong> {material.id}
+                                                </Typography>
+                                                <Typography variant="body2" gutterBottom>
+                                                    <strong>Descrição:</strong> {material.description}
+                                                </Typography>
+                                                <Typography variant="body2" gutterBottom>
+                                                    <strong>Categoria:</strong> {material.categoria || 'N/A'}
+                                                </Typography>
+                                                <Typography variant="body2" gutterBottom>
+                                                    <strong>Estoque Disponível:</strong> {material.estoque_atual || 0}
+                                                </Typography>
+                                                <Typography variant="body2" gutterBottom>
+                                                    <strong>Estoque Total:</strong> {material.estoque_total || 0}
+                                                </Typography>
+                                                {material.maintenance_status && (
+                                                    <Typography variant="body2">
+                                                        <strong>Status:</strong> {material.maintenance_status}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </Popover>
                                     </StyledTableCell>
-                                    {!isSmallScreen && (
-                                        <StyledTableCell sx={{ textAlign: "center" }}>
-                                            <IconButton
-                                                onMouseEnter={(e) => handlePopoverOpen(e, material.id)}
-                                                onMouseLeave={() => handlePopoverClose(material.id)}
-                                                onClick={(e) => e.stopPropagation()}
-                                                size="small"
-                                            >
-                                                <InfoIcon color="info" fontSize="small" />
-                                            </IconButton>
-                                            <Popover
-                                                sx={{ pointerEvents: "none" }}
-                                                open={anchorEls[material.id]?.open || false}
-                                                anchorEl={anchorEls[material.id]?.anchorEl}
-                                                anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-                                                transformOrigin={{ vertical: "top", horizontal: "left" }}
-                                                onClose={() => handlePopoverClose(material.id)}
-                                                disableRestoreFocus
-                                            >
-                                                <Box sx={{ p: 2 }}>
-                                                    <Typography variant="body2" gutterBottom>
-                                                        <strong>ID:</strong> {material.id}
-                                                    </Typography>
-                                                    <Typography variant="body2" gutterBottom>
-                                                        <strong>Descrição:</strong> {material.description}
-                                                    </Typography>
-                                                    <Typography variant="body2" gutterBottom>
-                                                        <strong>Categoria:</strong> {material.categoria || 'N/A'}
-                                                    </Typography>
-                                                    <Typography variant="body2" gutterBottom>
-                                                        <strong>Estoque Disponível:</strong> {material.estoque_atual || 0}
-                                                    </Typography>
-                                                    <Typography variant="body2" gutterBottom>
-                                                        <strong>Estoque Total:</strong> {material.estoque_total || 0}
-                                                    </Typography>
-                                                    {material.maintenance_status && (
-                                                        <Typography variant="body2">
-                                                            <strong>Status:</strong> {material.maintenance_status}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            </Popover>
-                                        </StyledTableCell>
-                                    )}
-                                </TableRow>
-                            ))
+                                )}
+                            </TableRow>
+                        ))
                     )}
                 </TableBody>
             </Table>
