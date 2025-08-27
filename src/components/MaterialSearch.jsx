@@ -19,6 +19,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import InfoIcon from "@mui/icons-material/Info";
 import { useTheme } from '@mui/material/styles';
 import { useMaterials } from '../contexts/MaterialContext';
+import { useDebounce } from '../hooks/useDebounce';
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     padding: theme.spacing(1),
@@ -35,24 +36,24 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
     const filteredMaterials = useMemo(() => {
-        if (!searchTerm || searchTerm.trim().length === 0) {
+        if (!debouncedSearchTerm || debouncedSearchTerm.trim().length === 0) {
             return [];
         }
 
-        const searchKeywords = searchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        const searchKeywords = debouncedSearchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
         
         return materials.filter(material => {
             const materialDescription = (material.description || '').toLowerCase();
-            const materialDescriptionLower = material.description_lower || '';
             const materialCategoria = (material.categoria || '').toLowerCase();
-            const materialId = (material.id || '').toLowerCase();
             
-            const searchableText = `${materialDescription} ${materialDescriptionLower} ${materialCategoria} ${materialId}`;
+            const searchableText = `${materialDescription} ${materialCategoria}`;
             
             return searchKeywords.every(keyword => searchableText.includes(keyword));
         });
-    }, [searchTerm, materials]);
+    }, [debouncedSearchTerm, materials]);
 
     const handlePopoverOpen = (event, materialId) => {
         setAnchorEls((prev) => ({
@@ -110,11 +111,11 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
                                 <CircularProgress size={24} />
                             </TableCell>
                         </TableRow>
-                    ) : !searchTerm || searchTerm.trim().length === 0 ? (
+                    ) : !debouncedSearchTerm || debouncedSearchTerm.trim().length === 0 ? (
                         <TableRow>
                             <TableCell colSpan={isSmallScreen ? 2 : 3} align="center">
                                 <Typography variant="body2" color="text.secondary">
-                                    Digite para pesquisar materiais...
+                                    Digite para pesquisar um material.
                                 </Typography>
                             </TableCell>
                         </TableRow>
@@ -122,7 +123,7 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
                         <TableRow>
                             <TableCell colSpan={isSmallScreen ? 2 : 3} align="center">
                                 <Typography variant="body2" color="text.secondary">
-                                    Nenhum material encontrado para "{searchTerm}"
+                                    Nenhum material encontrado.
                                 </Typography>
                             </TableCell>
                         </TableRow>

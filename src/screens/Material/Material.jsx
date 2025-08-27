@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
     Box, 
     Typography, 
@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
+import { useDebounce } from '../../hooks/useDebounce';
 import MaterialDialog from '../../dialogs/MaterialDialog';
 import { deleteDoc, doc } from 'firebase/firestore';
 import db from '../../firebase/db';
@@ -81,10 +82,23 @@ const Material = () => {
         }
     };
 
-    const filteredMaterials = materials.filter(material =>
-        material.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        material.categoria?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+    const filteredMaterials = useMemo(() => {
+        if (!debouncedSearchTerm) {
+            return materials;
+        }
+
+        const searchWords = debouncedSearchTerm.toLowerCase().trim().split(/\s+/);
+        
+        return materials.filter(material => {
+            const description = material.description?.toLowerCase() || '';
+            const categoria = material.categoria?.toLowerCase() || '';
+            const searchableText = `${description} ${categoria}`;
+            
+            return searchWords.every(word => searchableText.includes(word));
+        });
+    }, [materials, debouncedSearchTerm]);
 
     return (
         <MenuContext>
