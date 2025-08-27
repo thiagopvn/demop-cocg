@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
     TextField,
     Table,
@@ -35,19 +35,24 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
-    // Filtrar materiais baseado no termo de pesquisa
-    const filteredMaterials = searchTerm 
-        ? materials.filter(material =>
-            material.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            material.description_lower?.includes(searchTerm.toLowerCase()) ||
-            material.categoria?.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        : materials;
+    const filteredMaterials = useMemo(() => {
+        if (!searchTerm || searchTerm.trim().length === 0) {
+            return [];
+        }
 
-    // Mostrar todos os materiais ao carregar o componente
-    useEffect(() => {
-        // Os materiais já estão sendo carregados pelo contexto
-    }, []);
+        const searchKeywords = searchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        
+        return materials.filter(material => {
+            const materialDescription = (material.description || '').toLowerCase();
+            const materialDescriptionLower = material.description_lower || '';
+            const materialCategoria = (material.categoria || '').toLowerCase();
+            const materialId = (material.id || '').toLowerCase();
+            
+            const searchableText = `${materialDescription} ${materialDescriptionLower} ${materialCategoria} ${materialId}`;
+            
+            return searchKeywords.every(keyword => searchableText.includes(keyword));
+        });
+    }, [searchTerm, materials]);
 
     const handlePopoverOpen = (event, materialId) => {
         setAnchorEls((prev) => ({
@@ -72,6 +77,7 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
                 fullWidth
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Digite o código, descrição ou categoria do material..."
                 InputProps={{
                     endAdornment: (
                         <InputAdornment position="end">
@@ -100,15 +106,23 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
                 <TableBody>
                     {loading ? (
                         <TableRow>
-                            <TableCell colSpan={3} align="center">
+                            <TableCell colSpan={isSmallScreen ? 2 : 3} align="center">
                                 <CircularProgress size={24} />
+                            </TableCell>
+                        </TableRow>
+                    ) : !searchTerm || searchTerm.trim().length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={isSmallScreen ? 2 : 3} align="center">
+                                <Typography variant="body2" color="text.secondary">
+                                    Digite para pesquisar materiais...
+                                </Typography>
                             </TableCell>
                         </TableRow>
                     ) : filteredMaterials.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={3} align="center">
+                            <TableCell colSpan={isSmallScreen ? 2 : 3} align="center">
                                 <Typography variant="body2" color="text.secondary">
-                                    {searchTerm ? 'Nenhum material encontrado' : 'Carregando materiais...'}
+                                    Nenhum material encontrado para "{searchTerm}"
                                 </Typography>
                             </TableCell>
                         </TableRow>
