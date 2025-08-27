@@ -5,13 +5,16 @@ import brasao from './assets/brasao.png'
 import App from './App.jsx'
 import { ThemeProviderWrapper } from './contexts/ThemeContext.jsx'
 import { CategoriaProvider } from './contexts/CategoriaContext';
-createRoot(document.getElementById('root')).render(
+import { MaterialProvider } from './contexts/MaterialContext.jsx';
 
+createRoot(document.getElementById('root')).render(
   <StrictMode>
     <CategoriaProvider>
-    <ThemeProviderWrapper>
-      <App />
-    </ThemeProviderWrapper>
+      <MaterialProvider>
+        <ThemeProviderWrapper>
+          <App />
+        </ThemeProviderWrapper>
+      </MaterialProvider>
     </CategoriaProvider>
   </StrictMode>,
 )
