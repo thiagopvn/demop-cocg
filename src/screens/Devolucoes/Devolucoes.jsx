@@ -6,7 +6,7 @@ import { verifyToken } from "../../firebase/token";
 import { yellow } from "@mui/material/colors";
 import { Paper, Typography, Table, TableHead, TableBody, TableRow, TableCell, Checkbox, FormControlLabel } from "@mui/material";
 import db from "../../firebase/db";
-import { collection, query, where, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import ButtonDevolver from "../../components/ButtonDevolver";
 
 export default function Devolucoes() {
@@ -61,6 +61,7 @@ export default function Devolucoes() {
       const docRef = doc(db, "movimentacoes", movimentacao.id);
       await updateDoc(docRef, {
         status: includeReparo ? "devolvidaDeReparo" : "devolvido",
+        returned_date: serverTimestamp()
       });
 
       const materialId = movimentacao.material;
