@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
     TextField,
     Table,
@@ -124,7 +124,6 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
     const searchRef = useRef(null);
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
-    const isExtraSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
