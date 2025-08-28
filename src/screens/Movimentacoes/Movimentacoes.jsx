@@ -185,11 +185,16 @@ export default function Movimentacao() {
 
     // Funções para selecionar itens
     const handleMaterialSelect = (material) => {
+        console.log("Material selecionado:", material);
+        console.log("Material ID:", material?.id);
         setMaterialSelected(material);
     };
 
     const handleAddMaterial = () => {
         if (materialSelected && quantidade) {
+            console.log("Adicionando material à lista:", materialSelected);
+            console.log("Material ID para adição:", materialSelected?.id);
+            
             const qtd = parseInt(quantidade);
             if (qtd <= 0) {
                 alert("A quantidade deve ser maior que zero.");
@@ -212,6 +217,8 @@ export default function Movimentacao() {
                 material: materialSelected,
                 quantidade: qtd
             };
+
+            console.log("Novo material criado:", novoMaterial);
 
             setMateriaisSelected([...materiaisSelected, novoMaterial]);
             setMaterialSelected(null);
@@ -238,6 +245,13 @@ export default function Movimentacao() {
             for (const itemMaterial of materiaisSelected) {
                 const material = itemMaterial.material;
                 const qtd = itemMaterial.quantidade;
+
+                // Validar se o material tem ID válido
+                if (!material || !material.id) {
+                    console.error("Material inválido encontrado:", material);
+                    alert(`Erro: Material sem ID válido encontrado. Detalhes: ${material?.description || 'Material desconhecido'}`);
+                    return;
+                }
 
                 // Verificar estoque atual antes de salvar
                 if (material.estoque_atual < qtd) {
@@ -306,6 +320,13 @@ export default function Movimentacao() {
             const qtd = parseInt(quantidade);
             if (!qtd || qtd <= 0) {
                 alert("A quantidade deve ser maior que zero.");
+                return;
+            }
+
+            // Validar se o material selecionado tem ID válido
+            if (!materialSelected || !materialSelected.id) {
+                console.error("Material selecionado inválido:", materialSelected);
+                alert(`Erro: Material sem ID válido. Detalhes: ${materialSelected?.description || 'Material desconhecido'}`);
                 return;
             }
 
