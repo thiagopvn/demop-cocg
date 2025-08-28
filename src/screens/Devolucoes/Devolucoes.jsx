@@ -127,6 +127,7 @@ export default function Devolucoes() {
                           <TableCell>Data</TableCell>
                           <TableCell>Material</TableCell>
                           <TableCell>Quantidade</TableCell>
+                          <TableCell>Observações</TableCell>
                           <TableCell>Devolver</TableCell>
                         </TableRow>
                       </TableHead>
@@ -139,6 +140,9 @@ export default function Devolucoes() {
                             </TableCell>
                             <TableCell>{movimentacao.material_description}</TableCell>
                             <TableCell>{movimentacao.quantity}</TableCell>
+                            <TableCell style={{ maxWidth: '200px', wordWrap: 'break-word' }}>
+                              {movimentacao.observacoes || '-'}
+                            </TableCell>
                             <TableCell>
                               <ButtonDevolver status={movimentacao.status} onDevolver={() => handleDevolver(movimentacao)} />
                             </TableCell>
