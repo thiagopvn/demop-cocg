@@ -76,6 +76,7 @@ import PrivateRoute from "../../contexts/PrivateRoute";
 import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
 import CautelaStrip from "../../components/CautelaStrip";
+import DevolucaoReceiptStrip from "../../components/DevolucaoReceiptStrip";
 
 const StatCard = ({ icon: Icon, title, value, color, loading }) => {
   // Avoid unused variable warning
@@ -283,11 +284,13 @@ export default function Home() {
   });
   const [loading, setLoading] = useState(true);
   const [minhasCautelas, setMinhasCautelas] = useState([]);
+  const [returnedCautelas, setReturnedCautelas] = useState([]);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
   useEffect(() => {
     let unsubscribeCautelas;
+    let unsubscribeReturns;
     
     const getMinhasCautelas = async () => {
       try {
@@ -313,6 +316,26 @@ export default function Home() {
             setMinhasCautelas(movimentacoesList);
           }, (error) => {
             console.error("Erro ao buscar cautelas em tempo real:", error);
+          });
+          
+          // Buscar comprovantes de devolução em tempo real
+          const returnsQuery = query(
+            collection(db, "movimentacoes"),
+            where("user", "==", user.userId),
+            where("status", "==", "devolvido")
+          );
+          
+          unsubscribeReturns = onSnapshot(returnsQuery, (snapshot) => {
+            const returnsList = snapshot.docs
+              .map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+              }))
+              .filter(item => !item.user_acknowledged_return);
+            
+            setReturnedCautelas(returnsList);
+          }, (error) => {
+            console.error("Erro ao buscar comprovantes de devolução:", error);
           });
         }
       } catch (error) {
@@ -434,10 +457,13 @@ export default function Home() {
     getMinhasCautelas();
     fetchData();
     
-    // Cleanup function para cancelar o listener
+    // Cleanup function para cancelar os listeners
     return () => {
       if (unsubscribeCautelas) {
         unsubscribeCautelas();
+      }
+      if (unsubscribeReturns) {
+        unsubscribeReturns();
       }
     };
   }, []);
@@ -464,6 +490,24 @@ export default function Home() {
     } catch (error) {
       console.error("Erro ao assinar documento:", error);
       setSnackbarMessage('Erro ao assinar a cautela. Tente novamente.');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleAcknowledgeReturn = async (movimentacaoId) => {
+    try {
+      const docRef = doc(db, "movimentacoes", movimentacaoId);
+      await updateDoc(docRef, {
+        user_acknowledged_return: true
+      });
+      
+      setSnackbarMessage('Comprovante de devolução confirmado!');
+      setSnackbarOpen(true);
+      
+      // O onSnapshot vai atualizar automaticamente o estado
+    } catch (error) {
+      console.error("Erro ao confirmar comprovante:", error);
+      setSnackbarMessage('Erro ao confirmar o comprovante. Tente novamente.');
       setSnackbarOpen(true);
     }
   };
@@ -811,7 +855,8 @@ export default function Home() {
                         border: '1px solid',
                         borderColor: 'divider',
                         maxHeight: { xs: 400, sm: 500 },
-                        overflow: 'auto'
+                        overflow: 'auto',
+                        mb: { xs: 2, sm: 3 }
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
@@ -835,6 +880,45 @@ export default function Home() {
                             <CautelaStrip
                               cautela={cautela}
                               onSign={handleSign}
+                            />
+                          </Box>
+                        </Grow>
+                      ))}
+                    </Paper>
+                  )}
+                  
+                  {returnedCautelas.length > 0 && (
+                    <Paper 
+                      sx={{ 
+                        p: { xs: 2, sm: 3 },
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        maxHeight: { xs: 400, sm: 500 },
+                        overflow: 'auto'
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                        <Typography 
+                          variant="h6" 
+                          fontWeight={600}
+                          sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                        >
+                          Comprovantes de Devolução
+                        </Typography>
+                        <Chip 
+                          icon={<CheckCircle />} 
+                          label={`${returnedCautelas.length} novos`}
+                          size="small"
+                          color="success"
+                        />
+                      </Box>
+                      {returnedCautelas.map((cautela, index) => (
+                        <Grow in timeout={300 + index * 100} key={cautela.id}>
+                          <Box>
+                            <DevolucaoReceiptStrip
+                              cautela={cautela}
+                              onAcknowledge={handleAcknowledgeReturn}
                             />
                           </Box>
                         </Grow>
