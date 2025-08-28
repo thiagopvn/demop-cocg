@@ -26,7 +26,7 @@ import {
 import ClearIcon from "@mui/icons-material/Clear";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import db from "../../firebase/db";
-import { query, collection, where, getDocs } from "firebase/firestore";
+import { query, collection, where, getDocs, orderBy } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
@@ -61,7 +61,8 @@ export default function UsuarioMaterial({ categorias }) {
       const movimentacoesCollection = collection(db, "movimentacoes");
       const q = query(
         movimentacoesCollection,
-        where("user", "==", selectedUser.id)
+        where("user", "==", selectedUser.id),
+        orderBy("date", "desc")
       );
       const querySnapshot = await getDocs(q);
       const movs = [];
