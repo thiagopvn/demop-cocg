@@ -349,23 +349,16 @@ export default function Home() {
           )
         );
         
-        // Buscar APENAS cautelas NÃO devolvidas
-        // Uma cautela não devolvida é quando type='cautela' e não tem returned=true
+        // Buscar materiais cautelados (type='cautela' e status='cautelado')
         const cautelasQuery = query(
           collection(db, "movimentacoes"),
-          where("type", "==", "cautela")
+          where("type", "==", "cautela"),
+          where("status", "==", "cautelado")
         );
         const cautelasSnap = await getDocs(cautelasQuery);
         
-        // Filtrar apenas as cautelas não devolvidas
-        let materiaisCautelados = 0;
-        cautelasSnap.docs.forEach(doc => {
-          const data = doc.data();
-          // Considera como cautelado se não tem o campo returned ou se returned é false
-          if (!data.returned || data.returned === false) {
-            materiaisCautelados++;
-          }
-        });
+        // Contar materiais cautelados
+        const materiaisCautelados = cautelasSnap.size;
         
         // Buscar total de anéis retirados na coleção "rings"
         let retiradasAneis = 0;
