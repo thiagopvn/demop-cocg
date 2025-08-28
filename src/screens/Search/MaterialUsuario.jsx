@@ -38,7 +38,7 @@ import {
   FilterList as FilterIcon
 } from '@mui/icons-material';
 import db from "../../firebase/db";
-import { query, collection, where, getDocs } from "firebase/firestore";
+import { query, collection, where, getDocs, orderBy } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
@@ -78,7 +78,8 @@ export default function MaterialUsuario() {
       const movimentacoesCollection = collection(db, "movimentacoes");
       const q = query(
         movimentacoesCollection,
-        where("material", "==", selectedMaterial.id)
+        where("material", "==", selectedMaterial.id),
+        orderBy("date", "desc")
       );
       console.log(selectedMaterial.id);
       const querySnapshot = await getDocs(q);

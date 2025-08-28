@@ -23,7 +23,7 @@ import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
 export default function Cautelados() {
-  // Filtro: 0=todos, 1=assinados, 2=devolvidos, 3=não assinados, 4=cautelados
+  // Filtro: 0=todos, 1=assinados, 2=devolvidos, 3=não assinados, 4=cautelados, 5=entradas, 6=saídas
   const [filtro, setFiltro] = useState(0);
   // Cache local: a chave é o valor do filtro
   // e o valor é o array de movimentações para aquela combinação.
@@ -60,6 +60,12 @@ export default function Cautelados() {
             break;
           case 4: // Cautelados - apenas materiais atualmente cautelados (não devolvidos)
             constraints = [where("status", "==", "cautelado")];
+            break;
+          case 5: // Entradas
+            constraints = [where("type", "==", "entrada")];
+            break;
+          case 6: // Saídas
+            constraints = [where("type", "==", "saída")];
             break;
           default:
             constraints = [];
@@ -188,6 +194,18 @@ export default function Cautelados() {
             label="Cautelados"
             sx={{ color: 'orange' }}
           />
+          <FormControlLabel 
+            value={5} 
+            control={<Radio sx={{ color: 'purple', '&.Mui-checked': { color: 'purple' } }} />} 
+            label="Entradas"
+            sx={{ color: 'purple' }}
+          />
+          <FormControlLabel 
+            value={6} 
+            control={<Radio sx={{ color: 'brown', '&.Mui-checked': { color: 'brown' } }} />} 
+            label="Saídas"
+            sx={{ color: 'brown' }}
+          />
         </RadioGroup>
       </Box>
 
@@ -278,6 +296,8 @@ export default function Cautelados() {
               sx={{
                 backgroundColor: 
                   filtro === 4 ? 'rgba(255, 165, 0, 0.1)' : // Laranja claro para filtro "Cautelados"
+                  filtro === 5 ? 'rgba(128, 0, 128, 0.1)' : // Roxo claro para "Entradas"
+                  filtro === 6 ? 'rgba(139, 69, 19, 0.1)' : // Marrom claro para "Saídas"
                   mov.status === 'devolvido' ? 'rgba(0, 128, 0, 0.1)' : // Verde claro para devolvidos
                   mov.signed === false ? 'rgba(255, 0, 0, 0.1)' : // Vermelho claro para não assinados
                   mov.signed === true ? 'rgba(0, 0, 255, 0.1)' : // Azul claro para assinados
@@ -285,6 +305,8 @@ export default function Cautelados() {
                 '&:hover': {
                   backgroundColor: 
                     filtro === 4 ? 'rgba(255, 165, 0, 0.2)' : // Laranja mais escuro no hover
+                    filtro === 5 ? 'rgba(128, 0, 128, 0.2)' : // Roxo mais escuro no hover
+                    filtro === 6 ? 'rgba(139, 69, 19, 0.2)' : // Marrom mais escuro no hover
                     mov.status === 'devolvido' ? 'rgba(0, 128, 0, 0.2)' : 
                     mov.signed === false ? 'rgba(255, 0, 0, 0.2)' : 
                     mov.signed === true ? 'rgba(0, 0, 255, 0.2)' : 

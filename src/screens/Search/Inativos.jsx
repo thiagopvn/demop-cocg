@@ -21,7 +21,7 @@ import {
 } from "@mui/material";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import db from "../../firebase/db";
-import { query, collection, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { query, collection, where, getDocs, doc, updateDoc, orderBy } from "firebase/firestore";
 
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
@@ -37,7 +37,7 @@ export default function Inativos() {
   useEffect(() => {
     const fetchMovimentacoes = async () => {
       const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(movimentacoesCollection, where("type", "==", "reparo"));
+      const q = query(movimentacoesCollection, where("type", "==", "reparo"), orderBy("date", "desc"));
       const querySnapshot = await getDocs(q);
       const movs = [];
       querySnapshot.forEach((doc) => {
