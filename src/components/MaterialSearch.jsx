@@ -146,22 +146,32 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
             // Combine searchable fields
             const searchableText = `${materialDescription} ${materialCategoria}`;
             
-            // Check if ALL keywords are present
-            return searchKeywords.every(keyword => searchableText.includes(keyword));
+            // Check if ALL keywords are present with improved matching
+            return searchKeywords.every(keyword => {
+                // Check for exact word/code matching to avoid partial matches like R79145 matching R79145-9
+                if (keyword.match(/^[A-Z0-9]+[A-Z0-9-]*$/i) && keyword.length >= 3) {
+                    // If keyword looks like a code (alphanumeric, possibly with dashes, min 3 chars)
+                    // Use word boundaries and exact matching to prevent partial matches
+                    const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const patterns = [
+                        new RegExp(`\\b${escapedKeyword}\\b`, 'i'),           // Exact word boundary match
+                        new RegExp(`^${escapedKeyword}$`, 'i'),              // Exact string match
+                        new RegExp(`^${escapedKeyword}\\s`, 'i'),            // Start of text + space
+                        new RegExp(`\\s${escapedKeyword}\\s`, 'i'),          // Surrounded by spaces
+                        new RegExp(`\\s${escapedKeyword}$`, 'i')             // End of text + space before
+                    ];
+                    return patterns.some(pattern => pattern.test(searchableText));
+                }
+                // For regular text keywords, use contains matching
+                return searchableText.includes(keyword);
+            });
         });
 
         return filtered;
     }, [debouncedSearchTerm, materials]);
 
-    // Determine what to display based on current state
-    const displayMaterials = useMemo(() => {
-        // If we have a selected item and it's in the filtered results, show only that
-        if (selectedItem && filteredMaterials.some(m => m.id === selectedItem.id)) {
-            return filteredMaterials.filter(m => m.id === selectedItem.id);
-        }
-        // Otherwise show all filtered results
-        return filteredMaterials;
-    }, [filteredMaterials, selectedItem]);
+    // Always show all filtered results - no special handling for selected items
+    const displayMaterials = filteredMaterials;
 
     const handlePopoverOpen = (event, materialId) => {
         setAnchorEls((prev) => ({
