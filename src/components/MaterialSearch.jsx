@@ -148,19 +148,22 @@ const MaterialSearch = ({ onSelectMaterial, selectedItem }) => {
             
             // Check if ALL keywords are present with improved matching
             return searchKeywords.every(keyword => {
-                // Check for exact word/code matching to avoid partial matches like R79145 matching R79145-9
-                if (keyword.match(/^[A-Z0-9]+[A-Z0-9-]*$/i) && keyword.length >= 3) {
-                    // If keyword looks like a code (alphanumeric, possibly with dashes, min 3 chars)
-                    // Use word boundaries and exact matching to prevent partial matches
+                // Check for exact word/code matching to avoid partial matches like R79145-1 matching R79145-10
+                if (keyword.match(/^[A-Z0-9]+(-[A-Z0-9]+)*$/i) && keyword.length >= 3) {
+                    // If keyword looks like a code (alphanumeric with optional dash-separated parts)
+                    // Use exact string matching to prevent partial matches
                     const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const patterns = [
-                        new RegExp(`\\b${escapedKeyword}\\b`, 'i'),           // Exact word boundary match
-                        new RegExp(`^${escapedKeyword}$`, 'i'),              // Exact string match
-                        new RegExp(`^${escapedKeyword}\\s`, 'i'),            // Start of text + space
-                        new RegExp(`\\s${escapedKeyword}\\s`, 'i'),          // Surrounded by spaces
-                        new RegExp(`\\s${escapedKeyword}$`, 'i')             // End of text + space before
+                    
+                    // For codes with hyphens, we need very strict matching
+                    // R79145-1 should ONLY match "R79145-1", not "R79145-10" or "R79145-11"
+                    const strictPatterns = [
+                        new RegExp(`^${escapedKeyword}$`, 'i'),                    // Exact complete match
+                        new RegExp(`^${escapedKeyword}\\s`, 'i'),                  // Exact match followed by space
+                        new RegExp(`\\s${escapedKeyword}\\s`, 'i'),                // Exact match surrounded by spaces  
+                        new RegExp(`\\s${escapedKeyword}$`, 'i'),                  // Exact match at end after space
+                        new RegExp(`(^|\\s)${escapedKeyword}(\\s|$)`, 'i')         // Exact match with word boundaries
                     ];
-                    return patterns.some(pattern => pattern.test(searchableText));
+                    return strictPatterns.some(pattern => pattern.test(searchableText));
                 }
                 // For regular text keywords, use contains matching
                 return searchableText.includes(keyword);
