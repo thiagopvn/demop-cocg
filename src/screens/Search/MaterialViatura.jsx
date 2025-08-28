@@ -40,7 +40,6 @@ import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
 export default function MaterialViatura() {
-    const [materialCritery, setMaterialCritery] = useState("");
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [movimentacoes, setMovimentacoes] = useState([]);
     const [filteredMovimentacoes, setFilteredMovimentacoes] = useState([]);
@@ -56,7 +55,6 @@ export default function MaterialViatura() {
 
     const handleClearSelection = () => {
         setSelectedMaterial(null);
-        setMaterialCritery("");
         setFilteredMovimentacoes([]); // Limpa as movimentações filtradas
         setMovimentacoes([]); // Limpa as movimentações
     };
@@ -219,8 +217,6 @@ export default function MaterialViatura() {
                             </Box>
 
                             <MaterialSearch
-                                materialCritery={materialCritery}
-                                onSetMaterialCritery={setMaterialCritery}
                                 selectedItem={selectedMaterial}
                                 onSelectMaterial={handleSelectMaterial}
                             />

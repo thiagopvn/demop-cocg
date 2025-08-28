@@ -46,7 +46,6 @@ export default function Movimentacao() {
     const [userSelected, setUserSelected] = useState(null);
     const [showUserSearch, setShowUserSearch] = useState(false);
     const [radioDisabled, setRadioDisabled] = useState(false);
-    const [materialCritery, setMaterialCritery] = useState("");
     const [materialSelected, setMaterialSelected] = useState(null);
     const [materiaisSelected, setMateriaisSelected] = useState([]);
     const [showMaterialSearch, setShowMaterialSearch] = useState(false);
@@ -108,7 +107,6 @@ export default function Movimentacao() {
         setShowUserSearch(false);
         setUserCritery("");
         setUserSelected(null);
-        setMaterialCritery("");
         setMaterialSelected(null);
         setMateriaisSelected([]);
         setQuantidade("");
@@ -218,7 +216,6 @@ export default function Movimentacao() {
             setMateriaisSelected([...materiaisSelected, novoMaterial]);
             setMaterialSelected(null);
             setQuantidade("");
-            setMaterialCritery("");
         }
     };
 
@@ -571,8 +568,6 @@ export default function Movimentacao() {
                                             </Box>
                                             
                                             <MaterialSearch
-                                                materialCritery={materialCritery}
-                                                onSetMaterialCritery={setMaterialCritery}
                                                 onSelectMaterial={handleMaterialSelect}
                                                 selectedItem={materialSelected}
                                             />

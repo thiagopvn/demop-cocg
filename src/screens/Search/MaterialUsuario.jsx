@@ -43,7 +43,6 @@ import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
 export default function MaterialUsuario() {
-  const [materialCritery, setMaterialCritery] = useState("");
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [movimentacoes, setMovimentacoes] = useState([]);
   const [filteredMovimentacoes, setFilteredMovimentacoes] = useState([]);
@@ -68,7 +67,6 @@ export default function MaterialUsuario() {
 
   const handleClearSelection = () => {
     setSelectedMaterial(null);
-    setMaterialCritery("");
     setFilteredMovimentacoes([]); // Limpa as movimentações filtradas
     setMovimentacoes([]); // Limpa as movimentações
   };
@@ -228,8 +226,6 @@ export default function MaterialUsuario() {
                 )}
               </Box>
               <MaterialSearch
-                materialCritery={materialCritery}
-                onSetMaterialCritery={setMaterialCritery}
                 selectedItem={selectedMaterial}
                 onSelectMaterial={handleSelectMaterial}
               />
