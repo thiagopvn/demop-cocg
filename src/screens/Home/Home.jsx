@@ -18,6 +18,7 @@ import {
   Alert,
   AlertTitle,
   Button,
+  Snackbar,
 } from "@mui/material";
 import {
   LocalShipping,
@@ -50,6 +51,8 @@ import {
   orderBy,
   limit,
   doc,
+  onSnapshot,
+  serverTimestamp,
 } from "firebase/firestore";
 import {
   BarChart,
@@ -75,6 +78,8 @@ import { verifyToken } from "../../firebase/token";
 import CautelaStrip from "../../components/CautelaStrip";
 
 const StatCard = ({ icon: Icon, title, value, color, loading }) => {
+  // Avoid unused variable warning
+  Icon;
   
   return (
     <Card
@@ -278,30 +283,38 @@ export default function Home() {
   });
   const [loading, setLoading] = useState(true);
   const [minhasCautelas, setMinhasCautelas] = useState([]);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   useEffect(() => {
+    let unsubscribeCautelas;
+    
     const getMinhasCautelas = async () => {
       try {
         const token = localStorage.getItem("token");
         const user = await verifyToken(token);
         
-        // Buscar apenas cautelas do usuário que não foram devolvidas
-        const movimentacoesQuery = query(
-          collection(db, "movimentacoes"), 
-          where("user", "==", user.userId),
-          where("type", "==", "cautela")
-        );
-        const movimentacoes = await getDocs(movimentacoesQuery);
-        
-        // Filtrar apenas as não devolvidas
-        const movimentacoesList = movimentacoes.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          .filter(cautela => !cautela.returned && !cautela.signed);
-        
-        setMinhasCautelas(movimentacoesList);
+        if (user && user.userId) {
+          // Buscar cautelas pendentes de assinatura em tempo real
+          const movimentacoesQuery = query(
+            collection(db, "movimentacoes"), 
+            where("user", "==", user.userId),
+            where("type", "==", "cautela"),
+            where("signed", "==", false)
+          );
+          
+          // Usar onSnapshot para atualizações em tempo real
+          unsubscribeCautelas = onSnapshot(movimentacoesQuery, (snapshot) => {
+            const movimentacoesList = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+            
+            setMinhasCautelas(movimentacoesList);
+          }, (error) => {
+            console.error("Erro ao buscar cautelas em tempo real:", error);
+          });
+        }
       } catch (error) {
         console.error("Erro ao buscar cautelas:", error);
       }
@@ -359,8 +372,8 @@ export default function Home() {
         try {
           const ringsSnap = await getDocs(collection(db, "rings"));
           retiradasAneis = ringsSnap.size;
-        } catch (error) {
-          console.log("Coleção rings não encontrada ou vazia");
+        } catch (ringsError) {
+          console.log("Coleção rings não encontrada ou vazia:", ringsError);
         }
         
         // Criar mapa de usuários para enriquecimento de dados
@@ -427,26 +440,38 @@ export default function Home() {
 
     getMinhasCautelas();
     fetchData();
+    
+    // Cleanup function para cancelar o listener
+    return () => {
+      if (unsubscribeCautelas) {
+        unsubscribeCautelas();
+      }
+    };
   }, []);
 
-  const handleSign = async (id) => {
+  const handleSign = async (movimentacaoId) => {
     try {
-      const docRef = doc(db, "movimentacoes", id);
+      const docRef = doc(db, "movimentacoes", movimentacaoId);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
         await updateDoc(docRef, {
           signed: true,
+          signed_date: serverTimestamp()
         });
-        console.log("Documento atualizado com sucesso!");
         
-        // Atualizar estado local
-        setMinhasCautelas(prev => 
-          prev.map(c => c.id === id ? { ...c, signed: true } : c)
-        );
+        setSnackbarMessage('Cautela assinada com sucesso!');
+        setSnackbarOpen(true);
+        
+        // O onSnapshot vai atualizar automaticamente o estado
+      } else {
+        setSnackbarMessage('Erro: Documento não encontrado');
+        setSnackbarOpen(true);
       }
     } catch (error) {
       console.error("Erro ao assinar documento:", error);
+      setSnackbarMessage('Erro ao assinar a cautela. Tente novamente.');
+      setSnackbarOpen(true);
     }
   };
 
@@ -828,6 +853,22 @@ export default function Home() {
             </Box>
           </Fade>
         </Container>
+        
+        {/* Snackbar para feedback */}
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={4000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSnackbarOpen(false)} 
+            severity={snackbarMessage.includes('sucesso') ? 'success' : 'error'}
+            sx={{ width: '100%' }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
       </MenuContext>
     </PrivateRoute>
   );
