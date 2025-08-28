@@ -257,6 +257,15 @@ export default function Cautelados() {
             >
               Status
             </TableCell>
+            <TableCell
+              sx={{
+                textAlign: "left",
+                backgroundColor: "#ddeeee",
+                fontWeight: "bold",
+              }}
+            >
+              Observações
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -305,6 +314,9 @@ export default function Cautelados() {
               </TableCell>
               <TableCell sx={{ textAlign: "left" }}>
                 {mov.status || "-"}
+              </TableCell>
+              <TableCell sx={{ textAlign: "left", maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {mov.observacoes || "-"}
               </TableCell>
               <Popover
                 id={`popover-${mov.id}`}
@@ -384,9 +396,9 @@ export default function Cautelados() {
                       <strong>Remetente:</strong> {mov.sender_name}
                     </div>
                   )}
-                  {mov.obs && (
+                  {mov.observacoes && (
                     <div>
-                      <strong>Observações:</strong> {mov.obs}
+                      <strong>Observações:</strong> {mov.observacoes}
                     </div>
                   )}
                   {mov.motivo && (

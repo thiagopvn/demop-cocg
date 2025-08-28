@@ -132,6 +132,20 @@ export default function CautelaStrip({ cautela, onSign }) {
                     }}
                   />
                 </Box>
+                {cautela.observacoes && (
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ 
+                      mt: 1,
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      fontStyle: 'italic',
+                      lineHeight: 1.4
+                    }}
+                  >
+                    <strong>Obs:</strong> {cautela.observacoes}
+                  </Typography>
+                )}
               </Box>
             </Box>
             <Chip

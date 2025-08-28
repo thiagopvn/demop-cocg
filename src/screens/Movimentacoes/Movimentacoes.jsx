@@ -62,6 +62,7 @@ export default function Movimentacao() {
     const [showViaturaSearch, setShowViaturaSearch] = useState(false);
     const [numeroSei, setNumeroSei] = useState("");
     const [motivoReparo, setMotivoReparo] = useState("");
+    const [observacoes, setObservacoes] = useState("");
 
 
     useEffect(() => {
@@ -117,6 +118,7 @@ export default function Movimentacao() {
         setViaturaSelected(null);
         setNumeroSei("");
         setMotivoReparo("");
+        setObservacoes("");
     };
 
     // Função para limpar TUDO, incluindo o tipo de movimentação
@@ -258,6 +260,7 @@ export default function Movimentacao() {
                     categoria: material.categoria,
                     viatura: null,
                     viatura_description: null,
+                    observacoes: observacoes || null,
                 };
 
                 if (userSelected) {
@@ -321,6 +324,7 @@ export default function Movimentacao() {
                 categoria: materialSelected.categoria,
                 viatura: null,
                 viatura_description: null,
+                observacoes: observacoes || null,
             };
 
             if (userSelected) {
@@ -689,9 +693,29 @@ export default function Movimentacao() {
                                                     />
                                                 </Grid>
                                                 
+                                                {/* Campo Observações */}
+                                                <Grid item xs={12}>
+                                                    <TextField
+                                                        label="Observações"
+                                                        fullWidth
+                                                        multiline
+                                                        rows={3}
+                                                        value={observacoes}
+                                                        onChange={(e) => setObservacoes(e.target.value)}
+                                                        variant="outlined"
+                                                        placeholder="Digite aqui qualquer observação relevante sobre esta movimentação..."
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                borderRadius: 2,
+                                                            }
+                                                        }}
+                                                        helperText="Campo opcional para informações adicionais"
+                                                    />
+                                                </Grid>
+                                                
                                                 {/* Botão Adicionar à Lista para Cautelas */}
                                                 {tipoMovimentacao === 'cautela' && (
-                                                    <Grid item xs={12} sm={6}>
+                                                    <Grid item xs={12} sm={tipoMovimentacao === 'cautela' ? 12 : 6}>
                                                         <Button
                                                             variant="contained"
                                                             fullWidth
