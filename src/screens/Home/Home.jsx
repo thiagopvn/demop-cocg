@@ -205,9 +205,9 @@ const MovementCard = ({ movement }) => {
         }
       }}
     >
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: { xs: 'wrap', sm: 'nowrap' },
         gap: { xs: 1, sm: 0 }
@@ -223,44 +223,74 @@ const MovementCard = ({ movement }) => {
           >
             {getStatusIcon(movement.type)}
           </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Typography 
-              variant="body1" 
-              fontWeight={600}
-              sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-            >
-              {movement.type.charAt(0).toUpperCase() + movement.type.slice(1)}
-            </Typography>
-            <Typography 
-              variant="body2" 
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography
+                variant="body1"
+                fontWeight={600}
+                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+              >
+                {movement.type.charAt(0).toUpperCase() + movement.type.slice(1)}
+              </Typography>
+              <Chip
+                label={movement.type}
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: '0.65rem',
+                  bgcolor: alpha(getStatusColor(movement.type), 0.1),
+                  color: getStatusColor(movement.type),
+                  display: { xs: 'none', sm: 'flex' }
+                }}
+              />
+            </Box>
+            {movement.material_description && (
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                sx={{
+                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                  color: 'primary.main',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: { xs: '180px', sm: '250px' }
+                }}
+              >
+                {movement.material_description}
+              </Typography>
+            )}
+            <Typography
+              variant="body2"
               fontWeight={500}
-              sx={{ 
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              sx={{
+                fontSize: { xs: '0.7rem', sm: '0.75rem' },
                 color: 'text.secondary',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-                maxWidth: { xs: '140px', sm: 'none' }
+                maxWidth: { xs: '180px', sm: '250px' }
               }}
             >
               {movement.sender_name || 'Usuário'}
+              {movement.quantity && ` • Qtd: ${movement.quantity}`}
             </Typography>
           </Box>
         </Box>
-        <Box sx={{ 
+        <Box sx={{
           textAlign: 'right',
           minWidth: { xs: 'auto', sm: 'auto' }
         }}>
-          <Typography 
-            variant="caption" 
-            color="text.secondary" 
+          <Typography
+            variant="caption"
+            color="text.secondary"
             display="block"
             sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
           >
             {new Date(movement.date?.toDate?.() || movement.date).toLocaleDateString('pt-BR')}
           </Typography>
-          <Typography 
-            variant="caption" 
+          <Typography
+            variant="caption"
             color="text.secondary"
             sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
           >
@@ -287,6 +317,9 @@ export default function Home() {
   const [returnedCautelas, setReturnedCautelas] = useState([]);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [showAllMovements, setShowAllMovements] = useState(false);
+  const INITIAL_MOVEMENTS_COUNT = 5;
+  const MAX_MOVEMENTS_COUNT = 20;
 
   useEffect(() => {
     let unsubscribeCautelas;
@@ -354,12 +387,12 @@ export default function Home() {
         // Buscar total de usuários
         const usersSnap = await getDocs(collection(db, "users"));
         
-        // Buscar movimentações recentes
+        // Buscar movimentações recentes (buscar 20 para permitir expandir)
         const recentMovementsSnap = await getDocs(
           query(
             collection(db, "movimentacoes"),
             orderBy("date", "desc"),
-            limit(5)
+            limit(20)
           )
         );
         
@@ -810,31 +843,58 @@ export default function Home() {
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-                      <Typography 
-                        variant="h6" 
+                      <Typography
+                        variant="h6"
                         fontWeight={600}
                         sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
                       >
                         Movimentações Recentes
                       </Typography>
-                      <Chip 
-                        icon={<AccessTime />} 
-                        label="Últimas 5" 
+                      <Chip
+                        icon={<AccessTime />}
+                        label={showAllMovements
+                          ? `Mostrando ${Math.min(stats.recentMovements.length, MAX_MOVEMENTS_COUNT)}`
+                          : `Últimas ${INITIAL_MOVEMENTS_COUNT}`
+                        }
                         size="small"
-                        sx={{ 
+                        sx={{
                           backgroundColor: alpha('#3b82f6', 0.1),
                           color: '#3b82f6'
                         }}
                       />
                     </Box>
                     {stats.recentMovements.length > 0 ? (
-                      stats.recentMovements.map((movement, index) => (
-                        <Grow in timeout={300 + index * 100} key={movement.id}>
-                          <Box>
-                            <MovementCard movement={movement} />
+                      <>
+                        {stats.recentMovements
+                          .slice(0, showAllMovements ? MAX_MOVEMENTS_COUNT : INITIAL_MOVEMENTS_COUNT)
+                          .map((movement, index) => (
+                            <Grow in timeout={300 + index * 50} key={movement.id}>
+                              <Box>
+                                <MovementCard movement={movement} />
+                              </Box>
+                            </Grow>
+                          ))
+                        }
+                        {stats.recentMovements.length > INITIAL_MOVEMENTS_COUNT && (
+                          <Box sx={{ textAlign: 'center', mt: 2 }}>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => setShowAllMovements(!showAllMovements)}
+                              sx={{
+                                borderRadius: 2,
+                                textTransform: 'none',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {showAllMovements
+                                ? 'Ver menos'
+                                : `Ver mais (${Math.min(stats.recentMovements.length, MAX_MOVEMENTS_COUNT) - INITIAL_MOVEMENTS_COUNT} restantes)`
+                              }
+                            </Button>
                           </Box>
-                        </Grow>
-                      ))
+                        )}
+                      </>
                     ) : (
                       <Box sx={{ textAlign: 'center', py: 4 }}>
                         <Timeline sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
