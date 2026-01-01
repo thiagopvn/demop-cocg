@@ -261,10 +261,10 @@ export default function UsuarioMaterial({ categorias = [] }) {
               </Box>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main' }}>
-                  Materiais do Militar
+                  Materiais por Militar
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Selecione um militar para ver os materiais que ele possui
+                  Selecione um militar para ver os materiais que ele acautelou
                 </Typography>
               </Box>
 
@@ -325,7 +325,7 @@ export default function UsuarioMaterial({ categorias = [] }) {
       {selectedUser && (
         <Fade in timeout={600}>
           <Box>
-            {/* Empty state */}
+            {/* Empty state - only show when not loading and no movements at all */}
             {!loading && movimentacoes.length === 0 && (
               <Alert severity="info" sx={{ borderRadius: 3 }}>
                 <AlertTitle>Nenhuma movimentacao encontrada</AlertTitle>
@@ -333,14 +333,14 @@ export default function UsuarioMaterial({ categorias = [] }) {
               </Alert>
             )}
 
-            {/* Results table */}
-            {(loading || filteredMovimentacoes.length > 0) && (
+            {/* Results table - show when loading OR when there are movements */}
+            {(loading || movimentacoes.length > 0) && (
               <SearchResultsTable
                 data={filteredMovimentacoes}
                 columns={columns}
                 loading={loading}
                 headerColor="success"
-                title="Materiais do Militar"
+                title="Materiais por Militar"
                 subtitle={`Militar: ${selectedUser.full_name}`}
                 emptyMessage="Nenhuma movimentacao com este filtro"
                 emptyIcon={<SearchIcon sx={{ fontSize: 48 }} />}

@@ -70,22 +70,15 @@ const HeaderCard = styled(Card)(({ theme }) => ({
 }));
 
 const TabPanel = ({ children, value, index }) => (
-  <Fade in={value === index} timeout={400}>
-    <Box
-      role="tabpanel"
-      hidden={value !== index}
-      sx={{
-        display: value === index ? 'block' : 'none',
-        animation: value === index ? 'slideIn 0.3s ease-out' : 'none',
-        '@keyframes slideIn': {
-          '0%': { opacity: 0, transform: 'translateY(10px)' },
-          '100%': { opacity: 1, transform: 'translateY(0)' },
-        },
-      }}
-    >
-      {value === index && children}
-    </Box>
-  </Fade>
+  <Box
+    role="tabpanel"
+    hidden={value !== index}
+    sx={{
+      display: value === index ? 'block' : 'none',
+    }}
+  >
+    {children}
+  </Box>
 );
 
 export default function MainSearch() {
@@ -111,10 +104,10 @@ export default function MainSearch() {
 
   const tabs = [
     {
-      label: "Quem tem o Material?",
+      label: "Quem esta com o Material?",
       shortLabel: "Material",
       icon: <InventoryIcon />,
-      description: "Busque um material e veja quem o possui",
+      description: "Selecione um material para ver quem esta com ele acautelado",
       color: "primary",
       component: <MaterialUsuario />
     },
@@ -127,10 +120,10 @@ export default function MainSearch() {
       component: <MaterialViatura />
     },
     {
-      label: "Materiais do Militar",
+      label: "Materiais por Militar",
       shortLabel: "Militar",
       icon: <PersonIcon />,
-      description: "Selecione um militar e veja seus materiais",
+      description: "Selecione um militar para ver os materiais que ele acautelou",
       color: "success",
       component: <UsuarioMaterial categorias={categorias} />
     },

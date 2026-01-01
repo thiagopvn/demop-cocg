@@ -1,0 +1,602 @@
+================================================================================
+                 SISTEMA DE CONTROLE DE CAUTELA - DOCUMENTAÇÃO TÉCNICA
+                        LÓGICA DE GERENCIAMENTO DE MATERIAIS
+================================================================================
+
+1. VISÃO GERAL DO SISTEMA
+================================================================================
+
+O Sistema de Controle de Cautela é uma aplicação web desenvolvida em React para
+gerenciar o estoque e movimentação de materiais em ambiente militar/institucional.
+O sistema controla entrada, saída, cautela e devolução de equipamentos com
+rastreamento completo e atualização automática de estoque.
+
+Tecnologias principais:
+- React 19 + Vite (Frontend)
+- Firebase Firestore (Banco de dados em tempo real)
+- Material-UI (Interface)
+- JWT (Autenticação)
+
+
+2. ESTRUTURA DE DADOS DOS MATERIAIS
+================================================================================
+
+2.1 COLEÇÃO "materials" no Firestore
+-------------------------------------
+Cada material é armazenado como um documento com os seguintes campos:
+
+{
+  id: string,                    // ID único gerado pelo Firestore
+  description: string,           // Nome/descrição do material
+  description_lower: string,     // Versão lowercase para busca
+  categoria: string,            // Nome da categoria
+  categoria_id: string,         // ID da categoria
+  estoque_total: number,        // Quantidade total no patrimônio
+  estoque_atual: number,        // Quantidade disponível em estoque
+  maintenance_status: string,   // Status: "operante", "em_manutencao", "inoperante"
+  created_at: timestamp,        // Data de criação
+  ultima_movimentacao: timestamp // Data da última movimentação
+}
+
+EXEMPLO PRÁTICO:
+{
+  id: "abc123",
+  description: "Colete Balístico Nível III",
+  description_lower: "colete balístico nível iii",
+  categoria: "Equipamento de Proteção",
+  categoria_id: "cat456",
+  estoque_total: 50,    // Total de coletes no patrimônio
+  estoque_atual: 35,     // 35 disponíveis (15 estão cautelados)
+  maintenance_status: "operante",
+  created_at: "2024-01-15T10:30:00",
+  ultima_movimentacao: "2024-01-20T14:00:00"
+}
+
+
+3. OPERAÇÕES CRUD DE MATERIAIS
+================================================================================
+
+3.1 LISTAGEM (READ) - Material.jsx
+-----------------------------------
+Localização: src/screens/Material/Material.jsx
+
+A listagem utiliza o hook personalizado useMaterials() que mantém sincronização
+em tempo real com o Firestore através de listeners (onSnapshot).
+
+FLUXO DE LISTAGEM:
+1. ComponentDidMount → useMaterials() inicia listener
+2. Firestore envia dados → materials[] atualizado no contexto
+3. Interface renderiza tabela com filtros e busca
+4. Qualquer mudança no banco → atualização automática na tela
+
+CÓDIGO EXEMPLO (simplificado):
+```javascript
+// Em MaterialContext.jsx
+useEffect(() => {
+  const unsubscribe = onSnapshot(
+    collection(db, 'materials'),
+    (snapshot) => {
+      const materialsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setMaterials(materialsData);
+    }
+  );
+  return () => unsubscribe();
+}, []);
+```
+
+3.2 CADASTRO (CREATE) - MaterialDialog.jsx
+-------------------------------------------
+Localização: src/dialogs/MaterialDialog.jsx
+
+PROCESSO DE CADASTRO:
+1. Usuário clica em "Novo Material"
+2. Dialog abre com formulário
+3. Preenche: descrição, categoria, estoque_total, estoque_atual
+4. Ao salvar:
+   - Adiciona campos automáticos (description_lower, timestamps)
+   - Define maintenance_status como "operante"
+   - Salva no Firestore com addDoc()
+
+FUNÇÃO DE CADASTRO (linha 66-77):
+```javascript
+const materialsCollection = collection(db, 'materials');
+await addDoc(materialsCollection, {
+  description: "Rádio HT Motorola",
+  description_lower: "rádio ht motorola",
+  categoria: "Comunicação",
+  categoria_id: "cat789",
+  estoque_total: 20,
+  estoque_atual: 20,  // Novo material, tudo disponível
+  maintenance_status: "operante",
+  created_at: serverTimestamp(),
+  ultima_movimentacao: serverTimestamp()
+});
+```
+
+3.3 EDIÇÃO (UPDATE)
+-------------------
+PROCESSO:
+1. Clique no ícone de editar na tabela
+2. Dialog abre com dados preenchidos
+3. Modifica campos desejados
+4. updateDoc() atualiza apenas campos alterados
+
+CÓDIGO (linha 67-69 MaterialDialog.jsx):
+```javascript
+const materialDoc = doc(db, 'materials', material.id);
+await updateDoc(materialDoc, {
+  description: "Rádio HT Motorola - Atualizado",
+  estoque_total: 25  // Aumentou o patrimônio
+});
+```
+
+3.4 EXCLUSÃO (DELETE)
+---------------------
+FUNÇÃO handleDeleteMaterial (linha 155-164 Material.jsx):
+```javascript
+const handleDeleteMaterial = async (materialId) => {
+  if (window.confirm('Tem certeza?')) {
+    await deleteDoc(doc(db, 'materials', materialId));
+  }
+};
+```
+
+
+4. SISTEMA DE MOVIMENTAÇÕES
+================================================================================
+
+4.1 TIPOS DE MOVIMENTAÇÃO
+--------------------------
+Arquivo: src/screens/Movimentacoes/Movimentacoes.jsx
+
+O sistema suporta 4 tipos de movimentação:
+
+1. ENTRADA (Adiciona ao estoque)
+2. SAÍDA (Remove definitivamente)
+3. CAUTELA (Empresta temporariamente)
+4. INOPERANTE/REPARO (Material indisponível)
+
+4.2 FLUXO DE ENTRADA
+--------------------
+CENÁRIO: Chegaram 10 coletes novos
+
+PROCESSO:
+1. Seleciona tipo "Entrada"
+2. Busca material "Colete Balístico"
+3. Informa quantidade: 10
+4. Ao salvar (linha 371-376):
+   ```javascript
+   // Estado anterior
+   estoque_total: 50
+   estoque_atual: 35
+
+   // Cálculo
+   newEstoqueTotal = 50 + 10 = 60
+   newEstoqueAtual = 35 + 10 = 45
+
+   // Estado final
+   estoque_total: 60
+   estoque_atual: 45
+   ```
+5. Cria registro em "movimentacoes":
+   ```javascript
+   {
+     type: "entrada",
+     material: "abc123",
+     material_description: "Colete Balístico",
+     quantity: 10,
+     date: "2024-01-21T10:00:00",
+     sender: "user123",
+     sender_name: "Sgt Silva",
+     status: "emEstoque"
+   }
+   ```
+
+4.3 FLUXO DE SAÍDA (Descarte/Baixa)
+------------------------------------
+CENÁRIO: 5 coletes danificados foram descartados
+
+PROCESSO (linha 376-384):
+1. Tipo: "Saída"
+2. Material: "Colete Balístico"
+3. Quantidade: 5
+4. Validação: verifica se estoque_atual >= quantidade
+5. Cálculo:
+   ```javascript
+   // Validação
+   if (35 - 5 < 0) {
+     alert("Quantidade insuficiente!");
+     return;
+   }
+
+   // Atualização
+   estoque_total = 60 - 5 = 55  // Remove do patrimônio
+   estoque_atual = 45 - 5 = 40  // Remove do disponível
+   ```
+
+4.4 FLUXO DE CAUTELA
+--------------------
+CENÁRIO: Sd Oliveira pega 2 coletes para operação
+
+PROCESSO DETALHADO (linha 393-400):
+
+1. Interface de Seleção:
+   - Tipo: "Cautela"
+   - Material: "Colete Balístico"
+   - Usuário: "Sd Oliveira"
+   - Quantidade: 2
+
+2. Validação de Estoque:
+   ```javascript
+   if (estoque_atual - quantidade < 0) {
+     alert("Estoque insuficiente!");
+     return;
+   }
+   // 40 - 2 = 38 (OK, prossegue)
+   ```
+
+3. Atualização do Estoque:
+   ```javascript
+   // APENAS reduz estoque_atual, NÃO mexe em estoque_total
+   estoque_atual = 40 - 2 = 38
+   estoque_total = 55 (mantém)  // Material ainda pertence à unidade
+   ```
+
+4. Registro da Movimentação:
+   ```javascript
+   {
+     type: "cautela",
+     material: "abc123",
+     material_description: "Colete Balístico",
+     quantity: 2,
+     user: "user456",
+     user_name: "Sd Oliveira",
+     telefone_responsavel: "(11) 98765-4321",
+     date: "2024-01-22T08:00:00",
+     status: "cautelado",
+     signed: false
+   }
+   ```
+
+4.5 CAUTELA DE MÚLTIPLOS MATERIAIS
+-----------------------------------
+Função: handleSaveMultiplosMateriais (linha 242-309)
+
+CENÁRIO: Operação especial precisa de kit completo
+- 2 Coletes
+- 4 Rádios HT
+- 1 Binóculo
+
+PROCESSO:
+1. Adiciona cada material à lista com suas quantidades
+2. Valida estoque de TODOS antes de salvar
+3. Cria uma movimentação SEPARADA para cada item
+4. Atualiza estoque de cada material
+
+CÓDIGO EXEMPLO:
+```javascript
+for (const itemMaterial of materiaisSelected) {
+  // Valida estoque individual
+  if (material.estoque_atual < qtd) {
+    alert(`Estoque insuficiente: ${material.description}`);
+    return;
+  }
+
+  // Atualiza material
+  await updateDoc(materialDoc, {
+    estoque_atual: material.estoque_atual - qtd
+  });
+
+  // Cria movimentação
+  await addDoc(movimentacoesCollection, {
+    type: "cautela",
+    material: material.id,
+    quantity: qtd,
+    user: selectedUser.id,
+    // ... outros campos
+  });
+}
+```
+
+4.6 FLUXO DE INOPERÂNCIA/REPARO
+--------------------------------
+CENÁRIO: 3 coletes rasgados enviados para costura
+
+PROCESSO (linha 385-392):
+1. Tipo: "Reparo"
+2. Quantidade: 3
+3. Campos adicionais obrigatórios:
+   - Local do Reparo: "Seção de Costura"
+   - Número SEI: "SEI-2024-001"
+   - Motivo: "Rasgo no velcro e costuras"
+
+4. Atualização:
+   ```javascript
+   estoque_atual = 38 - 3 = 35  // Indisponível
+   estoque_total = 55 (mantém)   // Ainda é patrimônio
+   ```
+
+5. Registro especial:
+   ```javascript
+   {
+     type: "reparo",
+     material: "abc123",
+     quantity: 3,
+     status: "emReparo",
+     repairLocation: "Seção de Costura",
+     seiNumber: "SEI-2024-001",
+     motivoReparo: "Rasgo no velcro e costuras"
+   }
+   ```
+
+
+5. SISTEMA DE DEVOLUÇÕES
+================================================================================
+
+Arquivo: src/screens/Devolucoes/Devolucoes.jsx
+
+5.1 PROCESSO DE DEVOLUÇÃO
+--------------------------
+CENÁRIO: Sd Oliveira devolve os 2 coletes
+
+FUNÇÃO handleDevolver (linha 59-92):
+
+1. Busca movimentações do usuário com status "cautelado"
+2. Lista materiais para devolução
+3. Ao confirmar devolução:
+
+```javascript
+// Atualiza status da movimentação
+await updateDoc(docRef, {
+  status: "devolvido",
+  returned_date: serverTimestamp()
+});
+
+// Restaura estoque
+const materialData = await getDoc(materialDoc);
+const quantidadeAtual = materialData.estoque_atual;  // 35
+const quantidadeDevolvida = movimentacao.quantity;    // 2
+const novaQuantidade = 35 + 2;                       // 37
+
+await updateDoc(materialDoc, {
+  estoque_atual: 37
+});
+```
+
+5.2 DEVOLUÇÃO DE REPARO
+------------------------
+CENÁRIO: Coletes voltaram consertados
+
+1. Checkbox "Mostrar Reparos" ativado
+2. Lista materiais com status "emReparo"
+3. Devolução atualiza:
+   - status: "devolvidaDeReparo"
+   - estoque_atual += quantidade
+
+
+6. CONTROLE AUTOMÁTICO DE ESTOQUE - RESUMO
+================================================================================
+
+6.1 REGRAS DE NEGÓCIO
+----------------------
+
+ESTOQUE_TOTAL (Patrimônio):
+- Aumenta em: ENTRADA
+- Diminui em: SAÍDA
+- Mantém em: CAUTELA, REPARO
+
+ESTOQUE_ATUAL (Disponível):
+- Aumenta em: ENTRADA, DEVOLUÇÃO
+- Diminui em: SAÍDA, CAUTELA, REPARO
+- Mantém em: nenhuma operação
+
+6.2 FÓRMULAS
+------------
+```
+ENTRADA:
+  estoque_total += quantidade
+  estoque_atual += quantidade
+
+SAÍDA:
+  estoque_total -= quantidade
+  estoque_atual -= quantidade
+
+CAUTELA:
+  estoque_total (não altera)
+  estoque_atual -= quantidade
+
+REPARO:
+  estoque_total (não altera)
+  estoque_atual -= quantidade
+
+DEVOLUÇÃO (de cautela ou reparo):
+  estoque_total (não altera)
+  estoque_atual += quantidade
+```
+
+6.3 EXEMPLO COMPLETO DE CICLO DE VIDA
+--------------------------------------
+
+MATERIAL: Rádio HT Motorola
+
+1. CADASTRO INICIAL:
+   - estoque_total: 10
+   - estoque_atual: 10
+
+2. ENTRADA de 5 unidades novas:
+   - estoque_total: 15
+   - estoque_atual: 15
+
+3. CAUTELA de 3 para operação:
+   - estoque_total: 15 (mantém)
+   - estoque_atual: 12
+
+4. REPARO de 2 unidades:
+   - estoque_total: 15 (mantém)
+   - estoque_atual: 10
+
+5. DEVOLUÇÃO das 3 cauteladas:
+   - estoque_total: 15 (mantém)
+   - estoque_atual: 13
+
+6. DEVOLUÇÃO das 2 reparadas:
+   - estoque_total: 15 (mantém)
+   - estoque_atual: 15
+
+7. SAÍDA (descarte) de 1 quebrada:
+   - estoque_total: 14
+   - estoque_atual: 14
+
+
+7. VALIDAÇÕES E SEGURANÇA
+================================================================================
+
+7.1 VALIDAÇÕES DE ESTOQUE
+--------------------------
+Todas as operações que reduzem estoque verificam disponibilidade:
+
+```javascript
+// Movimentacoes.jsx, linha 377-380
+if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
+  alert("A quantidade de saída é maior que o estoque atual.");
+  return;
+}
+```
+
+7.2 VALIDAÇÃO DE MATERIAL ID
+-----------------------------
+Sistema verifica ID válido antes de salvar (linha 251-254):
+
+```javascript
+if (!material || !material.id) {
+  console.error("Material inválido:", material);
+  alert(`Erro: Material sem ID válido`);
+  return;
+}
+```
+
+7.3 CONTROLE DE ACESSO
+----------------------
+- Autenticação por JWT com validade de 5 horas
+- Roles: admin, editor, user
+- Usuários com role "user" têm acesso limitado
+
+
+8. BUSCA E FILTROS
+================================================================================
+
+8.1 BUSCA DE MATERIAIS
+-----------------------
+Arquivo: Material.jsx, linha 208-229
+
+Sistema de busca em tempo real com debounce de 300ms:
+
+```javascript
+const filteredMaterials = useMemo(() => {
+  if (!searchTerm) return materials;
+
+  const searchWords = searchTerm.toLowerCase().split(' ');
+
+  return materials.filter(material => {
+    const searchableText =
+      `${material.description} ${material.categoria}`.toLowerCase();
+
+    // Todos os termos devem estar presentes
+    return searchWords.every(word =>
+      searchableText.includes(word)
+    );
+  });
+}, [materials, debouncedSearchTerm]);
+```
+
+EXEMPLO:
+Busca: "colete nivel"
+Encontra: "Colete Balístico Nível III"
+
+8.2 COMPONENTE MaterialSearch
+------------------------------
+Arquivo: src/components/MaterialSearch.jsx
+
+Autocomplete com busca por código ou descrição:
+- Suporta busca parcial
+- Mostra estoque disponível em tempo real
+- Filtra materiais com estoque > 0
+
+
+9. SINCRONIZAÇÃO EM TEMPO REAL
+================================================================================
+
+Sistema usa listeners do Firestore (onSnapshot) para atualização automática:
+
+```javascript
+// MaterialContext.jsx
+useEffect(() => {
+  const unsubscribe = onSnapshot(
+    collection(db, 'materials'),
+    (snapshot) => {
+      // Atualiza estado quando banco muda
+      const materials = snapshot.docs.map(/*...*/);
+      setMaterials(materials);
+    }
+  );
+
+  return () => unsubscribe(); // Cleanup
+}, []);
+```
+
+RESULTADO:
+- Usuário A cadastra material
+- Usuário B vê instantaneamente na tela
+- Sem necessidade de refresh
+
+
+10. RELATÓRIOS E ESTATÍSTICAS
+================================================================================
+
+10.1 CARDS DE ESTATÍSTICAS
+---------------------------
+Material.jsx exibe estatísticas em tempo real:
+
+```javascript
+const stats = useMemo(() => ({
+  total: materials.length,
+  lowStock: materials.filter(m => m.estoque_atual <= 5).length,
+  outOfStock: materials.filter(m => m.estoque_atual === 0).length
+}), [materials]);
+```
+
+10.2 EXPORTAÇÃO EXCEL
+----------------------
+Sistema permite exportar dados via biblioteca xlsx
+
+
+11. MANUTENÇÃO E STATUS
+================================================================================
+
+Sistema rastreia status de manutenção:
+- "operante": Funcionando normalmente
+- "em_manutencao": Em manutenção preventiva
+- "inoperante": Quebrado/inutilizável
+
+Visualização por cores:
+- Verde: operante
+- Amarelo: em_manutencao
+- Vermelho: inoperante
+
+
+12. OBSERVAÇÕES IMPORTANTES
+================================================================================
+
+1. ATOMICIDADE: Cada movimentação é uma transação completa
+2. RASTREABILIDADE: Todo movimento tem usuário, data e tipo
+3. INTEGRIDADE: Validações impedem estoque negativo
+4. PERFORMANCE: Usa memoização e debounce para otimização
+5. ESCALABILIDADE: Firestore suporta milhares de operações simultâneas
+
+
+================================================================================
+                            FIM DA DOCUMENTAÇÃO
+================================================================================

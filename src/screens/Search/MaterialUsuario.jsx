@@ -235,10 +235,10 @@ export default function MaterialUsuario() {
               </Box>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                  Buscar Material
+                  Quem esta com determinado material?
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Selecione um material para ver quem o possui
+                  Selecione um material para ver quem esta com esse material acautelado
                 </Typography>
               </Box>
 
