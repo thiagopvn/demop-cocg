@@ -203,42 +203,42 @@ const MaintenanceDashboard = () => {
         {
             title: 'Em Manutenção',
             value: stats.inMaintenance,
-            icon: <Build sx={{ fontSize: 40 }} />,
+            icon: <Build sx={{ fontSize: 28 }} />,
             color: 'primary.main',
             bgColor: 'primary.light'
         },
         {
-            title: 'Tarefas Atrasadas',
+            title: 'Atrasadas',
             value: stats.overdue,
-            icon: <EventBusy sx={{ fontSize: 40 }} />,
+            icon: <EventBusy sx={{ fontSize: 28 }} />,
             color: 'error.main',
             bgColor: 'error.light'
         },
         {
-            title: 'Materiais Inoperantes',
+            title: 'Inoperantes',
             value: stats.inoperant,
-            icon: <Warning sx={{ fontSize: 40 }} />,
+            icon: <Warning sx={{ fontSize: 28 }} />,
             color: 'warning.main',
             bgColor: 'warning.light'
         },
         {
             title: 'Agendadas',
             value: stats.scheduled,
-            icon: <Schedule sx={{ fontSize: 40 }} />,
+            icon: <Schedule sx={{ fontSize: 28 }} />,
             color: 'info.main',
             bgColor: 'info.light'
         },
         {
             title: 'Concluídas',
             value: stats.completed,
-            icon: <CheckCircle sx={{ fontSize: 40 }} />,
+            icon: <CheckCircle sx={{ fontSize: 28 }} />,
             color: 'success.main',
             bgColor: 'success.light'
         },
         {
-            title: 'Recorrentes Ativas',
+            title: 'Recorrentes',
             value: stats.recurrent,
-            icon: <Repeat sx={{ fontSize: 40 }} />,
+            icon: <Repeat sx={{ fontSize: 28 }} />,
             color: 'secondary.main',
             bgColor: 'secondary.light'
         }
@@ -282,26 +282,46 @@ const MaintenanceDashboard = () => {
             </Box>
 
             {/* Cards de estatísticas */}
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
                 {statCards.map((card, index) => (
-                    <Grid item xs={12} sm={6} md={4} lg={2} key={index}>
+                    <Grid item xs={6} sm={4} md={4} lg={2} key={index}>
                         <Card
                             elevation={3}
                             sx={{
                                 transition: 'transform 0.2s, box-shadow 0.2s',
+                                height: '100%',
+                                minHeight: 100,
                                 '&:hover': {
                                     transform: 'translateY(-4px)',
                                     boxShadow: 6
                                 }
                             }}
                         >
-                            <CardContent>
+                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Box>
-                                        <Typography color="textSecondary" gutterBottom variant="body2" noWrap>
+                                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                                        <Typography
+                                            color="textSecondary"
+                                            variant="caption"
+                                            sx={{
+                                                display: 'block',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                                fontSize: '0.7rem'
+                                            }}
+                                        >
                                             {card.title}
                                         </Typography>
-                                        <Typography variant="h3" component="h2" sx={{ color: card.color, fontWeight: 'bold' }}>
+                                        <Typography
+                                            variant="h4"
+                                            component="h2"
+                                            sx={{
+                                                color: card.color,
+                                                fontWeight: 'bold',
+                                                fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' }
+                                            }}
+                                        >
                                             {card.value}
                                         </Typography>
                                     </Box>
@@ -309,9 +329,14 @@ const MaintenanceDashboard = () => {
                                         sx={{
                                             backgroundColor: card.bgColor,
                                             borderRadius: '50%',
-                                            p: 1,
+                                            p: 0.75,
                                             color: card.color,
-                                            opacity: 0.9
+                                            opacity: 0.9,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                            ml: 1
                                         }}
                                     >
                                         {card.icon}
