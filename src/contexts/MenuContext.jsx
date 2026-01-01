@@ -172,13 +172,15 @@ function MenuContext({ children }) {
   const drawer = (
     <Box
       sx={{
-        height: '100%',
+        height: '100vh',
+        maxHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
         background: 'linear-gradient(180deg, rgba(30,58,95,0.98) 0%, rgba(30,58,95,0.95) 100%)',
         backdropFilter: 'blur(10px)',
         borderRight: '1px solid rgba(255,255,255,0.08)',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden',
       }}
     >
       {/* Header */}
@@ -315,7 +317,14 @@ function MenuContext({ children }) {
       )}
 
       {/* Navigation */}
-      <List sx={{ flex: 1, px: 1, py: 2 }}>
+      <List sx={{
+        flex: 1,
+        px: 1,
+        py: 2,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        minHeight: 0, // Importante para flex + overflow funcionar corretamente
+      }}>
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
