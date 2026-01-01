@@ -1,455 +1,486 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import SearchResultsTable from "../../components/SearchResultsTable";
+import FilterChips from "../../components/FilterChips";
+import MovimentacaoDetails from "../../components/MovimentacaoDetails";
 import {
-  Paper,
   Box,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Tooltip,
-  Fab,
-  Popover,
   Typography,
   Card,
-  CardContent
+  CardContent,
+  Chip,
+  Fade,
+  Alert,
+  AlertTitle,
+  Fab,
+  Tooltip,
+  TextField,
+  InputAdornment,
+  Grid,
+  alpha,
+  styled
 } from "@mui/material";
+import {
+  Assignment as AssignmentIcon,
+  Inventory as InventoryIcon,
+  Search as SearchIcon,
+  Person as PersonIcon,
+  DirectionsCar as CarIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  SwapHoriz as SwapIcon,
+  ArrowDownward as InIcon,
+  ArrowUpward as OutIcon,
+  FilterList as FilterIcon,
+  Draw as SignatureIcon
+} from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 
-export default function Cautelados() {
-  // Filtro: 0=todos, 1=assinados, 2=devolvidos, 3=não assinados, 4=cautelados, 5=entradas, 6=saídas
-  const [filtro, setFiltro] = useState(0);
-  // Cache local: a chave é o valor do filtro
-  // e o valor é o array de movimentações para aquela combinação.
-  const [cachedMovimentacoes, setCachedMovimentacoes] = useState({});
-  // Estados para o Popover relativo aos detalhes
-  const [anchorEls, setAnchorEls] = useState({});
-  const [hoverTimers, setHoverTimers] = useState({});
+const HeaderCard = styled(Card)(({ theme }) => ({
+  borderRadius: 16,
+  marginBottom: theme.spacing(3),
+  overflow: 'visible',
+  background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+}));
 
-  // Efeito para realizar a consulta ao Firestore caso o filtro não esteja em cache
+const FilterCard = styled(Card)(({ theme }) => ({
+  borderRadius: 16,
+  marginBottom: theme.spacing(3),
+}));
+
+const StatsChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: 'rgba(255,255,255,0.2)',
+  color: 'white',
+  fontWeight: 600,
+  fontSize: '0.9rem',
+  height: 'auto',
+  '& .MuiChip-label': {
+    padding: theme.spacing(0.5, 1),
+  },
+}));
+
+export default function Cautelados() {
+  const [filtro, setFiltro] = useState(0);
+  const [cachedMovimentacoes, setCachedMovimentacoes] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const theme = useTheme();
+
   useEffect(() => {
     if (!(filtro in cachedMovimentacoes)) {
       const fetchData = async () => {
-        const movimentacoesCollection = collection(db, "movimentacoes");
-        let constraints = [];
-        
-        switch (filtro) {
-          case 0: // Todos - busca todas as movimentações de cautela (incluindo devolvidos)
-            constraints = [];
-            break;
-          case 1: // Assinados
-            constraints = [
-              where("status", "==", "cautelado"),
-              where("signed", "==", true)
-            ];
-            break;
-          case 2: // Devolvidos
-            constraints = [where("status", "==", "devolvido")];
-            break;
-          case 3: // Não assinados
-            constraints = [
-              where("status", "==", "cautelado"),
-              where("signed", "==", false)
-            ];
-            break;
-          case 4: // Cautelados - apenas materiais atualmente cautelados (não devolvidos)
-            constraints = [where("status", "==", "cautelado")];
-            break;
-          case 5: // Entradas
-            constraints = [where("type", "==", "entrada")];
-            break;
-          case 6: // Saídas
-            constraints = [where("type", "==", "saída")];
-            break;
-          default:
-            constraints = [];
-        }
-        
-        let querySnapshot;
-        if (constraints.length === 0) {
-          // Para "Todos", busca todas as movimentações de cautela (incluindo devolvidas)
-          const qCautelado = query(
-            movimentacoesCollection, 
-            where("type", "==", "cautela"),
-            orderBy("date", "desc")
-          );
-          querySnapshot = await getDocs(qCautelado);
-        } else {
-          const q = query(
-            movimentacoesCollection, 
-            ...constraints,
-            orderBy("date", "desc")
-          );
-          querySnapshot = await getDocs(q);
-        }
-        
-        const movs = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          // Para "Todos", incluir apenas movimentações de cautela
-          if (filtro === 0) {
-            if (data.type === "cautela") {
+        setLoading(true);
+        try {
+          const movimentacoesCollection = collection(db, "movimentacoes");
+          let constraints = [];
+
+          switch (filtro) {
+            case 0:
+              constraints = [];
+              break;
+            case 1:
+              constraints = [
+                where("status", "==", "cautelado"),
+                where("signed", "==", true)
+              ];
+              break;
+            case 2:
+              constraints = [where("status", "==", "devolvido")];
+              break;
+            case 3:
+              constraints = [
+                where("status", "==", "cautelado"),
+                where("signed", "==", false)
+              ];
+              break;
+            case 4:
+              constraints = [where("status", "==", "cautelado")];
+              break;
+            case 5:
+              constraints = [where("type", "==", "entrada")];
+              break;
+            case 6:
+              constraints = [where("type", "==", "saída")];
+              break;
+            default:
+              constraints = [];
+          }
+
+          let querySnapshot;
+          if (constraints.length === 0) {
+            const qCautelado = query(
+              movimentacoesCollection,
+              where("type", "==", "cautela"),
+              orderBy("date", "desc")
+            );
+            querySnapshot = await getDocs(qCautelado);
+          } else {
+            const q = query(
+              movimentacoesCollection,
+              ...constraints,
+              orderBy("date", "desc")
+            );
+            querySnapshot = await getDocs(q);
+          }
+
+          const movs = [];
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (filtro === 0) {
+              if (data.type === "cautela") {
+                movs.push({ id: doc.id, ...data });
+              }
+            } else {
               movs.push({ id: doc.id, ...data });
             }
-          } else {
-            movs.push({ id: doc.id, ...data });
-          }
-        });
-        console.log(movs);
-        setCachedMovimentacoes((prev) => ({ ...prev, [filtro]: movs }));
+          });
+
+          setCachedMovimentacoes((prev) => ({ ...prev, [filtro]: movs }));
+        } catch (error) {
+          console.error("Erro ao buscar movimentacoes:", error);
+        } finally {
+          setLoading(false);
+        }
       };
       fetchData();
+    } else {
+      setLoading(false);
     }
   }, [filtro, cachedMovimentacoes]);
- 
-  // Movimentações a serem exibidas, de acordo com o cache
+
   const displayedMovimentacoes = cachedMovimentacoes[filtro] || [];
 
-  // Lógica para exibir o Popover após 0,5s de hover
-  const handleMouseEnter = (event, movId) => {
-    if (hoverTimers[movId]) {
-      clearTimeout(hoverTimers[movId]);
-    }
-    const timer = setTimeout(() => {
-      setAnchorEls((prev) => ({
-        ...prev,
-        [movId]: {
-          anchorEl: event.currentTarget,
-          open: true,
-        },
-      }));
-    }, 500);
-    setHoverTimers((prev) => ({
-      ...prev,
-      [movId]: timer,
-    }));
+  const filteredMovimentacoes = useMemo(() => {
+    if (!searchTerm) return displayedMovimentacoes;
+
+    const search = searchTerm.toLowerCase();
+    return displayedMovimentacoes.filter((mov) =>
+      (mov.material_description?.toLowerCase() || '').includes(search) ||
+      (mov.user_name?.toLowerCase() || '').includes(search) ||
+      (mov.viatura_description?.toLowerCase() || '').includes(search)
+    );
+  }, [displayedMovimentacoes, searchTerm]);
+
+  const stats = useMemo(() => {
+    const total = displayedMovimentacoes.length;
+    const assinados = displayedMovimentacoes.filter(m => m.signed === true && m.status === "cautelado").length;
+    const naoAssinados = displayedMovimentacoes.filter(m => m.signed === false && m.status === "cautelado").length;
+    const devolvidos = displayedMovimentacoes.filter(m => m.status === "devolvido").length;
+
+    return { total, assinados, naoAssinados, devolvidos };
+  }, [displayedMovimentacoes]);
+
+  const filterOptions = [
+    { value: 0, label: "Todas", shortLabel: "Todas", icon: <FilterIcon fontSize="small" />, color: "default" },
+    { value: 4, label: "Cauteladas", shortLabel: "Cautela", icon: <AssignmentIcon fontSize="small" />, color: "warning" },
+    { value: 1, label: "Assinadas", shortLabel: "Assin.", icon: <SignatureIcon fontSize="small" />, color: "primary" },
+    { value: 3, label: "Nao Assinadas", shortLabel: "N/Assin.", icon: <CancelIcon fontSize="small" />, color: "error" },
+    { value: 2, label: "Devolvidas", shortLabel: "Devolv.", icon: <CheckCircleIcon fontSize="small" />, color: "success" },
+    { value: 5, label: "Entradas", shortLabel: "Entrada", icon: <InIcon fontSize="small" />, color: "info" },
+    { value: 6, label: "Saidas", shortLabel: "Saida", icon: <OutIcon fontSize="small" />, color: "secondary" }
+  ];
+
+  const getFilterLabel = (value) => {
+    return filterOptions.find(f => f.value === value)?.label || "Todas";
   };
 
-  const handleMouseLeave = (movId) => {
-    if (hoverTimers[movId]) {
-      clearTimeout(hoverTimers[movId]);
-    }
-    setAnchorEls((prev) => ({
-      ...prev,
-      [movId]: {
-        anchorEl: null,
-        open: false,
+  const columns = [
+    {
+      field: 'material_description',
+      headerName: 'Material',
+      icon: <InventoryIcon fontSize="small" />,
+      minWidth: 200,
+      renderCell: (row) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <InventoryIcon fontSize="small" color="error" />
+          <Typography variant="body2" fontWeight={500}>
+            {row.material_description || '-'}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      field: 'user_name',
+      headerName: 'Militar',
+      icon: <PersonIcon fontSize="small" />,
+      minWidth: 150,
+      renderCell: (row) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PersonIcon fontSize="small" color="action" />
+          <Typography variant="body2">
+            {row.user_name || '-'}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      field: 'viatura_description',
+      headerName: 'Viatura',
+      icon: <CarIcon fontSize="small" />,
+      minWidth: 130,
+      hideOnMobile: true,
+    },
+    {
+      field: 'date',
+      headerName: 'Data',
+      minWidth: 110,
+      renderCell: (row) => (
+        <Chip
+          label={row.date?.seconds ? new Date(row.date.seconds * 1000).toLocaleDateString('pt-BR') : '-'}
+          size="small"
+          variant="outlined"
+          sx={{ fontWeight: 500 }}
+        />
+      ),
+    },
+    {
+      field: 'type',
+      headerName: 'Tipo',
+      minWidth: 100,
+      hideOnMobile: true,
+      renderCell: (row) => {
+        let color = 'default';
+        let icon = null;
+
+        switch (row.type) {
+          case 'cautela':
+            color = 'primary';
+            icon = <AssignmentIcon sx={{ fontSize: 14 }} />;
+            break;
+          case 'entrada':
+            color = 'info';
+            icon = <InIcon sx={{ fontSize: 14 }} />;
+            break;
+          case 'saída':
+            color = 'secondary';
+            icon = <OutIcon sx={{ fontSize: 14 }} />;
+            break;
+          default:
+            break;
+        }
+
+        return (
+          <Chip
+            icon={icon}
+            label={row.type || '-'}
+            size="small"
+            color={color}
+            variant="filled"
+          />
+        );
       },
-    }));
-  };
+    },
+    {
+      field: 'signed',
+      headerName: 'Assinado',
+      minWidth: 100,
+      renderCell: (row) => {
+        if (row.signed === undefined || row.type !== 'cautela') return '-';
+        return (
+          <Chip
+            icon={row.signed ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : <CancelIcon sx={{ fontSize: 14 }} />}
+            label={row.signed ? "Sim" : "Nao"}
+            size="small"
+            color={row.signed ? "success" : "error"}
+            variant="filled"
+          />
+        );
+      },
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      minWidth: 120,
+      renderCell: (row) => {
+        const getStatusConfig = (status) => {
+          switch (status?.toLowerCase()) {
+            case 'devolvido':
+              return { color: 'success', icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> };
+            case 'cautelado':
+              return { color: 'warning', icon: <AssignmentIcon sx={{ fontSize: 14 }} /> };
+            default:
+              return { color: 'default', icon: null };
+          }
+        };
 
-  useEffect(() => {
-    return () => {
-      Object.values(hoverTimers).forEach((timer) => clearTimeout(timer));
-    };
-  }, [hoverTimers]);
+        const config = getStatusConfig(row.status);
+
+        return (
+          <Chip
+            icon={config.icon}
+            label={row.status || '-'}
+            size="small"
+            color={config.color}
+            variant="filled"
+          />
+        );
+      },
+    },
+  ];
 
   return (
-    <Box sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 } }}>
-      <Card elevation={3} sx={{ borderRadius: 3, minHeight: '80vh' }}>
-        <CardContent sx={{ p: 3 }}>
-      <Box sx={{ mb: 3 }}>
-        <RadioGroup
-          sx={{
-            display: "flex",
-            gap: 2,
-            flexDirection: "row",
-            justifyContent: "center",
-          }}
-          value={filtro}
-          onChange={(e) => setFiltro(Number(e.target.value))}
-        >
-          <FormControlLabel 
-            value={0} 
-            control={<Radio />} 
-            label="Todos" 
-          />
-          <FormControlLabel 
-            value={1} 
-            control={<Radio sx={{ color: 'blue', '&.Mui-checked': { color: 'blue' } }} />} 
-            label="Assinados"
-            sx={{ color: 'blue' }}
-          />
-          <FormControlLabel 
-            value={2} 
-            control={<Radio sx={{ color: 'green', '&.Mui-checked': { color: 'green' } }} />} 
-            label="Devolvidos"
-            sx={{ color: 'green' }}
-          />
-          <FormControlLabel 
-            value={3} 
-            control={<Radio sx={{ color: 'red', '&.Mui-checked': { color: 'red' } }} />} 
-            label="Não Assinados"
-            sx={{ color: 'red' }}
-          />
-          <FormControlLabel 
-            value={4} 
-            control={<Radio sx={{ color: 'orange', '&.Mui-checked': { color: 'orange' } }} />} 
-            label="Cautelados"
-            sx={{ color: 'orange' }}
-          />
-          <FormControlLabel 
-            value={5} 
-            control={<Radio sx={{ color: 'purple', '&.Mui-checked': { color: 'purple' } }} />} 
-            label="Entradas"
-            sx={{ color: 'purple' }}
-          />
-          <FormControlLabel 
-            value={6} 
-            control={<Radio sx={{ color: 'brown', '&.Mui-checked': { color: 'brown' } }} />} 
-            label="Saídas"
-            sx={{ color: 'brown' }}
-          />
-        </RadioGroup>
-      </Box>
-
-      <Table size="small" sx={{ width: "100%", tableLayout: "fixed", mt: 2 }}>
-        <TableHead>
-          <TableRow>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Material
-            </TableCell>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Militar
-            </TableCell>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Viatura
-            </TableCell>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Data
-            </TableCell>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Tipo
-            </TableCell>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Telefone
-            </TableCell>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Status
-            </TableCell>
-            <TableCell
-              sx={{
-                textAlign: "left",
-                backgroundColor: "#ddeeee",
-                fontWeight: "bold",
-              }}
-            >
-              Observações
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {displayedMovimentacoes.map((mov) => (
-            <TableRow
-              key={mov.id}
-              onMouseEnter={(e) => handleMouseEnter(e, mov.id)}
-              onMouseLeave={() => handleMouseLeave(mov.id)}
-              hover
-              sx={{
-                backgroundColor: 
-                  filtro === 4 ? 'rgba(255, 165, 0, 0.1)' : // Laranja claro para filtro "Cautelados"
-                  filtro === 5 ? 'rgba(128, 0, 128, 0.1)' : // Roxo claro para "Entradas"
-                  filtro === 6 ? 'rgba(139, 69, 19, 0.1)' : // Marrom claro para "Saídas"
-                  mov.status === 'devolvido' ? 'rgba(0, 128, 0, 0.1)' : // Verde claro para devolvidos
-                  mov.signed === false ? 'rgba(255, 0, 0, 0.1)' : // Vermelho claro para não assinados
-                  mov.signed === true ? 'rgba(0, 0, 255, 0.1)' : // Azul claro para assinados
-                  'transparent',
-                '&:hover': {
-                  backgroundColor: 
-                    filtro === 4 ? 'rgba(255, 165, 0, 0.2)' : // Laranja mais escuro no hover
-                    filtro === 5 ? 'rgba(128, 0, 128, 0.2)' : // Roxo mais escuro no hover
-                    filtro === 6 ? 'rgba(139, 69, 19, 0.2)' : // Marrom mais escuro no hover
-                    mov.status === 'devolvido' ? 'rgba(0, 128, 0, 0.2)' : 
-                    mov.signed === false ? 'rgba(255, 0, 0, 0.2)' : 
-                    mov.signed === true ? 'rgba(0, 0, 255, 0.2)' : 
-                    'rgba(0, 0, 0, 0.04)',
-                }
-              }}
-            >
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.material_description || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.user_name || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.viatura_description || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.date?.seconds
-                  ? new Date(mov.date.seconds * 1000).toLocaleDateString()
-                  : "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.type || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.telefone_responsavel || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.status || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left", maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {mov.observacoes || "-"}
-              </TableCell>
-              <Popover
-                id={`popover-${mov.id}`}
-                sx={{ pointerEvents: "none" }}
-                open={Boolean(anchorEls[mov.id]?.open)}
-                anchorEl={anchorEls[mov.id]?.anchorEl}
-                anchorOrigin={{
-                  vertical: "center",
-                  horizontal: "right",
+    <Box sx={{ width: '100%' }}>
+      {/* Header with Stats */}
+      <Fade in timeout={400}>
+        <HeaderCard elevation={0}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-                transformOrigin={{
-                  vertical: "center",
-                  horizontal: "left",
-                }}
-                onClose={() => handleMouseLeave(mov.id)}
-                disableRestoreFocus
               >
-                <Typography component="div" sx={{ p: 2, maxWidth: 350 }}>
-                  {mov.id && <div><strong>ID:</strong> {mov.id}</div>}
-                  {mov.material && (
-                    <div>
-                      <strong>Material ID:</strong> {mov.material}
-                    </div>
-                  )}
-                  {mov.material_description && (
-                    <div>
-                      <strong>Material:</strong> {mov.material_description}
-                    </div>
-                  )}
-                  {mov.quantity !== undefined && (
-                    <div>
-                      <strong>Quantidade:</strong> {mov.quantity}
-                    </div>
-                  )}
-                  {mov.user_name && (
-                    <div>
-                      <strong>Militar:</strong> {mov.user_name}
-                    </div>
-                  )}
-                  {mov.user && (
-                    <div>
-                      <strong>ID Militar:</strong> {mov.user}
-                    </div>
-                  )}
-                  {mov.viatura_description && (
-                    <div>
-                      <strong>Viatura:</strong> {mov.viatura_description}
-                    </div>
-                  )}
-                  {mov.date?.seconds && (
-                    <div>
-                      <strong>Data:</strong> {new Date(mov.date.seconds * 1000).toLocaleString()}
-                    </div>
-                  )}
-                  {mov.type && (
-                    <div>
-                      <strong>Tipo:</strong> {mov.type}
-                    </div>
-                  )}
-                  {mov.telefone_responsavel && (
-                    <div>
-                      <strong>Telefone:</strong> {mov.telefone_responsavel}
-                    </div>
-                  )}
-                  {mov.status && (
-                    <div>
-                      <strong>Status:</strong> {mov.status}
-                    </div>
-                  )}
-                  {mov.signed !== undefined && (
-                    <div>
-                      <strong>Assinado:</strong> {mov.signed ? "Sim" : "Não"}
-                    </div>
-                  )}
-                  {mov.sender_name && (
-                    <div>
-                      <strong>Remetente:</strong> {mov.sender_name}
-                    </div>
-                  )}
-                  {mov.observacoes && (
-                    <div>
-                      <strong>Observações:</strong> {mov.observacoes}
-                    </div>
-                  )}
-                  {mov.motivo && (
-                    <div>
-                      <strong>Motivo:</strong> {mov.motivo}
-                    </div>
-                  )}
+                <AssignmentIcon sx={{ color: 'white', fontSize: 28 }} />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h5" sx={{ color: 'white', fontWeight: 700 }}>
+                  Todas as Cautelas
                 </Typography>
-              </Popover>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <Tooltip title="Exportar para Excel" placement="left">
-        <Fab
-          size="small"
-          onClick={() =>
-            exportarMovimentacoes(
-              displayedMovimentacoes,
-              `movimentacoes_cautelados`
-            )
-          }
-          sx={{ position: "fixed", bottom: 100, right: 16 }}
-        >
-          <img src={excelIcon} alt="Exportar para Excel" width={20} />
-        </Fab>
-      </Tooltip>
-        </CardContent>
-      </Card>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                  Historico completo de movimentacoes de cautela
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Stats chips */}
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <StatsChip
+                icon={<AssignmentIcon sx={{ color: 'white !important' }} />}
+                label={`${stats.total} total`}
+              />
+              {filtro === 0 && (
+                <>
+                  <StatsChip
+                    icon={<SignatureIcon sx={{ color: 'white !important' }} />}
+                    label={`${stats.assinados} assinados`}
+                  />
+                  <StatsChip
+                    icon={<CancelIcon sx={{ color: 'white !important' }} />}
+                    label={`${stats.naoAssinados} pendentes`}
+                  />
+                  <StatsChip
+                    icon={<CheckCircleIcon sx={{ color: 'white !important' }} />}
+                    label={`${stats.devolvidos} devolvidos`}
+                  />
+                </>
+              )}
+            </Box>
+          </CardContent>
+        </HeaderCard>
+      </Fade>
+
+      {/* Filters */}
+      <Fade in timeout={600}>
+        <FilterCard elevation={2}>
+          <CardContent sx={{ p: 3 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Buscar por material, militar ou viatura..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.grey[100], 0.5),
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={8}>
+                <FilterChips
+                  filters={filterOptions}
+                  activeFilter={filtro}
+                  onFilterChange={setFiltro}
+                  showTitle={false}
+                />
+              </Grid>
+            </Grid>
+          </CardContent>
+        </FilterCard>
+      </Fade>
+
+      {/* Results */}
+      <Fade in timeout={800}>
+        <Box>
+          {/* Empty state */}
+          {!loading && displayedMovimentacoes.length === 0 && (
+            <Alert severity="info" sx={{ borderRadius: 3 }}>
+              <AlertTitle>Nenhuma movimentacao encontrada</AlertTitle>
+              Nao ha movimentacoes para este filtro.
+            </Alert>
+          )}
+
+          {/* Results table */}
+          {(loading || filteredMovimentacoes.length > 0) && (
+            <SearchResultsTable
+              data={filteredMovimentacoes}
+              columns={columns}
+              loading={loading}
+              headerColor="error"
+              title={`Movimentacoes - ${getFilterLabel(filtro)}`}
+              subtitle={searchTerm ? `Resultados para "${searchTerm}"` : `Total: ${filteredMovimentacoes.length} registros`}
+              emptyMessage="Nenhuma movimentacao encontrada com estes filtros"
+              emptyIcon={<AssignmentIcon sx={{ fontSize: 48 }} />}
+              renderPopover={(row) => (
+                <MovimentacaoDetails
+                  movimentacao={row}
+                  title="Detalhes da Movimentacao"
+                  color="error"
+                />
+              )}
+            />
+          )}
+        </Box>
+      </Fade>
+
+      {/* Export FAB */}
+      {filteredMovimentacoes.length > 0 && (
+        <Tooltip title="Exportar para Excel" placement="left">
+          <Fab
+            color="success"
+            size="medium"
+            onClick={() => exportarMovimentacoes(
+              filteredMovimentacoes,
+              `movimentacoes_${getFilterLabel(filtro).toLowerCase()}`
+            )}
+            sx={{
+              position: 'fixed',
+              bottom: 80,
+              right: 24,
+              background: 'linear-gradient(45deg, #4caf50 30%, #81c784 90%)',
+              boxShadow: 3,
+              '&:hover': {
+                transform: 'scale(1.1)',
+                boxShadow: 6
+              },
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <img src={excelIcon} alt="Exportar para Excel" width={24} />
+          </Fab>
+        </Tooltip>
+      )}
     </Box>
   );
 }
