@@ -160,12 +160,12 @@ const MaintenanceCalendar = () => {
                     }
                 }
 
-                // Atualizar status do material para operacional se estava em manutenção
+                // Atualizar status do material para operante se estava em manutenção
                 if (maintenance?.materialId) {
                     try {
                         const materialRef = doc(db, 'materials', maintenance.materialId);
                         await updateDoc(materialRef, {
-                            maintenance_status: 'operacional',
+                            maintenance_status: 'operante',
                             last_maintenance_update: Timestamp.now(),
                             last_maintenance_date: Timestamp.now()
                         });
