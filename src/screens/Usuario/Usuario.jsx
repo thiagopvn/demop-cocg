@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   IconButton,
   Table,
@@ -15,22 +15,29 @@ import {
   DialogActions,
   Button,
   TextField,
+  InputAdornment,
+  CircularProgress,
+  Chip,
+  Box,
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit"; // Importe o ícone de edição
+import EditIcon from "@mui/icons-material/Edit";
 import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
+import PersonIcon from "@mui/icons-material/Person";
 import {
   query,
   doc,
   where,
   collection,
-  getDocs,
   addDoc,
   deleteDoc,
   updateDoc,
   getDoc,
+  getDocs,
   orderBy,
+  onSnapshot,
 } from "firebase/firestore";
 import db from "../../firebase/db";
 import UsuarioDialog from "../../dialogs/UsuarioDialog";
@@ -38,108 +45,114 @@ import { verifyToken } from "../../firebase/token";
 import AddIcon from "@mui/icons-material/Add";
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function Usuario() {
-  const [users, setUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false); // Estado para o diálogo de edição
-  const [editData, setEditData] = useState(null); // Estado para os dados do usuário a ser editado
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editData, setEditData] = useState(null);
   const [anchorEls, setAnchorEls] = useState({});
   const [userRole, setUserRole] = useState(null);
-  const [userId, setUserId] = useState(null); // Estado para armazenar o ID do usuário logado
+  const [userId, setUserId] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDeleteId, setUserToDeleteId] = useState(null);
-  const [critery, setCritery] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
 
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Carregar dados do usuario logado
   useEffect(() => {
     const fetchUserData = async () => {
-        const token = localStorage.getItem("token");
-
-        if (token) {
-            try {
-                const decodedToken = await verifyToken(token);
-                setUserRole(decodedToken.role);
-                setUserId(decodedToken.userId);
-                
-                // Carregar dados do usuário imediatamente
-                const userRef = doc(db, "users", decodedToken.userId);
-                const userSnap = await getDoc(userRef);
-                
-                if (userSnap.exists()) {
-                    if (decodedToken.role === "admin" || decodedToken.role === "editor") {
-                        // Para admin/editor, não carrega nada inicialmente
-                        setUsers([]);
-                    } else {
-                        // Para usuário comum, carrega apenas seus dados
-                        setUsers([{ id: userSnap.id, ...userSnap.data() }]);
-                    }
-                }
-            } catch (error) {
-                console.error("Erro ao verificar token:", error);
-                setUserRole(null);
-                setUserId(null);
-            }
-        } else {
-            setUserRole(null);
-            setUserId(null);
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const decodedToken = await verifyToken(token);
+          setUserRole(decodedToken.role);
+          setUserId(decodedToken.userId);
+        } catch (error) {
+          console.error("Erro ao verificar token:", error);
+          setUserRole(null);
+          setUserId(null);
         }
+      } else {
+        setUserRole(null);
+        setUserId(null);
+      }
     };
-
     fetchUserData();
-}, []);
+  }, []);
 
-  // Remover este useEffect que faz a busca inicial
-  // useEffect(() => {
-  //   if (userRole && userId) {
-  //     getUsers();  // <-- Remover esta chamada inicial
-  //   }
-  // }, [userRole, userId]);
+  // Carregar usuarios com listener em tempo real
+  useEffect(() => {
+    if (!userRole || !userId) return;
 
-  // Modificar a função getUsers para não buscar sem critério
-  const getUsers = async (searchCritery = "") => {
-    if (!userRole || !userId) {
-        setUsers([]);
-        return;
+    setLoading(true);
+
+    // Se for usuario comum, carrega apenas seus dados
+    if (userRole !== "admin" && userRole !== "editor") {
+      const userRef = doc(db, "users", userId);
+      getDoc(userRef).then((userSnap) => {
+        if (userSnap.exists()) {
+          setAllUsers([{ id: userSnap.id, ...userSnap.data() }]);
+        }
+        setLoading(false);
+      });
+      return;
     }
 
-    try {
-        // Se for usuário comum, retorna pois os dados já foram carregados no useEffect
-        if (userRole !== "admin" && userRole !== "editor") {
-            return;
-        }
+    // Para admin/editor, carrega todos com listener em tempo real
+    const usersCollection = collection(db, "users");
+    const q = query(usersCollection, orderBy("full_name_lower"));
 
-        const usersCollection = collection(db, "users");
-        let queryRef;
-
-        if (searchCritery.trim()) {
-            const searchLower = searchCritery.toLowerCase();
-            const start = searchLower;
-            const end = searchLower + "\uf8ff";
-            
-            queryRef = query(
-                usersCollection,
-                where("full_name_lower", ">=", start),
-                where("full_name_lower", "<=", end),
-                orderBy("full_name_lower")
-            );
-        } else {
-            queryRef = query(
-                usersCollection,
-                orderBy("full_name_lower")
-            );
-        }
-
-        const usersSnapshot = await getDocs(queryRef);
-        const usersList = usersSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const usersList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
         }));
-        setUsers(usersList);
-    } catch (error) {
-        console.error("Erro ao buscar usuários:", error);
-        setUsers([]);
+        setAllUsers(usersList);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Erro ao carregar usuarios:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userRole, userId]);
+
+  // Filtrar usuarios localmente
+  const users = useMemo(() => {
+    if (!debouncedSearchTerm || debouncedSearchTerm.trim().length === 0) {
+      return allUsers;
     }
-};
+
+    const searchWords = debouncedSearchTerm.toLowerCase().trim().split(/\s+/);
+
+    return allUsers.filter((user) => {
+      const searchableText = [
+        user.username || "",
+        user.full_name || "",
+        user.full_name_lower || "",
+        user.email || "",
+        user.rg || "",
+        user.OBM || "",
+        user.role || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchWords.every((word) => searchableText.includes(word));
+    });
+  }, [allUsers, debouncedSearchTerm]);
+
+  const handleClearSearch = () => {
+    setSearchTerm("");
+  };
 
   const handlePopoverOpen = (event, userId) => {
     setAnchorEls((prev) => ({
@@ -214,9 +227,10 @@ export default function Usuario() {
         created_at: new Date(),
       });
       setDialogOpen(false);
-      getUsers();
+      // Listener em tempo real atualiza automaticamente
     } catch (error) {
       console.error("Erro ao salvar usuário:", error);
+      alert("Erro ao salvar usuário");
     }
   };
 
@@ -241,9 +255,10 @@ export default function Usuario() {
       try {
         const userDocRef = doc(db, "users", userToDeleteId);
         await deleteDoc(userDocRef);
-        getUsers();
+        // Listener em tempo real atualiza automaticamente
       } catch (error) {
         console.error("Erro ao excluir usuário:", error);
+        alert("Erro ao excluir usuário");
       }
     } else {
       alert(
@@ -301,16 +316,10 @@ export default function Usuario() {
       await updateDoc(userDocRef, updateData);
       setEditDialogOpen(false);
       setEditData(null);
-      getUsers();
+      // Listener em tempo real atualiza automaticamente
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error);
       alert("Erro ao atualizar usuário.");
-    }
-  };
-
-  const handleEnterKeyDown = (e) => {
-    if (e.key === "Enter") {
-      getUsers(critery);
     }
   };
 
@@ -364,7 +373,7 @@ export default function Usuario() {
               )}
             </div>
 
-            {/* Seção de Pesquisa Moderna */}
+            {/* Seção de Pesquisa com Filtro em Tempo Real */}
             {(userRole === "admin" || userRole === "editor") && (
               <div style={{
                 backgroundColor: '#ffffff',
@@ -374,21 +383,15 @@ export default function Usuario() {
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
                 border: '1px solid #e3f2fd'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <SearchIcon sx={{ color: '#1976d2', fontSize: '24px' }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>
-                    Pesquisar Usuários
-                  </Typography>
-                </div>
                 <TextField
                   size="medium"
-                  label="Digite o nome do usuário..."
+                  label="Pesquisar usuários"
+                  placeholder="Digite nome, username, email, RG ou OBM..."
                   variant="outlined"
-                  onKeyDown={handleEnterKeyDown}
                   fullWidth
-                  value={critery}
-                  onChange={(e) => setCritery(e.target.value)}
-                  sx={{ 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '12px',
                       backgroundColor: '#f8f9ff',
@@ -405,26 +408,40 @@ export default function Usuario() {
                   }}
                   slotProps={{
                     input: {
-                      endAdornment: (
-                        <Button
-                          variant="contained"
-                          onClick={() => getUsers(critery)}
-                          sx={{
-                            borderRadius: '8px',
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            backgroundColor: '#1976d2',
-                            '&:hover': {
-                              backgroundColor: '#1565c0',
-                            }
-                          }}
-                        >
-                          Pesquisar
-                        </Button>
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon sx={{ color: '#1976d2' }} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: searchTerm && (
+                        <InputAdornment position="end">
+                          <IconButton size="small" onClick={handleClearSearch}>
+                            <ClearIcon fontSize="small" />
+                          </IconButton>
+                        </InputAdornment>
                       ),
                     },
                   }}
                 />
+                {/* Estatisticas de busca */}
+                <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Chip
+                    size="small"
+                    icon={<PersonIcon />}
+                    label={`${users.length} usuário${users.length !== 1 ? 's' : ''}`}
+                    color="primary"
+                    variant={debouncedSearchTerm ? 'filled' : 'outlined'}
+                  />
+                  {debouncedSearchTerm && (
+                    <Chip
+                      size="small"
+                      label={`Filtro: "${debouncedSearchTerm}"`}
+                      variant="outlined"
+                      onDelete={handleClearSearch}
+                      sx={{ color: 'text.secondary' }}
+                    />
+                  )}
+                </Box>
               </div>
             )}
 
@@ -513,14 +530,28 @@ export default function Usuario() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.length === 0 ? (
+                {loading ? (
                   <TableRow>
-                    <TableCell colSpan={3} sx={{ textAlign: "center" }}>
-                      {userRole === "admin" || userRole === "editor" 
-                        ? critery.trim() 
-                            ? "Nenhum usuário encontrado" 
-                            : "Digite um nome para pesquisar"
-                        : "Carregando..."}
+                    <TableCell colSpan={3} sx={{ textAlign: "center", py: 4 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                        <CircularProgress size={24} />
+                        <Typography variant="body2" color="text.secondary">
+                          Carregando usuários...
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} sx={{ textAlign: "center", py: 4 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                        <PersonIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+                        <Typography variant="body1" color="text.secondary">
+                          {debouncedSearchTerm
+                            ? `Nenhum usuário encontrado para "${debouncedSearchTerm}"`
+                            : "Nenhum usuário cadastrado"}
+                        </Typography>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ) : (
