@@ -12,6 +12,7 @@ import Devolucoes from './screens/Devolucoes/Devolucoes';
 import Rings from './screens/Rings/Rings';
 import MainSearch from './screens/Search/MainSearch';
 import Manutencao from './screens/Manutencao/Manutencao'; // <-- NOVO IMPORT
+import ViaturaDetalhes from './screens/ViaturaDetalhes/ViaturaDetalhes';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
         <Route path='/material' element={<Material />} />
         <Route path='/usuario' element={<Usuario />} />
         <Route path='/viaturas' element={<Viaturas />} />
+        <Route path='/viatura/:id' element={<ViaturaDetalhes />} />
         <Route path='/devolucoes' element={<Devolucoes />} />
         <Route path='/aneis' element={<Rings />} />
         <Route path='/search' element={<MainSearch />} />

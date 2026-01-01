@@ -20,14 +20,15 @@ import {
     alpha,
     styled
 } from '@mui/material';
-import { 
-    Add, 
-    Edit, 
+import {
+    Add,
+    Edit,
     Delete,
     Search,
     Clear,
     Inventory,
-    Warning
+    Warning,
+    DirectionsCar
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -257,6 +258,9 @@ const Material = () => {
                 <StyledTableCell>
                     <Skeleton variant="text" height={20} width={60} />
                 </StyledTableCell>
+                <StyledTableCell align="center">
+                    <Skeleton variant="rectangular" height={24} width={50} />
+                </StyledTableCell>
                 <StyledTableCell>
                     <Skeleton variant="rectangular" height={24} width={80} />
                 </StyledTableCell>
@@ -438,6 +442,12 @@ const Material = () => {
                                     Estoque (Disp./Total)
                                 </TableCell>
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                                        <DirectionsCar fontSize="small" />
+                                        Em Viatura
+                                    </Box>
+                                </TableCell>
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
                                     Status
                                 </TableCell>
                                 <TableCell align="right" sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
@@ -450,7 +460,7 @@ const Material = () => {
                                 <>
                                     {renderLoadingSkeleton()}
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                                 <CircularProgress size={24} />
                                                 <Typography variant="body2" color="text.secondary">
@@ -462,7 +472,7 @@ const Material = () => {
                                 </>
                             ) : filteredMaterials.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                             <Inventory sx={{ fontSize: 48, color: 'text.disabled' }} />
                                             <Typography variant="h6" color="text.secondary">
@@ -503,8 +513,8 @@ const Material = () => {
                                             </StyledTableCell>
                                             <StyledTableCell align="center">
                                                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                                    <Typography 
-                                                        variant="body2" 
+                                                    <Typography
+                                                        variant="body2"
                                                         fontWeight={600}
                                                         color={material.estoque_atual > 0 ? 'success.main' : 'error.main'}
                                                     >
@@ -514,6 +524,22 @@ const Material = () => {
                                                         de {material.estoque_total || 0}
                                                     </Typography>
                                                 </Box>
+                                            </StyledTableCell>
+                                            <StyledTableCell align="center">
+                                                {(material.estoque_viatura || 0) > 0 ? (
+                                                    <Chip
+                                                        icon={<DirectionsCar sx={{ fontSize: '0.9rem !important' }} />}
+                                                        label={material.estoque_viatura}
+                                                        color="info"
+                                                        size="small"
+                                                        variant="filled"
+                                                        sx={{ minWidth: 60 }}
+                                                    />
+                                                ) : (
+                                                    <Typography variant="body2" color="text.disabled">
+                                                        -
+                                                    </Typography>
+                                                )}
                                             </StyledTableCell>
                                             <StyledTableCell align="center">
                                                 <Chip

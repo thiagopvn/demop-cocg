@@ -1,35 +1,105 @@
-body{
-
+/* Reset e estilos globais */
+body {
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+    font-family: 'Roboto', sans-serif;
 }
 
-.root-protected{
-    padding: 70px 70px;
+/* Container principal protegido */
+.root-protected {
+    padding: 80px 24px 24px 24px;
+    min-height: calc(100vh - 80px);
+    box-sizing: border-box;
 }
-.search{
-    padding: 0 100px;
-    margin-bottom: 30px;
+
+/* Container de pesquisa - responsivo */
+.search {
+    padding: 0;
+    margin-bottom: 16px;
+    width: 100%;
+    box-sizing: border-box;
 }
-.table{
-    margin-top: 35px;
-    height: 350px;
+
+/* Tabela responsiva */
+.table {
+    margin-top: 24px;
+    max-height: 450px;
     overflow: auto;
-
-    
+    border-radius: 8px;
 }
-@media screen and (max-width: 768px){
-    .root-protected{
-        padding: 70px 20px;
-    }
-    .search{
-        padding: 0 20px;
-        margin-bottom: 10px;
+
+/* Media queries para tablets */
+@media screen and (min-width: 768px) {
+    .root-protected {
+        padding: 80px 40px 40px 40px;
     }
 
-    .table{
-        padding: 0px 20px;
+    .search {
+        padding: 0;
+        margin-bottom: 24px;
     }
-    
+}
+
+/* Media queries para desktop */
+@media screen and (min-width: 1024px) {
+    .root-protected {
+        padding: 80px 60px 40px 60px;
+    }
+
+    .search {
+        padding: 0;
+        margin-bottom: 24px;
+    }
+
+    .table {
+        max-height: 500px;
+    }
+}
+
+/* Media queries para telas grandes */
+@media screen and (min-width: 1440px) {
+    .root-protected {
+        padding: 80px 80px 40px 80px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+}
+
+/* Media queries para mobile */
+@media screen and (max-width: 767px) {
+    .root-protected {
+        padding: 70px 16px 16px 16px;
+    }
+
+    .search {
+        padding: 0;
+        margin-bottom: 12px;
+    }
+
+    .table {
+        padding: 0;
+        margin-top: 16px;
+        max-height: 350px;
+    }
+}
+
+/* Scrollbar personalizada */
+.table::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table::-webkit-scrollbar-thumb {
+    background: #1e3a5f;
+    border-radius: 4px;
+}
+
+.table::-webkit-scrollbar-thumb:hover {
+    background: #152a45;
 }
