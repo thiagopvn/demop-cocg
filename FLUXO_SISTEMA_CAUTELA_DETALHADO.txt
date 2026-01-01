@@ -1,0 +1,1015 @@
+================================================================================
+                    SISTEMA DE CONTROLE DE CAUTELA E ASSINATURA
+                         DOCUMENTAÇÃO TÉCNICA DETALHADA
+================================================================================
+
+ÍNDICE:
+1. VISÃO GERAL DO SISTEMA
+2. ARQUITETURA DE PASTAS E ARQUIVOS
+3. FLUXO COMPLETO DE CAUTELA
+4. SISTEMA DE ASSINATURA DIGITAL
+5. FLUXO DE DEVOLUÇÃO
+6. CONTROLE DE ESTOQUE
+7. AUTENTICAÇÃO E AUTORIZAÇÃO
+8. EXEMPLOS DE CÓDIGO DETALHADOS
+9. ESTRUTURA DO BANCO DE DADOS
+10. CASOS DE USO PRÁTICOS
+
+================================================================================
+1. VISÃO GERAL DO SISTEMA
+================================================================================
+
+O Sistema de Controle de Cautela é uma aplicação React desenvolvida para gerenciar
+o empréstimo de materiais/equipamentos em contexto militar/institucional. O sistema
+controla todo o ciclo de vida dos materiais: entrada no estoque, cautela (empréstimo),
+assinatura digital de confirmação de recebimento, e devolução.
+
+TECNOLOGIAS PRINCIPAIS:
+- Frontend: React 19 + Vite 6
+- UI: Material-UI v6
+- Banco: Firebase Firestore (NoSQL)
+- Autenticação: JWT com biblioteca 'jose'
+- Exportação: xlsx para relatórios Excel
+
+TIPOS DE USUÁRIOS:
+- Admin: Acesso total ao sistema
+- Editor: Pode realizar movimentações e gerenciar materiais
+- User: Apenas visualização de suas próprias cautelas
+
+================================================================================
+2. ARQUITETURA DE PASTAS E ARQUIVOS
+================================================================================
+
+ESTRUTURA PRINCIPAL:
+/src
+├── components/              # Componentes reutilizáveis
+│   ├── CautelaStrip.jsx    # Componente principal de exibição de cautela
+│   ├── ButtonDevolver.jsx  # Botão de devolução com confirmação
+│   ├── MaterialSearch.jsx  # Busca de materiais
+│   ├── UserSearch.jsx      # Busca de usuários
+│   └── ViaturaSearch.jsx   # Busca de viaturas
+├── screens/                # Telas principais do sistema
+│   ├── Movimentacoes/      # Tela de criação de movimentações
+│   │   └── Movimentacoes.jsx
+│   ├── Devolucoes/         # Tela de gerenciamento de devoluções
+│   │   └── Devolucoes.jsx
+│   ├── Home/               # Dashboard principal
+│   │   └── Home.jsx
+│   └── Search/             # Módulo de pesquisas avançadas
+│       ├── Cautelados.jsx  # Lista de materiais cautelados
+│       ├── MaterialUsuario.jsx
+│       └── UsuarioMaterial.jsx
+├── contexts/               # Contextos React para estado global
+│   ├── MenuContext.jsx     # Contexto de navegação e menu
+│   ├── PrivateRoute.jsx    # Proteção de rotas
+│   └── ThemeContext.jsx    # Tema da aplicação
+├── firebase/               # Integração com Firebase
+│   ├── db.js              # Configuração do Firestore
+│   ├── token.js           # Gerenciamento de tokens JWT
+│   └── xlsx.js            # Exportação para Excel
+└── dialogs/               # Modais de CRUD
+    ├── MaterialDialog.jsx
+    └── UsuarioDialog.jsx
+
+ARQUIVO CHAVE - CautelaStrip.jsx:
+Este é o componente mais importante para o sistema de assinatura. Localizado em:
+/src/components/CautelaStrip.jsx
+
+Responsabilidades:
+- Exibe informações da cautela de forma visual
+- Gerencia o processo de assinatura digital
+- Mostra status de assinado/não assinado
+- Valida entrada de confirmação ("Aceito")
+
+ARQUIVO CHAVE - Movimentacoes.jsx:
+Tela principal para criar cautelas. Localizado em:
+/src/screens/Movimentacoes/Movimentacoes.jsx
+
+Responsabilidades:
+- Interface para seleção de tipo de movimentação
+- Busca e seleção de materiais
+- Busca e seleção de usuários/viaturas
+- Validação de estoque
+- Criação de registros de movimentação
+
+================================================================================
+3. FLUXO COMPLETO DE CAUTELA
+================================================================================
+
+PASSO 1: ACESSO À TELA DE MOVIMENTAÇÕES
+Usuário navega para /movimentacoes através do MenuContext.jsx
+
+PASSO 2: SELEÇÃO DO TIPO DE MOVIMENTAÇÃO
+Código em Movimentacoes.jsx (linhas 401-430):
+
+```javascript
+const movementOptions = [
+    {
+        value: "entrada",
+        label: "Entrada",
+        icon: <InputIcon />,
+        description: "Registrar entrada de material no estoque",
+        color: "success"
+    },
+    {
+        value: "cautela",
+        label: "Cautela", 
+        icon: <AssignmentIcon />,
+        description: "Cautelar material para um usuário ou viatura",
+        color: "primary"
+    }
+    // ... outros tipos
+];
+```
+
+PASSO 3: SELEÇÃO DE MATERIAL
+Sistema utiliza MaterialSearch.jsx para busca em tempo real:
+- Busca no Firestore na coleção "materials"
+- Filtra por descrição, categoria, código
+- Valida disponibilidade de estoque
+
+PASSO 4: SELEÇÃO DE DESTINATÁRIO
+Para cautelas, usuário pode escolher:
+- USUÁRIO: Pessoa física que receberá o material
+- VIATURA: Veículo ao qual o material será atribuído
+
+Código em Movimentacoes.jsx (linhas 133-148):
+```javascript
+useEffect(() => {
+    if (tipoMovimentacao === "entrada" || tipoMovimentacao === "reparo") {
+        setShowMaterialSearch(true);
+        setShowUserSearch(false);
+        setShowViaturaSearch(false);
+    } else if (tipoMovimentacao === "cautela") {
+        setShowMaterialSearch(true);
+        setShowUserSearch(true);
+        setShowViaturaSearch(true);
+    }
+}, [tipoMovimentacao]);
+```
+
+PASSO 5: DEFINIÇÃO DE QUANTIDADE
+Sistema valida se a quantidade solicitada está disponível em estoque:
+
+```javascript
+if (materialSelected.estoque_atual < qtd) {
+    alert("A quantidade selecionada é maior que o estoque atual.");
+    return;
+}
+```
+
+PASSO 6: CRIAÇÃO DA MOVIMENTAÇÃO
+Código em Movimentacoes.jsx (linhas 297-399):
+
+```javascript
+const handleSave = async () => {
+    try {
+        const movementData = {
+            type: tipoMovimentacao,
+            material: materialSelected.id,
+            material_description: materialSelected.description,
+            quantity: qtd,
+            date: new Date(),
+            sender: userId,
+            sender_name: userName,
+            signed: false,  // IMPORTANTE: Inicia como não assinado
+            categoria: materialSelected.categoria,
+            user: userSelected.id,
+            user_name: userSelected.full_name,
+            telefone_responsavel: userSelected.telefone,
+            status: "cautelado"
+        };
+
+        // Atualiza estoque
+        let newEstoqueAtual = materialSelected.estoque_atual - parseInt(quantidade);
+        
+        // Salva no Firestore
+        const materialDocRef = doc(db, "materials", materialSelected.id);
+        await updateDoc(materialDocRef, {
+            estoque_atual: newEstoqueAtual
+        });
+
+        const movimentacoesCollection = collection(db, "movimentacoes");
+        await addDoc(movimentacoesCollection, movementData);
+    } catch (error) {
+        console.error("Erro ao salvar movimentação:", error);
+    }
+};
+```
+
+PASSO 7: CAUTELA CRIADA - AGUARDANDO ASSINATURA
+Após a criação, a cautela fica com:
+- signed: false
+- status: "cautelado"
+- Estoque atualizado (quantidade reduzida)
+
+================================================================================
+4. SISTEMA DE ASSINATURA DIGITAL
+================================================================================
+
+O sistema de assinatura é implementado no componente CautelaStrip.jsx e garante
+que o usuário confirme explicitamente o recebimento do material.
+
+LOCALIZAÇÃO DO CÓDIGO:
+/src/components/CautelaStrip.jsx
+
+FLUXO DE ASSINATURA:
+
+PASSO 1: EXIBIÇÃO DA CAUTELA NÃO ASSINADA
+Código (linhas 151-176):
+```javascript
+{!signed && (
+    <Alert severity="warning" icon={<Warning />}>
+        <AlertTitle>Assinatura Pendente</AlertTitle>
+        <Typography variant="body2">
+            Clique no botão abaixo para confirmar o recebimento deste material
+        </Typography>
+    </Alert>
+)}
+```
+
+PASSO 2: CLIQUE NO BOTÃO DE ASSINATURA
+Código (linhas 204-231):
+```javascript
+{!signed && (
+    <CardActions>
+        <Button
+            fullWidth
+            variant="contained"
+            startIcon={<Create />}
+            onClick={() => setDialogOpen(true)}
+            sx={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
+                color: 'white',
+                fontWeight: 600
+            }}
+        >
+            Assinar e Confirmar Recebimento
+        </Button>
+    </CardActions>
+)}
+```
+
+PASSO 3: MODAL DE CONFIRMAÇÃO
+Sistema abre modal com informações importantes (linhas 234-398):
+
+```javascript
+<Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+    <DialogTitle>
+        <Warning sx={{ color: '#f59e0b' }} />
+        Confirmação Importante
+    </DialogTitle>
+    
+    <DialogContent>
+        <Alert severity="info">
+            <AlertTitle>Atenção: Ação Irreversível</AlertTitle>
+            <Typography variant="body2">
+                Ao assinar, você confirma ter recebido o material 
+                <strong>{cautela.material_description}</strong> em 
+                quantidade de <strong>{cautela.quantity} unidades</strong> 
+                e assume total responsabilidade pelo mesmo.
+            </Typography>
+        </Alert>
+        
+        <TextField
+            label='Digite "Aceito" para confirmar'
+            value={accept}
+            onChange={(e) => setAccept(e.target.value)}
+            error={accept && accept !== "Aceito"}
+            helperText={accept && accept !== "Aceito" ? 
+                "Digite exatamente 'Aceito' (com A maiúsculo)" : ""}
+        />
+    </DialogContent>
+</Dialog>
+```
+
+PASSO 4: VALIDAÇÃO DE ENTRADA
+Sistema valida que usuário digitou exatamente "Aceito":
+
+```javascript
+disabled={accept !== "Aceito"}
+onClick={() => {
+    if (accept === "Aceito") {
+        onSign(cautela.id);
+        setSigned(true);
+        setDialogOpen(false);
+        setAccept("");
+    }
+}}
+```
+
+PASSO 5: ATUALIZAÇÃO NO BANCO
+Quando onSign() é chamado, atualiza o registro no Firestore:
+
+```javascript
+// Em Home.jsx ou componente pai
+const handleSign = async (movimentacaoId) => {
+    try {
+        const docRef = doc(db, "movimentacoes", movimentacaoId);
+        await updateDoc(docRef, {
+            signed: true,
+            signed_date: new Date(), // Data da assinatura
+            signed_by: currentUserId // Quem assinou
+        });
+    } catch (error) {
+        console.error("Erro ao assinar:", error);
+    }
+};
+```
+
+SEGURANÇA DO SISTEMA DE ASSINATURA:
+1. Validação rigorosa da entrada "Aceito"
+2. Modal de confirmação com alertas
+3. Ação irreversível claramente comunicada
+4. Registro de data e usuário da assinatura
+5. Atualização atômica no banco de dados
+
+================================================================================
+5. FLUXO DE DEVOLUÇÃO
+================================================================================
+
+A devolução é gerenciada pela tela Devolucoes.jsx e pelo componente ButtonDevolver.jsx.
+
+LOCALIZAÇÃO:
+/src/screens/Devolucoes/Devolucoes.jsx
+/src/components/ButtonDevolver.jsx
+
+PASSO 1: BUSCA DE CAUTELAS ATIVAS
+Sistema busca movimentações pendentes de devolução:
+
+```javascript
+// Devolucoes.jsx (linhas 28-57)
+const fetchMovimentacoes = async () => {
+    let q;
+    if (includeReparo) {
+        q = query(
+            collection(db, "movimentacoes"),
+            where("type", "==", "reparo")
+        );
+    } else {
+        q = query(
+            collection(db, "movimentacoes"),
+            where("user", "==", selectedUser.id)
+        );
+    }
+
+    const querySnapshot = await getDocs(q);
+    const movimentacoes = [];
+    querySnapshot.forEach((doc) => {
+        movimentacoes.push({
+            id: doc.id,
+            ...doc.data(),
+        });
+    });
+    setMovimentacoes(movimentacoes);
+};
+```
+
+PASSO 2: EXIBIÇÃO EM TABELA
+Sistema lista todas as cautelas pendentes do usuário selecionado com:
+- Data da cautela
+- Descrição do material  
+- Quantidade cautelada
+- Botão de devolução
+
+PASSO 3: PROCESSO DE DEVOLUÇÃO
+ButtonDevolver.jsx implementa confirmação em duas etapas:
+
+```javascript
+// ButtonDevolver.jsx (linhas 5-62)
+export default function ButtonDevolver({ status, onDevolver }) {
+    const [devolvido, setDevolvido] = useState(
+        status === "devolvidaDeReparo" || status === "devolvido"
+    );
+    const [open, setOpen] = useState(false);
+
+    const handleConfirmDevolver = () => {
+        handleDevolver();
+        handleCloseDialog();
+    };
+
+    return (
+        <>
+            <Tooltip title="Devolver Material">
+                <IconButton
+                    disabled={devolvido}
+                    onClick={() => setOpen(true)}
+                >
+                    <AssignmentReturn />
+                </IconButton>
+            </Tooltip>
+
+            <Dialog open={open} onClose={() => setOpen(false)}>
+                <DialogTitle>Confirmar Devolução?</DialogTitle>
+                <DialogContent>
+                    Tem certeza que deseja devolver este material?
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleConfirmDevolver} autoFocus>
+                        Confirmar
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </>
+    );
+}
+```
+
+PASSO 4: ATUALIZAÇÃO DO BANCO NA DEVOLUÇÃO
+Código em Devolucoes.jsx (linhas 59-91):
+
+```javascript
+const handleDevolver = async (movimentacao) => {
+    try {
+        // 1. Atualiza status da movimentação
+        const docRef = doc(db, "movimentacoes", movimentacao.id);
+        await updateDoc(docRef, {
+            status: includeReparo ? "devolvidaDeReparo" : "devolvido",
+            returned_date: new Date(),
+            returned_by: currentUserId
+        });
+
+        // 2. Recupera dados atuais do material
+        const materialId = movimentacao.material;
+        const docRefMaterial = doc(db, "materials", materialId);
+        const materialSnap = await getDoc(docRefMaterial);
+
+        if (materialSnap.exists()) {
+            const materialData = materialSnap.data();
+            const quantidadeDevolvida = movimentacao.quantity;
+            const quantidadeAtual = materialData.estoque_atual || 0;
+            
+            // 3. Retorna quantidade ao estoque
+            const novaQuantidade = quantidadeAtual + quantidadeDevolvida;
+
+            await updateDoc(docRefMaterial, {
+                estoque_atual: novaQuantidade,
+            });
+
+            console.log("Material devolvido e quantidade atualizada!");
+        }
+    } catch (error) {
+        console.error("Erro ao devolver material:", error);
+    }
+};
+```
+
+IMPORTANTE: O sistema restaura automaticamente a quantidade em estoque quando
+o material é devolvido, mantendo a integridade dos dados.
+
+================================================================================
+6. CONTROLE DE ESTOQUE
+================================================================================
+
+O sistema mantém controle rigoroso do estoque através de dois campos principais:
+
+CAMPOS NO MATERIAL:
+- estoque_total: Quantidade total que já entrou no sistema
+- estoque_atual: Quantidade disponível para cautela
+
+FLUXOS QUE AFETAM O ESTOQUE:
+
+1. ENTRADA DE MATERIAL:
+```javascript
+// Movimentacoes.jsx - caso 'entrada'
+newEstoqueTotal = materialSelected.estoque_total + parseInt(quantidade);
+newEstoqueAtual = materialSelected.estoque_atual + parseInt(quantidade);
+movementData.status = "emEstoque";
+```
+
+2. CAUTELA DE MATERIAL:
+```javascript
+// Movimentacoes.jsx - caso 'cautela'
+if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
+    alert("A quantidade para cautela é maior que o estoque atual.");
+    return;
+}
+newEstoqueAtual = materialSelected.estoque_atual - parseInt(quantidade);
+movementData.status = "cautelado";
+```
+
+3. SAÍDA DEFINITIVA:
+```javascript
+// Movimentacoes.jsx - caso 'saída'
+newEstoqueTotal = materialSelected.estoque_total - parseInt(quantidade);
+newEstoqueAtual = materialSelected.estoque_atual - parseInt(quantidade);
+movementData.status = "descartado";
+```
+
+4. REPARO/INOPERANTE:
+```javascript
+// Movimentacoes.jsx - caso 'reparo'
+newEstoqueAtual = materialSelected.estoque_atual - parseInt(quantidade);
+movementData.status = "emReparo";
+```
+
+5. DEVOLUÇÃO:
+```javascript
+// Devolucoes.jsx - handleDevolver
+const novaQuantidade = quantidadeAtual + quantidadeDevolvida;
+await updateDoc(docRefMaterial, {
+    estoque_atual: novaQuantidade,
+});
+```
+
+VALIDAÇÕES DE ESTOQUE:
+- Sistema sempre verifica disponibilidade antes de permitir cautela
+- Não permite quantidades negativas
+- Alerta quando estoque insuficiente
+- Histórico completo de movimentações mantido
+
+================================================================================
+7. AUTENTICAÇÃO E AUTORIZAÇÃO
+================================================================================
+
+ARQUIVO: /src/firebase/token.js
+
+O sistema utiliza JWT (JSON Web Token) para autenticação:
+
+```javascript
+import { SignJWT, jwtVerify } from 'jose';
+
+const secretKey = 'suaChaveSecreta'; // DEVE ser variável de ambiente
+const secret = new TextEncoder().encode(secretKey);
+
+export const generateToken = async (payload) => {
+    const token = await new SignJWT(payload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('5h') // Token válido por 5 horas
+        .sign(secret);
+    return token;
+};
+
+export const verifyToken = async (token) => {
+    try {
+        const { payload } = await jwtVerify(token, secret);
+        return payload;
+    } catch (error) {
+        return null;
+    }
+};
+```
+
+PAYLOAD DO TOKEN:
+```javascript
+{
+    userId: "user123",
+    username: "joao.silva",
+    role: "admin|editor|user",
+    exp: 1640995200 // Timestamp de expiração
+}
+```
+
+PROTEÇÃO DE ROTAS:
+PrivateRoute.jsx intercepta todas as rotas e verifica autenticação:
+
+```javascript
+// PrivateRoute.jsx
+const token = localStorage.getItem('token');
+if (!token) {
+    // Redireciona para login
+    return <Navigate to="/" replace />;
+}
+
+const isValid = await verifyToken(token);
+if (!isValid) {
+    // Token inválido, limpa localStorage
+    localStorage.removeItem('token');
+    return <Navigate to="/" replace />;
+}
+```
+
+NÍVEIS DE PERMISSÃO:
+
+1. USER:
+   - Pode visualizar apenas suas próprias cautelas
+   - Pode assinar cautelas direcionadas a ele
+   - Sem acesso a telas administrativas
+
+2. EDITOR:
+   - Pode criar movimentações (cautelas, devoluções)
+   - Pode gerenciar materiais e usuários
+   - Acesso às telas de busca e relatórios
+
+3. ADMIN:
+   - Acesso completo a todas as funcionalidades
+   - Pode gerenciar usuários e permissões
+   - Acesso a configurações do sistema
+
+EXEMPLO DE VERIFICAÇÃO POR ROLE:
+```javascript
+// Movimentacoes.jsx (linhas 95-101)
+if (userRole === "user") {
+    setRadioDisabled(true); // Desabilita opções para usuários comuns
+} else {
+    setRadioDisabled(false);
+}
+```
+
+================================================================================
+8. EXEMPLOS DE CÓDIGO DETALHADOS
+================================================================================
+
+EXEMPLO 1: CRIAÇÃO DE CAUTELA MÚLTIPLA
+Sistema permite cautelar vários materiais para um mesmo usuário:
+
+```javascript
+// Movimentacoes.jsx (linhas 236-295)
+const handleSaveMultiplosMateriais = async () => {
+    try {
+        // Para cada material na lista
+        for (const itemMaterial of materiaisSelected) {
+            const material = itemMaterial.material;
+            const qtd = itemMaterial.quantidade;
+
+            // Verifica estoque antes de cada salvamento
+            if (material.estoque_atual < qtd) {
+                alert(`Estoque insuficiente para: ${material.description}`);
+                return;
+            }
+
+            // Cria registro de movimentação individual
+            const movementData = {
+                type: "cautela",
+                material: material.id,
+                material_description: material.description,
+                quantity: qtd,
+                date: new Date(),
+                sender: userId,
+                sender_name: userName,
+                signed: false, // Cada item precisa ser assinado
+                user: userSelected.id,
+                user_name: userSelected.full_name,
+                telefone_responsavel: userSelected.telefone,
+                status: "cautelado"
+            };
+
+            // Atualiza estoque
+            let newEstoqueAtual = material.estoque_atual - qtd;
+            
+            const materialDocRef = doc(db, "materials", material.id);
+            await updateDoc(materialDocRef, {
+                estoque_atual: newEstoqueAtual
+            });
+
+            // Salva movimentação
+            const movimentacoesCollection = collection(db, "movimentacoes");
+            await addDoc(movimentacoesCollection, movementData);
+        }
+
+        alert("Todos os materiais foram cautelados com sucesso!");
+        limparTudo();
+    } catch (error) {
+        console.error("Erro ao salvar múltiplos materiais:", error);
+    }
+};
+```
+
+EXEMPLO 2: BUSCA DE CAUTELAS POR FILTROS
+Sistema em Cautelados.jsx implementa filtros complexos:
+
+```javascript
+// Cautelados.jsx (linhas 36-103)
+useEffect(() => {
+    if (!(filtro in cachedMovimentacoes)) {
+        const fetchData = async () => {
+            const movimentacoesCollection = collection(db, "movimentacoes");
+            let constraints = [];
+            
+            switch (filtro) {
+                case 0: // Todos
+                    constraints = [];
+                    break;
+                case 1: // Assinados
+                    constraints = [
+                        where("status", "==", "cautelado"),
+                        where("signed", "==", true)
+                    ];
+                    break;
+                case 2: // Devolvidos
+                    constraints = [where("status", "==", "devolvido")];
+                    break;
+                case 3: // Não assinados
+                    constraints = [
+                        where("status", "==", "cautelado"),
+                        where("signed", "==", false)
+                    ];
+                    break;
+                case 4: // Cautelados ativos
+                    constraints = [where("status", "==", "cautelado")];
+                    break;
+            }
+            
+            let querySnapshot;
+            if (constraints.length === 0) {
+                const qCautelado = query(
+                    movimentacoesCollection, 
+                    where("type", "==", "cautela"),
+                    orderBy("date", "desc")
+                );
+                querySnapshot = await getDocs(qCautelado);
+            } else {
+                const q = query(
+                    movimentacoesCollection, 
+                    ...constraints,
+                    orderBy("date", "desc")
+                );
+                querySnapshot = await getDocs(q);
+            }
+            
+            const movs = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (filtro === 0 && data.type === "cautela") {
+                    movs.push({ id: doc.id, ...data });
+                } else if (filtro !== 0) {
+                    movs.push({ id: doc.id, ...data });
+                }
+            });
+            
+            // Cache para otimização
+            setCachedMovimentacoes((prev) => ({ ...prev, [filtro]: movs }));
+        };
+        fetchData();
+    }
+}, [filtro, cachedMovimentacoes]);
+```
+
+EXEMPLO 3: FORMATAÇÃO DE DATA EM TIMESTAMP FIRESTORE
+CautelaStrip.jsx mostra como tratar timestamps do Firestore:
+
+```javascript
+// CautelaStrip.jsx (linhas 41-54)
+const formatDate = (timestamp) => {
+    if (!timestamp) return "";
+
+    // Firestore timestamp tem seconds e nanoseconds
+    const date = new Date(
+        timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000
+    );
+    
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+```
+
+EXEMPLO 4: VALIDAÇÃO DE FORMULÁRIO COMPLEXA
+Movimentacoes.jsx implementa validação dinâmica baseada no tipo:
+
+```javascript
+// Movimentacoes.jsx (linhas 150-168)
+useEffect(() => {
+    const validateFields = () => {
+        switch (tipoMovimentacao) {
+            case "entrada":
+                return materialSelected && quantidade;
+            case "saída":
+                return materialSelected && userSelected && quantidade;
+            case "reparo":
+                return materialSelected && quantidade && 
+                       localReparo && numeroSei && motivoReparo;
+            case "cautela":
+                // Aceita material único OU lista de materiais
+                return (materialSelected && userSelected && quantidade) || 
+                       (materiaisSelected.length > 0 && userSelected);
+            default:
+                return false;
+        }
+    };
+    setShowSaveButton(validateFields());
+}, [tipoMovimentacao, materialSelected, userSelected, viaturaSelected, 
+    quantidade, localReparo, numeroSei, motivoReparo, materiaisSelected]);
+```
+
+================================================================================
+9. ESTRUTURA DO BANCO DE DADOS
+================================================================================
+
+FIRESTORE COLLECTIONS:
+
+1. MATERIALS:
+```javascript
+{
+    id: "auto-generated",
+    description: "Notebook Dell Inspiron 15",
+    categoria: "informatica",
+    codigo: "NB001",
+    estoque_total: 10,
+    estoque_atual: 7,
+    created_at: timestamp,
+    created_by: "admin_user_id"
+}
+```
+
+2. USERS:
+```javascript
+{
+    id: "auto-generated", 
+    full_name: "João da Silva",
+    email: "joao.silva@instituicao.gov.br",
+    telefone: "(61) 99999-9999",
+    role: "editor",
+    active: true,
+    created_at: timestamp
+}
+```
+
+3. MOVIMENTACOES (Tabela principal do sistema):
+```javascript
+{
+    id: "auto-generated",
+    type: "cautela", // entrada, cautela, saída, reparo
+    material: "material_id_reference",
+    material_description: "Notebook Dell Inspiron 15",
+    quantity: 2,
+    date: timestamp,
+    sender: "user_id_who_created",
+    sender_name: "Admin User",
+    signed: false,
+    signed_date: null, // preenchido quando assinado
+    signed_by: null,   // preenchido quando assinado
+    categoria: "informatica",
+    status: "cautelado", // emEstoque, cautelado, devolvido, emReparo, descartado
+    user: "user_id_recipient", // quem recebeu
+    user_name: "João da Silva",
+    telefone_responsavel: "(61) 99999-9999",
+    viatura: null, // ou viatura_id se for para viatura
+    viatura_description: null,
+    returned_date: null, // preenchido na devolução
+    returned_by: null    // quem processou a devolução
+}
+```
+
+4. VIATURAS:
+```javascript
+{
+    id: "auto-generated",
+    description: "Viatura Operacional - Placa ABC1234",
+    placa: "ABC1234",
+    modelo: "Toyota Hilux",
+    ano: 2020,
+    active: true
+}
+```
+
+5. CATEGORIAS:
+```javascript
+{
+    id: "auto-generated",
+    nome: "Informática",
+    codigo: "INFO",
+    cor: "#1976d2",
+    active: true
+}
+```
+
+RELACIONAMENTOS:
+- movimentacoes.material → materials.id
+- movimentacoes.user → users.id
+- movimentacoes.sender → users.id
+- movimentacoes.viatura → viaturas.id
+- materials.categoria → categorias.codigo
+
+ÍNDICES IMPORTANTES:
+- movimentacoes: (type, date)
+- movimentacoes: (status, signed)
+- movimentacoes: (user, date)
+- materials: (categoria, description)
+
+================================================================================
+10. CASOS DE USO PRÁTICOS
+================================================================================
+
+CASO DE USO 1: CAUTELA SIMPLES
+Militar João precisa de um notebook para trabalho:
+
+1. Admin acessa /movimentacoes
+2. Seleciona "Cautela"
+3. Busca material "Notebook Dell"
+4. Busca usuário "João da Silva"
+5. Define quantidade: 1
+6. Salva movimentação
+7. Sistema cria registro com signed: false
+8. João recebe notificação (fora do escopo atual)
+9. João acessa o sistema e vê sua cautela pendente
+10. João clica em "Assinar e Confirmar Recebimento"
+11. Sistema exibe modal de confirmação
+12. João digita "Aceito"
+13. Sistema atualiza signed: true e signed_date
+
+CASO DE USO 2: CAUTELA MÚLTIPLA
+Viatura precisa de kit completo de equipamentos:
+
+1. Admin acessa /movimentacoes
+2. Seleciona "Cautela"
+3. Adiciona múltiplos materiais:
+   - 2x Rádio Comunicador
+   - 1x GPS Garmin
+   - 4x Bateria Recarregável
+4. Seleciona viatura "ABC1234"
+5. Sistema cria uma movimentação para cada material
+6. Comandante da viatura assina todos os itens
+
+CASO DE USO 3: DEVOLUÇÃO COM REPARO
+Material volta com defeito:
+
+1. Admin acessa /devolucoes
+2. Busca usuário "João da Silva"
+3. Visualiza lista de materiais cautelados
+4. Clica em "Devolver" no notebook
+5. Sistema confirma devolução
+6. Durante inspeção, detecta defeito
+7. Admin acessa /movimentacoes
+8. Seleciona "Inoperante"
+9. Busca o notebook devolvido
+10. Preenche:
+    - Local do reparo: "Oficina TI"
+    - Número SEI: "1234567"
+    - Motivo: "Tela quebrada"
+11. Sistema marca material como "emReparo"
+
+CASO DE USO 4: BUSCA E RELATÓRIO
+Comandante quer relatório de todos os materiais cautelados:
+
+1. Acessa /search
+2. Seleciona "Cautelados"
+3. Filtra por "Não Assinados" para ver pendências
+4. Clica no botão Excel para exportar relatório
+5. Sistema gera planilha com todos os dados
+6. Comandante identifica quem não assinou
+7. Toma providências administrativas
+
+CASO DE USO 5: CONTROLE DE ESTOQUE
+Entrada de novos materiais:
+
+1. Admin acessa /movimentacoes
+2. Seleciona "Entrada"
+3. Busca material existente ou cria novo
+4. Define quantidade recebida: 5
+5. Sistema atualiza:
+   - estoque_total += 5
+   - estoque_atual += 5
+6. Cria movimentação tipo "entrada"
+7. Material fica disponível para novas cautelas
+
+FLUXO DE AUDITORIA:
+Sistema mantém histórico completo de todas as operações:
+- Quem criou cada movimentação (sender)
+- Data exata de cada operação
+- Quem assinou e quando (signed_by, signed_date)
+- Quem processou devoluções (returned_by, returned_date)
+- Status atual de cada material/movimentação
+
+================================================================================
+CONSIDERAÇÕES IMPORTANTES DE SEGURANÇA E PERFORMANCE
+================================================================================
+
+SEGURANÇA:
+1. Tokens JWT expiram em 5 horas
+2. Validação de roles em todas as operações críticas
+3. Confirmação dupla para assinaturas ("Aceito")
+4. Logs de auditoria em todas as movimentações
+5. Validação de estoque antes de cautelas
+6. Proteção de rotas com PrivateRoute
+
+PERFORMANCE:
+1. Cache de consultas em Cautelados.jsx
+2. Paginação implícita com limit() nas queries
+3. Índices no Firestore para consultas frequentes
+4. Lazy loading de componentes pesados
+5. Otimização de re-renders com useEffect
+
+MELHORIAS FUTURAS SUGERIDAS:
+1. Migrar chave JWT para variável de ambiente
+2. Implementar notificações push/email
+3. Adicionar assinatura digital com certificado
+4. Implementar backup automático
+5. Dashboard com métricas em tempo real
+6. Integração com código de barras/QR codes
+7. App mobile para facilitar assinaturas
+8. Relatórios avançados com gráficos
+
+================================================================================
+CONCLUSÃO
+================================================================================
+
+O Sistema de Controle de Cautela é uma solução completa para gerenciamento de
+empréstimo de materiais em ambiente institucional. Combina controle rigoroso
+de estoque, fluxo de assinatura digital seguro, e interface intuitiva para
+usuários de diferentes níveis de permissão.
+
+A arquitetura baseada em React + Firebase permite escalabilidade e manutenção
+facilinhas, enquanto o sistema de tokens JWT garante segurança adequada para
+ambiente corporativo.
+
+O código está bem estruturado, com separação clara de responsabilidades e
+padrões consistentes em toda a aplicação.
+
+================================================================================
