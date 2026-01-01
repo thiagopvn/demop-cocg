@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { 
     Box, 
     Typography, 
@@ -28,14 +28,19 @@ import {
     Clear,
     Inventory,
     Warning,
-    DirectionsCar
+    DirectionsCar,
+    Build,
+    CalendarMonth,
+    Visibility
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import MaterialDialog from '../../dialogs/MaterialDialog';
-import { deleteDoc, doc } from 'firebase/firestore';
+import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
+import { deleteDoc, doc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import db from '../../firebase/db';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 
 const StyledHeader = styled(Box)(({ theme }) => ({
@@ -142,6 +147,12 @@ const Material = () => {
     const [isFocused, setIsFocused] = useState(false);
     const searchRef = useRef(null);
     const theme = useTheme();
+    const navigate = useNavigate();
+
+    // Estados para manutenção
+    const [openMaintenanceDialog, setOpenMaintenanceDialog] = useState(false);
+    const [selectedMaterialForMaintenance, setSelectedMaterialForMaintenance] = useState(null);
+    const [materialMaintenances, setMaterialMaintenances] = useState({}); // Cache de manutenções por material
 
     const handleOpenDialog = (material = null) => {
         setSelectedMaterial(material);
@@ -151,6 +162,82 @@ const Material = () => {
     const handleCloseDialog = () => {
         setOpenDialog(false);
         setSelectedMaterial(null);
+    };
+
+    // Funções para manutenção
+    const handleOpenMaintenanceDialog = (material) => {
+        setSelectedMaterialForMaintenance(material);
+        setOpenMaintenanceDialog(true);
+    };
+
+    const handleCloseMaintenanceDialog = (updated) => {
+        setOpenMaintenanceDialog(false);
+        setSelectedMaterialForMaintenance(null);
+        // Se houve atualização, recarregar manutenções
+        if (updated) {
+            loadMaintenancesForMaterials();
+        }
+    };
+
+    // Carregar manutenções pendentes para todos os materiais
+    const loadMaintenancesForMaterials = async () => {
+        try {
+            const manutencaoRef = collection(db, 'manutencoes');
+            const q = query(
+                manutencaoRef,
+                where('status', 'in', ['pendente', 'em_andamento']),
+                orderBy('dueDate', 'asc')
+            );
+            const snapshot = await getDocs(q);
+
+            const maintenancesByMaterial = {};
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                const materialId = data.materialId;
+                if (!maintenancesByMaterial[materialId]) {
+                    maintenancesByMaterial[materialId] = [];
+                }
+                maintenancesByMaterial[materialId].push({
+                    id: doc.id,
+                    ...data
+                });
+            });
+
+            setMaterialMaintenances(maintenancesByMaterial);
+        } catch (error) {
+            console.error('Erro ao carregar manutenções:', error);
+        }
+    };
+
+    // Carregar manutenções ao montar o componente
+    useEffect(() => {
+        loadMaintenancesForMaterials();
+    }, []);
+
+    // Função para verificar se material tem manutenção pendente
+    const getMaintenanceInfo = (materialId) => {
+        const maintenances = materialMaintenances[materialId] || [];
+        if (maintenances.length === 0) return null;
+
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        const overdue = maintenances.filter(m => {
+            const dueDate = m.dueDate?.toDate ? m.dueDate.toDate() : new Date(m.dueDate);
+            return dueDate < now;
+        });
+
+        const upcoming = maintenances.filter(m => {
+            const dueDate = m.dueDate?.toDate ? m.dueDate.toDate() : new Date(m.dueDate);
+            return dueDate >= now;
+        });
+
+        return {
+            total: maintenances.length,
+            overdue: overdue.length,
+            upcoming: upcoming.length,
+            nextMaintenance: maintenances[0]
+        };
     };
 
     const handleDeleteMaterial = async (materialId) => {
@@ -263,6 +350,9 @@ const Material = () => {
                 </StyledTableCell>
                 <StyledTableCell>
                     <Skeleton variant="rectangular" height={24} width={80} />
+                </StyledTableCell>
+                <StyledTableCell align="center">
+                    <Skeleton variant="rectangular" height={32} width={100} />
                 </StyledTableCell>
                 <StyledTableCell align="right">
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -450,6 +540,12 @@ const Material = () => {
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
                                     Status
                                 </TableCell>
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                                        <Build fontSize="small" />
+                                        Manutenção
+                                    </Box>
+                                </TableCell>
                                 <TableCell align="right" sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
                                     Ações
                                 </TableCell>
@@ -460,7 +556,7 @@ const Material = () => {
                                 <>
                                     {renderLoadingSkeleton()}
                                     <TableRow>
-                                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                                        <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                                 <CircularProgress size={24} />
                                                 <Typography variant="body2" color="text.secondary">
@@ -472,7 +568,7 @@ const Material = () => {
                                 </>
                             ) : filteredMaterials.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                             <Inventory sx={{ fontSize: 48, color: 'text.disabled' }} />
                                             <Typography variant="h6" color="text.secondary">
@@ -549,6 +645,69 @@ const Material = () => {
                                                     sx={{ minWidth: 90 }}
                                                 />
                                             </StyledTableCell>
+                                            <StyledTableCell align="center">
+                                                {(() => {
+                                                    const maintenanceInfo = getMaintenanceInfo(material.id);
+                                                    return (
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                                                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                                <Tooltip title="Agendar Manutenção">
+                                                                    <IconButton
+                                                                        onClick={() => handleOpenMaintenanceDialog(material)}
+                                                                        color="secondary"
+                                                                        size="small"
+                                                                        sx={{
+                                                                            '&:hover': {
+                                                                                backgroundColor: alpha(theme.palette.secondary.main, 0.1),
+                                                                            },
+                                                                        }}
+                                                                    >
+                                                                        <CalendarMonth fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                                {maintenanceInfo && maintenanceInfo.total > 0 && (
+                                                                    <Tooltip title="Ver manutenções agendadas">
+                                                                        <IconButton
+                                                                            onClick={() => navigate('/manutencao')}
+                                                                            color={maintenanceInfo.overdue > 0 ? 'error' : 'info'}
+                                                                            size="small"
+                                                                            sx={{
+                                                                                '&:hover': {
+                                                                                    backgroundColor: maintenanceInfo.overdue > 0
+                                                                                        ? alpha(theme.palette.error.main, 0.1)
+                                                                                        : alpha(theme.palette.info.main, 0.1),
+                                                                                },
+                                                                            }}
+                                                                        >
+                                                                            <Visibility fontSize="small" />
+                                                                        </IconButton>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </Box>
+                                                            {maintenanceInfo && maintenanceInfo.total > 0 && (
+                                                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'center' }}>
+                                                                    {maintenanceInfo.overdue > 0 && (
+                                                                        <Chip
+                                                                            label={`${maintenanceInfo.overdue} atrasada${maintenanceInfo.overdue > 1 ? 's' : ''}`}
+                                                                            color="error"
+                                                                            size="small"
+                                                                            sx={{ fontSize: '0.65rem', height: 20 }}
+                                                                        />
+                                                                    )}
+                                                                    {maintenanceInfo.upcoming > 0 && (
+                                                                        <Chip
+                                                                            label={`${maintenanceInfo.upcoming} agendada${maintenanceInfo.upcoming > 1 ? 's' : ''}`}
+                                                                            color="info"
+                                                                            size="small"
+                                                                            sx={{ fontSize: '0.65rem', height: 20 }}
+                                                                        />
+                                                                    )}
+                                                                </Box>
+                                                            )}
+                                                        </Box>
+                                                    );
+                                                })()}
+                                            </StyledTableCell>
                                             <StyledTableCell align="right">
                                                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                                                     <Tooltip title="Editar Material">
@@ -594,6 +753,12 @@ const Material = () => {
                 open={openDialog}
                 onClose={handleCloseDialog}
                 material={selectedMaterial}
+            />
+
+            <MaintenanceDialog
+                open={openMaintenanceDialog}
+                onClose={handleCloseMaintenanceDialog}
+                material={selectedMaterialForMaintenance}
             />
         </MenuContext>
     );
