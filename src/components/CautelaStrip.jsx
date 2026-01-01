@@ -37,6 +37,9 @@ export default function CautelaStrip({ cautela, onSign }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [accept, setAccept] = useState("");
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [signedDate, setSignedDate] = useState(null);
+  const [signing, setSigning] = useState(false);
   
   const formatDate = (timestamp) => {
     if (!timestamp) return "";
@@ -380,13 +383,24 @@ export default function CautelaStrip({ cautela, onSign }) {
           <Button
             variant="contained"
             size="large"
-            disabled={accept !== "Aceito"}
-            onClick={() => {
+            disabled={accept !== "Aceito" || signing}
+            onClick={async () => {
               if (accept === "Aceito") {
-                onSign(cautela.id);
-                setSigned(true);
-                setDialogOpen(false);
-                setAccept("");
+                setSigning(true);
+                try {
+                  await onSign(cautela.id);
+                  const now = new Date();
+                  setSignedDate(now);
+                  setSigned(true);
+                  setDialogOpen(false);
+                  setAccept("");
+                  setReceiptOpen(true);
+                } catch (error) {
+                  console.error("Erro ao assinar:", error);
+                  setSnackbarOpen(true);
+                } finally {
+                  setSigning(false);
+                }
               } else {
                 setSnackbarOpen(true);
               }
@@ -406,7 +420,205 @@ export default function CautelaStrip({ cautela, onSign }) {
               }
             }}
           >
-            Confirmar
+            {signing ? 'Assinando...' : 'Confirmar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Comprovante de Assinatura */}
+      <Dialog
+        open={receiptOpen}
+        onClose={() => setReceiptOpen(false)}
+        TransitionComponent={Zoom}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: 2, sm: 3 },
+            border: '2px solid',
+            borderColor: alpha('#22c55e', 0.3),
+            mx: { xs: 2, sm: 3 },
+            width: { xs: 'calc(100% - 32px)', sm: 'auto' },
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <Box
+          sx={{
+            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+            p: { xs: 2, sm: 3 },
+            textAlign: 'center'
+          }}
+        >
+          <Avatar
+            sx={{
+              bgcolor: 'white',
+              width: { xs: 60, sm: 80 },
+              height: { xs: 60, sm: 80 },
+              mx: 'auto',
+              mb: 2,
+              boxShadow: 3
+            }}
+          >
+            <DoneAll sx={{ fontSize: { xs: 32, sm: 40 }, color: '#22c55e' }} />
+          </Avatar>
+          <Typography
+            variant="h5"
+            fontWeight={700}
+            sx={{
+              color: 'white',
+              fontSize: { xs: '1.25rem', sm: '1.5rem' }
+            }}
+          >
+            Assinatura Confirmada!
+          </Typography>
+        </Box>
+
+        <DialogContent sx={{ pt: { xs: 2, sm: 3 }, px: { xs: 2, sm: 3 } }}>
+          <Alert
+            severity="success"
+            icon={<VerifiedUser sx={{ fontSize: { xs: 20, sm: 24 } }} />}
+            sx={{
+              mb: { xs: 2, sm: 3 },
+              borderRadius: 2,
+              backgroundColor: alpha('#22c55e', 0.05),
+              border: `1px solid ${alpha('#22c55e', 0.2)}`,
+            }}
+          >
+            <AlertTitle sx={{ fontWeight: 600, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+              Comprovante de Recebimento
+            </AlertTitle>
+            <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+              Este documento confirma o recebimento do material sob sua responsabilidade.
+            </Typography>
+          </Alert>
+
+          <Box
+            sx={{
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+              backgroundColor: alpha('#f8fafc', 0.5),
+              mb: 2
+            }}
+          >
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
+                Material
+              </Typography>
+              <Typography
+                variant="body1"
+                fontWeight={600}
+                sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+              >
+                {cautela.material_description || "Material não especificado"}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+              <Box sx={{ flex: 1, minWidth: 100 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                >
+                  Quantidade
+                </Typography>
+                <Typography
+                  variant="body1"
+                  fontWeight={600}
+                  color="primary"
+                  sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                >
+                  {cautela.quantity || 0} unidade(s)
+                </Typography>
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 100 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                >
+                  Data da Cautela
+                </Typography>
+                <Typography
+                  variant="body1"
+                  fontWeight={600}
+                  sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                >
+                  {cautela.date ? formatDate(cautela.date) : "N/A"}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
+                Data/Hora da Assinatura
+              </Typography>
+              <Typography
+                variant="body1"
+                fontWeight={600}
+                color="#22c55e"
+                sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+              >
+                {signedDate ? signedDate.toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
+              </Typography>
+            </Box>
+          </Box>
+
+          {cautela.observacoes && (
+            <Box
+              sx={{
+                p: { xs: 1.5, sm: 2 },
+                borderRadius: 2,
+                backgroundColor: alpha('#f59e0b', 0.05),
+                border: `1px solid ${alpha('#f59e0b', 0.2)}`,
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
+                Observações
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, fontStyle: 'italic' }}
+              >
+                {cautela.observacoes}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            size="large"
+            onClick={() => setReceiptOpen(false)}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              py: 1.5,
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+              }
+            }}
+          >
+            Entendido
           </Button>
         </DialogActions>
       </Dialog>
