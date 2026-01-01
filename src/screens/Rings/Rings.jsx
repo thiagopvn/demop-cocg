@@ -250,7 +250,7 @@ export default function Rings() {
     return (
         <PrivateRoute>
             <MenuContext>
-                <div className="root-protected" style={{ padding: '20px', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+                <div className="root-protected" style={{ padding: '20px', minHeight: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column' }}>
                     {userRole === "user" && (
                         <div style={{ 
                             backgroundColor: '#fff3e0', 
