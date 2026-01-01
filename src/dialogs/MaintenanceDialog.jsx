@@ -24,20 +24,18 @@ import {
     Slider
 } from '@mui/material';
 import { CalendarMonth, Build, Warning, Repeat, Notifications, ExpandMore, ExpandLess } from '@mui/icons-material';
-import { addDoc, updateDoc, doc, Timestamp, collection, getDocs } from 'firebase/firestore';
+import { addDoc, updateDoc, doc, Timestamp, collection } from 'firebase/firestore';
 import db from '../firebase/db';
 
 const MaintenanceDialog = ({ open, onClose, material }) => {
     const [formData, setFormData] = useState({
         maintenanceType: '',
         dueDate: '',
-        responsible: '',
         description: '',
         markInoperant: false,
         priority: 'media',
         estimatedDuration: '',
         requiredParts: [],
-        cost: '',
         // Campos de recorrência
         isRecurrent: false,
         recurrenceType: '',
@@ -46,7 +44,6 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
         // Campo de lembrete
         reminderDays: 3
     });
-    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -57,7 +54,6 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
 
     useEffect(() => {
         if (open) {
-            fetchUsers();
             if (material) {
                 generateSuggestions();
             }
@@ -65,13 +61,11 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
             setFormData({
                 maintenanceType: '',
                 dueDate: '',
-                responsible: '',
                 description: '',
                 markInoperant: false,
                 priority: 'media',
                 estimatedDuration: '',
                 requiredParts: [],
-                cost: '',
                 isRecurrent: false,
                 recurrenceType: '',
                 customRecurrenceDays: '',
@@ -82,20 +76,6 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
             setShowAdvanced(false);
         }
     }, [open, material]);
-
-    const fetchUsers = async () => {
-        try {
-            const snapshot = await getDocs(collection(db, 'users'));
-            const userData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                name: doc.data().name || doc.data().nome,
-                ...doc.data()
-            }));
-            setUsers(userData);
-        } catch (error) {
-            console.error('Erro ao buscar usuários:', error);
-        }
-    };
 
     const generateSuggestions = () => {
         // Gerar sugestões baseadas no tipo de material
@@ -157,12 +137,10 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 materialCategory: material.categoria || 'N/A',
                 type: formData.maintenanceType,
                 dueDate: Timestamp.fromDate(new Date(formData.dueDate)),
-                responsibleName: formData.responsible,
                 description: formData.description,
                 priority: formData.priority,
                 estimatedDuration: formData.estimatedDuration ? parseInt(formData.estimatedDuration) : null,
                 requiredParts: formData.requiredParts,
-                estimatedCost: formData.cost ? parseFloat(formData.cost) : null,
                 status: 'pendente',
                 createdAt: Timestamp.now(),
                 createdBy: 'Sistema',
@@ -212,13 +190,11 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
         setFormData({
             maintenanceType: '',
             dueDate: '',
-            responsible: '',
             description: '',
             markInoperant: false,
             priority: 'media',
             estimatedDuration: '',
             requiredParts: [],
-            cost: '',
             isRecurrent: false,
             recurrenceType: '',
             customRecurrenceDays: '',
@@ -324,28 +300,10 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                        <Autocomplete
-                            fullWidth
-                            options={users}
-                            getOptionLabel={(option) => option.name || ''}
-                            value={users.find(u => u.name === formData.responsible) || null}
-                            onChange={(e, newValue) => handleInputChange('responsible', newValue?.name || '')}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    margin="normal"
-                                    label="Responsável"
-                                    fullWidth
-                                />
-                            )}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
                         <FormControl fullWidth margin="normal">
                             <InputLabel>Prioridade</InputLabel>
-                            <Select 
-                                value={formData.priority} 
+                            <Select
+                                value={formData.priority}
                                 label="Prioridade"
                                 onChange={(e) => handleInputChange('priority', e.target.value)}
                             >
@@ -366,18 +324,6 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                             value={formData.estimatedDuration}
                             onChange={(e) => handleInputChange('estimatedDuration', e.target.value)}
                             inputProps={{ min: 1, max: 365 }}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                        <TextField
-                            margin="normal"
-                            label="Custo Estimado (R$)"
-                            type="number"
-                            fullWidth
-                            value={formData.cost}
-                            onChange={(e) => handleInputChange('cost', e.target.value)}
-                            inputProps={{ min: 0, step: 0.01 }}
                         />
                     </Grid>
 
