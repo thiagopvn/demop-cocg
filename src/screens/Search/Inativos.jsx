@@ -1,97 +1,108 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import SearchResultsTable from "../../components/SearchResultsTable";
+import FilterChips from "../../components/FilterChips";
+import MovimentacaoDetails from "../../components/MovimentacaoDetails";
 import {
-  Paper,
   Box,
-  Table,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
+  Typography,
+  Card,
+  CardContent,
+  Chip,
+  Fade,
+  Alert,
+  AlertTitle,
+  Fab,
   Tooltip,
+  TextField,
+  InputAdornment,
+  Grid,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  IconButton,
-  Chip,
-  Card,
-  CardContent
+  alpha,
+  styled
 } from "@mui/material";
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import {
+  Build as BuildIcon,
+  Inventory as InventoryIcon,
+  Search as SearchIcon,
+  CalendarToday as CalendarIcon,
+  LocationOn as LocationIcon,
+  Description as DescriptionIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon
+} from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
 import { query, collection, where, getDocs, doc, updateDoc, orderBy } from "firebase/firestore";
+import { exportarMovimentacoes } from "../../firebase/xlsx";
+import excelIcon from "../../assets/excel.svg";
 
-import Popover from "@mui/material/Popover";
-import Typography from "@mui/material/Typography";
+const HeaderCard = styled(Card)(({ theme }) => ({
+  borderRadius: 16,
+  marginBottom: theme.spacing(3),
+  overflow: 'visible',
+  background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.warning.dark} 100%)`,
+}));
 
-export default function Inativos() {
+const FilterCard = styled(Card)(({ theme }) => ({
+  borderRadius: 16,
+  marginBottom: theme.spacing(3),
+}));
+
+const StatsChip = styled(Chip)(({ theme }) => ({
+  backgroundColor: 'rgba(255,255,255,0.2)',
+  color: 'white',
+  fontWeight: 600,
+  fontSize: '0.95rem',
+  padding: theme.spacing(0.5, 1),
+  height: 'auto',
+  '& .MuiChip-label': {
+    padding: theme.spacing(0.5, 1),
+  },
+}));
+
+export default function Inativos({ categorias = [] }) {
   const [movimentacoes, setMovimentacoes] = useState([]);
-  // Estados para o Popover
-  const [anchorEls, setAnchorEls] = useState({});
-  const [hoverTimers, setHoverTimers] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoriaFilter, setCategoriaFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("emReparo");
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedMovimentacao, setSelectedMovimentacao] = useState(null);
+  const theme = useTheme();
 
   useEffect(() => {
     const fetchMovimentacoes = async () => {
-      const movimentacoesCollection = collection(db, "movimentacoes");
-      const q = query(movimentacoesCollection, where("type", "==", "reparo"), orderBy("date", "desc"));
-      const querySnapshot = await getDocs(q);
-      const movs = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Filtra apenas os materiais com status de reparo
-        if (data.status === "emReparo" || data.status === "devolvidaDeReparo") {
-          movs.push({ id: doc.id, ...data });
-        }
-      });
-      setMovimentacoes(movs);
-      console.log("Total de movimentações tipo 'reparo' carregadas:", movs.length);
+      setLoading(true);
+      try {
+        const movimentacoesCollection = collection(db, "movimentacoes");
+        const q = query(
+          movimentacoesCollection,
+          where("type", "==", "reparo"),
+          orderBy("date", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        const movs = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.status === "emReparo" || data.status === "devolvidaDeReparo") {
+            movs.push({ id: doc.id, ...data });
+          }
+        });
+        setMovimentacoes(movs);
+      } catch (error) {
+        console.error("Erro ao buscar materiais em reparo:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchMovimentacoes();
   }, []);
-
-  const handleMouseEnter = (event, movId) => {
-    if (hoverTimers[movId]) {
-      clearTimeout(hoverTimers[movId]);
-    }
-    const timer = setTimeout(() => {
-      setAnchorEls(prev => ({
-        ...prev,
-        [movId]: {
-          anchorEl: event.currentTarget,
-          open: true,
-        },
-      }));
-    }, 500);
-    setHoverTimers(prev => ({
-      ...prev,
-      [movId]: timer,
-    }));
-  };
-
-  const handleMouseLeave = (movId) => {
-    if (hoverTimers[movId]) {
-      clearTimeout(hoverTimers[movId]);
-    }
-    setAnchorEls(prev => ({
-      ...prev,
-      [movId]: {
-        anchorEl: null,
-        open: false,
-      },
-    }));
-  };
-
-  // Limpa os timers ao desmontar o componente
-  useEffect(() => {
-    return () => {
-      Object.values(hoverTimers).forEach(timer => clearTimeout(timer));
-    };
-  }, [hoverTimers]);
 
   const handleOpenDialog = (movimentacao) => {
     setSelectedMovimentacao(movimentacao);
@@ -112,10 +123,9 @@ export default function Inativos() {
         status: "devolvidaDeReparo"
       });
 
-      // Atualizar a lista local
-      setMovimentacoes(prev => 
-        prev.map(mov => 
-          mov.id === selectedMovimentacao.id 
+      setMovimentacoes(prev =>
+        prev.map(mov =>
+          mov.id === selectedMovimentacao.id
             ? { ...mov, status: "devolvidaDeReparo" }
             : mov
         )
@@ -127,183 +137,374 @@ export default function Inativos() {
     }
   };
 
-  return (
-    <Box sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 } }}>
-      <Card elevation={3} sx={{ borderRadius: 3 }}>
-        <CardContent sx={{ p: 0 }}>
-      <Table size="small" sx={{ width: "100%", tableLayout: "fixed" }}>
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Material
-            </TableCell>
-            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Data
-            </TableCell>
-            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Quantidade
-            </TableCell>
-            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Número SEI
-            </TableCell>
-            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Local de Reparo
-            </TableCell>
-            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Status
-            </TableCell>
-            <TableCell sx={{ textAlign: "left", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Motivo do Reparo
-            </TableCell>
-            <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold" }}>
-              Ações
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {movimentacoes.map((mov) => (
-            <TableRow
-              key={mov.id}
-              onMouseEnter={(e) => handleMouseEnter(e, mov.id)}
-              onMouseLeave={() => handleMouseLeave(mov.id)}
-              hover
-            >
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.material_description}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.date?.seconds ? new Date(mov.date.seconds * 1000).toLocaleDateString() : ""}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.quantity}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.seiNumber || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.repairLocation || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.status === "emReparo" ? "Em reparo" : "Devolvida"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "left" }}>
-                {mov.motivoReparo || "-"}
-              </TableCell>
-              <TableCell sx={{ textAlign: "center" }}>
-                {mov.status === "emReparo" && (
-                  <Tooltip title="Marcar como Devolvida" arrow>
-                    <Chip
-                      icon={<CheckCircleIcon />}
-                      label="Devolvida"
-                      variant="outlined"
-                      color="success"
-                      clickable
-                      onClick={() => handleOpenDialog(mov)}
-                      sx={{
-                        '&:hover': {
-                          backgroundColor: 'rgba(46, 125, 50, 0.04)',
-                          borderColor: 'success.main'
-                        }
-                      }}
-                    />
-                  </Tooltip>
-                )}
-              </TableCell>
-              <Popover
-                id={`popover-${mov.id}`}
-                sx={{ pointerEvents: "none" }}
-                open={Boolean(anchorEls[mov.id]?.open)}
-                anchorEl={anchorEls[mov.id]?.anchorEl}
-                anchorOrigin={{
-                  vertical: "center",
-                  horizontal: "right",
-                }}
-                transformOrigin={{
-                  vertical: "center",
-                  horizontal: "left",
-                }}
-                onClose={() => handleMouseLeave(mov.id)}
-                disableRestoreFocus
-              >
-                <Typography component={"div"} sx={{ p: 2, maxWidth: 350 }}>
-                  {mov.id && <div><strong>ID:</strong> {mov.id}</div>}
-                  {mov.material && (
-                    <div>
-                      <strong>Material ID:</strong> {mov.material}
-                    </div>
-                  )}
-                  {mov.material_description && (
-                    <div>
-                      <strong>Material:</strong> {mov.material_description}
-                    </div>
-                  )}
-                  {mov.quantity !== undefined && (
-                    <div>
-                      <strong>Quantidade:</strong> {mov.quantity}
-                    </div>
-                  )}
-                  {mov.repairLocation && (
-                    <div>
-                      <strong>Local de Reparo:</strong> {mov.repairLocation}
-                    </div>
-                  )}
-                  {mov.seiNumber && (
-                    <div>
-                      <strong>Número SEI:</strong> {mov.seiNumber}
-                    </div>
-                  )}
-                  {mov.motivoReparo && (
-                    <div>
-                      <strong>Motivo do Reparo:</strong> {mov.motivoReparo}
-                    </div>
-                  )}
-                  {mov.status && (
-                    <div>
-                      <strong>Status:</strong> {mov.status === "emReparo" ? "Em reparo" : "Devolvida"}
-                    </div>
-                  )}
-                  {mov.date?.seconds && (
-                    <div>
-                      <strong>Data:</strong> {new Date(mov.date.seconds * 1000).toLocaleString()}
-                    </div>
-                  )}
-                </Typography>
-              </Popover>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <Tooltip title="Exportar para Excel" placement="left">
-        {/* Implemente a função exportarMovimentacoes conforme sua necessidade */}
-        <Box sx={{ position: "fixed", bottom: 100, right: 16 }}>
-          <span>Exportar</span>
-        </Box>
-      </Tooltip>
+  const filteredMovimentacoes = useMemo(() => {
+    let filtered = movimentacoes;
 
+    // Status filter
+    if (statusFilter && statusFilter !== "all") {
+      filtered = filtered.filter((mov) => mov.status === statusFilter);
+    }
+
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter((mov) =>
+        (mov.material_description?.toLowerCase() || '').includes(search) ||
+        (mov.repairLocation?.toLowerCase() || '').includes(search) ||
+        (mov.seiNumber?.toLowerCase() || '').includes(search) ||
+        (mov.motivoReparo?.toLowerCase() || '').includes(search)
+      );
+    }
+
+    // Category filter
+    if (categoriaFilter) {
+      filtered = filtered.filter((mov) => mov.categoria === categoriaFilter);
+    }
+
+    return filtered;
+  }, [movimentacoes, searchTerm, categoriaFilter, statusFilter]);
+
+  // Statistics
+  const stats = useMemo(() => {
+    const emReparo = movimentacoes.filter(m => m.status === "emReparo").length;
+    const devolvidos = movimentacoes.filter(m => m.status === "devolvidaDeReparo").length;
+    const total = movimentacoes.length;
+
+    return { total, emReparo, devolvidos };
+  }, [movimentacoes]);
+
+  const filterOptions = [
+    { value: "all", label: "Todos", shortLabel: "Todos", icon: <BuildIcon fontSize="small" />, color: "default" },
+    { value: "emReparo", label: "Em Reparo", shortLabel: "Reparo", icon: <WarningIcon fontSize="small" />, color: "warning" },
+    { value: "devolvidaDeReparo", label: "Devolvidos", shortLabel: "Devolvidos", icon: <CheckCircleIcon fontSize="small" />, color: "success" }
+  ];
+
+  const selectFilters = categorias.length > 0 ? [
+    {
+      field: 'categoria',
+      label: 'Categoria',
+      value: categoriaFilter,
+      onChange: setCategoriaFilter,
+      options: categorias.map(cat => ({
+        value: cat.description,
+        label: cat.description
+      }))
+    }
+  ] : [];
+
+  const columns = [
+    {
+      field: 'material_description',
+      headerName: 'Material',
+      icon: <InventoryIcon fontSize="small" />,
+      minWidth: 200,
+      renderCell: (row) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <InventoryIcon fontSize="small" sx={{ color: 'warning.main' }} />
+          <Box>
+            <Typography variant="body2" fontWeight={500}>
+              {row.material_description || '-'}
+            </Typography>
+            {row.quantity > 1 && (
+              <Typography variant="caption" color="text.secondary">
+                Qtd: {row.quantity}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      ),
+    },
+    {
+      field: 'repairLocation',
+      headerName: 'Local de Reparo',
+      icon: <LocationIcon fontSize="small" />,
+      minWidth: 150,
+      renderCell: (row) => (
+        <Chip
+          icon={<LocationIcon sx={{ fontSize: 14 }} />}
+          label={row.repairLocation || 'Nao informado'}
+          size="small"
+          variant="outlined"
+          color="warning"
+          sx={{ fontWeight: 500 }}
+        />
+      ),
+    },
+    {
+      field: 'seiNumber',
+      headerName: 'Numero SEI',
+      icon: <DescriptionIcon fontSize="small" />,
+      minWidth: 130,
+      hideOnMobile: true,
+      renderCell: (row) => (
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+          {row.seiNumber || '-'}
+        </Typography>
+      ),
+    },
+    {
+      field: 'motivoReparo',
+      headerName: 'Motivo',
+      minWidth: 150,
+      hideOnMobile: true,
+    },
+    {
+      field: 'date',
+      headerName: 'Data Envio',
+      icon: <CalendarIcon fontSize="small" />,
+      minWidth: 110,
+      renderCell: (row) => (
+        <Chip
+          label={row.date?.seconds ? new Date(row.date.seconds * 1000).toLocaleDateString('pt-BR') : '-'}
+          size="small"
+          variant="outlined"
+          sx={{ fontWeight: 500 }}
+        />
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      minWidth: 120,
+      renderCell: (row) => {
+        const isEmReparo = row.status === "emReparo";
+        return (
+          <Chip
+            icon={isEmReparo ? <BuildIcon sx={{ fontSize: 14 }} /> : <CheckCircleIcon sx={{ fontSize: 14 }} />}
+            label={isEmReparo ? "Em Reparo" : "Devolvido"}
+            size="small"
+            color={isEmReparo ? "warning" : "success"}
+            variant="filled"
+          />
+        );
+      },
+    },
+    {
+      field: 'actions',
+      headerName: 'Acoes',
+      minWidth: 120,
+      align: 'center',
+      renderCell: (row) => {
+        if (row.status === "emReparo") {
+          return (
+            <Tooltip title="Marcar como Devolvido" arrow>
+              <Chip
+                icon={<CheckCircleIcon />}
+                label="Devolver"
+                variant="outlined"
+                color="success"
+                clickable
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenDialog(row);
+                }}
+                size="small"
+                sx={{
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.success.main, 0.1),
+                    borderColor: 'success.main'
+                  }
+                }}
+              />
+            </Tooltip>
+          );
+        }
+        return null;
+      },
+    },
+  ];
+
+  return (
+    <Box sx={{ width: '100%' }}>
+      {/* Header with Stats */}
+      <Fade in timeout={400}>
+        <HeaderCard elevation={0}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <BuildIcon sx={{ color: 'white', fontSize: 28 }} />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h5" sx={{ color: 'white', fontWeight: 700 }}>
+                  Materiais Inoperantes
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                  Equipamentos enviados para manutencao ou conserto
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Stats chips */}
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <StatsChip
+                icon={<WarningIcon sx={{ color: 'white !important' }} />}
+                label={`${stats.emReparo} em reparo`}
+              />
+              <StatsChip
+                icon={<CheckCircleIcon sx={{ color: 'white !important' }} />}
+                label={`${stats.devolvidos} devolvido${stats.devolvidos !== 1 ? 's' : ''}`}
+              />
+            </Box>
+          </CardContent>
+        </HeaderCard>
+      </Fade>
+
+      {/* Filters */}
+      <Fade in timeout={600}>
+        <FilterCard elevation={2}>
+          <CardContent sx={{ p: 3 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={5}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Buscar por material, local, SEI ou motivo..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.grey[100], 0.5),
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={7}>
+                <FilterChips
+                  filters={filterOptions}
+                  activeFilter={statusFilter}
+                  onFilterChange={setStatusFilter}
+                  selectFilters={selectFilters}
+                  showTitle={false}
+                />
+              </Grid>
+            </Grid>
+          </CardContent>
+        </FilterCard>
+      </Fade>
+
+      {/* Results */}
+      <Fade in timeout={800}>
+        <Box>
+          {/* Empty state */}
+          {!loading && movimentacoes.length === 0 && (
+            <Alert severity="success" sx={{ borderRadius: 3 }}>
+              <AlertTitle>Nenhum material em reparo</AlertTitle>
+              Todos os materiais estao operacionais no momento.
+            </Alert>
+          )}
+
+          {/* Results table */}
+          {(loading || filteredMovimentacoes.length > 0) && (
+            <SearchResultsTable
+              data={filteredMovimentacoes}
+              columns={columns}
+              loading={loading}
+              headerColor="warning"
+              title="Lista de Materiais em Reparo"
+              subtitle={searchTerm ? `Resultados para "${searchTerm}"` : `Total: ${filteredMovimentacoes.length} materiais`}
+              emptyMessage="Nenhum material encontrado com estes filtros"
+              emptyIcon={<BuildIcon sx={{ fontSize: 48 }} />}
+              renderPopover={(row) => (
+                <MovimentacaoDetails
+                  movimentacao={row}
+                  title="Detalhes do Reparo"
+                  color="warning"
+                />
+              )}
+            />
+          )}
+        </Box>
+      </Fade>
+
+      {/* Confirmation Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-description"
+        PaperProps={{
+          sx: { borderRadius: 3, p: 1 }
+        }}
       >
-        <DialogTitle id="alert-dialog-title">
-          Confirmar Devolução
+        <DialogTitle id="confirm-dialog-title" sx={{ fontWeight: 600 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CheckCircleIcon color="success" />
+            Confirmar Devolucao
+          </Box>
         </DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            Tem certeza que deseja marcar o material "{selectedMovimentacao?.material_description}" como devolvido?
-            Esta ação não pode ser desfeita.
+          <DialogContentText id="confirm-dialog-description">
+            Tem certeza que deseja marcar o material <strong>"{selectedMovimentacao?.material_description}"</strong> como devolvido do reparo?
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button onClick={handleMarcarDevolvido} autoFocus color="success">
-            Confirmar
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            onClick={handleCloseDialog}
+            variant="outlined"
+            color="inherit"
+            sx={{ borderRadius: 2 }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleMarcarDevolvido}
+            variant="contained"
+            color="success"
+            startIcon={<CheckCircleIcon />}
+            sx={{ borderRadius: 2 }}
+          >
+            Confirmar Devolucao
           </Button>
         </DialogActions>
       </Dialog>
-        </CardContent>
-      </Card>
+
+      {/* Export FAB */}
+      {filteredMovimentacoes.length > 0 && (
+        <Tooltip title="Exportar para Excel" placement="left">
+          <Fab
+            color="success"
+            size="medium"
+            onClick={() => exportarMovimentacoes(
+              filteredMovimentacoes,
+              "materiais_em_reparo"
+            )}
+            sx={{
+              position: 'fixed',
+              bottom: 80,
+              right: 24,
+              background: 'linear-gradient(45deg, #4caf50 30%, #81c784 90%)',
+              boxShadow: 3,
+              '&:hover': {
+                transform: 'scale(1.1)',
+                boxShadow: 6
+              },
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <img src={excelIcon} alt="Exportar para Excel" width={24} />
+          </Fab>
+        </Tooltip>
+      )}
     </Box>
   );
 }
