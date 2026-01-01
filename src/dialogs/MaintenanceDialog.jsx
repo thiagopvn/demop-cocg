@@ -17,9 +17,13 @@ import {
     Alert,
     Grid,
     Autocomplete,
-    Chip
+    Chip,
+    Switch,
+    Collapse,
+    Divider,
+    Slider
 } from '@mui/material';
-import { CalendarMonth, Build, Warning } from '@mui/icons-material';
+import { CalendarMonth, Build, Warning, Repeat, Notifications, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { addDoc, updateDoc, doc, Timestamp, collection, getDocs } from 'firebase/firestore';
 import db from '../firebase/db';
 
@@ -33,11 +37,19 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
         priority: 'media',
         estimatedDuration: '',
         requiredParts: [],
-        cost: ''
+        cost: '',
+        // Campos de recorrência
+        isRecurrent: false,
+        recurrenceType: '',
+        customRecurrenceDays: '',
+        recurrenceEndDate: '',
+        // Campo de lembrete
+        reminderDays: 3
     });
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showAdvanced, setShowAdvanced] = useState(false);
     const [suggestions, setSuggestions] = useState({
         nextDate: '',
         interval: ''
@@ -59,9 +71,15 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 priority: 'media',
                 estimatedDuration: '',
                 requiredParts: [],
-                cost: ''
+                cost: '',
+                isRecurrent: false,
+                recurrenceType: '',
+                customRecurrenceDays: '',
+                recurrenceEndDate: '',
+                reminderDays: 3
             });
             setError('');
+            setShowAdvanced(false);
         }
     }, [open, material]);
 
@@ -147,7 +165,15 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 estimatedCost: formData.cost ? parseFloat(formData.cost) : null,
                 status: 'pendente',
                 createdAt: Timestamp.now(),
-                createdBy: 'Sistema' // Aqui você pode usar dados do usuário logado
+                createdBy: 'Sistema',
+                // Campos de recorrência
+                isRecurrent: formData.isRecurrent,
+                recurrenceType: formData.isRecurrent ? formData.recurrenceType : null,
+                customRecurrenceDays: formData.recurrenceType === 'customizado' ? parseInt(formData.customRecurrenceDays) : null,
+                recurrenceEndDate: formData.recurrenceEndDate ? Timestamp.fromDate(new Date(formData.recurrenceEndDate)) : null,
+                recurrenceCount: 0,
+                // Campo de lembrete
+                reminderDays: formData.reminderDays || 3
             };
 
             await addDoc(collection(db, 'manutencoes'), maintenanceDoc);
@@ -192,9 +218,15 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
             priority: 'media',
             estimatedDuration: '',
             requiredParts: [],
-            cost: ''
+            cost: '',
+            isRecurrent: false,
+            recurrenceType: '',
+            customRecurrenceDays: '',
+            recurrenceEndDate: '',
+            reminderDays: 3
         });
         setError('');
+        setShowAdvanced(false);
         onClose(false);
     };
 
@@ -389,6 +421,138 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                             onChange={(e) => handleInputChange('description', e.target.value)}
                             placeholder="Descreva os procedimentos necessários, problemas identificados, etc..."
                         />
+                    </Grid>
+
+                    {/* Seção de Configurações Avançadas */}
+                    <Grid item xs={12}>
+                        <Divider sx={{ my: 2 }} />
+                        <Button
+                            fullWidth
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            endIcon={showAdvanced ? <ExpandLess /> : <ExpandMore />}
+                            sx={{ justifyContent: 'space-between', color: 'text.secondary' }}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Repeat fontSize="small" />
+                                <Typography variant="body2">
+                                    Configurações Avançadas (Recorrência e Lembretes)
+                                </Typography>
+                            </Box>
+                        </Button>
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <Collapse in={showAdvanced}>
+                            <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2, mt: 1 }}>
+                                {/* Configuração de Lembrete */}
+                                <Box sx={{ mb: 3 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                        <Notifications color="primary" fontSize="small" />
+                                        <Typography variant="subtitle2" color="primary">
+                                            Lembrete Antecipado
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                        Notificar {formData.reminderDays} dia(s) antes da data prevista
+                                    </Typography>
+                                    <Slider
+                                        value={formData.reminderDays}
+                                        onChange={(e, value) => handleInputChange('reminderDays', value)}
+                                        min={1}
+                                        max={30}
+                                        step={1}
+                                        marks={[
+                                            { value: 1, label: '1d' },
+                                            { value: 7, label: '7d' },
+                                            { value: 14, label: '14d' },
+                                            { value: 30, label: '30d' }
+                                        ]}
+                                        valueLabelDisplay="auto"
+                                        sx={{ mx: 1 }}
+                                    />
+                                </Box>
+
+                                <Divider sx={{ my: 2 }} />
+
+                                {/* Configuração de Recorrência */}
+                                <Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                        <Repeat color="secondary" fontSize="small" />
+                                        <Typography variant="subtitle2" color="secondary">
+                                            Manutenção Recorrente
+                                        </Typography>
+                                    </Box>
+
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                checked={formData.isRecurrent}
+                                                onChange={(e) => handleInputChange('isRecurrent', e.target.checked)}
+                                                color="secondary"
+                                            />
+                                        }
+                                        label="Ativar recorrência automática"
+                                    />
+
+                                    <Collapse in={formData.isRecurrent}>
+                                        <Grid container spacing={2} sx={{ mt: 1 }}>
+                                            <Grid item xs={12} md={6}>
+                                                <FormControl fullWidth size="small">
+                                                    <InputLabel>Frequência</InputLabel>
+                                                    <Select
+                                                        value={formData.recurrenceType}
+                                                        label="Frequência"
+                                                        onChange={(e) => handleInputChange('recurrenceType', e.target.value)}
+                                                    >
+                                                        <MenuItem value="diaria">Diária</MenuItem>
+                                                        <MenuItem value="semanal">Semanal</MenuItem>
+                                                        <MenuItem value="quinzenal">Quinzenal</MenuItem>
+                                                        <MenuItem value="mensal">Mensal</MenuItem>
+                                                        <MenuItem value="bimestral">Bimestral</MenuItem>
+                                                        <MenuItem value="trimestral">Trimestral</MenuItem>
+                                                        <MenuItem value="semestral">Semestral</MenuItem>
+                                                        <MenuItem value="anual">Anual</MenuItem>
+                                                        <MenuItem value="customizado">Personalizado (dias)</MenuItem>
+                                                    </Select>
+                                                </FormControl>
+                                            </Grid>
+
+                                            {formData.recurrenceType === 'customizado' && (
+                                                <Grid item xs={12} md={6}>
+                                                    <TextField
+                                                        fullWidth
+                                                        size="small"
+                                                        label="Intervalo (dias)"
+                                                        type="number"
+                                                        value={formData.customRecurrenceDays}
+                                                        onChange={(e) => handleInputChange('customRecurrenceDays', e.target.value)}
+                                                        inputProps={{ min: 1, max: 365 }}
+                                                    />
+                                                </Grid>
+                                            )}
+
+                                            <Grid item xs={12} md={6}>
+                                                <TextField
+                                                    fullWidth
+                                                    size="small"
+                                                    label="Data limite (opcional)"
+                                                    type="date"
+                                                    value={formData.recurrenceEndDate}
+                                                    onChange={(e) => handleInputChange('recurrenceEndDate', e.target.value)}
+                                                    InputLabelProps={{ shrink: true }}
+                                                    helperText="Deixe vazio para recorrência indefinida"
+                                                />
+                                            </Grid>
+                                        </Grid>
+
+                                        <Alert severity="info" sx={{ mt: 2 }}>
+                                            Ao concluir esta manutenção, uma nova será criada automaticamente
+                                            para a próxima data programada.
+                                        </Alert>
+                                    </Collapse>
+                                </Box>
+                            </Box>
+                        </Collapse>
                     </Grid>
 
                     {(formData.maintenanceType === 'corretiva' || formData.maintenanceType === 'reparo') && (

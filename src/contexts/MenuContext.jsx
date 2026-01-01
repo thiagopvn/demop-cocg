@@ -48,6 +48,7 @@ import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import db from '../firebase/db';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { verifyToken } from '../firebase/token';
+import { getPendingMaintenancesCount, checkAndNotifyMaintenances } from '../services/maintenanceNotificationService';
 
 function MenuContext({ children }) {
   const [active, setActive] = React.useState(0);
@@ -60,6 +61,7 @@ function MenuContext({ children }) {
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
+  const [maintenanceBadge, setMaintenanceBadge] = useState({ overdue: 0, today: 0, total: 0 });
 
   const menuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0 },
@@ -92,6 +94,27 @@ function MenuContext({ children }) {
     };
 
     fetchUserData();
+  }, []);
+
+  // Buscar contagem de manutenções pendentes e verificar notificações
+  useEffect(() => {
+    const fetchMaintenanceBadge = async () => {
+      try {
+        const count = await getPendingMaintenancesCount();
+        setMaintenanceBadge(count);
+        // Verificar e enviar notificações
+        await checkAndNotifyMaintenances();
+      } catch (error) {
+        console.error("Erro ao buscar badge de manutenções:", error);
+      }
+    };
+
+    fetchMaintenanceBadge();
+
+    // Atualizar a cada 5 minutos
+    const interval = setInterval(fetchMaintenanceBadge, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -377,18 +400,36 @@ function MenuContext({ children }) {
                       color: isActive ? '#ff6b35' : 'rgba(255,255,255,0.7)',
                     }}
                   >
-                    <Badge 
-                      variant="dot" 
-                      invisible={!isActive}
-                      sx={{
-                        '& .MuiBadge-dot': {
-                          backgroundColor: '#22c55e',
-                          boxShadow: '0 0 8px rgba(34, 197, 94, 0.6)'
-                        }
-                      }}
-                    >
-                      <Icon sx={{ fontSize: 22 }} />
-                    </Badge>
+                    {item.path === '/manutencao' && maintenanceBadge.total > 0 ? (
+                      <Badge
+                        badgeContent={maintenanceBadge.total}
+                        color={maintenanceBadge.overdue > 0 ? 'error' : 'warning'}
+                        max={99}
+                        sx={{
+                          '& .MuiBadge-badge': {
+                            fontSize: '0.65rem',
+                            height: 16,
+                            minWidth: 16,
+                            padding: '0 4px'
+                          }
+                        }}
+                      >
+                        <Icon sx={{ fontSize: 22 }} />
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="dot"
+                        invisible={!isActive}
+                        sx={{
+                          '& .MuiBadge-dot': {
+                            backgroundColor: '#22c55e',
+                            boxShadow: '0 0 8px rgba(34, 197, 94, 0.6)'
+                          }
+                        }}
+                      >
+                        <Icon sx={{ fontSize: 22 }} />
+                      </Badge>
+                    )}
                   </ListItemIcon>
                   {drawerOpen && (
                     <ListItemText 

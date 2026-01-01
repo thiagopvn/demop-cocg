@@ -33,10 +33,12 @@ import {
     Refresh,
     CalendarMonth,
     Build,
-    Warning
+    Warning,
+    Repeat
 } from '@mui/icons-material';
-import { collection, query, where, getDocs, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore';
 import db from '../../firebase/db';
+import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 
 const MaintenanceCalendar = () => {
     const [maintenances, setMaintenances] = useState([]);
@@ -102,7 +104,7 @@ const MaintenanceCalendar = () => {
         
         switch (filter.period) {
             case 'atrasadas':
-                filtered = filtered.filter(m => 
+                filtered = filtered.filter(m =>
                     new Date(m.dueDate) < today && m.status === 'pendente'
                 );
                 break;
@@ -113,20 +115,22 @@ const MaintenanceCalendar = () => {
                     return mDate.getTime() === today.getTime();
                 });
                 break;
-            case 'semana':
+            case 'semana': {
                 const weekFromNow = new Date(today);
                 weekFromNow.setDate(weekFromNow.getDate() + 7);
-                filtered = filtered.filter(m => 
+                filtered = filtered.filter(m =>
                     new Date(m.dueDate) >= today && new Date(m.dueDate) <= weekFromNow
                 );
                 break;
-            case 'mes':
+            }
+            case 'mes': {
                 const monthFromNow = new Date(today);
                 monthFromNow.setMonth(monthFromNow.getMonth() + 1);
-                filtered = filtered.filter(m => 
+                filtered = filtered.filter(m =>
                     new Date(m.dueDate) >= today && new Date(m.dueDate) <= monthFromNow
                 );
                 break;
+            }
             default:
                 break;
         }
@@ -137,15 +141,38 @@ const MaintenanceCalendar = () => {
     const handleStatusChange = async (maintenanceId, newStatus) => {
         try {
             const docRef = doc(db, 'manutencoes', maintenanceId);
-            await updateDoc(docRef, { 
+            await updateDoc(docRef, {
                 status: newStatus,
-                updatedAt: Timestamp.now()
+                updatedAt: Timestamp.now(),
+                ...(newStatus === 'concluida' ? { completedAt: Timestamp.now() } : {})
             });
 
-            // Se concluída, adicionar ao histórico
+            // Se concluída, adicionar ao histórico e criar próxima se for recorrente
             if (newStatus === 'concluida') {
                 const maintenance = maintenances.find(m => m.id === maintenanceId);
                 await addToHistory(maintenance);
+
+                // Criar próxima manutenção se for recorrente
+                if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
+                    const nextMaintenance = await createNextRecurrentMaintenance(maintenance);
+                    if (nextMaintenance) {
+                        console.log('Próxima manutenção recorrente criada:', nextMaintenance.id);
+                    }
+                }
+
+                // Atualizar status do material para operacional se estava em manutenção
+                if (maintenance?.materialId) {
+                    try {
+                        const materialRef = doc(db, 'materials', maintenance.materialId);
+                        await updateDoc(materialRef, {
+                            maintenance_status: 'operacional',
+                            last_maintenance_update: Timestamp.now(),
+                            last_maintenance_date: Timestamp.now()
+                        });
+                    } catch {
+                        console.log('Material não encontrado ou já atualizado');
+                    }
+                }
             }
 
             fetchMaintenances();
@@ -356,6 +383,11 @@ const MaintenanceCalendar = () => {
                                             <Typography variant="body2">
                                                 {maintenance.type.charAt(0).toUpperCase() + maintenance.type.slice(1)}
                                             </Typography>
+                                            {maintenance.isRecurrent && (
+                                                <Tooltip title={`Recorrente: ${maintenance.recurrenceType || 'Sim'}`}>
+                                                    <Repeat fontSize="small" color="secondary" />
+                                                </Tooltip>
+                                            )}
                                         </Box>
                                     </TableCell>
                                     <TableCell>{maintenance.materialDescription}</TableCell>
