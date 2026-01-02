@@ -684,11 +684,9 @@ export default function Home() {
                     trend: null 
                   },
                 ].map((item, index) => (
-                  <Grow in timeout={300 + index * 100} key={index}>
-                    <Grid item xs={6} sm={6} md={3}>
+                    <Grid item xs={6} sm={6} md={3} key={index}>
                       <StatCard {...item} loading={loading} />
                     </Grid>
-                  </Grow>
                 ))}
               </Grid>
 
@@ -867,12 +865,10 @@ export default function Home() {
                       <>
                         {stats.recentMovements
                           .slice(0, showAllMovements ? MAX_MOVEMENTS_COUNT : INITIAL_MOVEMENTS_COUNT)
-                          .map((movement, index) => (
-                            <Grow in timeout={300 + index * 50} key={movement.id}>
-                              <Box>
+                          .map((movement) => (
+                              <Box key={movement.id}>
                                 <MovementCard movement={movement} />
                               </Box>
-                            </Grow>
                           ))
                         }
                         {stats.recentMovements.length > INITIAL_MOVEMENTS_COUNT && (
@@ -934,15 +930,13 @@ export default function Home() {
                           color={minhasCautelas.filter(c => !c.signed).length > 0 ? "warning" : "success"}
                         />
                       </Box>
-                      {minhasCautelas.map((cautela, index) => (
-                        <Grow in timeout={300 + index * 100} key={cautela.id}>
-                          <Box>
+                      {minhasCautelas.map((cautela) => (
+                          <Box key={cautela.id}>
                             <CautelaStrip
                               cautela={cautela}
                               onSign={handleSign}
                             />
                           </Box>
-                        </Grow>
                       ))}
                     </Paper>
                   )}
@@ -973,15 +967,13 @@ export default function Home() {
                           color="success"
                         />
                       </Box>
-                      {returnedCautelas.map((cautela, index) => (
-                        <Grow in timeout={300 + index * 100} key={cautela.id}>
-                          <Box>
+                      {returnedCautelas.map((cautela) => (
+                          <Box key={cautela.id}>
                             <DevolucaoReceiptStrip
                               cautela={cautela}
                               onAcknowledge={handleAcknowledgeReturn}
                             />
                           </Box>
-                        </Grow>
                       ))}
                     </Paper>
                   )}
