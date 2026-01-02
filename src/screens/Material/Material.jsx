@@ -594,9 +594,8 @@ const Material = () => {
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                filteredMaterials.map((material, index) => (
-                                    <Fade in={true} timeout={300 + index * 30} key={material.id}>
-                                        <StyledTableRow hover>
+                                filteredMaterials.map((material) => (
+                                    <StyledTableRow hover key={material.id}>
                                             <StyledTableCell>
                                                 <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.4 }}>
                                                     {material.description}
@@ -741,7 +740,6 @@ const Material = () => {
                                                 </Box>
                                             </StyledTableCell>
                                         </StyledTableRow>
-                                    </Fade>
                                 ))
                             )}
                         </TableBody>

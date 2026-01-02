@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, memo, useCallback } from "react";
 import {
     TextField,
     Table,
@@ -9,127 +9,76 @@ import {
     IconButton,
     Typography,
     Popover,
-    styled,
-    useMediaQuery,
     InputAdornment,
     CircularProgress,
     Box,
     Card,
     CardContent,
-    Fade,
-    Skeleton,
     Chip,
-    Tooltip,
-    alpha,
     Divider
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import InfoIcon from "@mui/icons-material/Info";
 import ClearIcon from "@mui/icons-material/Clear";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import db from "../firebase/db";
-import { useTheme } from '@mui/material/styles';
 import { useDebounce } from '../hooks/useDebounce';
 
-// Styled Components
-const StyledSearchContainer = styled(Box)(({ theme }) => ({
-    position: 'relative',
-    marginBottom: theme.spacing(2),
-}));
+const MAX_RESULTS = 30;
 
-const StyledTextField = styled(TextField)(({ theme }) => ({
-    '& .MuiOutlinedInput-root': {
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: theme.spacing(1.5),
-        transition: 'all 0.3s ease-in-out',
-        '&:hover': {
-            boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.1)}`,
-            '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: alpha(theme.palette.primary.main, 0.3),
-            },
-        },
-        '&.Mui-focused': {
-            boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
-            '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: theme.palette.primary.main,
-                borderWidth: 2,
-            },
-        },
-    },
-    '& .MuiInputLabel-root': {
-        color: theme.palette.text.secondary,
-        '&.Mui-focused': {
-            color: theme.palette.primary.main,
-        },
-    },
-}));
-
-const StyledTableContainer = styled(Card)(({ theme }) => ({
-    borderRadius: theme.spacing(1.5),
-    boxShadow: theme.shadows[2],
-    overflow: 'hidden',
-    transition: 'all 0.3s ease-in-out',
-    '&:hover': {
-        boxShadow: theme.shadows[4],
-    },
-}));
-
-const StyledTableHead = styled(TableHead)(({ theme }) => ({
-    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-}));
-
-const StyledTableRow = styled(TableRow)(({ theme }) => ({
-    cursor: 'pointer',
-    transition: 'all 0.2s ease-in-out',
-    '&:hover': {
-        backgroundColor: alpha(theme.palette.primary.main, 0.04),
-        transform: 'translateX(4px)',
-        boxShadow: `inset 4px 0 0 ${theme.palette.primary.main}`,
-    },
-    '&.selected': {
-        backgroundColor: alpha(theme.palette.primary.main, 0.08),
-        boxShadow: `inset 4px 0 0 ${theme.palette.primary.main}`,
-        transform: 'translateX(4px)',
-    },
-}));
-
-const StyledTableCell = styled(TableCell)(({ theme }) => ({
-    padding: theme.spacing(2),
-    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-}));
-
-const EmptyStateContainer = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing(6, 2),
-    textAlign: 'center',
-    color: theme.palette.text.secondary,
-}));
-
-const LoadingContainer = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing(4),
-    gap: theme.spacing(2),
-}));
+// Componente de linha memoizado
+const ViaturaRow = memo(({ viatura, isSelected, onSelect, onPopoverOpen, onPopoverClose, isSmallScreen }) => (
+    <TableRow
+        hover
+        onClick={() => onSelect(viatura)}
+        sx={{
+            cursor: 'pointer',
+            bgcolor: isSelected ? 'action.selected' : 'inherit',
+            '&:hover': { bgcolor: 'action.hover' }
+        }}
+    >
+        <TableCell sx={{ py: 1.5 }}>
+            {viatura.prefixo && (
+                <Typography variant="body2" fontWeight={600} color="primary.main">
+                    {viatura.prefixo}
+                </Typography>
+            )}
+            <Typography
+                variant="body2"
+                fontWeight={isSelected ? 600 : 400}
+                color={isSelected ? 'primary.main' : 'text.primary'}
+            >
+                {viatura.description}
+            </Typography>
+        </TableCell>
+        {!isSmallScreen && (
+            <TableCell sx={{ textAlign: 'center', py: 1.5, width: 60 }}>
+                <IconButton
+                    size="small"
+                    onMouseEnter={(e) => onPopoverOpen(e, viatura)}
+                    onMouseLeave={onPopoverClose}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <InfoIcon fontSize="small" color="primary" />
+                </IconButton>
+            </TableCell>
+        )}
+    </TableRow>
+));
 
 const ViaturaSearch = ({ viaturaCritery, onSetViaturaCritery, onSelectViatura, selectedItem }) => {
     const [allViaturas, setAllViaturas] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [anchorEls, setAnchorEls] = useState({});
-    const [isFocused, setIsFocused] = useState(false);
+    const [popoverData, setPopoverData] = useState({ anchorEl: null, viatura: null });
     const [searchTerm, setSearchTerm] = useState(viaturaCritery || "");
     const searchRef = useRef(null);
-    const theme = useTheme();
-    const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+    const isSmallScreen = window.innerWidth < 900;
 
-    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+    const debouncedSearchTerm = useDebounce(searchTerm, 250);
 
-    // Load all viaturas with real-time listener
+    // Carregar viaturas uma vez
     useEffect(() => {
         const viaturasCollection = collection(db, "viaturas");
         const q = query(viaturasCollection, orderBy("description_lower"));
@@ -149,105 +98,74 @@ const ViaturaSearch = ({ viaturaCritery, onSetViaturaCritery, onSelectViatura, s
         return () => unsubscribe();
     }, []);
 
-    // Sync local search term with parent prop
+    // Sincronizar com prop externa apenas quando necessário
     useEffect(() => {
         if (viaturaCritery !== undefined && viaturaCritery !== searchTerm) {
             setSearchTerm(viaturaCritery);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viaturaCritery]);
 
-    // Notify parent of search term changes
+    // Notificar parent apenas quando debounced muda
     useEffect(() => {
-        if (onSetViaturaCritery && searchTerm !== viaturaCritery) {
-            onSetViaturaCritery(searchTerm);
+        if (onSetViaturaCritery && debouncedSearchTerm !== viaturaCritery) {
+            onSetViaturaCritery(debouncedSearchTerm);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchTerm]);
+    }, [debouncedSearchTerm]);
 
-    // Filter viaturas based on search term - NO FILTER THAT HIDES RESULTS
+    // Filtro otimizado
     const filteredViaturas = useMemo(() => {
         if (!debouncedSearchTerm || debouncedSearchTerm.trim().length === 0) {
             return [];
         }
 
-        const searchKeywords = debouncedSearchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
+        const searchLower = debouncedSearchTerm.toLowerCase().trim();
+        const keywords = searchLower.split(/\s+/).filter(k => k.length > 0);
 
-        return allViaturas.filter(viatura => {
-            const description = (viatura.description || '').toLowerCase();
-            const descriptionLower = (viatura.description_lower || '').toLowerCase();
-            const prefixo = (viatura.prefixo || '').toLowerCase();
+        const results = [];
+        for (let i = 0; i < allViaturas.length && results.length < MAX_RESULTS; i++) {
+            const viatura = allViaturas[i];
+            const text = `${viatura.description || ''} ${viatura.description_lower || ''} ${viatura.prefixo || ''}`.toLowerCase();
 
-            const searchableText = `${description} ${descriptionLower} ${prefixo}`;
+            let match = true;
+            for (const keyword of keywords) {
+                if (!text.includes(keyword)) {
+                    match = false;
+                    break;
+                }
+            }
 
-            return searchKeywords.every(keyword => searchableText.includes(keyword));
-        });
+            if (match) {
+                results.push(viatura);
+            }
+        }
+
+        return results;
     }, [debouncedSearchTerm, allViaturas]);
 
-    // Show all filtered results - NO SPECIAL FILTERING FOR SELECTED ITEM
-    const displayViaturas = filteredViaturas;
+    const handlePopoverOpen = useCallback((event, viatura) => {
+        setPopoverData({ anchorEl: event.currentTarget, viatura });
+    }, []);
 
-    const handlePopoverOpen = (event, viaturaId) => {
-        setAnchorEls((prev) => ({
-            ...prev,
-            [viaturaId]: { anchorEl: event.currentTarget, open: true },
-        }));
-    };
+    const handlePopoverClose = useCallback(() => {
+        setPopoverData({ anchorEl: null, viatura: null });
+    }, []);
 
-    const handlePopoverClose = (viaturaId) => {
-        setAnchorEls((prev) => ({
-            ...prev,
-            [viaturaId]: { anchorEl: null, open: false },
-        }));
-    };
-
-    const handleClearSearch = () => {
+    const handleClearSearch = useCallback(() => {
         setSearchTerm("");
-        if (searchRef.current) {
-            searchRef.current.focus();
-        }
-    };
+        searchRef.current?.focus();
+    }, []);
 
-    const handleKeyDown = (event) => {
+    const handleKeyDown = useCallback((event) => {
         if (event.key === 'Escape') {
             handleClearSearch();
         }
-    };
-
-    // Loading skeleton
-    const renderLoadingSkeleton = () => (
-        Array.from({ length: 3 }).map((_, index) => (
-            <TableRow key={`skeleton-${index}`}>
-                <StyledTableCell>
-                    <Skeleton variant="text" height={24} />
-                </StyledTableCell>
-                {!isSmallScreen && (
-                    <StyledTableCell>
-                        <Skeleton variant="circular" width={32} height={32} />
-                    </StyledTableCell>
-                )}
-            </TableRow>
-        ))
-    );
-
-    // Search stats
-    const searchStats = useMemo(() => {
-        if (!debouncedSearchTerm) return null;
-
-        const totalResults = filteredViaturas.length;
-        const totalViaturas = allViaturas.length;
-
-        return {
-            results: totalResults,
-            total: totalViaturas,
-            percentage: totalViaturas > 0 ? Math.round((totalResults / totalViaturas) * 100) : 0
-        };
-    }, [filteredViaturas.length, allViaturas.length, debouncedSearchTerm]);
+    }, [handleClearSearch]);
 
     return (
         <Box sx={{ width: '100%' }}>
-            <StyledSearchContainer>
-                <StyledTextField
+            {/* Campo de busca */}
+            <Box sx={{ mb: 2 }}>
+                <TextField
                     inputRef={searchRef}
                     size="small"
                     label="Pesquisar Viatura"
@@ -255,277 +173,137 @@ const ViaturaSearch = ({ viaturaCritery, onSetViaturaCritery, onSelectViatura, s
                     fullWidth
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Digite o prefixo ou descricao da viatura..."
+                    placeholder="Digite o prefixo ou descrição..."
                     slotProps={{
                         input: {
                             startAdornment: (
                                 <InputAdornment position="start">
-                                    <SearchIcon
-                                        sx={{
-                                            color: isFocused ? 'primary.main' : 'text.secondary',
-                                            transition: 'color 0.2s ease-in-out'
-                                        }}
-                                    />
+                                    <SearchIcon color="action" />
                                 </InputAdornment>
                             ),
                             endAdornment: searchTerm && (
                                 <InputAdornment position="end">
-                                    <Tooltip title="Limpar busca (Esc)">
-                                        <IconButton
-                                            size="small"
-                                            onClick={handleClearSearch}
-                                            sx={{
-                                                color: 'text.secondary',
-                                                '&:hover': {
-                                                    color: 'primary.main',
-                                                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                                },
-                                            }}
-                                        >
-                                            <ClearIcon fontSize="small" />
-                                        </IconButton>
-                                    </Tooltip>
+                                    <IconButton size="small" onClick={handleClearSearch}>
+                                        <ClearIcon fontSize="small" />
+                                    </IconButton>
                                 </InputAdornment>
                             ),
                         },
                     }}
                 />
 
-                {/* Search Stats */}
-                {searchStats && (
-                    <Fade in={Boolean(searchStats)}>
-                        <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            <Chip
-                                size="small"
-                                icon={<DirectionsCarIcon />}
-                                label={`${searchStats.results} resultado${searchStats.results !== 1 ? 's' : ''}`}
-                                color={searchStats.results > 0 ? 'primary' : 'default'}
-                                variant={searchStats.results > 0 ? 'filled' : 'outlined'}
-                            />
-                            <Chip
-                                size="small"
-                                label={`${searchStats.percentage}% do total`}
-                                variant="outlined"
-                                sx={{ color: 'text.secondary' }}
-                            />
-                        </Box>
-                    </Fade>
+                {debouncedSearchTerm && (
+                    <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                        <Chip
+                            size="small"
+                            label={`${filteredViaturas.length} resultado${filteredViaturas.length !== 1 ? 's' : ''}`}
+                            color={filteredViaturas.length > 0 ? 'primary' : 'default'}
+                            variant="outlined"
+                        />
+                    </Box>
                 )}
-            </StyledSearchContainer>
+            </Box>
 
-            <StyledTableContainer>
+            {/* Tabela de resultados */}
+            <Card variant="outlined">
                 <Table size="small">
-                    <StyledTableHead>
+                    <TableHead sx={{ bgcolor: 'primary.main' }}>
                         <TableRow>
-                            <TableCell
-                                sx={{
-                                    color: 'white',
-                                    fontWeight: 600,
-                                    fontSize: '0.875rem',
-                                    letterSpacing: '0.05em'
-                                }}
-                            >
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <DirectionsCarIcon fontSize="small" />
-                                    Descricao
+                                    Viatura
                                 </Box>
                             </TableCell>
                             {!isSmallScreen && (
-                                <TableCell
-                                    sx={{
-                                        color: 'white',
-                                        fontWeight: 600,
-                                        fontSize: '0.875rem',
-                                        letterSpacing: '0.05em',
-                                        textAlign: 'center',
-                                        width: 80
-                                    }}
-                                >
+                                <TableCell sx={{ color: 'white', fontWeight: 600, textAlign: 'center', width: 60 }}>
                                     Info
                                 </TableCell>
                             )}
                         </TableRow>
-                    </StyledTableHead>
+                    </TableHead>
                     <TableBody>
                         {loading ? (
-                            <>
-                                {renderLoadingSkeleton()}
-                                <TableRow>
-                                    <TableCell colSpan={isSmallScreen ? 1 : 2}>
-                                        <LoadingContainer>
-                                            <CircularProgress size={24} />
-                                            <Typography variant="body2" color="text.secondary">
-                                                Carregando viaturas...
-                                            </Typography>
-                                        </LoadingContainer>
-                                    </TableCell>
-                                </TableRow>
-                            </>
-                        ) : !debouncedSearchTerm || debouncedSearchTerm.trim().length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={isSmallScreen ? 1 : 2} sx={{ p: 0 }}>
-                                    <EmptyStateContainer>
-                                        <SearchIcon
-                                            sx={{
-                                                fontSize: 48,
-                                                color: 'text.disabled',
-                                                mb: 2
-                                            }}
-                                        />
-                                        <Typography variant="h6" gutterBottom>
-                                            Pesquisar Viaturas
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                            Digite para encontrar viaturas por prefixo ou descricao
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-                                            <Chip label="Busca em tempo real" size="small" variant="outlined" />
-                                            <Chip label="Pressione Esc para limpar" size="small" variant="outlined" />
-                                        </Box>
-                                    </EmptyStateContainer>
+                                <TableCell colSpan={isSmallScreen ? 1 : 2} sx={{ textAlign: 'center', py: 4 }}>
+                                    <CircularProgress size={24} />
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                        Carregando...
+                                    </Typography>
                                 </TableCell>
                             </TableRow>
-                        ) : displayViaturas.length === 0 ? (
+                        ) : !debouncedSearchTerm ? (
                             <TableRow>
-                                <TableCell colSpan={isSmallScreen ? 1 : 2} sx={{ p: 0 }}>
-                                    <EmptyStateContainer>
-                                        <DirectionsCarIcon
-                                            sx={{
-                                                fontSize: 48,
-                                                color: 'text.disabled',
-                                                mb: 2
-                                            }}
-                                        />
-                                        <Typography variant="h6" gutterBottom>
-                                            Nenhuma viatura encontrada
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                            Nao encontramos viaturas para "{debouncedSearchTerm}"
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-                                            <Chip label="Tente termos mais especificos" size="small" variant="outlined" />
-                                            <Chip label="Verifique a ortografia" size="small" variant="outlined" />
-                                        </Box>
-                                    </EmptyStateContainer>
+                                <TableCell colSpan={isSmallScreen ? 1 : 2} sx={{ textAlign: 'center', py: 4 }}>
+                                    <SearchIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+                                    <Typography variant="body1" color="text.secondary">
+                                        Digite para buscar viaturas
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : filteredViaturas.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={isSmallScreen ? 1 : 2} sx={{ textAlign: 'center', py: 4 }}>
+                                    <DirectionsCarIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+                                    <Typography variant="body1" color="text.secondary">
+                                        Nenhuma viatura encontrada
+                                    </Typography>
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            displayViaturas.map((viatura, index) => (
-                                <Fade in={true} timeout={300 + index * 50} key={viatura.id}>
-                                    <StyledTableRow
-                                        onClick={() => onSelectViatura(viatura)}
-                                        className={selectedItem?.id === viatura.id ? 'selected' : ''}
-                                    >
-                                        <StyledTableCell>
-                                            <Box>
-                                                {viatura.prefixo && (
-                                                    <Typography
-                                                        variant="body2"
-                                                        fontWeight={600}
-                                                        color="primary.main"
-                                                        sx={{ lineHeight: 1.4 }}
-                                                    >
-                                                        {viatura.prefixo}
-                                                    </Typography>
-                                                )}
-                                                <Typography
-                                                    variant="body2"
-                                                    fontWeight={selectedItem?.id === viatura.id ? 600 : 400}
-                                                    color={selectedItem?.id === viatura.id ? 'primary.main' : 'text.primary'}
-                                                    sx={{
-                                                        lineHeight: 1.4,
-                                                        wordBreak: 'break-word'
-                                                    }}
-                                                >
-                                                    {viatura.description}
-                                                </Typography>
-                                            </Box>
-                                        </StyledTableCell>
-                                        {!isSmallScreen && (
-                                            <StyledTableCell sx={{ textAlign: 'center' }}>
-                                                <Tooltip title="Ver detalhes">
-                                                    <IconButton
-                                                        onMouseEnter={(e) => handlePopoverOpen(e, viatura.id)}
-                                                        onMouseLeave={() => handlePopoverClose(viatura.id)}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        size="small"
-                                                        sx={{
-                                                            color: 'primary.main',
-                                                            '&:hover': {
-                                                                backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                                            },
-                                                        }}
-                                                    >
-                                                        <InfoIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                                <Popover
-                                                    sx={{ pointerEvents: "none" }}
-                                                    open={anchorEls[viatura.id]?.open || false}
-                                                    anchorEl={anchorEls[viatura.id]?.anchorEl}
-                                                    anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-                                                    transformOrigin={{ vertical: "top", horizontal: "center" }}
-                                                    onClose={() => handlePopoverClose(viatura.id)}
-                                                    disableRestoreFocus
-                                                >
-                                                    <Card sx={{ maxWidth: 300, p: 2 }}>
-                                                        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-                                                            <Typography variant="subtitle2" gutterBottom color="primary.main">
-                                                                {viatura.prefixo || viatura.description}
-                                                            </Typography>
-                                                            {viatura.prefixo && (
-                                                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                                                                    {viatura.description}
-                                                                </Typography>
-                                                            )}
-                                                            <Divider sx={{ my: 1 }} />
-                                                            <Box sx={{ display: 'grid', gap: 1 }}>
-                                                                {viatura.prefixo && (
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Prefixo:
-                                                                        </Typography>
-                                                                        <Typography variant="caption" fontWeight={600} color="primary.main">
-                                                                            {viatura.prefixo}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                )}
-                                                                {viatura.created_at && (
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Criado em:
-                                                                        </Typography>
-                                                                        <Typography variant="caption" fontWeight={500}>
-                                                                            {new Date(viatura.created_at.toDate()).toLocaleString()}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                )}
-                                                                {viatura.ultima_movimentacao && (
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                                        <Typography variant="caption" color="text.secondary">
-                                                                            Ultima Mov.:
-                                                                        </Typography>
-                                                                        <Typography variant="caption" fontWeight={500}>
-                                                                            {new Date(viatura.ultima_movimentacao.toDate()).toLocaleString()}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                )}
-                                                            </Box>
-                                                        </CardContent>
-                                                    </Card>
-                                                </Popover>
-                                            </StyledTableCell>
-                                        )}
-                                    </StyledTableRow>
-                                </Fade>
+                            filteredViaturas.map((viatura) => (
+                                <ViaturaRow
+                                    key={viatura.id}
+                                    viatura={viatura}
+                                    isSelected={selectedItem?.id === viatura.id}
+                                    onSelect={onSelectViatura}
+                                    onPopoverOpen={handlePopoverOpen}
+                                    onPopoverClose={handlePopoverClose}
+                                    isSmallScreen={isSmallScreen}
+                                />
                             ))
                         )}
                     </TableBody>
                 </Table>
-            </StyledTableContainer>
+            </Card>
+
+            {/* Popover único */}
+            <Popover
+                sx={{ pointerEvents: "none" }}
+                open={Boolean(popoverData.anchorEl)}
+                anchorEl={popoverData.anchorEl}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+                transformOrigin={{ vertical: "top", horizontal: "center" }}
+                onClose={handlePopoverClose}
+                disableRestoreFocus
+            >
+                {popoverData.viatura && (
+                    <Card sx={{ maxWidth: 280, p: 1.5 }}>
+                        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+                            <Typography variant="subtitle2" color="primary.main" gutterBottom>
+                                {popoverData.viatura.prefixo || popoverData.viatura.description}
+                            </Typography>
+                            {popoverData.viatura.prefixo && (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                    {popoverData.viatura.description}
+                                </Typography>
+                            )}
+                            <Divider sx={{ my: 1 }} />
+                            <Box sx={{ display: 'grid', gap: 0.5 }}>
+                                {popoverData.viatura.prefixo && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <Typography variant="caption" color="text.secondary">Prefixo:</Typography>
+                                        <Typography variant="caption" fontWeight={600} color="primary.main">
+                                            {popoverData.viatura.prefixo}
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Box>
+                        </CardContent>
+                    </Card>
+                )}
+            </Popover>
         </Box>
     );
 };

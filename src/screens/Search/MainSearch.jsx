@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import MenuContext from '../../contexts/MenuContext';
 import {
   Box,
@@ -11,7 +11,8 @@ import {
   Chip,
   useMediaQuery,
   alpha,
-  styled
+  styled,
+  CircularProgress
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -23,14 +24,23 @@ import {
   SwapHoriz as SwapIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import MaterialUsuario from './MaterialUsuario';
-import MaterialViatura from './MaterialViatura';
-import UsuarioMaterial from './UsuarioMaterial';
-import ViaturaMaterial from './ViaturaMaterial';
-import Inativos from './Inativos';
-import Cautelados from './Cautelados';
 import { collection, getDocs } from 'firebase/firestore';
 import db from '../../firebase/db';
+
+// Lazy load dos componentes de tab para melhor performance
+const MaterialUsuario = lazy(() => import('./MaterialUsuario'));
+const MaterialViatura = lazy(() => import('./MaterialViatura'));
+const UsuarioMaterial = lazy(() => import('./UsuarioMaterial'));
+const ViaturaMaterial = lazy(() => import('./ViaturaMaterial'));
+const Inativos = lazy(() => import('./Inativos'));
+const Cautelados = lazy(() => import('./Cautelados'));
+
+// Loading fallback component
+const TabLoading = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+    <CircularProgress />
+  </Box>
+);
 
 const StyledTabs = styled(Tabs)(({ theme }) => ({
   minHeight: 56,
@@ -69,17 +79,18 @@ const HeaderCard = styled(Card)(({ theme }) => ({
   overflow: 'visible',
 }));
 
-const TabPanel = ({ children, value, index }) => (
-  <Box
-    role="tabpanel"
-    hidden={value !== index}
-    sx={{
-      display: value === index ? 'block' : 'none',
-    }}
-  >
-    {children}
-  </Box>
-);
+const TabPanel = ({ children, value, index }) => {
+  // Só renderiza o conteúdo quando a tab está ativa
+  if (value !== index) return null;
+
+  return (
+    <Box role="tabpanel">
+      <Suspense fallback={<TabLoading />}>
+        {children}
+      </Suspense>
+    </Box>
+  );
+};
 
 export default function MainSearch() {
   const [activeTab, setActiveTab] = useState(0);
@@ -102,14 +113,14 @@ export default function MainSearch() {
     fetchCategorias();
   }, []);
 
-  const tabs = [
+  // Memoizar tabs para evitar recriação a cada render
+  const tabs = useMemo(() => [
     {
       label: "Quem esta com o Material?",
       shortLabel: "Material",
       icon: <InventoryIcon />,
       description: "Selecione um material para ver quem esta com ele acautelado",
       color: "primary",
-      component: <MaterialUsuario />
     },
     {
       label: "Materiais na Viatura",
@@ -117,7 +128,6 @@ export default function MainSearch() {
       icon: <CarIcon />,
       description: "Busque um material e veja em quais viaturas",
       color: "secondary",
-      component: <MaterialViatura />
     },
     {
       label: "Materiais por Militar",
@@ -125,7 +135,6 @@ export default function MainSearch() {
       icon: <PersonIcon />,
       description: "Selecione um militar para ver os materiais que ele acautelou",
       color: "success",
-      component: <UsuarioMaterial categorias={categorias} />
     },
     {
       label: "Materiais por Viatura",
@@ -133,7 +142,6 @@ export default function MainSearch() {
       icon: <SwapIcon />,
       description: "Selecione uma viatura e veja seus materiais",
       color: "info",
-      component: <ViaturaMaterial categorias={categorias} />
     },
     {
       label: "Em Reparo",
@@ -141,7 +149,6 @@ export default function MainSearch() {
       icon: <BuildIcon />,
       description: "Materiais atualmente em reparo",
       color: "warning",
-      component: <Inativos categorias={categorias} />
     },
     {
       label: "Todas Cautelas",
@@ -149,9 +156,21 @@ export default function MainSearch() {
       icon: <AssignmentIcon />,
       description: "Todas as movimentacoes de cautela",
       color: "error",
-      component: <Cautelados />
     }
-  ];
+  ], []);
+
+  // Renderiza apenas o componente da tab ativa
+  const renderTabContent = useMemo(() => {
+    switch (activeTab) {
+      case 0: return <MaterialUsuario />;
+      case 1: return <MaterialViatura />;
+      case 2: return <UsuarioMaterial categorias={categorias} />;
+      case 3: return <ViaturaMaterial categorias={categorias} />;
+      case 4: return <Inativos categorias={categorias} />;
+      case 5: return <Cautelados />;
+      default: return null;
+    }
+  }, [activeTab, categorias]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -264,16 +283,12 @@ export default function MainSearch() {
             </Card>
           </Fade>
 
-          {/* Tab Content */}
-          <Fade in timeout={1000}>
-            <Box>
-              {tabs.map((tab, index) => (
-                <TabPanel key={index} value={activeTab} index={index}>
-                  {tab.component}
-                </TabPanel>
-              ))}
-            </Box>
-          </Fade>
+          {/* Tab Content - Renderiza apenas a tab ativa */}
+          <Box>
+            <TabPanel value={activeTab} index={activeTab}>
+              {renderTabContent}
+            </TabPanel>
+          </Box>
         </Box>
       </Box>
     </MenuContext>

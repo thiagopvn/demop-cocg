@@ -13,7 +13,6 @@ import {
     IconButton,
     Grid,
     Container,
-    Fade,
     Alert,
     AlertTitle,
     Collapse
@@ -456,7 +455,6 @@ export default function Movimentacao() {
             <MenuContext>
                 <div className="root-protected">
                     <Container maxWidth="lg" sx={{ py: 4 }}>
-                        <Fade in timeout={800}>
                             <Box>
                                 {/* Header */}
                                 <Box sx={{ textAlign: 'center', mb: 4 }}>
@@ -767,9 +765,8 @@ export default function Movimentacao() {
                                             </Box>
                                             
                                             <Grid container spacing={2}>
-                                                {materiaisSelected.map((item, index) => (
+                                                {materiaisSelected.map((item) => (
                                                     <Grid item xs={12} key={item.material.id}>
-                                                        <Fade in timeout={300 + (index * 100)}>
                                                             <Card variant="outlined" sx={{ 
                                                                 borderRadius: 2,
                                                                 backgroundColor: 'background.paper',
@@ -821,7 +818,6 @@ export default function Movimentacao() {
                                                                     </Box>
                                                                 </CardContent>
                                                             </Card>
-                                                        </Fade>
                                                     </Grid>
                                                 ))}
                                             </Grid>
@@ -942,7 +938,6 @@ export default function Movimentacao() {
                                     </Button>
                                 </Box>
                             </Box>
-                        </Fade>
                     </Container>
                 </div>
             </MenuContext>
