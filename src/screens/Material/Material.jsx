@@ -1,20 +1,19 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { 
-    Box, 
-    Typography, 
-    Button, 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableHead, 
-    TableRow, 
-    IconButton, 
+import { useState, useMemo, useRef, useEffect, memo, useCallback } from 'react';
+import {
+    Box,
+    Typography,
+    Button,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
+    IconButton,
     CircularProgress,
     TextField,
     InputAdornment,
     Chip,
     Card,
-    Fade,
     Skeleton,
     Tooltip,
     alpha,
@@ -42,6 +41,10 @@ import { deleteDoc, doc, collection, query, where, getDocs, orderBy } from 'fire
 import db from '../../firebase/db';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+
+// Limite de itens por página
+const ITEMS_PER_PAGE = 50;
 
 const StyledHeader = styled(Box)(({ theme }) => ({
     display: 'flex',
@@ -144,7 +147,7 @@ const Material = () => {
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isFocused, setIsFocused] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
     const searchRef = useRef(null);
     const theme = useTheme();
     const navigate = useNavigate();
@@ -290,47 +293,58 @@ const Material = () => {
         }
     };
 
-    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+    const debouncedSearchTerm = useDebounce(searchTerm, 250);
 
-    // CRITICAL: Always recalculate from the complete materials list
-    const filteredMaterials = useMemo(() => {
-        // If search is empty, return complete list
+    // Reset visibleCount quando pesquisa muda
+    useEffect(() => {
+        setVisibleCount(ITEMS_PER_PAGE);
+    }, [debouncedSearchTerm]);
+
+    // Filtro otimizado - retorna todos os materiais filtrados
+    const allFilteredMaterials = useMemo(() => {
         if (!debouncedSearchTerm || debouncedSearchTerm.trim().length === 0) {
             return materials;
         }
 
-        // Parse search keywords
-        const searchWords = debouncedSearchTerm.toLowerCase().trim().split(/\s+/).filter(Boolean);
-        
-        // ALWAYS filter from the complete materials list from context
-        // NEVER reference previous filteredMaterials state
-        const filtered = materials.filter(material => {
-            const description = material.description?.toLowerCase() || '';
-            const categoria = material.categoria?.toLowerCase() || '';
-            const searchableText = `${description} ${categoria}`;
-            
-            // Check if ALL keywords are present
-            return searchWords.every(word => searchableText.includes(word));
-        });
+        const searchLower = debouncedSearchTerm.toLowerCase().trim();
+        const keywords = searchLower.split(/\s+/).filter(k => k.length > 0);
 
-        return filtered;
-    }, [materials, debouncedSearchTerm]); // Dependencies: only materials and debouncedSearchTerm
+        return materials.filter(material => {
+            const text = `${material.description || ''} ${material.categoria || ''}`.toLowerCase();
+            for (const keyword of keywords) {
+                if (!text.includes(keyword)) return false;
+            }
+            return true;
+        });
+    }, [materials, debouncedSearchTerm]);
+
+    // Materiais visíveis (limitados pelo visibleCount)
+    const filteredMaterials = useMemo(() => {
+        return allFilteredMaterials.slice(0, visibleCount);
+    }, [allFilteredMaterials, visibleCount]);
+
+    // Função para carregar mais
+    const handleLoadMore = useCallback(() => {
+        setVisibleCount(prev => prev + ITEMS_PER_PAGE);
+    }, []);
+
+    // Verifica se há mais itens para carregar
+    const hasMore = allFilteredMaterials.length > visibleCount;
 
     // Statistics
     const stats = useMemo(() => {
         const totalMaterials = materials.length;
-        const filteredCount = filteredMaterials.length;
+        const filteredCount = allFilteredMaterials.length;
         const lowStock = materials.filter(m => (m.estoque_atual || 0) <= 5).length;
-        const outOfStock = materials.filter(m => (m.estoque_atual || 0) === 0).length;
-        
+
         return {
             total: totalMaterials,
             filtered: filteredCount,
             lowStock,
-            outOfStock,
-            showing: debouncedSearchTerm ? filteredCount : totalMaterials
+            showing: filteredMaterials.length,
+            totalFiltered: filteredCount
         };
-    }, [materials, filteredMaterials, debouncedSearchTerm]);
+    }, [materials, allFilteredMaterials, filteredMaterials]);
 
     // Loading skeleton rows
     const renderLoadingSkeleton = () => (
@@ -493,25 +507,26 @@ const Material = () => {
                     
                     {/* Search Results Info */}
                     {debouncedSearchTerm && (
-                        <Fade in={Boolean(debouncedSearchTerm)}>
                             <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                 <Chip
                                     size="small"
                                     icon={<Inventory />}
-                                    label={`${stats.filtered} resultado${stats.filtered !== 1 ? 's' : ''} encontrado${stats.filtered !== 1 ? 's' : ''}`}
-                                    color={stats.filtered > 0 ? 'primary' : 'default'}
-                                    variant={stats.filtered > 0 ? 'filled' : 'outlined'}
-                                />
-                                <Chip
-                                    size="small"
-                                    label={`"${debouncedSearchTerm}"`}
+                                    label={`${stats.totalFiltered} resultado${stats.totalFiltered !== 1 ? 's' : ''}`}
+                                    color={stats.totalFiltered > 0 ? 'primary' : 'default'}
                                     variant="outlined"
-                                    onDelete={handleClearSearch}
-                                    deleteIcon={<Clear fontSize="small" />}
-                                    sx={{ color: 'text.secondary' }}
                                 />
                             </Box>
-                        </Fade>
+                    )}
+
+                    {/* Info de paginação */}
+                    {!debouncedSearchTerm && stats.total > ITEMS_PER_PAGE && (
+                        <Box sx={{ mt: 1 }}>
+                            <Chip
+                                size="small"
+                                label={`Exibindo ${stats.showing} de ${stats.total} materiais`}
+                                variant="outlined"
+                            />
+                        </Box>
                     )}
                 </StyledSearchContainer>
                 
@@ -745,8 +760,28 @@ const Material = () => {
                         </TableBody>
                     </Table>
                 </StyledTableContainer>
+
+                {/* Botão Carregar Mais */}
+                {hasMore && !loading && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                        <Button
+                            variant="outlined"
+                            onClick={handleLoadMore}
+                            startIcon={<ExpandMoreIcon />}
+                            sx={{
+                                borderRadius: 2,
+                                px: 4,
+                                py: 1.5,
+                                textTransform: 'none',
+                                fontWeight: 500
+                            }}
+                        >
+                            Carregar mais ({allFilteredMaterials.length - visibleCount} restantes)
+                        </Button>
+                    </Box>
+                )}
             </Box>
-            
+
             <MaterialDialog
                 open={openDialog}
                 onClose={handleCloseDialog}
