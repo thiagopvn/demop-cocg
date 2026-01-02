@@ -476,7 +476,7 @@ const Material = () => {
                                     <InputAdornment position="start">
                                         <Search 
                                             sx={{ 
-                                                color: isFocused ? 'primary.main' : 'text.secondary',
+                                                color: 'text.secondary',
                                                 transition: 'color 0.2s ease-in-out'
                                             }} 
                                         />
