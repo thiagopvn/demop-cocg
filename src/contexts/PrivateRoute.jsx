@@ -1,11 +1,16 @@
 import { Navigate } from 'react-router-dom';
 import { verifyToken } from '../firebase/token';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 const PrivateRoute = ({ children, allowedRoles = [] }) => {
   const [authState, setAuthState] = useState({ loading: true, authenticated: false, authorized: false });
+  const hasChecked = useRef(false);
 
   useEffect(() => {
+    // Evitar múltiplas verificações
+    if (hasChecked.current) return;
+    hasChecked.current = true;
+
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
       if (!token || typeof token !== 'string') {
@@ -32,7 +37,7 @@ const PrivateRoute = ({ children, allowedRoles = [] }) => {
     };
 
     checkAuth();
-  }, [allowedRoles]);
+  }, []); // Removido allowedRoles das dependências para evitar loop infinito
 
   if (authState.loading) {
     return <div></div>;
