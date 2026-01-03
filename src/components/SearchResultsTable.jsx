@@ -287,6 +287,9 @@ const SearchResultsTable = ({
                         transformOrigin={{ vertical: 'center', horizontal: 'left' }}
                         onClose={() => handleMouseLeave(row.id || rowIndex)}
                         disableRestoreFocus
+                        disableScrollLock
+                        disableAutoFocus
+                        disableEnforceFocus
                       >
                         <Card sx={{ maxWidth: 350, p: 2 }}>
                           <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
