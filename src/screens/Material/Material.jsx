@@ -467,8 +467,6 @@ const Material = () => {
                         placeholder="Digite descrição, categoria ou código do material..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
                         onKeyDown={handleKeyDown}
                         slotProps={{
                             input: {
