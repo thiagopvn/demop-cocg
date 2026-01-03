@@ -18,9 +18,7 @@ import {
   AssignmentReturnOutlined,
   CalendarMonth,
   WhatsApp,
-  SupportAgent,
-  Celebration,
-  Favorite
+  SupportAgent
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -48,9 +46,7 @@ import {
   Zoom,
   Fade,
   alpha,
-  Modal,
-  Paper,
-  Grow
+  Paper
 } from '@mui/material';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import db from '../firebase/db';
@@ -70,26 +66,6 @@ function MenuContext({ children }) {
   const [userName, setUserName] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
   const [maintenanceBadge, setMaintenanceBadge] = useState({ overdue: 0, today: 0, total: 0 });
-  const [easterEggInput, setEasterEggInput] = useState('');
-  const [showBomServicoModal, setShowBomServicoModal] = useState(false);
-
-  // Easter egg - detectar "Aceito"
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      const newInput = easterEggInput + e.key.toLowerCase();
-      // Manter apenas os últimos 6 caracteres
-      const trimmedInput = newInput.slice(-6);
-      setEasterEggInput(trimmedInput);
-
-      if (trimmedInput === 'aceito') {
-        setShowBomServicoModal(true);
-        setEasterEggInput('');
-      }
-    };
-
-    window.addEventListener('keypress', handleKeyPress);
-    return () => window.removeEventListener('keypress', handleKeyPress);
-  }, [easterEggInput]);
 
   const menuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0 },
@@ -879,144 +855,6 @@ function MenuContext({ children }) {
         </DialogActions>
       </Dialog>
 
-      {/* Easter Egg Modal - Bom Serviço */}
-      <Modal
-        open={showBomServicoModal}
-        onClose={() => setShowBomServicoModal(false)}
-        closeAfterTransition
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Grow in={showBomServicoModal}>
-          <Paper
-            elevation={24}
-            sx={{
-              position: 'relative',
-              outline: 'none',
-              borderRadius: 4,
-              overflow: 'hidden',
-              maxWidth: 420,
-              mx: 2,
-            }}
-          >
-            {/* Header Gradient */}
-            <Box
-              sx={{
-                background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #ff6b35 100%)',
-                py: 4,
-                px: 3,
-                textAlign: 'center',
-              }}
-            >
-              <Celebration
-                sx={{
-                  fontSize: 64,
-                  color: 'white',
-                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
-                  animation: 'bounce 1s ease infinite',
-                  '@keyframes bounce': {
-                    '0%, 100%': { transform: 'translateY(0)' },
-                    '50%': { transform: 'translateY(-10px)' },
-                  },
-                }}
-              />
-              <Typography
-                variant="h3"
-                sx={{
-                  color: 'white',
-                  fontWeight: 800,
-                  mt: 2,
-                  textShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                BOM SERVIÇO!
-              </Typography>
-            </Box>
-
-            {/* Content */}
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: 1,
-                  mb: 3,
-                }}
-              >
-                {[...Array(5)].map((_, i) => (
-                  <Favorite
-                    key={i}
-                    sx={{
-                      color: '#ef4444',
-                      fontSize: 28,
-                      animation: `pulse 1s ease ${i * 0.1}s infinite`,
-                      '@keyframes pulse': {
-                        '0%, 100%': { transform: 'scale(1)' },
-                        '50%': { transform: 'scale(1.2)' },
-                      },
-                    }}
-                  />
-                ))}
-              </Box>
-
-              <Typography
-                variant="body1"
-                sx={{
-                  color: 'text.secondary',
-                  mb: 3,
-                  lineHeight: 1.8,
-                }}
-              >
-                Obrigado por usar o sistema!
-                <br />
-                <strong style={{ color: '#1e3a5f' }}>
-                  Corpo de Bombeiros Militar do Estado do Rio de Janeiro
-                </strong>
-              </Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'text.disabled',
-                  display: 'block',
-                  mb: 3,
-                }}
-              >
-                Vida Alheia e Riquezas Salvar
-              </Typography>
-
-              <Button
-                variant="contained"
-                onClick={() => setShowBomServicoModal(false)}
-                sx={{
-                  background: 'linear-gradient(135deg, #1e3a5f 0%, #ff6b35 100%)',
-                  borderRadius: 3,
-                  px: 5,
-                  py: 1.5,
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '1rem',
-                  boxShadow: '0 8px 24px rgba(30, 58, 95, 0.3)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #2d5a87 0%, #ff8c5a 100%)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 12px 32px rgba(30, 58, 95, 0.4)',
-                  },
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                Aceito! 🔥
-              </Button>
-            </Box>
-          </Paper>
-        </Grow>
-      </Modal>
     </Box>
   );
 }
