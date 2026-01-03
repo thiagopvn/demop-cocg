@@ -33,7 +33,9 @@ import {
   LocationOn as LocationIcon,
   Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Phone as PhoneIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
@@ -229,6 +231,47 @@ export default function Inativos({ categorias = [] }) {
           sx={{ fontWeight: 500 }}
         />
       ),
+    },
+    {
+      field: 'sender_name',
+      headerName: 'Responsavel',
+      icon: <PersonIcon fontSize="small" />,
+      minWidth: 140,
+      hideOnMobile: true,
+      renderCell: (row) => (
+        <Typography variant="body2">
+          {row.sender_name || row.user_name || '-'}
+        </Typography>
+      ),
+    },
+    {
+      field: 'telefone_responsavel',
+      headerName: 'Telefone',
+      icon: <PhoneIcon fontSize="small" />,
+      minWidth: 140,
+      renderCell: (row) => {
+        const telefone = row.telefone_responsavel;
+        if (!telefone) return '-';
+        return (
+          <Chip
+            icon={<PhoneIcon sx={{ fontSize: 14 }} />}
+            label={telefone}
+            size="small"
+            color="primary"
+            variant="outlined"
+            component="a"
+            href={`tel:${telefone}`}
+            clickable
+            sx={{
+              fontWeight: 500,
+              cursor: 'pointer',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              }
+            }}
+          />
+        );
+      },
     },
     {
       field: 'seiNumber',

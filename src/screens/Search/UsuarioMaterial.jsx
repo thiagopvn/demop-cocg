@@ -27,7 +27,8 @@ import {
   Assignment as AssignmentIcon,
   ExitToApp as ExitIcon,
   Search as SearchIcon,
-  DirectionsCar as CarIcon
+  DirectionsCar as CarIcon,
+  Phone as PhoneIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
@@ -211,8 +212,31 @@ export default function UsuarioMaterial({ categorias = [] }) {
     {
       field: 'telefone_responsavel',
       headerName: 'Telefone',
-      minWidth: 130,
-      hideOnMobile: true,
+      icon: <PhoneIcon fontSize="small" />,
+      minWidth: 140,
+      renderCell: (row) => {
+        const telefone = row.telefone_responsavel;
+        if (!telefone) return '-';
+        return (
+          <Chip
+            icon={<PhoneIcon sx={{ fontSize: 14 }} />}
+            label={telefone}
+            size="small"
+            color="success"
+            variant="outlined"
+            component="a"
+            href={`tel:${telefone}`}
+            clickable
+            sx={{
+              fontWeight: 500,
+              cursor: 'pointer',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.success.main, 0.1),
+              }
+            }}
+          />
+        );
+      },
     },
     {
       field: 'status',

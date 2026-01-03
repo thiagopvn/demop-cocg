@@ -31,7 +31,8 @@ import {
   ArrowDownward as InIcon,
   ArrowUpward as OutIcon,
   FilterList as FilterIcon,
-  Draw as SignatureIcon
+  Draw as SignatureIcon,
+  Phone as PhoneIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
@@ -215,6 +216,35 @@ export default function Cautelados() {
           </Typography>
         </Box>
       ),
+    },
+    {
+      field: 'telefone_responsavel',
+      headerName: 'Telefone',
+      icon: <PhoneIcon fontSize="small" />,
+      minWidth: 140,
+      renderCell: (row) => {
+        const telefone = row.telefone_responsavel;
+        if (!telefone) return '-';
+        return (
+          <Chip
+            icon={<PhoneIcon sx={{ fontSize: 14 }} />}
+            label={telefone}
+            size="small"
+            color="primary"
+            variant="outlined"
+            component="a"
+            href={`tel:${telefone}`}
+            clickable
+            sx={{
+              fontWeight: 500,
+              cursor: 'pointer',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              }
+            }}
+          />
+        );
+      },
     },
     {
       field: 'viatura_description',
