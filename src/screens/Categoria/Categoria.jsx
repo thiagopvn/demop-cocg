@@ -4,7 +4,7 @@ import { Fab, TextField, IconButton, Table, TableHead, TableBody, TableRow, Tabl
 import SearchIcon from "@mui/icons-material/Search";
 import InfoIcon from "@mui/icons-material/Info"
 import DeleteIcon from "@mui/icons-material/Delete";
-import React, { use, useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { where, query, getDocs, collection, orderBy, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import db from "../../firebase/db";
 import { Add, Edit } from "@mui/icons-material";
@@ -20,7 +20,6 @@ export default function Categoria() {
     const [anchorEls, setAnchorEls] = React.useState({});
     const [dialogSaveOpen, setDialogSaveOpen] = React.useState(false);
     const [editData, setEditData] = React.useState(null);
-    const [warningDialogOpen, setWarningDialogOpen] = React.useState(false);
     const [userRole, setUserRole] = useState(null);
     const [dialogEditOpen, setDialogEditOpen] = useState(false);
     const { updateCategorias } = useContext(CategoriaContext);
@@ -161,8 +160,9 @@ export default function Categoria() {
     };
 
     const handleCopyToClipboard = (categoria) => {
-        navigator.clipboard.writeText(csvText);
-        alert("CSV copiado para a área de transferência!");
+        const categoriaText = `ID: ${categoria.id}\nDescrição: ${categoria.description}`;
+        navigator.clipboard.writeText(categoriaText);
+        alert("Informações copiadas para a área de transferência!");
     };
 
     const handleOpenEditDialog = async (data) => {
@@ -241,8 +241,9 @@ export default function Categoria() {
                                                 aria-haspopup="true"
                                                 onMouseEnter={(e) => handlePopoverOpen(e, categoria.id)}
                                                 onMouseLeave={() => handlePopoverClose(categoria.id)}
+                                                onClick={() => handleCopyToClipboard(categoria)}
                                             >
-                                                <InfoIcon color="info" onClick={() => handleCopyToClipboard(categoria)} />
+                                                <InfoIcon color="info" />
                                             </IconButton>
                                             <Popover
                                                 id="mouse-over-popover"

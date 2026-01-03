@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import MenuContext from '../../contexts/MenuContext';
+import PrivateRoute from '../../contexts/PrivateRoute';
 import {
   Box,
   Tabs,
@@ -177,6 +178,7 @@ export default function MainSearch() {
   };
 
   return (
+    <PrivateRoute>
     <MenuContext>
       <Box className='root-protected' sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
         <Box sx={{ width: '100%', px: { xs: 1, sm: 2, md: 3 }, py: 3 }}>
@@ -292,5 +294,6 @@ export default function MainSearch() {
         </Box>
       </Box>
     </MenuContext>
+    </PrivateRoute>
   );
 }
