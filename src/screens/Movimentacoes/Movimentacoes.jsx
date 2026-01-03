@@ -138,7 +138,7 @@ export default function Movimentacao() {
         } else if (tipoMovimentacao === "cautela") {
             setShowMaterialSearch(true);
             setShowUserSearch(true);
-            setShowViaturaSearch(true);
+            setShowViaturaSearch(false);
         } else if (tipoMovimentacao === "saída") {
             setShowMaterialSearch(true);
             setShowUserSearch(true);
@@ -431,7 +431,7 @@ export default function Movimentacao() {
             value: "cautela",
             label: "Cautela",
             icon: <AssignmentIcon />,
-            description: "Cautelar material para um usuário ou viatura",
+            description: "Cautelar material para um militar",
             color: "primary"
         },
         {
