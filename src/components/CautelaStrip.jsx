@@ -248,12 +248,13 @@ export default function CautelaStrip({ cautela, onSign }) {
         )}
       </Card>
 
-      <Dialog 
+      <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         TransitionComponent={Zoom}
         fullWidth
         maxWidth="sm"
+        disableScrollLock
         PaperProps={{
           sx: {
             borderRadius: { xs: 2, sm: 3 },
@@ -345,7 +346,6 @@ export default function CautelaStrip({ cautela, onSign }) {
             onChange={(e) => setAccept(e.target.value)}
             autoComplete="off"
             variant="outlined"
-            autoFocus
             helperText={accept && accept !== "Aceito" ? "Digite exatamente 'Aceito' (com A maiúsculo)" : ""}
             error={accept && accept !== "Aceito"}
             sx={{
@@ -432,6 +432,7 @@ export default function CautelaStrip({ cautela, onSign }) {
         TransitionComponent={Zoom}
         fullWidth
         maxWidth="sm"
+        disableScrollLock
         PaperProps={{
           sx: {
             borderRadius: { xs: 2, sm: 3 },
