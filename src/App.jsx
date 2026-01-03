@@ -11,26 +11,78 @@ import Home from './screens/Home/Home';
 import Devolucoes from './screens/Devolucoes/Devolucoes';
 import Rings from './screens/Rings/Rings';
 import MainSearch from './screens/Search/MainSearch';
-import Manutencao from './screens/Manutencao/Manutencao'; // <-- NOVO IMPORT
+import Manutencao from './screens/Manutencao/Manutencao';
 import ViaturaDetalhes from './screens/ViaturaDetalhes/ViaturaDetalhes';
+import PrivateRoute from './contexts/PrivateRoute';
 
 function App() {
   return (
     <Router>
       <Routes>
+        {/* Rotas públicas */}
         <Route path="/" element={<LoginScreen />} />
         <Route path='/first-access' element={<FirstAccessScreen />} />
-        <Route path='/home' element={<Home />} />
-        <Route path='/categoria' element={<Categoria />} />
-        <Route path='/movimentacoes' element={<Movimentacoes />} />
-        <Route path='/material' element={<Material />} />
-        <Route path='/usuario' element={<Usuario />} />
-        <Route path='/viaturas' element={<Viaturas />} />
-        <Route path='/viatura/:id' element={<ViaturaDetalhes />} />
-        <Route path='/devolucoes' element={<Devolucoes />} />
-        <Route path='/aneis' element={<Rings />} />
-        <Route path='/search' element={<MainSearch />} />
-        <Route path='/manutencao' element={<Manutencao />} /> {/* <-- NOVA ROTA */}
+
+        {/* Rota acessível a todos os usuários autenticados */}
+        <Route path='/home' element={
+          <PrivateRoute allowedRoles={['user', 'editor', 'admin']}>
+            <Home />
+          </PrivateRoute>
+        } />
+
+        {/* Rotas restritas a editor e admin */}
+        <Route path='/categoria' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <Categoria />
+          </PrivateRoute>
+        } />
+        <Route path='/movimentacoes' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <Movimentacoes />
+          </PrivateRoute>
+        } />
+        <Route path='/material' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <Material />
+          </PrivateRoute>
+        } />
+        <Route path='/viaturas' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <Viaturas />
+          </PrivateRoute>
+        } />
+        <Route path='/viatura/:id' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <ViaturaDetalhes />
+          </PrivateRoute>
+        } />
+        <Route path='/devolucoes' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <Devolucoes />
+          </PrivateRoute>
+        } />
+        <Route path='/aneis' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <Rings />
+          </PrivateRoute>
+        } />
+        <Route path='/search' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <MainSearch />
+          </PrivateRoute>
+        } />
+        <Route path='/manutencao' element={
+          <PrivateRoute allowedRoles={['editor', 'admin']}>
+            <Manutencao />
+          </PrivateRoute>
+        } />
+
+        {/* Rota restrita apenas a admin */}
+        <Route path='/usuario' element={
+          <PrivateRoute allowedRoles={['admin']}>
+            <Usuario />
+          </PrivateRoute>
+        } />
       </Routes>
     </Router>
   );

@@ -203,7 +203,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                 <div style={{ display: 'grid', gap: '20px' }}>
                     <TextField
                         fullWidth
-                        label="Username"
+                        label="RG"
                         name="username"
                         value={data.username}
                         onChange={handleChange}
@@ -223,7 +223,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                     />
                     <TextField
                         fullWidth
-                        label="Nome Completo"
+                        label="Nome de Guerra"
                         name="full_name"
                         value={data.full_name}
                         onChange={handleChange}

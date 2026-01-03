@@ -67,18 +67,23 @@ function MenuContext({ children }) {
   const [isCleaning, setIsCleaning] = useState(false);
   const [maintenanceBadge, setMaintenanceBadge] = useState({ overdue: 0, today: 0, total: 0 });
 
-  const menuItems = [
-    { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0 },
-    { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5 },
-    { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7 },
-    { icon: BuildOutlined, label: 'Material', path: '/material', id: 2 },
-    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10 },
-    { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3 },
-    { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4 },
-    { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1 },
-    { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8 },
-    { icon: Search, label: 'Pesquisar', path: '/search', id: 9 },
+  const allMenuItems = [
+    { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'editor', 'admin'] },
+    { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['editor', 'admin'] },
+    { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['editor', 'admin'] },
+    { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['editor', 'admin'] },
+    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['editor', 'admin'] },
+    { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['editor', 'admin'] },
+    { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['editor', 'admin'] },
+    { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1, roles: ['admin'] },
+    { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['editor', 'admin'] },
+    { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['editor', 'admin'] },
   ];
+
+  // Filtrar itens de menu baseado no papel do usuário
+  const menuItems = allMenuItems.filter(item =>
+    !userRole || item.roles.includes(userRole)
+  );
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -123,7 +128,7 @@ function MenuContext({ children }) {
 
   useEffect(() => {
     const path = location.pathname;
-    const item = menuItems.find(item => item.path === path);
+    const item = allMenuItems.find(item => item.path === path);
     if (item) {
       setActive(item.id);
     }
@@ -324,16 +329,25 @@ function MenuContext({ children }) {
             </Typography>
             {userRole && (
               <Chip
-                label={userRole === 'admin' ? 'Administrador' : 'Usuário'}
+                label={
+                  userRole === 'admin' ? 'Administrador' :
+                  userRole === 'editor' ? 'Editor' : 'Usuário'
+                }
                 size="small"
                 sx={{
-                  backgroundColor: userRole === 'admin' 
-                    ? 'rgba(255, 107, 53, 0.2)' 
-                    : 'rgba(96, 165, 250, 0.2)',
-                  color: userRole === 'admin' 
-                    ? '#ff6b35' 
-                    : '#60a5fa',
-                  border: `1px solid ${userRole === 'admin' ? '#ff6b35' : '#60a5fa'}`,
+                  backgroundColor:
+                    userRole === 'admin' ? 'rgba(255, 107, 53, 0.2)' :
+                    userRole === 'editor' ? 'rgba(34, 197, 94, 0.2)' :
+                    'rgba(96, 165, 250, 0.2)',
+                  color:
+                    userRole === 'admin' ? '#ff6b35' :
+                    userRole === 'editor' ? '#22c55e' :
+                    '#60a5fa',
+                  border: `1px solid ${
+                    userRole === 'admin' ? '#ff6b35' :
+                    userRole === 'editor' ? '#22c55e' :
+                    '#60a5fa'
+                  }`,
                   fontSize: '0.7rem',
                   height: 22
                 }}
