@@ -211,12 +211,14 @@ export default function UsuarioMaterial({ categorias = [] }) {
     },
     {
       field: 'telefone_responsavel',
-      headerName: 'Telefone',
+      headerName: 'WhatsApp',
       icon: <PhoneIcon fontSize="small" />,
       minWidth: 140,
       renderCell: (row) => {
         const telefone = row.telefone_responsavel;
         if (!telefone) return '-';
+        const numeroLimpo = telefone.replace(/\D/g, '');
+        const numeroWpp = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
         return (
           <Chip
             icon={<PhoneIcon sx={{ fontSize: 14 }} />}
@@ -225,7 +227,9 @@ export default function UsuarioMaterial({ categorias = [] }) {
             color="success"
             variant="outlined"
             component="a"
-            href={`tel:${telefone}`}
+            href={`https://wa.me/${numeroWpp}`}
+            target="_blank"
+            rel="noopener noreferrer"
             clickable
             sx={{
               fontWeight: 500,
