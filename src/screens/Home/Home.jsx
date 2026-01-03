@@ -326,53 +326,75 @@ export default function Home() {
   useEffect(() => {
     let unsubscribeCautelas;
     let unsubscribeReturns;
+    let isMounted = true;
 
-    const getMinhasCautelas = async () => {
+    // Busca simples (sem listener) - mais rápida para mobile
+    const fetchCautelasSimple = async (userId) => {
       try {
-        const token = localStorage.getItem("token");
-        const user = await verifyToken(token);
-
-        if (user && user.userId) {
-          // Buscar cautelas pendentes de assinatura em tempo real
-          const movimentacoesQuery = query(
-            collection(db, "movimentacoes"), 
-            where("user", "==", user.userId),
-            where("type", "==", "cautela"),
-            where("signed", "==", false)
-          );
-          
-          // Usar onSnapshot para atualizações em tempo real
-          unsubscribeCautelas = onSnapshot(movimentacoesQuery, (snapshot) => {
-            const movimentacoesList = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }));
-            
-            setMinhasCautelas(movimentacoesList);
-          }, (error) => {
-            console.error("Erro ao buscar cautelas em tempo real:", error);
-          });
-          
-          // Buscar comprovantes de devolução em tempo real
-          const returnsQuery = query(
-            collection(db, "movimentacoes"),
-            where("user", "==", user.userId),
-            where("status", "==", "devolvido")
-          );
-          
-          unsubscribeReturns = onSnapshot(returnsQuery, (snapshot) => {
-            const returnsList = snapshot.docs
-              .map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-              }))
-              .filter(item => !item.user_acknowledged_return);
-            
-            setReturnedCautelas(returnsList);
-          }, (error) => {
-            console.error("Erro ao buscar comprovantes de devolução:", error);
-          });
+        const movimentacoesQuery = query(
+          collection(db, "movimentacoes"),
+          where("user", "==", userId),
+          where("type", "==", "cautela"),
+          where("signed", "==", false)
+        );
+        const snapshot = await getDocs(movimentacoesQuery);
+        if (isMounted) {
+          setMinhasCautelas(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
         }
+
+        const returnsQuery = query(
+          collection(db, "movimentacoes"),
+          where("user", "==", userId),
+          where("status", "==", "devolvido")
+        );
+        const returnsSnap = await getDocs(returnsQuery);
+        if (isMounted) {
+          setReturnedCautelas(
+            returnsSnap.docs
+              .map((doc) => ({ id: doc.id, ...doc.data() }))
+              .filter(item => !item.user_acknowledged_return)
+          );
+        }
+      } catch (error) {
+        console.error("Erro ao buscar cautelas:", error);
+      }
+    };
+
+    // Busca com listeners (para admin/editor que ficam na tela)
+    const getMinhasCautelasWithListeners = async (userId) => {
+      try {
+        const movimentacoesQuery = query(
+          collection(db, "movimentacoes"),
+          where("user", "==", userId),
+          where("type", "==", "cautela"),
+          where("signed", "==", false)
+        );
+
+        unsubscribeCautelas = onSnapshot(movimentacoesQuery, (snapshot) => {
+          if (isMounted) {
+            setMinhasCautelas(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+          }
+        }, (error) => {
+          console.error("Erro ao buscar cautelas em tempo real:", error);
+        });
+
+        const returnsQuery = query(
+          collection(db, "movimentacoes"),
+          where("user", "==", userId),
+          where("status", "==", "devolvido")
+        );
+
+        unsubscribeReturns = onSnapshot(returnsQuery, (snapshot) => {
+          if (isMounted) {
+            setReturnedCautelas(
+              snapshot.docs
+                .map((doc) => ({ id: doc.id, ...doc.data() }))
+                .filter(item => !item.user_acknowledged_return)
+            );
+          }
+        }, (error) => {
+          console.error("Erro ao buscar comprovantes de devolução:", error);
+        });
       } catch (error) {
         console.error("Erro ao buscar cautelas:", error);
       }
@@ -490,36 +512,44 @@ export default function Home() {
     };
 
     const init = async () => {
-      const token = localStorage.getItem("token");
-      const user = await verifyToken(token);
-      const role = user?.role;
+      try {
+        const token = localStorage.getItem("token");
+        const user = await verifyToken(token);
+        const role = user?.role;
 
-      if (user) {
-        setUserRole(role);
-        setUserName(user.username || 'Usuário');
-      }
+        if (!isMounted) return;
 
-      // Buscar cautelas do usuário
-      await getMinhasCautelas();
+        if (user) {
+          setUserRole(role);
+          setUserName(user.username || 'Usuário');
+        }
 
-      // Só buscar estatísticas completas se não for usuário comum
-      if (role !== 'user') {
-        await fetchData();
-      } else {
-        setLoading(false);
+        // Para usuários comuns: busca simples sem listeners (mais rápido)
+        if (role === 'user') {
+          if (user?.userId) {
+            await fetchCautelasSimple(user.userId);
+          }
+          if (isMounted) setLoading(false);
+        } else {
+          // Para admin/editor: usa listeners para tempo real
+          if (user?.userId) {
+            await getMinhasCautelasWithListeners(user.userId);
+          }
+          await fetchData();
+        }
+      } catch (error) {
+        console.error("Erro na inicialização:", error);
+        if (isMounted) setLoading(false);
       }
     };
 
     init();
 
-    // Cleanup function para cancelar os listeners
+    // Cleanup
     return () => {
-      if (unsubscribeCautelas) {
-        unsubscribeCautelas();
-      }
-      if (unsubscribeReturns) {
-        unsubscribeReturns();
-      }
+      isMounted = false;
+      if (unsubscribeCautelas) unsubscribeCautelas();
+      if (unsubscribeReturns) unsubscribeReturns();
     };
   }, []);
 
@@ -533,11 +563,14 @@ export default function Home() {
           signed: true,
           signed_date: serverTimestamp()
         });
-        
+
+        // Para usuários sem listener: atualizar estado manualmente
+        if (userRole === 'user') {
+          setMinhasCautelas(prev => prev.filter(c => c.id !== movimentacaoId));
+        }
+
         setSnackbarMessage('Cautela assinada com sucesso!');
         setSnackbarOpen(true);
-        
-        // O onSnapshot vai atualizar automaticamente o estado
       } else {
         setSnackbarMessage('Erro: Documento não encontrado');
         setSnackbarOpen(true);
@@ -555,11 +588,14 @@ export default function Home() {
       await updateDoc(docRef, {
         user_acknowledged_return: true
       });
-      
+
+      // Para usuários sem listener: atualizar estado manualmente
+      if (userRole === 'user') {
+        setReturnedCautelas(prev => prev.filter(c => c.id !== movimentacaoId));
+      }
+
       setSnackbarMessage('Comprovante de devolução confirmado!');
       setSnackbarOpen(true);
-      
-      // O onSnapshot vai atualizar automaticamente o estado
     } catch (error) {
       console.error("Erro ao confirmar comprovante:", error);
       setSnackbarMessage('Erro ao confirmar o comprovante. Tente novamente.');
