@@ -16,7 +16,9 @@ import {
   Fab,
   Tooltip,
   alpha,
-  styled
+  styled,
+  Paper,
+  Divider
 } from "@mui/material";
 import {
   Clear as ClearIcon,
@@ -27,7 +29,9 @@ import {
   Assignment as AssignmentIcon,
   ExitToApp as ExitIcon,
   Search as SearchIcon,
-  DirectionsCar as CarIcon
+  DirectionsCar as CarIcon,
+  LocalShipping as AlocadoIcon,
+  SwapHoriz as MovimentacaoIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
@@ -55,93 +59,166 @@ const SelectedItemChip = styled(Chip)(({ theme }) => ({
 export default function ViaturaMaterial({ categorias = [] }) {
   const [viaturaCritery, setViaturaCritery] = useState("");
   const [selectedViatura, setSelectedViatura] = useState(null);
-  const [movimentacoes, setMovimentacoes] = useState([]);
-  const [filteredMovimentacoes, setFilteredMovimentacoes] = useState([]);
+  const [allMateriais, setAllMateriais] = useState([]); // Lista combinada
+  const [filteredMateriais, setFilteredMateriais] = useState([]);
   const [filtro, setFiltro] = useState(0);
   const [categoriaFilter, setCategoriaFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resumo, setResumo] = useState({ alocados: 0, movimentacoes: 0, total: 0 });
   const theme = useTheme();
 
   const handleSelectViatura = (viatura) => {
-    setFilteredMovimentacoes([]);
-    setMovimentacoes([]);
+    setFilteredMateriais([]);
+    setAllMateriais([]);
     setSelectedViatura(viatura);
   };
 
   const handleClearSelection = () => {
     setSelectedViatura(null);
     setViaturaCritery("");
-    setFilteredMovimentacoes([]);
-    setMovimentacoes([]);
+    setFilteredMateriais([]);
+    setAllMateriais([]);
     setFiltro(0);
     setCategoriaFilter("");
+    setResumo({ alocados: 0, movimentacoes: 0, total: 0 });
   };
 
   useEffect(() => {
-    const fetchMovimentacoes = async () => {
+    const fetchAllMateriais = async () => {
       if (!selectedViatura) return;
 
       setLoading(true);
       try {
+        const materiaisCombinados = [];
+
+        // 1. Buscar materiais alocados diretamente na viatura (viatura_materiais)
+        const viaturaMaterialsCollection = collection(db, "viatura_materiais");
+        const qAlocados = query(
+          viaturaMaterialsCollection,
+          where("viatura_id", "==", selectedViatura.id),
+          where("status", "==", "alocado")
+        );
+        const alocadosSnapshot = await getDocs(qAlocados);
+
+        let totalAlocados = 0;
+        alocadosSnapshot.forEach((doc) => {
+          const data = doc.data();
+          totalAlocados += data.quantidade || 1;
+          materiaisCombinados.push({
+            id: doc.id,
+            origem: "alocado", // Indica que veio da alocacao direta
+            material_id: data.material_id,
+            material_description: data.material_description,
+            categoria: data.categoria || "",
+            quantity: data.quantidade || 1,
+            date: data.data_alocacao,
+            user_name: data.alocado_por_nome || "Sistema",
+            type: "alocado",
+            status: "alocado",
+            viatura_description: selectedViatura.description || selectedViatura.prefixo,
+          });
+        });
+
+        // 2. Buscar movimentacoes para a viatura
         const movimentacoesCollection = collection(db, "movimentacoes");
-        const q = query(
+        const qMovimentacoes = query(
           movimentacoesCollection,
           where("viatura", "==", selectedViatura.id),
           orderBy("date", "desc")
         );
-        const querySnapshot = await getDocs(q);
-        const movs = [];
-        querySnapshot.forEach((doc) => {
-          movs.push({ id: doc.id, ...doc.data() });
+        const movSnapshot = await getDocs(qMovimentacoes);
+
+        let totalMovimentacoes = 0;
+        movSnapshot.forEach((doc) => {
+          const data = doc.data();
+          // Apenas contar saidas nao devolvidas para o total
+          if (data.type === "saída" || (data.type === "cautela" && data.status !== "devolvido")) {
+            totalMovimentacoes += data.quantity || 1;
+          }
+          materiaisCombinados.push({
+            id: doc.id,
+            origem: "movimentacao", // Indica que veio de movimentacao
+            material_id: data.material,
+            material_description: data.material_description,
+            categoria: data.categoria || "",
+            quantity: data.quantity || 1,
+            date: data.date,
+            user_name: data.user_name || data.sender_name || "-",
+            telefone_responsavel: data.telefone_responsavel || "",
+            type: data.type,
+            status: data.status,
+            viatura_description: data.viatura_description || selectedViatura.description,
+          });
         });
-        setMovimentacoes(movs);
+
+        // Ordenar por data (mais recentes primeiro)
+        materiaisCombinados.sort((a, b) => {
+          const dateA = a.date?.seconds || a.date?.toMillis?.() || 0;
+          const dateB = b.date?.seconds || b.date?.toMillis?.() || 0;
+          return dateB - dateA;
+        });
+
+        setAllMateriais(materiaisCombinados);
+        setResumo({
+          alocados: totalAlocados,
+          movimentacoes: totalMovimentacoes,
+          total: totalAlocados + totalMovimentacoes
+        });
       } catch (error) {
-        console.error("Erro ao buscar movimentacoes:", error);
+        console.error("Erro ao buscar materiais da viatura:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMovimentacoes();
+    fetchAllMateriais();
   }, [selectedViatura]);
 
   useEffect(() => {
-    if (movimentacoes.length > 0) {
-      let filtered = movimentacoes;
+    if (allMateriais.length > 0) {
+      let filtered = allMateriais;
 
       switch (filtro) {
         case 1:
-          filtered = filtered.filter(
-            (mov) => mov.type === "cautela" && mov.status !== "devolvido"
-          );
+          // Materiais alocados diretamente na viatura
+          filtered = filtered.filter((item) => item.origem === "alocado");
           break;
         case 2:
+          // Cautelas abertas (movimentacoes)
           filtered = filtered.filter(
-            (mov) => mov.type === "cautela" && mov.status === "devolvido"
+            (item) => item.origem === "movimentacao" && item.type === "cautela" && item.status !== "devolvido"
           );
           break;
         case 3:
-          filtered = filtered.filter((mov) => mov.type === "saída");
+          // Devolvidas
+          filtered = filtered.filter(
+            (item) => item.origem === "movimentacao" && item.type === "cautela" && item.status === "devolvido"
+          );
+          break;
+        case 4:
+          // Saidas
+          filtered = filtered.filter((item) => item.origem === "movimentacao" && item.type === "saída");
           break;
         default:
           break;
       }
 
       if (categoriaFilter) {
-        filtered = filtered.filter((mov) => mov.categoria === categoriaFilter);
+        filtered = filtered.filter((item) => item.categoria === categoriaFilter);
       }
 
-      setFilteredMovimentacoes(filtered);
+      setFilteredMateriais(filtered);
     } else {
-      setFilteredMovimentacoes([]);
+      setFilteredMateriais([]);
     }
-  }, [movimentacoes, filtro, categoriaFilter]);
+  }, [allMateriais, filtro, categoriaFilter]);
 
   const filterOptions = [
-    { value: 0, label: "Todas", shortLabel: "Todas", icon: <FilterIcon fontSize="small" />, color: "default" },
-    { value: 1, label: "Cautelas Abertas", shortLabel: "Abertas", icon: <AssignmentIcon fontSize="small" />, color: "warning" },
-    { value: 2, label: "Devolvidas", shortLabel: "Devolvidas", icon: <CheckCircleIcon fontSize="small" />, color: "success" },
-    { value: 3, label: "Saidas", shortLabel: "Saidas", icon: <ExitIcon fontSize="small" />, color: "info" }
+    { value: 0, label: "Todos", shortLabel: "Todos", icon: <FilterIcon fontSize="small" />, color: "default" },
+    { value: 1, label: "Alocados", shortLabel: "Alocados", icon: <AlocadoIcon fontSize="small" />, color: "primary" },
+    { value: 2, label: "Cautelas Abertas", shortLabel: "Abertas", icon: <AssignmentIcon fontSize="small" />, color: "warning" },
+    { value: 3, label: "Devolvidas", shortLabel: "Devolvidas", icon: <CheckCircleIcon fontSize="small" />, color: "success" },
+    { value: 4, label: "Saidas", shortLabel: "Saidas", icon: <ExitIcon fontSize="small" />, color: "info" }
   ];
 
   const selectFilters = [
@@ -173,8 +250,39 @@ export default function ViaturaMaterial({ categorias = [] }) {
       ),
     },
     {
+      field: 'quantity',
+      headerName: 'Qtd',
+      minWidth: 80,
+      renderCell: (row) => (
+        <Chip
+          label={row.quantity || 1}
+          size="small"
+          color="primary"
+          sx={{ fontWeight: 700 }}
+        />
+      ),
+    },
+    {
+      field: 'origem',
+      headerName: 'Origem',
+      minWidth: 130,
+      renderCell: (row) => {
+        const isAlocado = row.origem === "alocado";
+        return (
+          <Chip
+            icon={isAlocado ? <AlocadoIcon /> : <MovimentacaoIcon />}
+            label={isAlocado ? "Alocado" : "Movimentacao"}
+            size="small"
+            color={isAlocado ? "primary" : "secondary"}
+            variant="outlined"
+            sx={{ fontWeight: 500 }}
+          />
+        );
+      },
+    },
+    {
       field: 'user_name',
-      headerName: 'Militar',
+      headerName: 'Responsavel',
       icon: <PersonIcon fontSize="small" />,
       minWidth: 150,
       hideOnMobile: true,
@@ -195,24 +303,26 @@ export default function ViaturaMaterial({ categorias = [] }) {
     {
       field: 'type',
       headerName: 'Tipo',
-      minWidth: 100,
+      minWidth: 110,
       renderCell: (row) => {
-        const color = row.type === 'cautela' ? 'primary' : 'secondary';
+        const getTypeConfig = (type) => {
+          switch (type) {
+            case 'alocado': return { label: 'Alocado', color: 'primary' };
+            case 'cautela': return { label: 'Cautela', color: 'warning' };
+            case 'saída': return { label: 'Saida', color: 'secondary' };
+            default: return { label: type || '-', color: 'default' };
+          }
+        };
+        const config = getTypeConfig(row.type);
         return (
           <Chip
-            label={row.type || '-'}
+            label={config.label}
             size="small"
-            color={color}
+            color={config.color}
             variant="filled"
           />
         );
       },
-    },
-    {
-      field: 'telefone_responsavel',
-      headerName: 'Telefone',
-      minWidth: 130,
-      hideOnMobile: true,
     },
     {
       field: 'status',
@@ -223,6 +333,7 @@ export default function ViaturaMaterial({ categorias = [] }) {
           switch (status?.toLowerCase()) {
             case 'devolvido': return 'success';
             case 'cautelado': return 'warning';
+            case 'alocado': return 'primary';
             case 'saída': return 'info';
             default: return 'default';
           }
@@ -306,13 +417,13 @@ export default function ViaturaMaterial({ categorias = [] }) {
             />
 
             {/* Filters - show only after selection */}
-            {selectedViatura && movimentacoes.length > 0 && (
+            {selectedViatura && allMateriais.length > 0 && (
               <Box sx={{ mt: 3 }}>
                 <FilterChips
                   filters={filterOptions}
                   activeFilter={filtro}
                   onFilterChange={setFiltro}
-                  title="Filtrar Movimentacoes"
+                  title="Filtrar Materiais"
                   selectFilters={selectFilters}
                 />
               </Box>
@@ -321,33 +432,77 @@ export default function ViaturaMaterial({ categorias = [] }) {
         </SearchCard>
       </Fade>
 
+      {/* Resumo - Mostrar apos selecionar viatura */}
+      {selectedViatura && !loading && allMateriais.length > 0 && (
+        <Fade in timeout={500}>
+          <Paper
+            elevation={2}
+            sx={{
+              p: 2,
+              mb: 3,
+              borderRadius: 3,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: 'info.main' }}>
+              Resumo de Materiais na Viatura
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Chip
+                icon={<AlocadoIcon />}
+                label={`Alocados: ${resumo.alocados}`}
+                color="primary"
+                variant="filled"
+                sx={{ fontWeight: 600 }}
+              />
+              <Chip
+                icon={<MovimentacaoIcon />}
+                label={`Movimentacoes: ${resumo.movimentacoes}`}
+                color="secondary"
+                variant="filled"
+                sx={{ fontWeight: 600 }}
+              />
+              <Divider orientation="vertical" flexItem />
+              <Chip
+                icon={<InventoryIcon />}
+                label={`Total em uso: ${resumo.total}`}
+                color="success"
+                variant="filled"
+                sx={{ fontWeight: 700, fontSize: '0.9rem' }}
+              />
+            </Box>
+          </Paper>
+        </Fade>
+      )}
+
       {/* Results */}
       {selectedViatura && (
         <Fade in timeout={600}>
           <Box>
             {/* Empty state */}
-            {!loading && movimentacoes.length === 0 && (
+            {!loading && allMateriais.length === 0 && (
               <Alert severity="info" sx={{ borderRadius: 3 }}>
-                <AlertTitle>Nenhuma movimentacao encontrada</AlertTitle>
-                Esta viatura nao possui movimentacoes registradas.
+                <AlertTitle>Nenhum material encontrado</AlertTitle>
+                Esta viatura nao possui materiais alocados ou movimentacoes registradas.
               </Alert>
             )}
 
             {/* Results table */}
-            {(loading || filteredMovimentacoes.length > 0) && (
+            {(loading || filteredMateriais.length > 0) && (
               <SearchResultsTable
-                data={filteredMovimentacoes}
+                data={filteredMateriais}
                 columns={columns}
                 loading={loading}
                 headerColor="info"
                 title="Materiais da Viatura"
                 subtitle={`Viatura: ${selectedViatura.description || selectedViatura.prefixo}`}
-                emptyMessage="Nenhuma movimentacao com este filtro"
+                emptyMessage="Nenhum material com este filtro"
                 emptyIcon={<SearchIcon sx={{ fontSize: 48 }} />}
                 renderPopover={(row) => (
                   <MovimentacaoDetails
                     movimentacao={row}
-                    title="Detalhes da Movimentacao"
+                    title={row.origem === "alocado" ? "Detalhes da Alocacao" : "Detalhes da Movimentacao"}
                     color="info"
                   />
                 )}
@@ -358,14 +513,14 @@ export default function ViaturaMaterial({ categorias = [] }) {
       )}
 
       {/* Export FAB */}
-      {selectedViatura && filteredMovimentacoes.length > 0 && (
+      {selectedViatura && filteredMateriais.length > 0 && (
         <Tooltip title="Exportar para Excel" placement="left">
           <Fab
             color="success"
             size="medium"
             onClick={() => exportarMovimentacoes(
-              filteredMovimentacoes,
-              `movimentacoes_${selectedViatura.description || selectedViatura.prefixo}`
+              filteredMateriais,
+              `materiais_viatura_${selectedViatura.description || selectedViatura.prefixo}`
             )}
             sx={{
               position: 'fixed',
