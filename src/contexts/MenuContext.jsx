@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import brasao from '../assets/brasao.png';
 import "./context.css";
-import { 
-  Logout, 
-  Menu, 
-  Close, 
-  Inventory, 
+import {
+  Logout,
+  Menu,
+  Close,
+  Inventory,
   Search,
   ChevronLeft,
   Dashboard,
@@ -16,17 +16,21 @@ import {
   CategoryOutlined,
   SwapHorizOutlined,
   AssignmentReturnOutlined,
-  CalendarMonth
+  CalendarMonth,
+  WhatsApp,
+  SupportAgent,
+  Celebration,
+  Favorite
 } from '@mui/icons-material';
-import { 
-  Dialog, 
-  DialogActions, 
-  DialogContent, 
-  DialogContentText, 
-  DialogTitle, 
-  Button, 
-  Fab, 
-  Tooltip, 
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Button,
+  Fab,
+  Tooltip,
   LinearProgress,
   Drawer,
   List,
@@ -42,7 +46,11 @@ import {
   Badge,
   Chip,
   Zoom,
-  Fade
+  Fade,
+  alpha,
+  Modal,
+  Paper,
+  Grow
 } from '@mui/material';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import db from '../firebase/db';
@@ -62,6 +70,26 @@ function MenuContext({ children }) {
   const [userName, setUserName] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
   const [maintenanceBadge, setMaintenanceBadge] = useState({ overdue: 0, today: 0, total: 0 });
+  const [easterEggInput, setEasterEggInput] = useState('');
+  const [showBomServicoModal, setShowBomServicoModal] = useState(false);
+
+  // Easter egg - detectar "Aceito"
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      const newInput = easterEggInput + e.key.toLowerCase();
+      // Manter apenas os últimos 6 caracteres
+      const trimmedInput = newInput.slice(-6);
+      setEasterEggInput(trimmedInput);
+
+      if (trimmedInput === 'aceito') {
+        setShowBomServicoModal(true);
+        setEasterEggInput('');
+      }
+    };
+
+    window.addEventListener('keypress', handleKeyPress);
+    return () => window.removeEventListener('keypress', handleKeyPress);
+  }, [easterEggInput]);
 
   const menuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0 },
@@ -591,43 +619,146 @@ function MenuContext({ children }) {
           </Fade>
         </Box>
 
-        {/* Footer */}
+        {/* Footer Moderno */}
         <Box
           component="footer"
           sx={{
             mt: 'auto',
             py: 3,
-            px: 4,
-            borderTop: '1px solid rgba(0,0,0,0.08)',
-            backgroundColor: 'rgba(255,255,255,0.8)',
-            backdropFilter: 'blur(10px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 2,
+            px: { xs: 2, sm: 4 },
+            borderTop: '1px solid',
+            borderColor: alpha('#1e3a5f', 0.1),
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
+            backdropFilter: 'blur(20px)',
           }}
         >
-          <img src={brasao} alt="Brasão Bombeiros" width={24} style={{ opacity: 0.7 }} />
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            © 2025 Todos os direitos reservados.
-          </Typography>
-          <Typography
-            variant="caption"
+          <Box
             sx={{
-              position: 'fixed',
-              bottom: 8,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              fontSize: '10px',
-              color: '#000',
-              userSelect: 'none',
-              fontWeight: 400,
-              zIndex: 1000,
-              textAlign: 'center'
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2,
             }}
           >
-            Desenvolvido pelo ASP OF BM Thiago Santos
-          </Typography>
+            {/* Desenvolvedor */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+              }}
+            >
+              <img
+                src={brasao}
+                alt="Brasão Bombeiros"
+                width={28}
+                style={{
+                  opacity: 0.9,
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                }}
+              />
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#1e3a5f',
+                  fontWeight: 600,
+                  letterSpacing: '0.02em',
+                  textAlign: 'center',
+                }}
+              >
+                Desenvolvido pelo 2º Ten BM Thiago Santos
+              </Typography>
+            </Box>
+
+            {/* Linha divisória decorativa */}
+            <Box
+              sx={{
+                width: 60,
+                height: 3,
+                borderRadius: 2,
+                background: 'linear-gradient(90deg, #1e3a5f 0%, #ff6b35 100%)',
+              }}
+            />
+
+            {/* Card de Suporte */}
+            <Paper
+              elevation={0}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: { xs: 1, sm: 2 },
+                py: 1.5,
+                px: { xs: 2, sm: 2.5 },
+                borderRadius: 3,
+                background: alpha('#25D366', 0.08),
+                border: `1px solid ${alpha('#25D366', 0.2)}`,
+                transition: 'all 0.3s ease',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                '&:hover': {
+                  background: alpha('#25D366', 0.12),
+                  transform: 'translateY(-2px)',
+                  boxShadow: `0 8px 24px ${alpha('#25D366', 0.2)}`,
+                },
+              }}
+            >
+              <SupportAgent
+                sx={{
+                  color: '#25D366',
+                  fontSize: 20,
+                  display: { xs: 'none', sm: 'block' },
+                }}
+              />
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'text.secondary',
+                  fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                  textAlign: 'center',
+                }}
+              >
+                Dúvidas, problemas ou sugestões?
+              </Typography>
+              <Chip
+                icon={<WhatsApp sx={{ fontSize: 16 }} />}
+                label="(21) 96758-6628"
+                component="a"
+                href="https://wa.me/5521967586628?text=Olá! Preciso de ajuda com o sistema de Controle de Cautela."
+                target="_blank"
+                rel="noopener noreferrer"
+                clickable
+                size="small"
+                sx={{
+                  backgroundColor: '#25D366',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  '&:hover': {
+                    backgroundColor: '#128C7E',
+                    transform: 'scale(1.05)',
+                  },
+                  transition: 'all 0.2s ease',
+                  '& .MuiChip-icon': {
+                    color: 'white',
+                  },
+                }}
+              />
+            </Paper>
+
+            {/* Copyright */}
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.disabled',
+                fontSize: '0.7rem',
+                letterSpacing: '0.05em',
+              }}
+            >
+              © 2025 CBMERJ - Todos os direitos reservados
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
@@ -725,19 +856,19 @@ function MenuContext({ children }) {
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Tem certeza que deseja excluir todas as movimentações com mais de 2 anos 
+            Tem certeza que deseja excluir todas as movimentações com mais de 2 anos
             e status "devolvido" ou "descartado"? Esta ação não pode ser desfeita.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p: 2.5, pt: 1.5 }}>
-          <Button 
+          <Button
             onClick={handleCloseCleanupDialog}
             variant="outlined"
             sx={{ borderRadius: 2 }}
           >
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleConfirmCleanup}
             variant="contained"
             color="error"
@@ -747,6 +878,145 @@ function MenuContext({ children }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Easter Egg Modal - Bom Serviço */}
+      <Modal
+        open={showBomServicoModal}
+        onClose={() => setShowBomServicoModal(false)}
+        closeAfterTransition
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Grow in={showBomServicoModal}>
+          <Paper
+            elevation={24}
+            sx={{
+              position: 'relative',
+              outline: 'none',
+              borderRadius: 4,
+              overflow: 'hidden',
+              maxWidth: 420,
+              mx: 2,
+            }}
+          >
+            {/* Header Gradient */}
+            <Box
+              sx={{
+                background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #ff6b35 100%)',
+                py: 4,
+                px: 3,
+                textAlign: 'center',
+              }}
+            >
+              <Celebration
+                sx={{
+                  fontSize: 64,
+                  color: 'white',
+                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
+                  animation: 'bounce 1s ease infinite',
+                  '@keyframes bounce': {
+                    '0%, 100%': { transform: 'translateY(0)' },
+                    '50%': { transform: 'translateY(-10px)' },
+                  },
+                }}
+              />
+              <Typography
+                variant="h3"
+                sx={{
+                  color: 'white',
+                  fontWeight: 800,
+                  mt: 2,
+                  textShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                BOM SERVIÇO!
+              </Typography>
+            </Box>
+
+            {/* Content */}
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 1,
+                  mb: 3,
+                }}
+              >
+                {[...Array(5)].map((_, i) => (
+                  <Favorite
+                    key={i}
+                    sx={{
+                      color: '#ef4444',
+                      fontSize: 28,
+                      animation: `pulse 1s ease ${i * 0.1}s infinite`,
+                      '@keyframes pulse': {
+                        '0%, 100%': { transform: 'scale(1)' },
+                        '50%': { transform: 'scale(1.2)' },
+                      },
+                    }}
+                  />
+                ))}
+              </Box>
+
+              <Typography
+                variant="body1"
+                sx={{
+                  color: 'text.secondary',
+                  mb: 3,
+                  lineHeight: 1.8,
+                }}
+              >
+                Obrigado por usar o sistema!
+                <br />
+                <strong style={{ color: '#1e3a5f' }}>
+                  Corpo de Bombeiros Militar do Estado do Rio de Janeiro
+                </strong>
+              </Typography>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'text.disabled',
+                  display: 'block',
+                  mb: 3,
+                }}
+              >
+                Vida Alheia e Riquezas Salvar
+              </Typography>
+
+              <Button
+                variant="contained"
+                onClick={() => setShowBomServicoModal(false)}
+                sx={{
+                  background: 'linear-gradient(135deg, #1e3a5f 0%, #ff6b35 100%)',
+                  borderRadius: 3,
+                  px: 5,
+                  py: 1.5,
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  boxShadow: '0 8px 24px rgba(30, 58, 95, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #2d5a87 0%, #ff8c5a 100%)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 12px 32px rgba(30, 58, 95, 0.4)',
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                Aceito! 🔥
+              </Button>
+            </Box>
+          </Paper>
+        </Grow>
+      </Modal>
     </Box>
   );
 }
