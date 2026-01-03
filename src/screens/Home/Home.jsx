@@ -666,24 +666,16 @@ export default function Home() {
     return (
       <PrivateRoute>
         <MenuContext>
-          <Box
-            sx={{
-              minHeight: '100vh',
-              background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)',
-              pb: 4,
-              // Garantir scroll suave no mobile
-              WebkitOverflowScrolling: 'touch',
-              touchAction: 'pan-y',
-            }}
-          >
-            {/* Header compacto */}
-            <Box
+          <Container maxWidth="sm" sx={{ py: 2, px: 2 }}>
+            {/* Header */}
+            <Paper
+              elevation={0}
               sx={{
+                p: 2,
+                mb: 2,
+                borderRadius: 3,
                 background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
                 color: 'white',
-                px: 2,
-                py: 3,
-                mb: 2,
               }}
             >
               <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
@@ -692,143 +684,114 @@ export default function Home() {
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
                 Suas cautelas pendentes de assinatura
               </Typography>
-            </Box>
+            </Paper>
 
             {/* Contador de pendências */}
-            <Box sx={{ px: 2, mb: 2 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                mb: 2,
+                borderRadius: 3,
+                background: minhasCautelas.length > 0
+                  ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
+                  : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                border: '1px solid',
+                borderColor: minhasCautelas.length > 0 ? '#f59e0b' : '#22c55e',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar
+                  sx={{
+                    bgcolor: minhasCautelas.length > 0 ? '#f59e0b' : '#22c55e',
+                    width: 48,
+                    height: 48,
+                  }}
+                >
+                  {minhasCautelas.length > 0 ? <Warning /> : <CheckCircle />}
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" fontWeight={700} color={minhasCautelas.length > 0 ? '#92400e' : '#166534'}>
+                    {minhasCautelas.length}
+                  </Typography>
+                  <Typography variant="body2" color={minhasCautelas.length > 0 ? '#a16207' : '#15803d'}>
+                    {minhasCautelas.length === 0
+                      ? 'Nenhuma cautela pendente'
+                      : minhasCautelas.length === 1
+                      ? 'Cautela pendente'
+                      : 'Cautelas pendentes'}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+
+            {/* Lista de Cautelas para assinar */}
+            {minhasCautelas.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                {minhasCautelas.map((cautela) => (
+                  <CautelaStrip
+                    key={cautela.id}
+                    cautela={cautela}
+                    onSign={handleSign}
+                  />
+                ))}
+              </Box>
+            ) : (
               <Paper
                 elevation={0}
                 sx={{
-                  p: 2,
+                  p: 4,
+                  mb: 2,
                   borderRadius: 3,
-                  background: minhasCautelas.length > 0
-                    ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
-                    : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                  textAlign: 'center',
                   border: '1px solid',
-                  borderColor: minhasCautelas.length > 0 ? '#f59e0b' : '#22c55e',
+                  borderColor: 'divider',
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar
-                    sx={{
-                      bgcolor: minhasCautelas.length > 0 ? '#f59e0b' : '#22c55e',
-                      width: 48,
-                      height: 48,
-                    }}
-                  >
-                    {minhasCautelas.length > 0 ? <Warning /> : <CheckCircle />}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h4" fontWeight={700} color={minhasCautelas.length > 0 ? '#92400e' : '#166534'}>
-                      {minhasCautelas.length}
-                    </Typography>
-                    <Typography variant="body2" color={minhasCautelas.length > 0 ? '#a16207' : '#15803d'}>
-                      {minhasCautelas.length === 0
-                        ? 'Nenhuma cautela pendente'
-                        : minhasCautelas.length === 1
-                        ? 'Cautela pendente'
-                        : 'Cautelas pendentes'}
-                    </Typography>
-                  </Box>
-                </Box>
+                <CheckCircle sx={{ fontSize: 64, color: '#22c55e', mb: 2 }} />
+                <Typography variant="h6" fontWeight={600} color="text.primary" gutterBottom>
+                  Tudo em dia!
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Você não possui cautelas pendentes de assinatura.
+                </Typography>
               </Paper>
-            </Box>
-
-            {/* Lista de Cautelas para assinar */}
-            <Box sx={{ px: 2 }}>
-              {minhasCautelas.length > 0 ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {minhasCautelas.map((cautela) => (
-                    <Box
-                      key={cautela.id}
-                      sx={{
-                        // Garantir que o card não capture o scroll
-                        touchAction: 'pan-y',
-                        overflow: 'visible',
-                      }}
-                    >
-                      <CautelaStrip
-                        cautela={cautela}
-                        onSign={handleSign}
-                      />
-                    </Box>
-                  ))}
-                </Box>
-              ) : (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 4,
-                    borderRadius: 3,
-                    textAlign: 'center',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
-                  <CheckCircle sx={{ fontSize: 64, color: '#22c55e', mb: 2 }} />
-                  <Typography variant="h6" fontWeight={600} color="text.primary" gutterBottom>
-                    Tudo em dia!
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Você não possui cautelas pendentes de assinatura.
-                  </Typography>
-                </Paper>
-              )}
-            </Box>
+            )}
 
             {/* Comprovantes de devolução */}
             {returnedCautelas.length > 0 && (
-              <Box sx={{ px: 2, mt: 3 }}>
+              <Box sx={{ mt: 3 }}>
                 <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: '#1e3a5f' }}>
                   Comprovantes de Devolução
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {returnedCautelas.map((cautela) => (
-                    <Box
+                    <DevolucaoReceiptStrip
                       key={cautela.id}
-                      sx={{
-                        touchAction: 'pan-y',
-                        overflow: 'visible',
-                      }}
-                    >
-                      <DevolucaoReceiptStrip
-                        cautela={cautela}
-                        onAcknowledge={handleAcknowledgeReturn}
-                      />
-                    </Box>
+                      cautela={cautela}
+                      onAcknowledge={handleAcknowledgeReturn}
+                    />
                   ))}
                 </Box>
               </Box>
             )}
 
-            {/* Botão de atualizar fixo */}
-            <Box
-              sx={{
-                position: 'fixed',
-                bottom: 20,
-                right: 20,
-                zIndex: 1000,
-              }}
-            >
+            {/* Botão de atualizar */}
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
               <Button
-                variant="contained"
+                variant="outlined"
+                startIcon={<Refresh />}
                 onClick={() => window.location.reload()}
                 sx={{
-                  borderRadius: '50%',
-                  minWidth: 56,
-                  width: 56,
-                  height: 56,
-                  boxShadow: 4,
-                  background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
-                  '&:active': {
-                    transform: 'scale(0.95)',
-                  },
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
                 }}
               >
-                <Refresh />
+                Atualizar
               </Button>
             </Box>
-          </Box>
+          </Container>
 
           {/* Snackbar para feedback */}
           <Snackbar
