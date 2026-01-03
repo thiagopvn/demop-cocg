@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Box, Typography, Tabs, Tab, Paper } from '@mui/material';
 import MenuContext from '../../contexts/MenuContext';
+import PrivateRoute from '../../contexts/PrivateRoute';
 import MaintenanceDashboard from '../../components/maintenance/MaintenanceDashboard';
 import MaintenanceCalendar from '../../components/maintenance/MaintenanceCalendar';
 import MaintenanceHistory from '../../components/maintenance/MaintenanceHistory';
@@ -14,6 +15,7 @@ const Manutencao = () => {
     };
 
     return (
+        <PrivateRoute>
         <MenuContext>
             <Box className="root-protected">
                 <Typography variant="h4" gutterBottom>
@@ -39,6 +41,7 @@ const Manutencao = () => {
                 </Paper>
             </Box>
         </MenuContext>
+        </PrivateRoute>
     );
 };
 
