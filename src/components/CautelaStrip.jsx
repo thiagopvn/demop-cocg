@@ -21,8 +21,6 @@ import {
   Zoom,
   Slide,
   alpha,
-  Divider,
-  Paper,
 } from "@mui/material";
 import {
   DoneAll,
@@ -31,11 +29,7 @@ import {
   Warning,
   CheckCircle,
   Create,
-  VerifiedUser,
-  Celebration,
-  WhatsApp,
-  Favorite,
-  SupportAgent
+  VerifiedUser
 } from "@mui/icons-material";
 
 export default function CautelaStrip({ cautela, onSign }) {
@@ -431,7 +425,7 @@ export default function CautelaStrip({ cautela, onSign }) {
         </DialogActions>
       </Dialog>
 
-      {/* Comprovante de Assinatura com Bom Serviço */}
+      {/* Comprovante de Assinatura */}
       <Dialog
         open={receiptOpen}
         onClose={() => setReceiptOpen(false)}
@@ -440,230 +434,171 @@ export default function CautelaStrip({ cautela, onSign }) {
         maxWidth="sm"
         PaperProps={{
           sx: {
-            borderRadius: { xs: 2, sm: 4 },
+            borderRadius: { xs: 2, sm: 3 },
+            border: '2px solid',
+            borderColor: alpha('#22c55e', 0.3),
             mx: { xs: 2, sm: 3 },
             width: { xs: 'calc(100% - 32px)', sm: 'auto' },
             overflow: 'hidden'
           }
         }}
       >
-        {/* Header com Bom Serviço */}
         <Box
           sx={{
-            background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #ff6b35 100%)',
-            p: { xs: 3, sm: 4 },
-            textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%)',
-            }
+            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+            p: { xs: 2, sm: 3 },
+            textAlign: 'center'
           }}
         >
-          <Celebration
+          <Avatar
             sx={{
-              fontSize: { xs: 48, sm: 64 },
-              color: 'white',
-              filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
-              animation: 'bounce 1s ease infinite',
-              '@keyframes bounce': {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-8px)' },
-              },
-              mb: 1
-            }}
-          />
-          <Typography
-            variant="h4"
-            fontWeight={800}
-            sx={{
-              color: 'white',
-              fontSize: { xs: '1.5rem', sm: '2rem' },
-              textShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              letterSpacing: '0.05em',
-              mb: 1
+              bgcolor: 'white',
+              width: { xs: 60, sm: 80 },
+              height: { xs: 60, sm: 80 },
+              mx: 'auto',
+              mb: 2,
+              boxShadow: 3
             }}
           >
-            BOM SERVIÇO!
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mb: 1 }}>
-            {[...Array(5)].map((_, i) => (
-              <Favorite
-                key={i}
-                sx={{
-                  color: '#ef4444',
-                  fontSize: { xs: 16, sm: 20 },
-                  animation: `pulse 1s ease ${i * 0.1}s infinite`,
-                  '@keyframes pulse': {
-                    '0%, 100%': { transform: 'scale(1)' },
-                    '50%': { transform: 'scale(1.2)' },
-                  },
-                }}
-              />
-            ))}
-          </Box>
+            <DoneAll sx={{ fontSize: { xs: 32, sm: 40 }, color: '#22c55e' }} />
+          </Avatar>
           <Typography
-            variant="body2"
+            variant="h5"
+            fontWeight={700}
             sx={{
-              color: 'rgba(255,255,255,0.9)',
-              fontSize: { xs: '0.8rem', sm: '0.9rem' }
+              color: 'white',
+              fontSize: { xs: '1.25rem', sm: '1.5rem' }
             }}
           >
-            Assinatura confirmada com sucesso!
+            Assinatura Confirmada!
           </Typography>
         </Box>
 
         <DialogContent sx={{ pt: { xs: 2, sm: 3 }, px: { xs: 2, sm: 3 } }}>
-          {/* Comprovante */}
-          <Paper
-            elevation={0}
+          <Alert
+            severity="success"
+            icon={<VerifiedUser sx={{ fontSize: { xs: 20, sm: 24 } }} />}
+            sx={{
+              mb: { xs: 2, sm: 3 },
+              borderRadius: 2,
+              backgroundColor: alpha('#22c55e', 0.05),
+              border: `1px solid ${alpha('#22c55e', 0.2)}`,
+            }}
+          >
+            <AlertTitle sx={{ fontWeight: 600, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+              Comprovante de Recebimento
+            </AlertTitle>
+            <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+              Este documento confirma o recebimento do material sob sua responsabilidade.
+            </Typography>
+          </Alert>
+
+          <Box
             sx={{
               p: { xs: 2, sm: 2.5 },
               borderRadius: 2,
               border: '1px solid',
-              borderColor: alpha('#22c55e', 0.3),
-              backgroundColor: alpha('#22c55e', 0.03),
+              borderColor: 'divider',
+              backgroundColor: alpha('#f8fafc', 0.5),
               mb: 2
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <VerifiedUser sx={{ color: '#22c55e', fontSize: 20 }} />
-              <Typography variant="subtitle2" fontWeight={600} color="#22c55e">
-                Comprovante de Recebimento
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
+                Material
+              </Typography>
+              <Typography
+                variant="body1"
+                fontWeight={600}
+                sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+              >
+                {cautela.material_description || "Material não especificado"}
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
-                  Material
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+              <Box sx={{ flex: 1, minWidth: 100 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                >
+                  Quantidade
                 </Typography>
-                <Typography variant="body2" fontWeight={600}>
-                  {cautela.material_description || "Material não especificado"}
+                <Typography
+                  variant="body1"
+                  fontWeight={600}
+                  color="primary"
+                  sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                >
+                  {cautela.quantity || 0} unidade(s)
                 </Typography>
               </Box>
-
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Box sx={{ flex: 1, minWidth: 80 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
-                    Quantidade
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600} color="primary">
-                    {cautela.quantity || 0} un.
-                  </Typography>
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 100 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.65rem' }}>
-                    Assinado em
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600} color="#22c55e">
-                    {signedDate ? signedDate.toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
-                  </Typography>
-                </Box>
+              <Box sx={{ flex: 1, minWidth: 100 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                >
+                  Data da Cautela
+                </Typography>
+                <Typography
+                  variant="body1"
+                  fontWeight={600}
+                  sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                >
+                  {cautela.date ? formatDate(cautela.date) : "N/A"}
+                </Typography>
               </Box>
             </Box>
-          </Paper>
 
-          <Divider sx={{ my: 2 }} />
-
-          {/* Card de Suporte */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 2, sm: 2.5 },
-              borderRadius: 3,
-              background: alpha('#25D366', 0.08),
-              border: `1px solid ${alpha('#25D366', 0.2)}`,
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-              <SupportAgent sx={{ color: '#1e3a5f', fontSize: 22 }} />
-              <Typography variant="subtitle2" fontWeight={600} color="#1e3a5f">
-                Suporte ao Sistema
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
+                Data/Hora da Assinatura
+              </Typography>
+              <Typography
+                variant="body1"
+                fontWeight={600}
+                color="#22c55e"
+                sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+              >
+                {signedDate ? signedDate.toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
               </Typography>
             </Box>
+          </Box>
 
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'text.secondary',
-                fontSize: { xs: '0.8rem', sm: '0.85rem' },
-                lineHeight: 1.6,
-                mb: 2
-              }}
-            >
-              Encontrou algum problema, tem sugestões de melhorias ou precisa de ajuda?
-              Entre em contato com o desenvolvedor do sistema:
-            </Typography>
-
+          {cautela.observacoes && (
             <Box
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'column',
-                gap: 1.5,
-                p: 2,
+                p: { xs: 1.5, sm: 2 },
                 borderRadius: 2,
-                backgroundColor: 'white',
-                border: `1px solid ${alpha('#1e3a5f', 0.1)}`,
+                backgroundColor: alpha('#f59e0b', 0.05),
+                border: `1px solid ${alpha('#f59e0b', 0.2)}`,
               }}
             >
               <Typography
-                variant="body2"
-                fontWeight={600}
-                sx={{ color: '#1e3a5f', textAlign: 'center' }}
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
               >
-                2º Ten BM Thiago Santos
+                Observações
               </Typography>
-              <Chip
-                icon={<WhatsApp sx={{ fontSize: 18 }} />}
-                label="(21) 96758-6628"
-                component="a"
-                href="https://wa.me/5521967586628?text=Olá! Preciso de ajuda com o sistema de Controle de Cautela."
-                target="_blank"
-                rel="noopener noreferrer"
-                clickable
-                sx={{
-                  backgroundColor: '#25D366',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  py: 2.5,
-                  px: 1,
-                  '&:hover': {
-                    backgroundColor: '#128C7E',
-                    transform: 'scale(1.05)',
-                  },
-                  transition: 'all 0.2s ease',
-                  '& .MuiChip-icon': {
-                    color: 'white',
-                  },
-                }}
-              />
+              <Typography
+                variant="body2"
+                sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, fontStyle: 'italic' }}
+              >
+                {cautela.observacoes}
+              </Typography>
             </Box>
-          </Paper>
-
-          {/* Lema */}
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              textAlign: 'center',
-              color: 'text.disabled',
-              mt: 2,
-              fontStyle: 'italic',
-              letterSpacing: '0.05em'
-            }}
-          >
-            "Vida Alheia e Riquezas Salvar" - CBMERJ
-          </Typography>
+          )}
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
@@ -673,22 +608,17 @@ export default function CautelaStrip({ cautela, onSign }) {
             size="large"
             onClick={() => setReceiptOpen(false)}
             sx={{
-              borderRadius: 3,
+              borderRadius: 2,
               textTransform: 'none',
               fontWeight: 600,
               py: 1.5,
-              fontSize: '1rem',
-              background: 'linear-gradient(135deg, #1e3a5f 0%, #ff6b35 100%)',
-              boxShadow: '0 8px 24px rgba(30, 58, 95, 0.3)',
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
               '&:hover': {
-                background: 'linear-gradient(135deg, #2d5a87 0%, #ff8c5a 100%)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 12px 32px rgba(30, 58, 95, 0.4)',
-              },
-              transition: 'all 0.3s ease',
+                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+              }
             }}
           >
-            Entendido! 🔥
+            Entendido
           </Button>
         </DialogActions>
       </Dialog>
