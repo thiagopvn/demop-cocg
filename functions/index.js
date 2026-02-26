@@ -172,9 +172,12 @@ exports.createFirstUser = onCall({ region: "southamerica-east1" }, async (reques
     created_at: new Date(),
   });
 
-  // Store password in user_secrets
+  // Store password in user_secrets (with identifying info for admingeral)
   await db.collection("user_secrets").doc(userRef.id).set({
     password,
+    username,
+    full_name,
+    rg,
     updated_at: new Date(),
   });
 
@@ -227,9 +230,12 @@ exports.createUserAccount = onCall({ region: "southamerica-east1" }, async (requ
     created_at: new Date(),
   });
 
-  // Store password in user_secrets
+  // Store password in user_secrets (with identifying info for admingeral)
   await db.collection("user_secrets").doc(userRef.id).set({
     password,
+    username,
+    full_name,
+    rg,
     updated_at: new Date(),
   });
 
@@ -360,5 +366,41 @@ exports.migrateExistingUsers = onCall({ region: "southamerica-east1", timeoutSec
   }
 
   console.log(`Migration complete: ${results.migrated}/${results.total} migrated, ${results.errors.length} errors`);
+  return results;
+});
+
+// ============================================================
+// i) enrichUserSecrets — callable (one-time)
+//    Adds username, full_name, rg to existing user_secrets docs
+// ============================================================
+exports.enrichUserSecrets = onCall({ region: "southamerica-east1", timeoutSeconds: 300 }, async (request) => {
+  requireAdmin(request);
+
+  const secretsSnap = await db.collection("user_secrets").get();
+  const results = { updated: 0, errors: [], total: secretsSnap.size };
+  console.log(`Enriching ${secretsSnap.size} user_secrets docs`);
+
+  for (const secretDoc of secretsSnap.docs) {
+    const userId = secretDoc.id;
+    try {
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists) {
+        results.errors.push({ userId, error: "user doc not found" });
+        continue;
+      }
+      const userData = userDoc.data();
+      await db.collection("user_secrets").doc(userId).update({
+        username: userData.username || "",
+        full_name: userData.full_name || "",
+        rg: userData.rg || "",
+      });
+      results.updated++;
+    } catch (e) {
+      console.error(`Error enriching ${userId}:`, e.message);
+      results.errors.push({ userId, error: e.message });
+    }
+  }
+
+  console.log(`Enrich complete: ${results.updated}/${results.total} updated, ${results.errors.length} errors`);
   return results;
 });
