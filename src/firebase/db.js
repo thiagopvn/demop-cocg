@@ -32,4 +32,7 @@ export const historicoManutencoesCollection = collection(db, 'historico_manutenc
 export const userSecretsCollection = collection(db, 'user_secrets');
 // ------------------------------------
 
+// Expor no window para debug no console do navegador
+window.__fb = { db, auth };
+
 export default db;
