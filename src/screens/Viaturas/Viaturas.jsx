@@ -189,7 +189,7 @@ export default function Viaturas() {
     };
 
     const handleOpenSaveDialog = () => {
-        if (userRole === "admin" || userRole === "editor") {
+        if (userRole === "admin" || userRole === "editor" || userRole === "admingeral") {
             setDialogSaveOpen(true);
         } else {
             alert("Voce nao tem permissao para adicionar viaturas.");
@@ -243,7 +243,7 @@ export default function Viaturas() {
     };
 
     const confirmDeleteViatura = async () => {
-        if (userRole === "admin") {
+        if (userRole === "admin" || userRole === "admingeral") {
             try {
                 // Verificar se ha materiais alocados
                 const viaturaMaterialsCollection = collection(db, "viatura_materiais");
@@ -280,7 +280,7 @@ export default function Viaturas() {
     };
 
     const handleOpenEditDialog = async (data) => {
-        if (userRole !== "admin" && userRole !== "editor") {
+        if (userRole !== "admin" && userRole !== "editor" && userRole !== "admingeral") {
             alert("Voce nao tem permissao para editar viaturas.");
             return;
         }
@@ -363,7 +363,7 @@ export default function Viaturas() {
                             </Box>
                         </Box>
 
-                        {(userRole === "admin" || userRole === "editor") && (
+                        {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
                             <Button
                                 variant="contained"
                                 startIcon={<AddIcon />}
@@ -550,7 +550,7 @@ export default function Viaturas() {
                                                             </IconButton>
                                                         </Tooltip>
 
-                                                        {(userRole === "admin" || userRole === "editor") && (
+                                                        {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
                                                             <>
                                                                 <Tooltip title="Editar">
                                                                     <IconButton
@@ -568,7 +568,7 @@ export default function Viaturas() {
                                                                     </IconButton>
                                                                 </Tooltip>
 
-                                                                {userRole === "admin" && (
+                                                                {(userRole === "admin" || userRole === "admingeral") && (
                                                                     <Tooltip title="Excluir">
                                                                         <IconButton
                                                                             size="small"

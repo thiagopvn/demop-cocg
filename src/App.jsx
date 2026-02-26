@@ -25,61 +25,61 @@ function App() {
 
         {/* Rota acessível a todos os usuários autenticados */}
         <Route path='/home' element={
-          <PrivateRoute allowedRoles={['user', 'editor', 'admin']}>
+          <PrivateRoute allowedRoles={['user', 'editor', 'admin', 'admingeral']}>
             <Home />
           </PrivateRoute>
         } />
 
         {/* Rotas restritas a editor e admin */}
         <Route path='/categoria' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <Categoria />
           </PrivateRoute>
         } />
         <Route path='/movimentacoes' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <Movimentacoes />
           </PrivateRoute>
         } />
         <Route path='/material' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <Material />
           </PrivateRoute>
         } />
         <Route path='/viaturas' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <Viaturas />
           </PrivateRoute>
         } />
         <Route path='/viatura/:id' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <ViaturaDetalhes />
           </PrivateRoute>
         } />
         <Route path='/devolucoes' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <Devolucoes />
           </PrivateRoute>
         } />
         <Route path='/aneis' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <Rings />
           </PrivateRoute>
         } />
         <Route path='/search' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <MainSearch />
           </PrivateRoute>
         } />
         <Route path='/manutencao' element={
-          <PrivateRoute allowedRoles={['editor', 'admin']}>
+          <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <Manutencao />
           </PrivateRoute>
         } />
 
         {/* Rota restrita apenas a admin */}
         <Route path='/usuario' element={
-          <PrivateRoute allowedRoles={['admin']}>
+          <PrivateRoute allowedRoles={['admin', 'admingeral']}>
             <Usuario />
           </PrivateRoute>
         } />

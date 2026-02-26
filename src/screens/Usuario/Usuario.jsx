@@ -29,10 +29,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import {
   query,
   doc,
-  where,
   collection,
-  addDoc,
-  deleteDoc,
   updateDoc,
   getDoc,
   getDocs,
@@ -40,7 +37,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import db from "../../firebase/db";
-import { firebaseAuthCreateUser, firebaseAuthDeleteUser } from '../../firebase/authSync';
+import { callCreateUserAccount, callDeleteUserAccount, callUpdateUserPassword } from '../../firebase/functions';
 import UsuarioDialog from "../../dialogs/UsuarioDialog";
 import { verifyToken } from "../../firebase/token";
 import AddIcon from "@mui/icons-material/Add";
@@ -60,6 +57,7 @@ export default function Usuario() {
   const [userToDeleteId, setUserToDeleteId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [userSecrets, setUserSecrets] = useState({});
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -92,7 +90,7 @@ export default function Usuario() {
     setLoading(true);
 
     // Se for usuario comum, carrega apenas seus dados
-    if (userRole !== "admin" && userRole !== "editor") {
+    if (userRole !== "admin" && userRole !== "editor" && userRole !== "admingeral") {
       const userRef = doc(db, "users", userId);
       getDoc(userRef).then((userSnap) => {
         if (userSnap.exists()) {
@@ -103,7 +101,7 @@ export default function Usuario() {
       return;
     }
 
-    // Para admin/editor, carrega todos com listener em tempo real
+    // Para admin/editor/admingeral, carrega todos com listener em tempo real
     const usersCollection = collection(db, "users");
     const q = query(usersCollection, orderBy("full_name_lower"));
 
@@ -122,6 +120,20 @@ export default function Usuario() {
         setLoading(false);
       }
     );
+
+    // Se admingeral, carregar senhas da coleção user_secrets
+    if (userRole === "admingeral") {
+      const secretsCollection = collection(db, "user_secrets");
+      getDocs(secretsCollection).then((snap) => {
+        const secrets = {};
+        snap.docs.forEach((d) => {
+          secrets[d.id] = d.data().password;
+        });
+        setUserSecrets(secrets);
+      }).catch((err) => {
+        console.error("Erro ao carregar senhas:", err);
+      });
+    }
 
     return () => unsubscribe();
   }, [userRole, userId]);
@@ -170,7 +182,7 @@ export default function Usuario() {
   };
 
   const handleOpenSaveDialog = () => {
-    if (userRole === "admin") {
+    if (userRole === "admin" || userRole === "admingeral") {
       setDialogOpen(true);
     } else {
       alert(
@@ -198,41 +210,27 @@ export default function Usuario() {
       return;
     }
 
-    const usersCollection = collection(db, "users");
-    const usersSnapshot = await getDocs(
-      query(usersCollection, where("username", "==", data.username))
-    );
-    if (!usersSnapshot.empty) {
-      alert("Username já cadastrado");
-      return;
-    }
-    const usersSnapshot2 = await getDocs(
-      query(usersCollection, where("email", "==", data.email))
-    );
-    if (!usersSnapshot2.empty) {
-      alert("Email já cadastrado");
-      return;
-    }
-
     try {
-      await addDoc(collection(db, "users"), {
+      await callCreateUserAccount({
         username: data.username,
         full_name: data.full_name,
-        full_name_lower: data.full_name.toLowerCase(),
         email: data.email,
         password: data.password,
         role: data.role,
         rg: data.rg,
         telefone: data.telefone,
-        OBM: data.OBM,
-        created_at: new Date(),
+        obm: data.OBM,
       });
-      await firebaseAuthCreateUser(data.email);
       setDialogOpen(false);
       // Listener em tempo real atualiza automaticamente
     } catch (error) {
       console.error("Erro ao salvar usuário:", error);
-      alert("Erro ao salvar usuário");
+      const msg = error?.message || "Erro ao salvar usuário";
+      if (msg.includes("já cadastrado") || msg.includes("already-exists")) {
+        alert(msg);
+      } else {
+        alert("Erro ao salvar usuário");
+      }
     }
   };
 
@@ -242,12 +240,12 @@ export default function Usuario() {
   };
 
   const confirmDeleteUser = async () => {
-    if (userRole === "admin") {
+    if (userRole === "admin" || userRole === "admingeral") {
       // Verifica se o usuário a ser excluído é um administrador
       const userToDelete = users.find((user) => user.id === userToDeleteId);
-      if (userToDelete && userToDelete.role === "admin") {
+      if (userToDelete && (userToDelete.role === "admin" || userToDelete.role === "admingeral")) {
         // Conta quantos administradores existem no banco de dados
-        const adminCount = users.filter((user) => user.role === "admin").length;
+        const adminCount = users.filter((user) => user.role === "admin" || user.role === "admingeral").length;
         if (adminCount === 1) {
           alert("Não é possível excluir o único administrador do sistema.");
           setDeleteDialogOpen(false);
@@ -255,12 +253,7 @@ export default function Usuario() {
         }
       }
       try {
-        const userToDeleteData = users.find((u) => u.id === userToDeleteId);
-        if (userToDeleteData?.email) {
-          await firebaseAuthDeleteUser(userToDeleteData.email);
-        }
-        const userDocRef = doc(db, "users", userToDeleteId);
-        await deleteDoc(userDocRef);
+        await callDeleteUserAccount(userToDeleteId);
         // Listener em tempo real atualiza automaticamente
       } catch (error) {
         console.error("Erro ao excluir usuário:", error);
@@ -288,7 +281,7 @@ export default function Usuario() {
 
   // Função para abrir o diálogo de edição
   const handleOpenEditDialog = (user) => {
-    if (userRole !== "admin") {
+    if (userRole !== "admin" && userRole !== "admingeral") {
       if (user.id !== userId) {
         alert(
           "Você não tem permissão para editar usuários de outros usuários. Apenas administradores podem realizar esta ação."
@@ -315,11 +308,13 @@ export default function Usuario() {
         OBM: data.OBM,
       };
 
+      await updateDoc(userDocRef, updateData);
+
+      // Se senha foi fornecida, atualizar via Cloud Function
       if (data.password) {
-        updateData.password = data.password;
+        await callUpdateUserPassword(data.id, data.password);
       }
 
-      await updateDoc(userDocRef, updateData);
       setEditDialogOpen(false);
       setEditData(null);
       // Listener em tempo real atualiza automaticamente
@@ -354,7 +349,7 @@ export default function Usuario() {
                 Usuários
               </Typography>
               
-              {userRole === "admin" && (
+              {(userRole === "admin" || userRole === "admingeral") && (
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
@@ -380,7 +375,7 @@ export default function Usuario() {
             </div>
 
             {/* Seção de Pesquisa com Filtro em Tempo Real */}
-            {(userRole === "admin" || userRole === "editor") && (
+            {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
               <div style={{
                 backgroundColor: '#ffffff',
                 padding: '20px',
@@ -524,6 +519,17 @@ export default function Usuario() {
                   >
                     Role
                   </TableCell>
+                  {userRole === "admingeral" && (
+                    <TableCell
+                      sx={{
+                        textAlign: "center",
+                        backgroundColor: "#ddeeee",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Senha
+                    </TableCell>
+                  )}
                   <TableCell
                     sx={{
                       textAlign: "center",
@@ -538,7 +544,7 @@ export default function Usuario() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={3} sx={{ textAlign: "center", py: 4 }}>
+                    <TableCell colSpan={userRole === "admingeral" ? 4 : 3} sx={{ textAlign: "center", py: 4 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                         <CircularProgress size={24} />
                         <Typography variant="body2" color="text.secondary">
@@ -549,7 +555,7 @@ export default function Usuario() {
                   </TableRow>
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} sx={{ textAlign: "center", py: 4 }}>
+                    <TableCell colSpan={userRole === "admingeral" ? 4 : 3} sx={{ textAlign: "center", py: 4 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                         <PersonIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
                         <Typography variant="body1" color="text.secondary">
@@ -569,6 +575,11 @@ export default function Usuario() {
                       <TableCell sx={{ textAlign: "center" }}>
                         {user.role}
                       </TableCell>
+                      {userRole === "admingeral" && (
+                        <TableCell sx={{ textAlign: "center", fontFamily: "monospace", fontSize: "0.85rem" }}>
+                          {userSecrets[user.id] || "—"}
+                        </TableCell>
+                      )}
                       <TableCell sx={{ textAlign: "center" }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                           <Tooltip title="Ver informações completas">

@@ -69,16 +69,16 @@ function MenuContext({ children }) {
   const [maintenanceBadge, setMaintenanceBadge] = useState({ overdue: 0, today: 0, total: 0 });
 
   const allMenuItems = [
-    { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'editor', 'admin'] },
-    { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['editor', 'admin'] },
-    { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['editor', 'admin'] },
-    { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['editor', 'admin'] },
-    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['editor', 'admin'] },
-    { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['editor', 'admin'] },
-    { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['editor', 'admin'] },
-    { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1, roles: ['admin'] },
-    { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['editor', 'admin'] },
-    { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['editor', 'admin'] },
+    { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'editor', 'admin', 'admingeral'] },
+    { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1, roles: ['admin', 'admingeral'] },
+    { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['editor', 'admin', 'admingeral'] },
   ];
 
   // Filtrar itens de menu baseado no papel do usuário
@@ -168,7 +168,7 @@ function MenuContext({ children }) {
   };
 
   const handleConfirmCleanup = async () => {
-    if (userRole === "admin") {
+    if (userRole === "admin" || userRole === "admingeral") {
       setIsCleaning(true);
       try {
         const twoYearsAgo = new Date();
@@ -332,20 +332,24 @@ function MenuContext({ children }) {
             {userRole && (
               <Chip
                 label={
+                  userRole === 'admingeral' ? 'Admin Geral' :
                   userRole === 'admin' ? 'Administrador' :
                   userRole === 'editor' ? 'Editor' : 'Usuário'
                 }
                 size="small"
                 sx={{
                   backgroundColor:
+                    userRole === 'admingeral' ? 'rgba(211, 47, 47, 0.2)' :
                     userRole === 'admin' ? 'rgba(255, 107, 53, 0.2)' :
                     userRole === 'editor' ? 'rgba(34, 197, 94, 0.2)' :
                     'rgba(96, 165, 250, 0.2)',
                   color:
+                    userRole === 'admingeral' ? '#d32f2f' :
                     userRole === 'admin' ? '#ff6b35' :
                     userRole === 'editor' ? '#22c55e' :
                     '#60a5fa',
                   border: `1px solid ${
+                    userRole === 'admingeral' ? '#d32f2f' :
                     userRole === 'admin' ? '#ff6b35' :
                     userRole === 'editor' ? '#22c55e' :
                     '#60a5fa'
@@ -755,7 +759,7 @@ function MenuContext({ children }) {
       </Box>
 
       {/* Admin Cleanup FAB */}
-      {userRole === "admin" && (
+      {(userRole === "admin" || userRole === "admingeral") && (
         <Zoom in timeout={300}>
           <Tooltip title="Limpar Movimentações Antigas" arrow>
             <Fab
