@@ -28,4 +28,8 @@ export const manutencoesCollection = collection(db, 'manutencoes');
 export const historicoManutencoesCollection = collection(db, 'historico_manutencoes');
 // ------------------------------------
 
+// --- COLEÇÃO DE SENHAS (apenas admingeral pode ler via Firestore rules) ---
+export const userSecretsCollection = collection(db, 'user_secrets');
+// ------------------------------------
+
 export default db;

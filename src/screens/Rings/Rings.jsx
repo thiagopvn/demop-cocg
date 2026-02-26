@@ -105,7 +105,7 @@ export default function Rings() {
     };
 
     const handleOpenSaveDialog = () => {
-        if (userRole === "admin" || userRole === "editor") {
+        if (userRole === "admin" || userRole === "editor" || userRole === "admingeral") {
             setDialogSaveOpen(true);
         } else {
             alert("Você não tem permissão para adicionar anéis.");
@@ -143,7 +143,7 @@ export default function Rings() {
     };
 
     const confirmDeleteRing = async () => {
-        if (userRole === "admin") {
+        if (userRole === "admin" || userRole === "admingeral") {
             try {
                 const ringDocRef = doc(db, "rings", ringToDeleteId);
                 await deleteDoc(ringDocRef);
@@ -164,7 +164,7 @@ export default function Rings() {
     };
 
     const handleOpenEditDialog = (data) => {
-        if (userRole !== "admin" && userRole !== "editor") {
+        if (userRole !== "admin" && userRole !== "editor" && userRole !== "admingeral") {
             alert("Você não tem permissão para editar anéis.");
             return;
         }
@@ -220,7 +220,7 @@ export default function Rings() {
     };
 
     const handleOpenReturnDialog = (ring) => {
-        if (userRole !== "admin" && userRole !== "editor") {
+        if (userRole !== "admin" && userRole !== "editor" && userRole !== "admingeral") {
             alert("Você não tem permissão para fazer devoluções.");
             return;
         }
@@ -285,7 +285,7 @@ export default function Rings() {
                                 💍 Anéis
                             </Typography>
                             
-                            {(userRole === "admin" || userRole === "editor") && (
+                            {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
                                 <Button
                                     variant="contained"
                                     startIcon={<Add />}
@@ -493,7 +493,7 @@ export default function Rings() {
                                                     </IconButton>
                                                 </Tooltip>
                                                 
-                                                {(userRole === "admin" || userRole === "editor") && (
+                                                {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
                                                     <>
                                                         <Tooltip title="Editar anel">
                                                             <IconButton 

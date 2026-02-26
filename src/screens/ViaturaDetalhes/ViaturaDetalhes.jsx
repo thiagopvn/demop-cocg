@@ -361,7 +361,7 @@ export default function ViaturaDetalhes() {
                     </Box>
 
                     {/* Botao Alocar Material (apenas Admin) */}
-                    {userRole === "admin" && (
+                    {(userRole === "admin" || userRole === "admingeral") && (
                         <Box sx={{ mb: 3 }}>
                             <Button
                                 variant="contained"
@@ -408,7 +408,7 @@ export default function ViaturaDetalhes() {
                                     Nenhum material alocado
                                 </Typography>
                                 <Typography variant="body2" color="text.disabled">
-                                    {userRole === "admin"
+                                    {(userRole === "admin" || userRole === "admingeral")
                                         ? "Clique em 'Alocar Material' para adicionar materiais a esta viatura"
                                         : "Esta viatura ainda nao possui materiais alocados"}
                                 </Typography>
@@ -422,7 +422,7 @@ export default function ViaturaDetalhes() {
                                         <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Quantidade</TableCell>
                                         <TableCell sx={{ fontWeight: 700 }}>Data Alocacao</TableCell>
                                         <TableCell sx={{ fontWeight: 700 }}>Alocado Por</TableCell>
-                                        {userRole === "admin" && (
+                                        {(userRole === "admin" || userRole === "admingeral") && (
                                             <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acoes</TableCell>
                                         )}
                                     </TableRow>
@@ -467,7 +467,7 @@ export default function ViaturaDetalhes() {
                                                     </Typography>
                                                 </Box>
                                             </TableCell>
-                                            {userRole === "admin" && (
+                                            {(userRole === "admin" || userRole === "admingeral") && (
                                                 <TableCell sx={{ textAlign: 'center' }}>
                                                     <Tooltip title="Desalocar material">
                                                         <IconButton

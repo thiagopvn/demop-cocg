@@ -10,9 +10,7 @@ import {
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
-import db from "../../firebase/db";
-import { firebaseAuthSignIn } from '../../firebase/authSync';
+import { callCreateFirstUser } from '../../firebase/functions';
 
 const FirstAccessScreen = () => {
     const [username, setUsername] = useState('');
@@ -39,45 +37,27 @@ const FirstAccessScreen = () => {
             return;
         }
 
-        const usersCollection = collection(db, "users");
-        const usernameQuery = query(usersCollection, where("username", "==", username));
-        const emailQuery = query(usersCollection, where("email", "==", email));
-
-        const [usernameSnapshot, emailSnapshot] = await Promise.all([
-            getDocs(usernameQuery),
-            getDocs(emailQuery)
-        ]);
-
-        if (!usernameSnapshot.empty) {
-            alert("Nome de usuário já está em uso.");
-            return;
-        }
-
-        if (!emailSnapshot.empty) {
-            alert("Email já está em uso.");
-            return;
-        }
-
         try {
-            await addDoc(usersCollection, {
-                username: username,
-                full_name: full_name,
-                full_name_lower: full_name.toLowerCase(),
-                email: email,
-                password: password,
-                role: 'admin', // Definindo o primeiro usuário como admin
-                rg: rg,
-                telefone: telefone,
-                OBM: obm,
-                created_at: new Date(),
+            await callCreateFirstUser({
+                username,
+                full_name,
+                email,
+                password,
+                rg,
+                telefone,
+                obm,
             });
 
-            await firebaseAuthSignIn(email);
             alert("Primeiro usuário criado com sucesso! Redirecionando para a tela de login.");
             navigate('/');
         } catch (error) {
+            const message = error?.message || "Erro ao criar o primeiro usuário.";
             console.error("Erro ao criar o primeiro usuário:", error);
-            alert("Erro ao criar o primeiro usuário.");
+            if (message.includes("Já existem")) {
+                alert("Já existem usuários no sistema. Não é possível usar o primeiro acesso.");
+            } else {
+                alert("Erro ao criar o primeiro usuário.");
+            }
         }
     };
 

@@ -1,15 +1,13 @@
 import { Button, Card, Fab, TextField, InputAdornment, Divider, Typography, Box, IconButton, Snackbar, Alert, CircularProgress } from "@mui/material";
 import bolacha from "../../assets/bolacha.png";
 import "./LoginScreen.css";
-import db from "../../firebase/db";
 import { generateToken } from "../../firebase/token";
 import { firebaseAuthSignIn } from '../../firebase/authSync';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { Lock, Person, Settings, Visibility, VisibilityOff, Shield } from "@mui/icons-material";
+import { Lock, Person, Settings, Visibility, VisibilityOff } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import {addViaturaDescription, cautelas, getDictMaterialsNameCode, PopulateMateriais} from '../../firebase/populate';
+import { callVerifyLogin, callCheckHasUsers } from '../../firebase/functions';
 
 export default function LoginScreen() {
   const [hasUser, setHasUser] = useState(false);
@@ -114,9 +112,13 @@ export default function LoginScreen() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const users = await getDocs(collection(db, "users"));
-      if (users.docs.length > 0) {
-        setHasUser(true);
+      try {
+        const result = await callCheckHasUsers();
+        if (result.hasUsers) {
+          setHasUser(true);
+        }
+      } catch (err) {
+        console.error("Erro ao verificar usuários:", err);
       }
     };
     fetchUser();
@@ -137,44 +139,21 @@ export default function LoginScreen() {
     setError("");
 
     try {
-      const qUsername = query(
-        collection(db, "users"),
-        where("username", "==", username)
-      );
-      const qEmail = query(
-        collection(db, "users"),
-        where("email", "==", username)
-      );
-      
-      let users = await getDocs(qUsername);
-      if (users.empty) {
-        users = await getDocs(qEmail);
-      }
-      
-      if (users.empty) {
-        setError("Usuário não encontrado");
-        setOpenSnackbar(true);
-        setLoading(false);
-        return;
-      }
-      
-      const user = users.docs[0].data();
-      const userId = users.docs[0].id;
-      const role = user.role;
+      const userData = await callVerifyLogin(username, password);
 
-      if (user.password !== password) {
-        setError("Senha incorreta");
-        setOpenSnackbar(true);
-        setLoading(false);
-        return;
-      }
-
-      const token = await generateToken({ userId: userId, username: user.username, role: role });
-      await firebaseAuthSignIn(user.email);
+      const token = await generateToken({ userId: userData.userId, username: userData.username, role: userData.role });
+      await firebaseAuthSignIn(userData.email);
       localStorage.setItem("token", token);
       navigate("/home");
     } catch (err) {
-      setError("Erro ao fazer login. Tente novamente.");
+      const message = err?.message || "Erro ao fazer login. Tente novamente.";
+      if (message.includes("não encontrado")) {
+        setError("Usuário não encontrado");
+      } else if (message.includes("incorreta")) {
+        setError("Senha incorreta");
+      } else {
+        setError("Erro ao fazer login. Tente novamente.");
+      }
       setOpenSnackbar(true);
       setLoading(false);
     }

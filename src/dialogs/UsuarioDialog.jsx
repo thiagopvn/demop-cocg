@@ -402,17 +402,17 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             ))}
                         </Select>
                     </FormControl>
-                    {loggedUser?.role === "admin" && (
+                    {(loggedUser?.role === "admin" || loggedUser?.role === "admingeral") && (
                         <FormControl component="fieldset" fullWidth>
-                            <FormLabel 
-                                component="legend" 
-                                sx={{ 
-                                    fontWeight: 600, 
+                            <FormLabel
+                                component="legend"
+                                sx={{
+                                    fontWeight: 600,
                                     color: '#1a237e',
                                     marginBottom: '12px'
                                 }}
                             >
-                                🔐 Permissão do Usuário
+                                Permissao do Usuario
                             </FormLabel>
                             <RadioGroup
                                 row
@@ -422,6 +422,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                                     display: "flex",
                                     flexDirection: "row",
                                     justifyContent: "space-around",
+                                    flexWrap: "wrap",
                                     backgroundColor: '#f8f9ff',
                                     padding: '16px',
                                     borderRadius: '12px',
@@ -429,21 +430,28 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                                 }}
                                 onChange={handleChange}
                             >
-                                <FormControlLabel 
-                                    value="user" 
-                                    control={<Radio sx={{ color: '#1976d2' }} />} 
-                                    label="👤 User" 
+                                <FormControlLabel
+                                    value="user"
+                                    control={<Radio sx={{ color: '#1976d2' }} />}
+                                    label="User"
                                 />
-                                <FormControlLabel 
-                                    value="editor" 
-                                    control={<Radio sx={{ color: '#1976d2' }} />} 
-                                    label="✏️ Editor" 
+                                <FormControlLabel
+                                    value="editor"
+                                    control={<Radio sx={{ color: '#1976d2' }} />}
+                                    label="Editor"
                                 />
-                                <FormControlLabel 
-                                    value="admin" 
-                                    control={<Radio sx={{ color: '#1976d2' }} />} 
-                                    label="⚡ Admin" 
+                                <FormControlLabel
+                                    value="admin"
+                                    control={<Radio sx={{ color: '#1976d2' }} />}
+                                    label="Admin"
                                 />
+                                {loggedUser?.role === "admingeral" && (
+                                    <FormControlLabel
+                                        value="admingeral"
+                                        control={<Radio sx={{ color: '#d32f2f' }} />}
+                                        label="Admin Geral"
+                                    />
+                                )}
                             </RadioGroup>
                         </FormControl>
                     )}

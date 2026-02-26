@@ -95,7 +95,7 @@ export default function Devolucoes() {
     <PrivateRoute>
       <MenuContext>
         <div className="root-protected">
-          {userRole === "admin" || userRole === "editor" ? (
+          {userRole === "admin" || userRole === "editor" || userRole === "admingeral" ? (
             <>
               <div className="search">
                 <FormControlLabel
