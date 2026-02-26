@@ -14,7 +14,7 @@ const PrivateRoute = ({ children, allowedRoles = [] }) => {
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
       if (!token || typeof token !== 'string') {
-        console.log("Token inválido ou não encontrado");
+        // Token inválido ou não encontrado
         setAuthState({ loading: false, authenticated: false, authorized: false });
         return;
       }

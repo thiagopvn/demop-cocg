@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
-import db from '../firebase/db';
+import { onAuthStateChanged } from 'firebase/auth';
+import db, { auth } from '../firebase/db';
 
 const MaterialContext = createContext();
 
@@ -9,21 +10,40 @@ export const MaterialProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const q = query(collection(db, 'materials'), orderBy('description'));
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const materialsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setMaterials(materialsData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Erro ao buscar materiais: ", error);
-            setLoading(false);
+        let unsubFirestore = null;
+
+        const unsubAuth = onAuthStateChanged(auth, (user) => {
+            // Limpa listener anterior se existir
+            if (unsubFirestore) {
+                unsubFirestore();
+                unsubFirestore = null;
+            }
+
+            if (!user) {
+                setMaterials([]);
+                setLoading(false);
+                return;
+            }
+
+            // Usuário autenticado — inicia listener do Firestore
+            setLoading(true);
+            const q = query(collection(db, 'materials'), orderBy('description'));
+            unsubFirestore = onSnapshot(q, (snapshot) => {
+                const materialsData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setMaterials(materialsData);
+                setLoading(false);
+            }, () => {
+                setLoading(false);
+            });
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubAuth();
+            if (unsubFirestore) unsubFirestore();
+        };
     }, []);
 
     return (

@@ -1,26 +1,36 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
-import db from "../firebase/db";
+import { onAuthStateChanged } from 'firebase/auth';
+import db, { auth } from "../firebase/db";
 
 export const CategoriaContext = createContext();
 
 export const CategoriaProvider = ({ children }) => {
     const [categorias, setCategorias] = useState([]);
 
-    // Função para atualizar as categorias (exposta via contexto)
     const updateCategorias = useCallback(async () => {
-        const categoriasCollection = collection(db, 'categorias');
-        const categoriasSnapshot = await getDocs(categoriasCollection);
-        const categoriasList = categoriasSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        setCategorias(categoriasList);
+        try {
+            const categoriasCollection = collection(db, 'categorias');
+            const categoriasSnapshot = await getDocs(categoriasCollection);
+            const categoriasList = categoriasSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setCategorias(categoriasList);
+        } catch (_) {
+            // Sem permissão (usuário não autenticado)
+        }
     }, []);
 
-    // Carrega as categorias inicialmente
     useEffect(() => {
-        updateCategorias();
+        const unsubAuth = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                updateCategorias();
+            } else {
+                setCategorias([]);
+            }
+        });
+        return () => unsubAuth();
     }, [updateCategorias]);
 
     return (
