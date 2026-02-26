@@ -41,6 +41,12 @@ service cloud.firestore {
       allow create, update, delete: if isEditorOrAdmin();
     }
 
+    // Vehicle materials (allocation records)
+    match /viatura_materiais/{docId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isEditorOrAdmin();
+    }
+
     // Movements (cautela records)
     match /movimentacoes/{docId} {
       allow read: if isAuth();
