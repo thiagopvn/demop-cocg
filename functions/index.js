@@ -26,7 +26,7 @@ function requireAdmin(request) {
 
 // ============================================================
 // a) verifyLogin — callable
-//    Receives { username, password }, returns user data (no password)
+//    Receives { username, password }, returns user data + custom token
 // ============================================================
 exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) => {
   const { username, password } = request.data || {};
@@ -77,11 +77,54 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
     throw new HttpsError("permission-denied", "Senha incorreta.");
   }
 
+  // Ensure Firebase Auth user exists with correct custom claims
+  const role = userData.role || "user";
+  let authUid = userId; // default: use Firestore doc ID as Auth UID
+
+  try {
+    // First, try to find existing Auth user by Firestore doc ID
+    await auth.getUser(userId);
+    authUid = userId;
+  } catch (_e1) {
+    // No Auth user with Firestore doc ID — try to find by email
+    let existingByEmail = null;
+    if (userData.email) {
+      try {
+        existingByEmail = await auth.getUserByEmail(userData.email);
+      } catch (_e2) {
+        // No Auth user with this email either
+      }
+    }
+
+    if (existingByEmail) {
+      // Use existing email-based Auth user
+      authUid = existingByEmail.uid;
+    } else {
+      // Create new Auth user with Firestore doc ID as UID
+      const createData = { uid: userId, displayName: userData.full_name || userData.username };
+      if (userData.email && userData.email.includes("@") && userData.email.includes(".")) {
+        createData.email = userData.email;
+      }
+      await auth.createUser(createData);
+      authUid = userId;
+    }
+  }
+
+  // Always update custom claims on login
+  await auth.setCustomUserClaims(authUid, { role, firestoreId: userId });
+
+  // Generate a Firebase Custom Token
+  const customToken = await auth.createCustomToken(authUid, {
+    role,
+    firestoreId: userId,
+  });
+
   return {
     userId,
     username: userData.username,
     email: userData.email,
-    role: userData.role,
+    role,
+    customToken,
   };
 });
 
@@ -134,26 +177,6 @@ exports.createFirstUser = onCall({ region: "southamerica-east1" }, async (reques
     password,
     updated_at: new Date(),
   });
-
-  // Create Firebase Auth account
-  let authUser;
-  try {
-    authUser = await auth.createUser({
-      email,
-      password: email + "-cocg-auth",
-      displayName: full_name,
-    });
-  } catch (e) {
-    // If user already exists in auth, get them
-    if (e.code === "auth/email-already-exists") {
-      authUser = await auth.getUserByEmail(email);
-    } else {
-      throw new HttpsError("internal", "Erro ao criar conta de autenticação: " + e.message);
-    }
-  }
-
-  // Set custom claims
-  await auth.setCustomUserClaims(authUser.uid, { role: "admin", firestoreId: userRef.id });
 
   return { userId: userRef.id, message: "Primeiro usuário criado com sucesso." };
 });
@@ -210,25 +233,6 @@ exports.createUserAccount = onCall({ region: "southamerica-east1" }, async (requ
     updated_at: new Date(),
   });
 
-  // Create Firebase Auth account
-  let authUser;
-  try {
-    authUser = await auth.createUser({
-      email,
-      password: email + "-cocg-auth",
-      displayName: full_name,
-    });
-  } catch (e) {
-    if (e.code === "auth/email-already-exists") {
-      authUser = await auth.getUserByEmail(email);
-    } else {
-      throw new HttpsError("internal", "Erro ao criar conta de autenticação: " + e.message);
-    }
-  }
-
-  // Set custom claims
-  await auth.setCustomUserClaims(authUser.uid, { role, firestoreId: userRef.id });
-
   return { userId: userRef.id, message: "Usuário criado com sucesso." };
 });
 
@@ -243,13 +247,10 @@ exports.deleteUserAccount = onCall({ region: "southamerica-east1" }, async (requ
     throw new HttpsError("invalid-argument", "userId é obrigatório.");
   }
 
-  // Get user data to find email
   const userDoc = await db.collection("users").doc(userId).get();
   if (!userDoc.exists) {
     throw new HttpsError("not-found", "Usuário não encontrado.");
   }
-
-  const email = userDoc.data().email;
 
   // Delete user_secrets
   try {
@@ -261,14 +262,11 @@ exports.deleteUserAccount = onCall({ region: "southamerica-east1" }, async (requ
   // Delete user doc
   await db.collection("users").doc(userId).delete();
 
-  // Delete Firebase Auth user
-  if (email) {
-    try {
-      const authUser = await auth.getUserByEmail(email);
-      await auth.deleteUser(authUser.uid);
-    } catch (_e) {
-      // ignore if not found in auth
-    }
+  // Delete Firebase Auth user (UID = Firestore doc ID)
+  try {
+    await auth.deleteUser(userId);
+  } catch (_e) {
+    // ignore if not found in auth
   }
 
   return { message: "Usuário excluído com sucesso." };
@@ -302,32 +300,30 @@ exports.onUserRoleUpdate = onDocumentUpdated(
   async (event) => {
     const before = event.data.before.data();
     const after = event.data.after.data();
+    const userId = event.params.userId;
 
     if (before.role === after.role) {
       return; // No role change
     }
 
-    const email = after.email;
-    if (!email) return;
-
     try {
-      const authUser = await auth.getUserByEmail(email);
-      const existingClaims = authUser.customClaims || {};
-      await auth.setCustomUserClaims(authUser.uid, {
-        ...existingClaims,
+      // UID = Firestore doc ID
+      await auth.getUser(userId);
+      await auth.setCustomUserClaims(userId, {
         role: after.role,
+        firestoreId: userId,
       });
-      console.log(`Custom claims updated for ${email}: role=${after.role}`);
+      console.log(`Custom claims updated for ${userId}: role=${after.role}`);
     } catch (e) {
-      console.error(`Error updating custom claims for ${email}:`, e);
+      // User hasn't logged in yet (no Auth account) — claims will be set on first login
+      console.log(`Auth user ${userId} not found, claims will be set on login: ${e.message}`);
     }
   }
 );
 
 // ============================================================
 // h) migrateExistingUsers — callable (one-time migration)
-//    Moves passwords to user_secrets, creates Firebase Auth accounts,
-//    sets Custom Claims
+//    Moves passwords to user_secrets, removes from users docs
 // ============================================================
 exports.migrateExistingUsers = onCall({ region: "southamerica-east1", timeoutSeconds: 300 }, async (request) => {
   requireAdmin(request);
@@ -354,26 +350,6 @@ exports.migrateExistingUsers = onCall({ region: "southamerica-east1", timeoutSec
       await db.collection("users").doc(userId).update({
         password: FieldValue.delete(),
       });
-
-      // 3. Create Firebase Auth account if not exists
-      let authUser;
-      if (data.email) {
-        try {
-          authUser = await auth.getUserByEmail(data.email);
-        } catch (_e) {
-          authUser = await auth.createUser({
-            email: data.email,
-            password: data.email + "-cocg-auth",
-            displayName: data.full_name || data.username,
-          });
-        }
-
-        // 4. Set Custom Claims
-        await auth.setCustomUserClaims(authUser.uid, {
-          role: data.role || "user",
-          firestoreId: userId,
-        });
-      }
 
       results.migrated++;
       console.log(`Successfully migrated user: ${userId}`);
