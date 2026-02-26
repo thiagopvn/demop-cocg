@@ -3,6 +3,7 @@ import bolacha from "../../assets/bolacha.png";
 import "./LoginScreen.css";
 import db from "../../firebase/db";
 import { generateToken } from "../../firebase/token";
+import { firebaseAuthSignIn } from '../../firebase/authSync';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, getDocs, query, where } from "firebase/firestore";
@@ -169,6 +170,7 @@ export default function LoginScreen() {
       }
 
       const token = await generateToken({ userId: userId, username: user.username, role: role });
+      await firebaseAuthSignIn(user.email);
       localStorage.setItem("token", token);
       navigate("/home");
     } catch (err) {
