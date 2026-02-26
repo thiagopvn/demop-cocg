@@ -58,20 +58,9 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
   const userData = userDoc.data();
   const userId = userDoc.id;
 
-  // Try user_secrets first, then fallback to users.password (for migration)
-  let storedPassword = null;
-  try {
-    const secretDoc = await db.collection("user_secrets").doc(userId).get();
-    if (secretDoc.exists) {
-      storedPassword = secretDoc.data().password;
-    }
-  } catch (_e) {
-    // ignore — secrets collection might not exist yet
-  }
-
-  if (!storedPassword) {
-    storedPassword = userData.password;
-  }
+  // Read password from user_secrets
+  const secretDoc = await db.collection("user_secrets").doc(userId).get();
+  const storedPassword = secretDoc.exists ? secretDoc.data().password : null;
 
   if (!storedPassword || storedPassword !== password) {
     throw new HttpsError("permission-denied", "Senha incorreta.");
