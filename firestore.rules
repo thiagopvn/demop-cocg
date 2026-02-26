@@ -47,7 +47,7 @@ service cloud.firestore {
       allow create, delete: if isEditorOrAdmin();
       allow update: if isEditorOrAdmin()
         || (isAuth()
-            && resource.data.user == request.auth.uid
+            && resource.data.user == request.auth.token.firestoreId
             && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['signed', 'signed_date', 'user_acknowledged_return']));
     }
