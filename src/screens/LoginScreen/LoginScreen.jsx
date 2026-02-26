@@ -142,7 +142,7 @@ export default function LoginScreen() {
       const userData = await callVerifyLogin(username, password);
 
       const token = await generateToken({ userId: userData.userId, username: userData.username, role: userData.role });
-      await firebaseAuthSignIn(userData.email);
+      await firebaseAuthSignIn(userData.customToken);
       localStorage.setItem("token", token);
       navigate("/home");
     } catch (err) {
