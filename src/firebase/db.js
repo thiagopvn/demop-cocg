@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection } from 'firebase/firestore';
+import { getFirestore, collection, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 export const firebaseConfig = {
@@ -33,6 +33,6 @@ export const userSecretsCollection = collection(db, 'user_secrets');
 // ------------------------------------
 
 // Expor no window para debug no console do navegador
-window.__fb = { db, auth };
+window.__fb = { db, auth, collection, getDocs };
 
 export default db;
