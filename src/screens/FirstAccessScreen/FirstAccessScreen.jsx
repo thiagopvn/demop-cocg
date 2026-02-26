@@ -12,6 +12,7 @@ import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import db from "../../firebase/db";
+import { firebaseAuthSignIn } from '../../firebase/authSync';
 
 const FirstAccessScreen = () => {
     const [username, setUsername] = useState('');
@@ -71,6 +72,7 @@ const FirstAccessScreen = () => {
                 created_at: new Date(),
             });
 
+            await firebaseAuthSignIn(email);
             alert("Primeiro usuário criado com sucesso! Redirecionando para a tela de login.");
             navigate('/');
         } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { firebaseAuthSignOut } from '../firebase/authSync';
 import brasao from '../assets/brasao.png';
 import "./context.css";
 import {
@@ -134,7 +135,8 @@ function MenuContext({ children }) {
     }
   }, [location.pathname]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await firebaseAuthSignOut();
     localStorage.removeItem('token');
     navigate('/');
   }

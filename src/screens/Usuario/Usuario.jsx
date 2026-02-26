@@ -40,6 +40,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import db from "../../firebase/db";
+import { firebaseAuthCreateUser, firebaseAuthDeleteUser } from '../../firebase/authSync';
 import UsuarioDialog from "../../dialogs/UsuarioDialog";
 import { verifyToken } from "../../firebase/token";
 import AddIcon from "@mui/icons-material/Add";
@@ -226,6 +227,7 @@ export default function Usuario() {
         OBM: data.OBM,
         created_at: new Date(),
       });
+      await firebaseAuthCreateUser(data.email);
       setDialogOpen(false);
       // Listener em tempo real atualiza automaticamente
     } catch (error) {
@@ -253,6 +255,10 @@ export default function Usuario() {
         }
       }
       try {
+        const userToDeleteData = users.find((u) => u.id === userToDeleteId);
+        if (userToDeleteData?.email) {
+          await firebaseAuthDeleteUser(userToDeleteData.email);
+        }
         const userDocRef = doc(db, "users", userToDeleteId);
         await deleteDoc(userDocRef);
         // Listener em tempo real atualiza automaticamente

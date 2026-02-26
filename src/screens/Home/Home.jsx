@@ -314,6 +314,7 @@ export default function Home() {
   });
   const [loading, setLoading] = useState(true);
   const [minhasCautelas, setMinhasCautelas] = useState([]);
+  const [activeCautelas, setActiveCautelas] = useState([]);
   const [returnedCautelas, setReturnedCautelas] = useState([]);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -354,6 +355,18 @@ export default function Home() {
               .map((doc) => ({ id: doc.id, ...doc.data() }))
               .filter(item => !item.user_acknowledged_return)
           );
+        }
+
+        // Buscar materiais cautelados ativos (assinados, não devolvidos)
+        const activeQuery = query(
+          collection(db, "movimentacoes"),
+          where("user", "==", userId),
+          where("type", "==", "cautela"),
+          where("status", "==", "cautelado")
+        );
+        const activeSnap = await getDocs(activeQuery);
+        if (isMounted) {
+          setActiveCautelas(activeSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
         }
       } catch (error) {
         console.error("Erro ao buscar cautelas:", error);
@@ -566,7 +579,11 @@ export default function Home() {
 
         // Para usuários sem listener: atualizar estado manualmente
         if (userRole === 'user') {
+          const signedItem = minhasCautelas.find(c => c.id === movimentacaoId);
           setMinhasCautelas(prev => prev.filter(c => c.id !== movimentacaoId));
+          if (signedItem) {
+            setActiveCautelas(prev => [...prev, { ...signedItem, signed: true, status: 'cautelado' }]);
+          }
         }
 
         setSnackbarMessage('Cautela assinada com sucesso!');
@@ -757,6 +774,161 @@ export default function Home() {
                 </Typography>
               </Paper>
             )}
+
+            {/* Materiais sob sua responsabilidade */}
+            <Box sx={{ mt: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Inventory sx={{ color: '#1e3a5f', fontSize: 24 }} />
+                <Typography variant="h6" fontWeight={600} sx={{ color: '#1e3a5f' }}>
+                  Materiais sob sua Responsabilidade
+                </Typography>
+                {activeCautelas.length > 0 && (
+                  <Chip
+                    label={activeCautelas.length}
+                    size="small"
+                    sx={{
+                      fontWeight: 700,
+                      backgroundColor: alpha('#1e3a5f', 0.1),
+                      color: '#1e3a5f',
+                      height: 24,
+                      minWidth: 24,
+                    }}
+                  />
+                )}
+              </Box>
+
+              {activeCautelas.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {activeCautelas.map((cautela) => {
+                    const formatDate = (timestamp) => {
+                      if (!timestamp) return "";
+                      const date = new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+                      const day = String(date.getDate()).padStart(2, "0");
+                      const month = String(date.getMonth() + 1).padStart(2, "0");
+                      const year = date.getFullYear();
+                      return `${day}/${month}/${year}`;
+                    };
+
+                    return (
+                      <Card
+                        key={cautela.id}
+                        sx={{
+                          borderRadius: 2,
+                          border: '1px solid',
+                          borderColor: alpha('#1e3a5f', 0.2),
+                          background: `linear-gradient(135deg, ${alpha('#1e3a5f', 0.03)} 0%, ${alpha('#3b82f6', 0.03)} 100%)`,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 4,
+                            background: 'linear-gradient(90deg, #1e3a5f 0%, #3b82f6 100%)',
+                          }
+                        }}
+                      >
+                        <CardContent sx={{ p: { xs: 2, sm: 3 }, '&:last-child': { pb: { xs: 2, sm: 3 } } }}>
+                          <Box sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            justifyContent: 'space-between',
+                            alignItems: { xs: 'stretch', sm: 'flex-start' },
+                            gap: { xs: 1.5, sm: 0 }
+                          }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+                              <Avatar
+                                sx={{
+                                  bgcolor: alpha('#1e3a5f', 0.1),
+                                  color: '#1e3a5f',
+                                  width: { xs: 40, sm: 48 },
+                                  height: { xs: 40, sm: 48 },
+                                }}
+                              >
+                                <Assignment sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                              </Avatar>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography
+                                  variant="h6"
+                                  fontWeight={600}
+                                  sx={{
+                                    fontSize: { xs: '1rem', sm: '1.1rem' },
+                                    lineHeight: 1.2,
+                                    wordBreak: 'break-word'
+                                  }}
+                                >
+                                  {cautela.material_description || "Material não especificado"}
+                                </Typography>
+                                <Chip
+                                  icon={<AccessTime sx={{ fontSize: { xs: 14, sm: 16 } }} />}
+                                  label={cautela.date ? formatDate(cautela.date) : "Data não disponível"}
+                                  size="small"
+                                  sx={{
+                                    mt: 0.5,
+                                    height: { xs: 20, sm: 24 },
+                                    backgroundColor: alpha('#3b82f6', 0.1),
+                                    color: '#3b82f6',
+                                    fontSize: { xs: '0.7rem', sm: '0.8125rem' },
+                                    '& .MuiChip-icon': { color: '#3b82f6' },
+                                    '& .MuiChip-label': { px: 1 }
+                                  }}
+                                />
+                                {cautela.observacoes && (
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{
+                                      mt: 0.5,
+                                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                      fontStyle: 'italic',
+                                    }}
+                                  >
+                                    <strong>Obs:</strong> {cautela.observacoes}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Box>
+                            <Chip
+                              label={`${cautela.quantity || 0} un.`}
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: { xs: '0.875rem', sm: '1rem' },
+                                height: { xs: 32, sm: 36 },
+                                minWidth: { xs: 70, sm: 80 },
+                                backgroundColor: alpha('#1e3a5f', 0.9),
+                                color: 'white',
+                                alignSelf: { xs: 'flex-start', sm: 'center' }
+                              }}
+                            />
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </Box>
+              ) : (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 3,
+                    textAlign: 'center',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <CheckCircle sx={{ fontSize: 48, color: '#22c55e', mb: 1 }} />
+                  <Typography variant="body1" fontWeight={600} color="text.primary" gutterBottom>
+                    Nenhum material pendente
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Você não possui materiais cautelados no momento.
+                  </Typography>
+                </Paper>
+              )}
+            </Box>
 
             {/* Comprovantes de devolução */}
             {returnedCautelas.length > 0 && (

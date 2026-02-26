@@ -4,213 +4,117 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a React-based inventory management system ("Controle de Cautela") built with Vite, Firebase Firestore, and Material-UI. The application manages equipment assignments ("cautelas"), users, vehicles, maintenance schedules, and tracks material movements in what appears to be a military or institutional context.
+React-based equipment custody management system ("Controle de Cautela") for a Brazilian fire department. Tracks material assignments to users and vehicles, maintenance scheduling, and inventory. Built with Vite, Firebase Firestore, and Material-UI.
 
 ## Key Commands
 
-### Development
 ```bash
 npm run dev         # Start Vite dev server on localhost:5173
-npm run build       # Build for production using Vite
-npm run preview     # Preview production build locally
-npm run lint        # Run ESLint checks on all JS/JSX files
+npm run build       # Build for production
+npm run preview     # Preview production build
+npm run lint        # ESLint checks
 ```
 
-### Testing
-- No test scripts are currently configured in package.json
-- No test files exist in the project structure
+No test framework is configured.
 
 ## Architecture
 
-### Technology Stack
-- **Frontend Framework**: React 19 with React Router DOM v7
-- **Build Tool**: Vite 6 with React plugin
-- **UI Library**: Material-UI v6 with Emotion for CSS-in-JS styling
-- **Database**: Firebase v11 Firestore (real-time NoSQL database)
-- **Authentication**: Custom JWT implementation using jose v6 library
-- **Data Export**: xlsx v0.18 library for Excel exports
-- **Charts**: Recharts v2 for data visualization
-- **Environment**: Uses Vite's import.meta.env for environment variables
+### Tech Stack
+- React 19 + React Router DOM v7 + Vite 6
+- Material-UI v6 (Emotion CSS-in-JS)
+- Firebase v11 Firestore (real-time NoSQL)
+- JWT auth via jose v6 (HS256, 5h expiry)
+- Recharts for charts, xlsx for Excel export
 
-### Core Structure
+### Provider Hierarchy (src/main.jsx)
+```
+CategoriaProvider → MaterialProvider → ThemeProviderWrapper → App
+```
 
-#### Routing Configuration
-All routes are defined in `src/App.jsx`:
-- `/` - Login screen (public route)
-- `/first-access` - Initial user setup
-- `/home` - Dashboard with statistics and charts
-- `/categoria` - Category management
-- `/material` - Material/equipment inventory
-- `/usuario` - User management
-- `/viaturas` - Vehicle fleet management
-- `/movimentacoes` - Equipment assignment/movement tracking
-- `/devolucoes` - Returns management
-- `/aneis` - Ring management system
-- `/search` - Multi-criteria search interface
-- `/manutencao` - Maintenance scheduling and tracking
+### Role-Based Access Control
 
-#### Firebase Integration
-- **Configuration**: `src/firebase/db.js` - Initializes Firebase app with environment variables
-- **Collections**:
-  - `users` - User accounts and profiles
-  - `materials` - Equipment/material inventory
-  - `categorias` - Material categories
-  - `viaturas` - Vehicle registry
-  - `movimentacoes` - Movement/assignment history
-  - `rings` - Ring inventory
-  - `manutencoes` - Scheduled maintenance
-  - `historico_manutencoes` - Maintenance history
+Three roles with cascading permissions defined in `src/App.jsx` via `PrivateRoute`:
 
-- **Token Management**: `src/firebase/token.js` - JWT generation and verification
-- **Excel Export**: `src/firebase/xlsx.js` - Data export utilities
-- **Data Population**: `src/firebase/populate.js` - Database seeding scripts
+| Role | Access |
+|------|--------|
+| `user` | Dashboard only (`/home`) |
+| `editor` | Dashboard + all operational features |
+| `admin` | Everything, including user management (`/usuario`) |
 
-#### Context System
-- `MenuContext.jsx` - Main navigation wrapper with role-based access control, drawer menu implementation
-- `CategoriaContext.jsx` - Category state management across components
-- `ThemeContext.jsx` - Theme switching and persistence
-- `PrivateRoute.jsx` - Protected route wrapper for authentication
+- Routes are protected by `PrivateRoute` wrapper with `allowedRoles` array
+- Menu items in `MenuContext.jsx` are filtered by role
+- Unauthenticated → redirects to `/`; unauthorized → redirects to `/home`
 
-#### Component Architecture
-- `components/` - Reusable UI components:
-  - `ButtonMenu.jsx` - Custom menu button with CSS styling
-  - `CautelaStrip.jsx` - Equipment assignment display strip
-  - `MaterialSearch.jsx`, `UserSearch.jsx`, `ViaturaSearch.jsx` - Search components
-  - `UserInfo.jsx` - User information display
-  - `TabPanel.jsx` - Tab panel wrapper
-  - `ButtonDevolver.jsx` - Return action button
-  - `maintenance/` - Maintenance-related components (calendar, dashboard, history)
+### Authentication Flow
+1. Login at `/` → JWT generated via `src/firebase/token.js` → stored in `localStorage`
+2. `PrivateRoute` verifies token + checks role on every protected route
+3. JWT payload: `{ username, userId, role }`
+4. Secret key is hardcoded as `'suaChaveSecreta'` in `token.js`
 
-- `dialogs/` - Modal dialogs for CRUD operations:
-  - `MaterialDialog.jsx` - Material creation/editing
-  - `UsuarioDialog.jsx` - User management
-  - `ViaturaDialog.jsx` - Vehicle management
-  - `CategoriaDialog.jsx` - Category management
-  - `MaintenanceDialog.jsx` - Maintenance scheduling
-  - `RingDialog.jsx` - Ring management
-  - `WarningDialog.jsx` - Warning/confirmation dialogs
+### Firebase Collections (src/firebase/db.js)
+- `users` - Accounts with role, OBM (military unit), contact info
+- `materials` - Equipment inventory with quantity, status, category
+- `categorias` - Material categories
+- `viaturas` - Vehicle registry
+- `movimentacoes` - Assignment/movement history (the core "cautela" records)
+- `rings` - Ring inventory
+- `manutencoes` - Scheduled maintenance tasks
+- `historico_manutencoes` - Completed maintenance history
 
-- `screens/` - Page-level components, each in its own directory:
-  - Each screen follows a pattern with main component and optional CSS file
-  - Screens handle data fetching, state management, and dialog orchestration
+### Context System (src/contexts/)
+- **MenuContext.jsx** (~876 lines) - Main layout wrapper: sidebar navigation, role-based menu filtering, mobile drawer, logout, maintenance notification badge, admin cleanup FAB
+- **CategoriaContext.jsx** - Category list (non-real-time, uses getDocs)
+- **MaterialContext.jsx** - Materials list (real-time via onSnapshot), exposes `useMaterials()` hook
+- **ThemeContext.jsx** - Light/dark mode toggle
+- **PrivateRoute.jsx** - Auth guard with `useRef` to prevent re-render loops
 
-#### Search System Architecture
-The search functionality (`src/screens/Search/`) provides multiple specialized search modes:
-- **MaterialUsuario.jsx** - Find materials assigned to specific users
-- **MaterialViatura.jsx** - Find materials assigned to specific vehicles
-- **UsuarioMaterial.jsx** - Find users who have specific materials
-- **ViaturaMaterial.jsx** - Find vehicles with specific materials
-- **Inativos.jsx** - List all inactive items
-- **Cautelados.jsx** - List all items currently under custody
+### Screen Pattern
+Each screen lives in `src/screens/[Name]/` and follows a consistent pattern:
+1. Real-time Firestore listener via `onSnapshot` (cleanup on unmount)
+2. Local search/filter state (often using `useDebounce` hook)
+3. MUI DataGrid or Table for display
+4. Dialog component from `src/dialogs/` for create/edit
+5. Direct Firestore operations (addDoc, updateDoc, deleteDoc)
+
+### Adding a New Feature
+1. Create screen in `src/screens/[Name]/`
+2. Add dialog in `src/dialogs/` if CRUD is needed
+3. Add route in `src/App.jsx` with appropriate `PrivateRoute` allowedRoles
+4. Add menu item in `MenuContext.jsx` with role filter
+5. Export Firestore collection reference from `src/firebase/db.js`
+
+## Key Conventions
+
+### Firestore
+- Always use `doc.id` for document identity, never a custom `id` field
+- Remove empty `id` fields from data objects before saving to Firestore
+- Use `orderBy` in queries for consistent sorting
+- Clean up `onSnapshot` listeners in `useEffect` return
+
+### Custom Utilities
+- **useDebounce hook** (`src/hooks/useDebounce.js`) - Debounces values with 300ms default delay; used for search inputs
+- **Maintenance notification service** (`src/services/maintenanceNotificationService.js`) - Handles overdue/upcoming maintenance queries, browser notifications, and recurrence scheduling (diaria through anual)
+- **Excel export** (`src/firebase/xlsx.js`) - Data export utilities
+
+### Theme (src/theme/theme.js)
+- Primary: navy blue `#1e3a5f`, Secondary: orange `#ff6b35`
+- Border radius: 12px default
+- Font: Inter/Roboto stack
+- Buttons have hover lift animations
 
 ## Environment Variables
 
-Required `.env` variables for Firebase configuration:
+Required in `.env` (Vite prefix `VITE_`):
 ```
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+VITE_FIREBASE_MEASUREMENT_ID
 ```
 
-## ESLint Configuration
-
-Custom rules configured in `eslint.config.js`:
-- Ignores `dist` directory (build output)
-- Allows uppercase-starting unused variables (for constants)
-- React Refresh plugin for Hot Module Replacement
-- React Hooks rules enforcement
-- ECMAScript 2020 features enabled
-- JSX support configured
-
-## Key Patterns
-
-### State Management
-- React hooks (useState, useEffect) for local component state
-- Context API for global state (categories, theme, menu, authentication)
-- Firebase Firestore for persistent data with real-time listeners
-- No Redux or other state management libraries
-
-### Authentication Flow
-1. User login via `LoginScreen` component
-2. JWT token generated using jose library
-3. Token stored in localStorage
-4. Token verification on protected routes via `PrivateRoute`
-5. Role-based access control enforced in `MenuContext`
-6. Secret key hardcoded in `firebase/token.js` (should be environment variable)
-
-### CRUD Operations Pattern
-All entity screens follow consistent patterns:
-1. List view with real-time Firestore listener (onSnapshot)
-2. Search/filter functionality with local state
-3. Dialog for create/edit operations
-4. Direct Firestore operations (addDoc, updateDoc, deleteDoc)
-5. Optimistic UI updates with error handling
-6. Material-UI DataGrid or Table for display
-
-### Material Movement Tracking
-Equipment assignment workflow:
-1. Select movement type (user or vehicle assignment)
-2. Track quantity changes
-3. Update location/status (operational, maintenance, repair)
-4. Create movement record in Firestore
-5. Update material availability in real-time
-
-### Firestore Integration Best Practices
-- Use document IDs from Firestore (doc.id) not custom ID fields
-- Remove empty 'id' fields from data before saving
-- Real-time listeners with proper cleanup (unsubscribe)
-- Query with orderBy for consistent sorting
-- Handle Firestore errors with user feedback
-
-## File Structure Notes
-
-### Zone.Identifier Files
-- Multiple `.Zone.Identifier` files indicate Windows/WSL development environment
-- These are Windows security zone markers and can be safely ignored
-- Can be removed with: `find . -name "*.Zone.Identifier" -delete`
-
-### CSS Organization
-- Global styles: `src/index.css`, `src/App.css`
-- Component-specific styles: Individual CSS files (e.g., `LoginScreen.css`)
-- Material-UI theme: `src/theme/theme.js` with comprehensive customization
-- Context styles: `src/contexts/context.css`
-- Dialog styles: `src/dialogs/Dialog.css`
-
-### Assets
-- Static images in `src/assets/`:
-  - `brasao.png`, `bolacha.png` - Institutional emblems
-  - `excel.svg` - Excel export icon
-  - `signature.png` - Digital signature asset
-
-## Development Workflow
-
-### Adding New Features
-1. Create screen component in `src/screens/[FeatureName]/`
-2. Add dialog in `src/dialogs/` for CRUD operations if needed
-3. Update routing in `src/App.jsx`
-4. Add menu item in `MenuContext.jsx` with appropriate icon
-5. Define Firestore collection in `src/firebase/db.js`
-6. Implement real-time listeners for data synchronization
-
-### Material-UI Theme
-Comprehensive theme configuration in `src/theme/theme.js`:
-- Navy blue primary color (#1e3a5f)
-- Orange secondary color (#ff6b35)
-- Custom shadows and transitions
-- Rounded corners (borderRadius: 12)
-- Component-specific overrides for consistent styling
-
-### Deployment
-- Vercel configuration in `vercel.json` with SPA routing
-- Build output in `dist/` directory
-- Manual chunks disabled in Vite config for optimization
-
-## Security Considerations
-- JWT secret key is hardcoded and should be moved to environment variable
-- No HTTPS enforcement in development
-- Token expiration set to 5 hours
-- Role-based access control implemented but needs security audit
+## Deployment
+- Vercel with SPA rewrite in `vercel.json`
+- Build output: `dist/`
