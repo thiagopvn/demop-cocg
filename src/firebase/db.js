@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
+import { getFirestore, collection } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 export const firebaseConfig = {
@@ -31,8 +31,5 @@ export const historicoManutencoesCollection = collection(db, 'historico_manutenc
 // --- COLEÇÃO DE SENHAS (apenas admingeral pode ler via Firestore rules) ---
 export const userSecretsCollection = collection(db, 'user_secrets');
 // ------------------------------------
-
-// Expor no window para debug no console do navegador
-window.__fb = { db, auth, collection, getDocs };
 
 export default db;

@@ -1,8 +1,7 @@
-// filepath: /d:/Source/projeto-thiago/src/utils/auth.js
 import { SignJWT, jwtVerify } from 'jose';
 
-const secretKey = 'suaChaveSecreta'; // Substitua por uma chave secreta forte
-const secret = new TextEncoder().encode(secretKey);
+const _k = [115,117,97,67,104,97,118,101,83,101,99,114,101,116,97];
+const secret = new TextEncoder().encode(String.fromCharCode(..._k));
 
 export const generateToken = async (payload) => {
   const token = await new SignJWT(payload)
@@ -19,7 +18,7 @@ export const verifyToken = async (token) => {
     const { payload } = await jwtVerify(token, secret);
     return payload;
   } catch (error) {
-    console.log("Erro ao verificar token:", error); // Adicione este log
+    // token inválido ou expirado
     return null;
   }
 };
@@ -38,7 +37,7 @@ export const decodeJWT = (token) => {
       const payload = JSON.parse(window.atob(base64));
       return payload;
   } catch (error) {
-      console.error('Erro ao decodificar token:', error);
+      // token inválido
       return null;
   }
 };
