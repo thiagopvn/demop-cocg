@@ -85,6 +85,7 @@ const OBM = [
     "EMG",
     "QCG",
     "SEDEC",
+    "CSM",
 ];
 
 export default function UsuarioDialog({ onSubmit, onCancel, open, editData = null }) {
