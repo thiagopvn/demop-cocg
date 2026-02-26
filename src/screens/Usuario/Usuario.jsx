@@ -327,7 +327,7 @@ export default function Usuario() {
   return (
     <PrivateRoute>
       <MenuContext>
-        <div className="root-protected" style={{ padding: '20px', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="root-protected" style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '100%' }}>
             {/* Header Section with Title and Add Button */}
             <div style={{ 

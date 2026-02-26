@@ -609,9 +609,9 @@ function MenuContext({ children }) {
         )}
 
         {/* Page Content */}
-        <Box sx={{ flex: 1, p: { xs: 2, sm: 3, md: 4 } }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: { xs: 2, sm: 3, md: 4 } }}>
           <Fade in timeout={500}>
-            <Box>{children}</Box>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</Box>
           </Fade>
         </Box>
 
