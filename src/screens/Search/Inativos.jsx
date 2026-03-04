@@ -37,7 +37,8 @@ import {
   Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
-  AttachFile as AttachFileIcon
+  AttachFile as AttachFileIcon,
+  DeleteForever as DeleteForeverIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
@@ -46,6 +47,7 @@ import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 import { verifyToken } from "../../firebase/token";
 import AnexosDialog from "../../dialogs/AnexosDialog";
+import { deleteMovimentacao } from "../../services/movimentacaoService";
 
 const HeaderCard = styled(Card)(({ theme }) => ({
   borderRadius: 16,
@@ -83,6 +85,9 @@ export default function Inativos({ categorias = [] }) {
   const [username, setUsername] = useState("");
   const [anexosDialogOpen, setAnexosDialogOpen] = useState(false);
   const [selectedMovForAnexos, setSelectedMovForAnexos] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedMovForDelete, setSelectedMovForDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -169,6 +174,33 @@ export default function Inativos({ categorias = [] }) {
       console.error("Erro ao marcar como devolvido:", error);
     }
   };
+
+  const handleOpenDeleteDialog = (mov) => {
+    setSelectedMovForDelete(mov);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setSelectedMovForDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedMovForDelete) return;
+    setDeleting(true);
+    try {
+      await deleteMovimentacao(selectedMovForDelete);
+      setMovimentacoes((prev) => prev.filter((m) => m.id !== selectedMovForDelete.id));
+      handleCloseDeleteDialog();
+    } catch (error) {
+      console.error("Erro ao excluir movimentação:", error);
+      alert("Erro ao excluir movimentação: " + error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const isAdminGeral = userRole === "admingeral";
 
   const filteredMovimentacoes = useMemo(() => {
     let filtered = movimentacoes;
@@ -377,6 +409,20 @@ export default function Inativos({ categorias = [] }) {
                 </IconButton>
               </Tooltip>
             )}
+            {isAdminGeral && (
+              <Tooltip title="Excluir movimentação" arrow placement="top">
+                <IconButton
+                  size="small"
+                  sx={{ color: 'error.main' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenDeleteDialog(row);
+                  }}
+                >
+                  <DeleteForeverIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         );
       },
@@ -555,6 +601,60 @@ export default function Inativos({ categorias = [] }) {
         userRole={userRole}
         username={username}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DeleteForeverIcon color="error" />
+            Excluir Movimentacao
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Tem certeza que deseja excluir esta movimentacao?
+            {selectedMovForDelete && (
+              <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+                <li><strong>Material:</strong> {selectedMovForDelete.material_description}</li>
+                <li><strong>Local:</strong> {selectedMovForDelete.repairLocation || '-'}</li>
+                <li><strong>SEI:</strong> {selectedMovForDelete.seiNumber || '-'}</li>
+                <li><strong>Data:</strong> {selectedMovForDelete.date?.seconds ? new Date(selectedMovForDelete.date.seconds * 1000).toLocaleDateString('pt-BR') : '-'}</li>
+                <li><strong>Status:</strong> {selectedMovForDelete.status === 'emReparo' ? 'Em Reparo' : 'Devolvido'}</li>
+              </Box>
+            )}
+          </DialogContentText>
+          <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+            {selectedMovForDelete?.status === 'devolvidaDeReparo'
+              ? 'Este reparo ja foi devolvido. O estoque nao sera alterado.'
+              : 'O estoque do material sera revertido automaticamente.'}
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            onClick={handleCloseDeleteDialog}
+            variant="outlined"
+            color="inherit"
+            sx={{ borderRadius: 2 }}
+            disabled={deleting}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            startIcon={<DeleteForeverIcon />}
+            sx={{ borderRadius: 2 }}
+            disabled={deleting}
+          >
+            {deleting ? 'Excluindo...' : 'Excluir'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Export FAB */}
       {filteredMovimentacoes.length > 0 && (

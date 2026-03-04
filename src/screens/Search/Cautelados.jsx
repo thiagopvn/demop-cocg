@@ -16,6 +16,13 @@ import {
   TextField,
   InputAdornment,
   Grid,
+  IconButton,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   alpha,
   styled
 } from "@mui/material";
@@ -32,13 +39,16 @@ import {
   ArrowUpward as OutIcon,
   FilterList as FilterIcon,
   Draw as SignatureIcon,
-  Phone as PhoneIcon
+  Phone as PhoneIcon,
+  DeleteForever as DeleteForeverIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
+import { verifyToken } from "../../firebase/token";
+import { deleteMovimentacao } from "../../services/movimentacaoService";
 
 const HeaderCard = styled(Card)(({ theme }) => ({
   borderRadius: 16,
@@ -68,7 +78,20 @@ export default function Cautelados() {
   const [cachedMovimentacoes, setCachedMovimentacoes] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [userRole, setUserRole] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedMovForDelete, setSelectedMovForDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      verifyToken(token).then((payload) => {
+        if (payload) setUserRole(payload.role);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (!(filtro in cachedMovimentacoes)) {
@@ -187,6 +210,40 @@ export default function Cautelados() {
   const getFilterLabel = (value) => {
     return filterOptions.find(f => f.value === value)?.label || "Todas";
   };
+
+  const handleOpenDeleteDialog = (mov) => {
+    setSelectedMovForDelete(mov);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setSelectedMovForDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedMovForDelete) return;
+    setDeleting(true);
+    try {
+      await deleteMovimentacao(selectedMovForDelete);
+      // Remover do cache local
+      setCachedMovimentacoes((prev) => {
+        const updated = {};
+        for (const key in prev) {
+          updated[key] = prev[key].filter((m) => m.id !== selectedMovForDelete.id);
+        }
+        return updated;
+      });
+      handleCloseDeleteDialog();
+    } catch (error) {
+      console.error("Erro ao excluir movimentação:", error);
+      alert("Erro ao excluir movimentação: " + error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const isAdminGeral = userRole === "admingeral";
 
   const columns = [
     {
@@ -354,6 +411,26 @@ export default function Cautelados() {
         );
       },
     },
+    ...(isAdminGeral ? [{
+      field: 'actions',
+      headerName: 'Acoes',
+      minWidth: 60,
+      align: 'center',
+      renderCell: (row) => (
+        <Tooltip title="Excluir movimentação" arrow placement="top">
+          <IconButton
+            size="small"
+            sx={{ color: 'error.main' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenDeleteDialog(row);
+            }}
+          >
+            <DeleteForeverIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
+    }] : []),
   ];
 
   return (
@@ -516,6 +593,60 @@ export default function Cautelados() {
           </Fab>
         </Tooltip>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DeleteForeverIcon color="error" />
+            Excluir Movimentacao
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Tem certeza que deseja excluir esta movimentacao?
+            {selectedMovForDelete && (
+              <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+                <li><strong>Material:</strong> {selectedMovForDelete.material_description}</li>
+                <li><strong>Tipo:</strong> {selectedMovForDelete.type}</li>
+                <li><strong>Militar:</strong> {selectedMovForDelete.user_name || '-'}</li>
+                <li><strong>Data:</strong> {selectedMovForDelete.date?.seconds ? new Date(selectedMovForDelete.date.seconds * 1000).toLocaleDateString('pt-BR') : '-'}</li>
+                <li><strong>Status:</strong> {selectedMovForDelete.status}</li>
+              </Box>
+            )}
+          </DialogContentText>
+          <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+            {selectedMovForDelete?.status === 'devolvido'
+              ? 'Esta movimentacao ja foi devolvida. O estoque nao sera alterado.'
+              : 'O estoque do material sera revertido automaticamente.'}
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button
+            onClick={handleCloseDeleteDialog}
+            variant="outlined"
+            color="inherit"
+            sx={{ borderRadius: 2 }}
+            disabled={deleting}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            startIcon={<DeleteForeverIcon />}
+            sx={{ borderRadius: 2 }}
+            disabled={deleting}
+          >
+            {deleting ? 'Excluindo...' : 'Excluir'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
