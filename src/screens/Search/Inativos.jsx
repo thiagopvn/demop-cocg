@@ -37,8 +37,6 @@ import {
   Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
-  Phone as PhoneIcon,
-  Person as PersonIcon,
   AttachFile as AttachFileIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
@@ -232,28 +230,31 @@ export default function Inativos({ categorias = [] }) {
       field: 'material_description',
       headerName: 'Material',
       icon: <InventoryIcon fontSize="small" />,
-      minWidth: 150,
-      renderCell: (row) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <InventoryIcon fontSize="small" sx={{ color: 'warning.main', flexShrink: 0 }} />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={500} noWrap>
-              {row.material_description || '-'}
-            </Typography>
-            {row.quantity > 1 && (
-              <Typography variant="caption" color="text.secondary">
-                Qtd: {row.quantity}
+      minWidth: 160,
+      renderCell: (row) => {
+        const responsavel = row.sender_name || row.user_name;
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <InventoryIcon fontSize="small" sx={{ color: 'warning.main', flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={500} noWrap>
+                {row.material_description || '-'}
               </Typography>
-            )}
+              {responsavel && (
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  Resp: {responsavel}
+                </Typography>
+              )}
+            </Box>
           </Box>
-        </Box>
-      ),
+        );
+      },
     },
     {
       field: 'repairLocation',
       headerName: 'Local',
       icon: <LocationIcon fontSize="small" />,
-      minWidth: 110,
+      minWidth: 100,
       renderCell: (row) => (
         <Chip
           icon={<LocationIcon sx={{ fontSize: 14 }} />}
@@ -261,55 +262,9 @@ export default function Inativos({ categorias = [] }) {
           size="small"
           variant="outlined"
           color="warning"
-          sx={{ fontWeight: 500, maxWidth: '100%' }}
+          sx={{ fontWeight: 500 }}
         />
       ),
-    },
-    {
-      field: 'sender_name',
-      headerName: 'Responsavel',
-      icon: <PersonIcon fontSize="small" />,
-      minWidth: 110,
-      hideOnMobile: true,
-      renderCell: (row) => (
-        <Typography variant="body2" noWrap>
-          {row.sender_name || row.user_name || '-'}
-        </Typography>
-      ),
-    },
-    {
-      field: 'telefone_responsavel',
-      headerName: 'WhatsApp',
-      icon: <PhoneIcon fontSize="small" />,
-      minWidth: 120,
-      hideOnMobile: true,
-      renderCell: (row) => {
-        const telefone = row.telefone_responsavel;
-        if (!telefone) return '-';
-        const numeroLimpo = telefone.replace(/\D/g, '');
-        const numeroWpp = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
-        return (
-          <Chip
-            icon={<PhoneIcon sx={{ fontSize: 14 }} />}
-            label={telefone}
-            size="small"
-            color="success"
-            variant="outlined"
-            component="a"
-            href={`https://wa.me/${numeroWpp}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            clickable
-            sx={{
-              fontWeight: 500,
-              cursor: 'pointer',
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.success.main, 0.1),
-              }
-            }}
-          />
-        );
-      },
     },
     {
       field: 'seiNumber',
@@ -318,15 +273,17 @@ export default function Inativos({ categorias = [] }) {
       minWidth: 100,
       hideOnMobile: true,
       renderCell: (row) => (
-        <Typography variant="body2" noWrap sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
-          {row.seiNumber || '-'}
-        </Typography>
+        <Tooltip title={row.seiNumber || '-'} arrow>
+          <Typography variant="body2" noWrap sx={{ fontFamily: 'monospace', fontWeight: 500, maxWidth: 160 }}>
+            {row.seiNumber || '-'}
+          </Typography>
+        </Tooltip>
       ),
     },
     {
       field: 'motivoReparo',
       headerName: 'Motivo',
-      minWidth: 140,
+      minWidth: 120,
       hideOnMobile: true,
       renderCell: (row) => {
         const motivo = row.motivoReparo || '-';
@@ -386,7 +343,7 @@ export default function Inativos({ categorias = [] }) {
     {
       field: 'actions',
       headerName: 'Acoes',
-      minWidth: isMobile ? 80 : 100,
+      minWidth: 80,
       align: 'center',
       renderCell: (row) => {
         const anexosCount = row.anexos?.length || 0;
