@@ -23,8 +23,10 @@ import {
   DialogContentText,
   DialogTitle,
   Badge,
+  IconButton,
   alpha,
-  styled
+  styled,
+  useMediaQuery
 } from "@mui/material";
 import {
   Build as BuildIcon,
@@ -84,6 +86,7 @@ export default function Inativos({ categorias = [] }) {
   const [anexosDialogOpen, setAnexosDialogOpen] = useState(false);
   const [selectedMovForAnexos, setSelectedMovForAnexos] = useState(null);
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     const fetchMovimentacoes = async () => {
@@ -229,12 +232,12 @@ export default function Inativos({ categorias = [] }) {
       field: 'material_description',
       headerName: 'Material',
       icon: <InventoryIcon fontSize="small" />,
-      minWidth: 200,
+      minWidth: 150,
       renderCell: (row) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <InventoryIcon fontSize="small" sx={{ color: 'warning.main' }} />
-          <Box>
-            <Typography variant="body2" fontWeight={500}>
+          <InventoryIcon fontSize="small" sx={{ color: 'warning.main', flexShrink: 0 }} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={500} noWrap>
               {row.material_description || '-'}
             </Typography>
             {row.quantity > 1 && (
@@ -248,17 +251,17 @@ export default function Inativos({ categorias = [] }) {
     },
     {
       field: 'repairLocation',
-      headerName: 'Local de Reparo',
+      headerName: 'Local',
       icon: <LocationIcon fontSize="small" />,
-      minWidth: 150,
+      minWidth: 110,
       renderCell: (row) => (
         <Chip
           icon={<LocationIcon sx={{ fontSize: 14 }} />}
-          label={row.repairLocation || 'Nao informado'}
+          label={row.repairLocation || 'N/I'}
           size="small"
           variant="outlined"
           color="warning"
-          sx={{ fontWeight: 500 }}
+          sx={{ fontWeight: 500, maxWidth: '100%' }}
         />
       ),
     },
@@ -266,10 +269,10 @@ export default function Inativos({ categorias = [] }) {
       field: 'sender_name',
       headerName: 'Responsavel',
       icon: <PersonIcon fontSize="small" />,
-      minWidth: 140,
+      minWidth: 110,
       hideOnMobile: true,
       renderCell: (row) => (
-        <Typography variant="body2">
+        <Typography variant="body2" noWrap>
           {row.sender_name || row.user_name || '-'}
         </Typography>
       ),
@@ -278,7 +281,8 @@ export default function Inativos({ categorias = [] }) {
       field: 'telefone_responsavel',
       headerName: 'WhatsApp',
       icon: <PhoneIcon fontSize="small" />,
-      minWidth: 140,
+      minWidth: 120,
+      hideOnMobile: true,
       renderCell: (row) => {
         const telefone = row.telefone_responsavel;
         if (!telefone) return '-';
@@ -309,12 +313,12 @@ export default function Inativos({ categorias = [] }) {
     },
     {
       field: 'seiNumber',
-      headerName: 'Numero SEI',
+      headerName: 'SEI',
       icon: <DescriptionIcon fontSize="small" />,
-      minWidth: 130,
+      minWidth: 100,
       hideOnMobile: true,
       renderCell: (row) => (
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+        <Typography variant="body2" noWrap sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
           {row.seiNumber || '-'}
         </Typography>
       ),
@@ -322,7 +326,7 @@ export default function Inativos({ categorias = [] }) {
     {
       field: 'motivoReparo',
       headerName: 'Motivo',
-      minWidth: 200,
+      minWidth: 140,
       hideOnMobile: true,
       renderCell: (row) => {
         const motivo = row.motivoReparo || '-';
@@ -339,7 +343,6 @@ export default function Inativos({ categorias = [] }) {
                 whiteSpace: 'normal',
                 wordBreak: 'break-word',
                 lineHeight: 1.4,
-                maxWidth: 250,
               }}
             >
               {motivo}
@@ -350,9 +353,10 @@ export default function Inativos({ categorias = [] }) {
     },
     {
       field: 'date',
-      headerName: 'Data Envio',
+      headerName: 'Data',
       icon: <CalendarIcon fontSize="small" />,
-      minWidth: 110,
+      minWidth: 90,
+      hideOnMobile: true,
       renderCell: (row) => (
         <Chip
           label={row.date?.seconds ? new Date(row.date.seconds * 1000).toLocaleDateString('pt-BR') : '-'}
@@ -365,7 +369,7 @@ export default function Inativos({ categorias = [] }) {
     {
       field: 'status',
       headerName: 'Status',
-      minWidth: 120,
+      minWidth: 100,
       renderCell: (row) => {
         const isEmReparo = row.status === "emReparo";
         return (
@@ -382,54 +386,38 @@ export default function Inativos({ categorias = [] }) {
     {
       field: 'actions',
       headerName: 'Acoes',
-      minWidth: 200,
+      minWidth: isMobile ? 80 : 100,
       align: 'center',
       renderCell: (row) => {
         const anexosCount = row.anexos?.length || 0;
         return (
-          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'nowrap' }}>
             <Tooltip title="Anexos / Comprovantes" arrow>
-              <Badge badgeContent={anexosCount} color="primary" max={99}>
-                <Chip
-                  icon={<AttachFileIcon />}
-                  label="Anexos"
-                  variant="outlined"
-                  color="primary"
-                  clickable
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenAnexos(row);
-                  }}
-                  size="small"
-                  sx={{
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                      borderColor: 'primary.main'
-                    }
-                  }}
-                />
-              </Badge>
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenAnexos(row);
+                }}
+              >
+                <Badge badgeContent={anexosCount} color="primary" max={99}>
+                  <AttachFileIcon fontSize="small" />
+                </Badge>
+              </IconButton>
             </Tooltip>
             {row.status === "emReparo" && (
               <Tooltip title="Marcar como Devolvido" arrow>
-                <Chip
-                  icon={<CheckCircleIcon />}
-                  label="Devolver"
-                  variant="outlined"
+                <IconButton
+                  size="small"
                   color="success"
-                  clickable
                   onClick={(e) => {
                     e.stopPropagation();
                     handleOpenDialog(row);
                   }}
-                  size="small"
-                  sx={{
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.success.main, 0.1),
-                      borderColor: 'success.main'
-                    }
-                  }}
-                />
+                >
+                  <CheckCircleIcon fontSize="small" />
+                </IconButton>
               </Tooltip>
             )}
           </Box>
