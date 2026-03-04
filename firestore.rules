@@ -50,7 +50,8 @@ service cloud.firestore {
     // Movements (cautela records)
     match /movimentacoes/{docId} {
       allow read: if isAuth();
-      allow create, delete: if isEditorOrAdmin();
+      allow create: if isEditorOrAdmin();
+      allow delete: if isAdminGeral();
       allow update: if isEditorOrAdmin()
         || (isAuth()
             && resource.data.user == request.auth.token.firestoreId
