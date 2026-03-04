@@ -55,7 +55,10 @@ service cloud.firestore {
         || (isAuth()
             && resource.data.user == request.auth.token.firestoreId
             && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['signed', 'signed_date', 'user_acknowledged_return']));
+                .hasOnly(['signed', 'signed_date', 'user_acknowledged_return']))
+        || (isAdmin()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['anexos']));
     }
 
     // Rings
