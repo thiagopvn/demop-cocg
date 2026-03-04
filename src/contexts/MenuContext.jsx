@@ -168,7 +168,7 @@ function MenuContext({ children }) {
   };
 
   const handleConfirmCleanup = async () => {
-    if (userRole === "admin" || userRole === "admingeral") {
+    if (userRole === "admingeral") {
       setIsCleaning(true);
       try {
         const twoYearsAgo = new Date();
@@ -196,7 +196,7 @@ function MenuContext({ children }) {
         handleCloseCleanupDialog();
       }
     } else {
-      alert("Você não tem permissão para limpar movimentações antigas. Apenas administradores podem realizar esta ação.");
+      alert("Você não tem permissão para limpar movimentações antigas. Apenas o administrador geral pode realizar esta ação.");
       handleCloseCleanupDialog();
     }
   };
@@ -759,7 +759,7 @@ function MenuContext({ children }) {
       </Box>
 
       {/* Admin Cleanup FAB */}
-      {(userRole === "admin" || userRole === "admingeral") && (
+      {userRole === "admingeral" && (
         <Zoom in timeout={300}>
           <Tooltip title="Limpar Movimentações Antigas" arrow>
             <Fab
