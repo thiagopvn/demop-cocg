@@ -22,6 +22,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Badge,
   alpha,
   styled
 } from "@mui/material";
@@ -35,13 +36,16 @@ import {
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Phone as PhoneIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  AttachFile as AttachFileIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
 import { query, collection, where, getDocs, doc, updateDoc, orderBy } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
+import { verifyToken } from "../../firebase/token";
+import AnexosDialog from "../../dialogs/AnexosDialog";
 
 const HeaderCard = styled(Card)(({ theme }) => ({
   borderRadius: 16,
@@ -75,6 +79,10 @@ export default function Inativos({ categorias = [] }) {
   const [statusFilter, setStatusFilter] = useState("emReparo");
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedMovimentacao, setSelectedMovimentacao] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [username, setUsername] = useState("");
+  const [anexosDialogOpen, setAnexosDialogOpen] = useState(false);
+  const [selectedMovForAnexos, setSelectedMovForAnexos] = useState(null);
   const theme = useTheme();
 
   useEffect(() => {
@@ -105,6 +113,28 @@ export default function Inativos({ categorias = [] }) {
 
     fetchMovimentacoes();
   }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      verifyToken(token).then((payload) => {
+        if (payload) {
+          setUserRole(payload.role);
+          setUsername(payload.username || "");
+        }
+      });
+    }
+  }, []);
+
+  const handleOpenAnexos = (mov) => {
+    setSelectedMovForAnexos(mov);
+    setAnexosDialogOpen(true);
+  };
+
+  const handleCloseAnexos = () => {
+    setAnexosDialogOpen(false);
+    setSelectedMovForAnexos(null);
+  };
 
   const handleOpenDialog = (movimentacao) => {
     setSelectedMovimentacao(movimentacao);
@@ -292,8 +322,31 @@ export default function Inativos({ categorias = [] }) {
     {
       field: 'motivoReparo',
       headerName: 'Motivo',
-      minWidth: 150,
+      minWidth: 200,
       hideOnMobile: true,
+      renderCell: (row) => {
+        const motivo = row.motivoReparo || '-';
+        return (
+          <Tooltip title={motivo} arrow enterDelay={300}>
+            <Typography
+              variant="body2"
+              sx={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word',
+                lineHeight: 1.4,
+                maxWidth: 250,
+              }}
+            >
+              {motivo}
+            </Typography>
+          </Tooltip>
+        );
+      },
     },
     {
       field: 'date',
@@ -329,34 +382,58 @@ export default function Inativos({ categorias = [] }) {
     {
       field: 'actions',
       headerName: 'Acoes',
-      minWidth: 120,
+      minWidth: 200,
       align: 'center',
       renderCell: (row) => {
-        if (row.status === "emReparo") {
-          return (
-            <Tooltip title="Marcar como Devolvido" arrow>
-              <Chip
-                icon={<CheckCircleIcon />}
-                label="Devolver"
-                variant="outlined"
-                color="success"
-                clickable
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenDialog(row);
-                }}
-                size="small"
-                sx={{
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.success.main, 0.1),
-                    borderColor: 'success.main'
-                  }
-                }}
-              />
+        const anexosCount = row.anexos?.length || 0;
+        return (
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+            <Tooltip title="Anexos / Comprovantes" arrow>
+              <Badge badgeContent={anexosCount} color="primary" max={99}>
+                <Chip
+                  icon={<AttachFileIcon />}
+                  label="Anexos"
+                  variant="outlined"
+                  color="primary"
+                  clickable
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenAnexos(row);
+                  }}
+                  size="small"
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      borderColor: 'primary.main'
+                    }
+                  }}
+                />
+              </Badge>
             </Tooltip>
-          );
-        }
-        return null;
+            {row.status === "emReparo" && (
+              <Tooltip title="Marcar como Devolvido" arrow>
+                <Chip
+                  icon={<CheckCircleIcon />}
+                  label="Devolver"
+                  variant="outlined"
+                  color="success"
+                  clickable
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenDialog(row);
+                  }}
+                  size="small"
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.success.main, 0.1),
+                      borderColor: 'success.main'
+                    }
+                  }}
+                />
+              </Tooltip>
+            )}
+          </Box>
+        );
       },
     },
   ];
@@ -524,6 +601,15 @@ export default function Inativos({ categorias = [] }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Anexos Dialog */}
+      <AnexosDialog
+        open={anexosDialogOpen}
+        onClose={handleCloseAnexos}
+        movimentacao={selectedMovForAnexos}
+        userRole={userRole}
+        username={username}
+      />
 
       {/* Export FAB */}
       {filteredMovimentacoes.length > 0 && (
