@@ -349,7 +349,7 @@ export default function Inativos({ categorias = [] }) {
         const anexosCount = row.anexos?.length || 0;
         return (
           <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'nowrap' }}>
-            <Tooltip title="Anexos / Comprovantes" arrow>
+            <Tooltip title="Anexos / Comprovantes" arrow placement="top">
               <IconButton
                 size="small"
                 color="primary"
@@ -364,7 +364,7 @@ export default function Inativos({ categorias = [] }) {
               </IconButton>
             </Tooltip>
             {row.status === "emReparo" && (
-              <Tooltip title="Marcar como Devolvido" arrow>
+              <Tooltip title="Marcar como Devolvido" arrow placement="top">
                 <IconButton
                   size="small"
                   color="success"
