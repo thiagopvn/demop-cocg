@@ -76,5 +76,4 @@ export async function deleteMovimentacao(movimentacao) {
   const movRef = doc(db, 'movimentacoes', movId);
   await deleteDoc(movRef);
 
-  return { estoqueTotal, estoqueAtual };
 }
