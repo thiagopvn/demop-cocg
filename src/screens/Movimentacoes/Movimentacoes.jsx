@@ -277,6 +277,7 @@ export default function Movimentacao() {
                     movementData.user = userSelected.id;
                     movementData.user_name = userSelected.full_name;
                     movementData.telefone_responsavel = userSelected.telefone;
+                    if (userSelected.rg) movementData.user_rg = userSelected.rg;
                 }
 
                 if (viaturaSelected) {
@@ -348,6 +349,7 @@ export default function Movimentacao() {
                 movementData.user = userSelected.id;
                 movementData.user_name = userSelected.full_name;
                 movementData.telefone_responsavel = userSelected.telefone;
+                if (userSelected.rg) movementData.user_rg = userSelected.rg;
             }
 
             // Só adiciona os campos da viatura se ela estiver selecionada

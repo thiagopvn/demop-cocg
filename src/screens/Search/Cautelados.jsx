@@ -34,6 +34,7 @@ import {
   DirectionsCar as CarIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
+  Badge as BadgeIcon,
   SwapHoriz as SwapIcon,
   ArrowDownward as InIcon,
   ArrowUpward as OutIcon,
@@ -184,6 +185,7 @@ export default function Cautelados() {
     return displayedMovimentacoes.filter((mov) =>
       (mov.material_description?.toLowerCase() || '').includes(search) ||
       (mov.user_name?.toLowerCase() || '').includes(search) ||
+      (mov.user_rg?.toLowerCase() || '').includes(search) ||
       (mov.viatura_description?.toLowerCase() || '').includes(search)
     );
   }, [displayedMovimentacoes, searchTerm]);
@@ -272,6 +274,18 @@ export default function Cautelados() {
             {row.user_name || '-'}
           </Typography>
         </Box>
+      ),
+    },
+    {
+      field: 'user_rg',
+      headerName: 'RG',
+      icon: <BadgeIcon fontSize="small" />,
+      minWidth: 110,
+      hideOnMobile: true,
+      renderCell: (row) => (
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+          {row.user_rg || '-'}
+        </Typography>
       ),
     },
     {
