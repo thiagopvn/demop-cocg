@@ -275,17 +275,6 @@ export default function Cautelados() {
       ),
     },
     {
-      field: 'sender_name',
-      headerName: 'Militar que realizou a cautela',
-      icon: <BadgeIcon fontSize="small" />,
-      minWidth: 140,
-      renderCell: (row) => (
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
-          {row.sender_name || '-'}
-        </Typography>
-      ),
-    },
-    {
       field: 'telefone_responsavel',
       headerName: 'WhatsApp',
       icon: <PhoneIcon fontSize="small" />,
@@ -414,6 +403,18 @@ export default function Cautelados() {
           />
         );
       },
+    },
+    {
+      field: 'sender_name',
+      headerName: 'Militar que realizou a cautela',
+      icon: <BadgeIcon fontSize="small" />,
+      minWidth: 140,
+      align: 'center',
+      renderCell: (row) => (
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500, textAlign: 'center', width: '100%' }}>
+          {row.sender_name || '-'}
+        </Typography>
+      ),
     },
     ...(isAdminGeral ? [{
       field: 'actions',
