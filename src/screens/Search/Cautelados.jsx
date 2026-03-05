@@ -112,7 +112,7 @@ export default function Cautelados() {
               ];
               break;
             case 2:
-              constraints = [where("status", "==", "devolvido")];
+              constraints = [where("status", "in", ["devolvido", "devolvidaDeReparo"])];
               break;
             case 3:
               constraints = [

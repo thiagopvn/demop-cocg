@@ -61,7 +61,7 @@ export default function DevolucaoReceiptStrip({ cautela, onAcknowledge }) {
           }}
         >
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Devolução Confirmada
+            {cautela.status === 'devolvidaDeReparo' ? 'Devolução de Reparo Confirmada' : 'Devolução Confirmada'}
           </Typography>
         </Alert>
 
