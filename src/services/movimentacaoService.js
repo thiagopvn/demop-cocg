@@ -20,21 +20,16 @@ export async function deleteMovimentacao(movimentacao) {
   const status = movimentacao.status;
   const type = movimentacao.type;
 
-  // Buscar material atual
+  // Buscar material atual (se existir, reverte estoque)
   const materialRef = doc(db, 'materials', materialId);
-  const materialSnap = await getDoc(materialRef);
+  const materialSnap = materialId ? await getDoc(materialRef) : null;
 
-  if (!materialSnap.exists()) {
-    throw new Error('Material não encontrado no Firestore.');
-  }
+  if (materialSnap?.exists() && status !== 'devolvido' && status !== 'devolvidaDeReparo') {
+    const materialData = materialSnap.data();
+    let estoqueTotal = materialData.estoque_total;
+    let estoqueAtual = materialData.estoque_atual;
+    let needsStockUpdate = false;
 
-  const materialData = materialSnap.data();
-  let estoqueTotal = materialData.estoque_total;
-  let estoqueAtual = materialData.estoque_atual;
-  let needsStockUpdate = false;
-
-  // Só reverter estoque se não foi devolvido (devolução já restaurou)
-  if (status !== 'devolvido' && status !== 'devolvidaDeReparo') {
     switch (type) {
       case 'cautela':
         estoqueAtual += quantity;
@@ -55,6 +50,13 @@ export async function deleteMovimentacao(movimentacao) {
         needsStockUpdate = true;
         break;
     }
+
+    if (needsStockUpdate) {
+      await updateDoc(materialRef, {
+        estoque_total: estoqueTotal,
+        estoque_atual: estoqueAtual,
+      });
+    }
   }
 
   // Deletar anexos do Storage (se houver)
@@ -68,14 +70,6 @@ export async function deleteMovimentacao(movimentacao) {
       }
     });
     await Promise.all(deletePromises);
-  }
-
-  // Atualizar estoque do material
-  if (needsStockUpdate) {
-    await updateDoc(materialRef, {
-      estoque_total: estoqueTotal,
-      estoque_atual: estoqueAtual,
-    });
   }
 
   // Deletar a movimentação
