@@ -6,12 +6,6 @@ import { verifyToken } from "../../firebase/token";
 import {
   Box,
   Typography,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableContainer,
   Chip,
   Switch,
   FormControlLabel,
@@ -25,17 +19,18 @@ import {
   useMediaQuery,
   Collapse,
   Fade,
+  Grow,
   Skeleton,
-  Badge,
   Snackbar,
   Alert,
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
   Button,
   Stack,
   Divider,
+  Avatar,
+  LinearProgress,
+  Grid,
 } from "@mui/material";
 import {
   AssignmentReturn,
@@ -44,11 +39,16 @@ import {
   CalendarToday,
   Inventory2,
   CheckCircle,
-  Info,
   SearchOff,
   SwapHoriz,
   Notes,
   WarningAmber,
+  KeyboardArrowDown,
+  KeyboardArrowUp,
+  Close,
+  AccessTime,
+  ArrowForward,
+  Category,
 } from "@mui/icons-material";
 import db from "../../firebase/db";
 import {
@@ -62,10 +62,231 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
+// ─── Stat Card ──────────────────────────────────────────────
+const StatBadge = ({ icon: Icon, label, value, color, theme }) => (
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      gap: 1.5,
+      px: 2.5,
+      py: 1.5,
+      borderRadius: 3,
+      backgroundColor: alpha(color, 0.06),
+      border: `1px solid ${alpha(color, 0.15)}`,
+      minWidth: 140,
+      transition: "all 0.2s ease",
+      "&:hover": {
+        backgroundColor: alpha(color, 0.1),
+        borderColor: alpha(color, 0.3),
+      },
+    }}
+  >
+    <Avatar
+      sx={{
+        width: 36,
+        height: 36,
+        bgcolor: alpha(color, 0.12),
+        color: color,
+      }}
+    >
+      <Icon sx={{ fontSize: 18 }} />
+    </Avatar>
+    <Box>
+      <Typography variant="h6" sx={{ fontWeight: 700, color, lineHeight: 1.2 }}>
+        {value}
+      </Typography>
+      <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500, fontSize: "0.7rem" }}>
+        {label}
+      </Typography>
+    </Box>
+  </Box>
+);
+
+// ─── Item Card ──────────────────────────────────────────────
+const ItemCard = ({ mov, isPendente, onDevolver, formatDate, theme, index }) => {
+  const isDevolvido = mov.status === "devolvido" || mov.status === "devolvidaDeReparo";
+  const accentColor = isPendente ? theme.palette.warning.main : theme.palette.success.main;
+
+  return (
+    <Grow in timeout={300 + index * 80}>
+      <Card
+        sx={{
+          position: "relative",
+          overflow: "visible",
+          border: `1px solid ${alpha(accentColor, 0.15)}`,
+          backgroundColor: "background.paper",
+          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+          "&:hover": {
+            transform: { xs: "none", sm: "translateY(-3px)" },
+            boxShadow: `0 12px 32px ${alpha(accentColor, 0.15)}`,
+            borderColor: alpha(accentColor, 0.35),
+          },
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            borderRadius: "12px 12px 0 0",
+            background: `linear-gradient(90deg, ${accentColor} 0%, ${alpha(accentColor, 0.4)} 100%)`,
+          },
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, sm: 2.5 }, "&:last-child": { pb: { xs: 2, sm: 2.5 } } }}>
+          {/* Top row: material + status */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5, gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1, minWidth: 0 }}>
+              <Avatar
+                sx={{
+                  width: 40,
+                  height: 40,
+                  bgcolor: alpha(accentColor, 0.1),
+                  color: accentColor,
+                  flexShrink: 0,
+                }}
+              >
+                <Inventory2 sx={{ fontSize: 20 }} />
+              </Avatar>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 700,
+                    lineHeight: 1.3,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {mov.material_description}
+                </Typography>
+                {mov.categoria && (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Category sx={{ fontSize: 12, color: "text.disabled" }} />
+                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: "0.65rem" }}>
+                      {mov.categoria}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+            <Chip
+              icon={isDevolvido ? <CheckCircle sx={{ fontSize: 14 }} /> : <AccessTime sx={{ fontSize: 14 }} />}
+              label={isDevolvido ? "Devolvido" : "Pendente"}
+              size="small"
+              sx={{
+                fontWeight: 700,
+                fontSize: "0.7rem",
+                height: 26,
+                borderRadius: 2,
+                flexShrink: 0,
+                backgroundColor: alpha(accentColor, 0.1),
+                color: isPendente ? theme.palette.warning.dark : theme.palette.success.dark,
+                border: `1px solid ${alpha(accentColor, 0.25)}`,
+                "& .MuiChip-icon": { color: "inherit" },
+              }}
+            />
+          </Box>
+
+          {/* Info row */}
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: { xs: 1, sm: 2 },
+              mb: isPendente ? 2 : 0,
+              py: 1,
+              px: 1.5,
+              borderRadius: 2,
+              backgroundColor: alpha(theme.palette.primary.main, 0.02),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.06)}`,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <CalendarToday sx={{ fontSize: 14, color: "text.disabled" }} />
+              <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                {formatDate(mov.date)}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Inventory2 sx={{ fontSize: 14, color: "text.disabled" }} />
+              <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                Qtd: <strong>{mov.quantity}</strong>
+              </Typography>
+            </Box>
+            {mov.user_name && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Person sx={{ fontSize: 14, color: "text.disabled" }} />
+                <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                  {mov.user_name}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Observacoes */}
+          {mov.observacoes && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 0.5,
+                mt: 1,
+                px: 1.5,
+                py: 1,
+                borderRadius: 1.5,
+                backgroundColor: alpha(theme.palette.info.main, 0.04),
+                border: `1px solid ${alpha(theme.palette.info.main, 0.08)}`,
+              }}
+            >
+              <Notes sx={{ fontSize: 14, color: theme.palette.info.main, mt: 0.2 }} />
+              <Typography variant="caption" color="text.secondary" sx={{ wordBreak: "break-word", fontStyle: "italic" }}>
+                {mov.observacoes}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Action area */}
+          {isPendente && (
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1.5 }}>
+              <Button
+                variant="contained"
+                size="medium"
+                startIcon={<AssignmentReturn />}
+                endIcon={<ArrowForward sx={{ fontSize: 16 }} />}
+                onClick={() => onDevolver(mov)}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 2.5,
+                  px: 3,
+                  py: 1,
+                  fontSize: "0.85rem",
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.35)}`,
+                  "&:hover": {
+                    boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.45)}`,
+                    transform: "translateY(-1px)",
+                  },
+                  transition: "all 0.2s ease",
+                }}
+              >
+                Devolver Material
+              </Button>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+    </Grow>
+  );
+};
+
+// ─── Main Component ─────────────────────────────────────────
 export default function Devolucoes() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
   const [userRole, setUserRole] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
@@ -75,6 +296,8 @@ export default function Devolucoes() {
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, item: null });
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [showDevolvidos, setShowDevolvidos] = useState(false);
+  const [devolvendo, setDevolvendo] = useState(false);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -96,10 +319,7 @@ export default function Devolucoes() {
       try {
         let q;
         if (includeReparo) {
-          q = query(
-            collection(db, "movimentacoes"),
-            where("type", "==", "reparo")
-          );
+          q = query(collection(db, "movimentacoes"), where("type", "==", "reparo"));
         } else {
           q = query(
             collection(db, "movimentacoes"),
@@ -111,10 +331,7 @@ export default function Devolucoes() {
         const querySnapshot = await getDocs(q);
         const results = [];
         querySnapshot.forEach((docSnap) => {
-          results.push({
-            id: docSnap.id,
-            ...docSnap.data(),
-          });
+          results.push({ id: docSnap.id, ...docSnap.data() });
         });
         setMovimentacoes(results);
       } catch (error) {
@@ -141,7 +358,10 @@ export default function Devolucoes() {
     return { pendentes: p, devolvidos: d };
   }, [movimentacoes]);
 
+  const progressPercent = movimentacoes.length > 0 ? (devolvidos.length / movimentacoes.length) * 100 : 0;
+
   const handleDevolver = async (movimentacao) => {
+    setDevolvendo(true);
     try {
       const docRef = doc(db, "movimentacoes", movimentacao.id);
       const newStatus = includeReparo ? "devolvidaDeReparo" : "devolvido";
@@ -160,28 +380,25 @@ export default function Devolucoes() {
         const quantidadeDevolvida = movimentacao.quantity;
         const quantidadeAtual = materialData.estoque_atual || 0;
         const novaQuantidade = quantidadeAtual + quantidadeDevolvida;
-
-        await updateDoc(docRefMaterial, {
-          estoque_atual: novaQuantidade,
-        });
+        await updateDoc(docRefMaterial, { estoque_atual: novaQuantidade });
       }
 
       setMovimentacoes((prev) =>
         prev.map((m) =>
-          m.id === movimentacao.id
-            ? { ...m, status: newStatus, returned_date: new Date() }
-            : m
+          m.id === movimentacao.id ? { ...m, status: newStatus, returned_date: new Date() } : m
         )
       );
 
       setSnackbar({
         open: true,
-        message: `"${movimentacao.material_description}" devolvido com sucesso!`,
+        message: `"${movimentacao.material_description}" devolvido com sucesso! Estoque atualizado.`,
         severity: "success",
       });
     } catch (error) {
       console.error("Erro ao devolver material:", error);
-      setSnackbar({ open: true, message: "Erro ao devolver material.", severity: "error" });
+      setSnackbar({ open: true, message: "Erro ao devolver material. Tente novamente.", severity: "error" });
+    } finally {
+      setDevolvendo(false);
     }
   };
 
@@ -196,269 +413,11 @@ export default function Devolucoes() {
     if (!date) return "-";
     try {
       const dateObj = date.toDate ? date.toDate() : new Date(date);
-      return dateObj.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
+      return dateObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
     } catch {
       return "-";
     }
   };
-
-  const getStatusChip = (status) => {
-    const isDevolvido = status === "devolvido" || status === "devolvidaDeReparo";
-    return (
-      <Chip
-        icon={isDevolvido ? <CheckCircle sx={{ fontSize: 16 }} /> : <SwapHoriz sx={{ fontSize: 16 }} />}
-        label={isDevolvido ? "Devolvido" : "Pendente"}
-        size="small"
-        sx={{
-          fontWeight: 600,
-          fontSize: "0.75rem",
-          backgroundColor: isDevolvido
-            ? alpha(theme.palette.success.main, 0.12)
-            : alpha(theme.palette.warning.main, 0.12),
-          color: isDevolvido ? theme.palette.success.dark : theme.palette.warning.dark,
-          border: `1px solid ${isDevolvido
-            ? alpha(theme.palette.success.main, 0.3)
-            : alpha(theme.palette.warning.main, 0.3)
-          }`,
-          "& .MuiChip-icon": {
-            color: "inherit",
-          },
-        }}
-      />
-    );
-  };
-
-  const renderMobileCard = (movimentacao, isPendente) => (
-    <Card
-      key={movimentacao.id}
-      sx={{
-        mb: 1.5,
-        border: `1px solid ${alpha(
-          isPendente ? theme.palette.warning.main : theme.palette.success.main,
-          0.2
-        )}`,
-        backgroundColor: alpha(
-          isPendente ? theme.palette.warning.main : theme.palette.success.main,
-          0.02
-        ),
-        "&:hover": { transform: "none", boxShadow: theme.shadows[2] },
-      }}
-    >
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, flex: 1, mr: 1 }}>
-            {movimentacao.material_description}
-          </Typography>
-          {getStatusChip(movimentacao.status)}
-        </Box>
-
-        <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <CalendarToday sx={{ fontSize: 14, color: "text.secondary" }} />
-            <Typography variant="caption" color="text.secondary">
-              {formatDate(movimentacao.date)}
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Inventory2 sx={{ fontSize: 14, color: "text.secondary" }} />
-            <Typography variant="caption" color="text.secondary">
-              Qtd: {movimentacao.quantity}
-            </Typography>
-          </Box>
-        </Stack>
-
-        {movimentacao.observacoes && (
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5, mb: 1 }}>
-            <Notes sx={{ fontSize: 14, color: "text.secondary", mt: 0.3 }} />
-            <Typography variant="caption" color="text.secondary" sx={{ wordBreak: "break-word" }}>
-              {movimentacao.observacoes}
-            </Typography>
-          </Box>
-        )}
-
-        {isPendente && (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AssignmentReturn />}
-              onClick={() => setConfirmDialog({ open: true, item: movimentacao })}
-              sx={{
-                textTransform: "none",
-                fontWeight: 600,
-                borderRadius: 2,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-              }}
-            >
-              Devolver
-            </Button>
-          </Box>
-        )}
-      </CardContent>
-    </Card>
-  );
-
-  const renderTable = (items, isPendente) => (
-    <TableContainer
-      component={Paper}
-      elevation={0}
-      sx={{
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 3,
-        overflow: "hidden",
-      }}
-    >
-      <Table size="small">
-        <TableHead>
-          <TableRow
-            sx={{
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-            }}
-          >
-            <TableCell sx={{ color: "white", fontWeight: 600, py: 1.5 }}>Material</TableCell>
-            <TableCell sx={{ color: "white", fontWeight: 600, py: 1.5 }} align="center">Data</TableCell>
-            <TableCell sx={{ color: "white", fontWeight: 600, py: 1.5 }} align="center">Qtd</TableCell>
-            {!isTablet && (
-              <TableCell sx={{ color: "white", fontWeight: 600, py: 1.5 }}>Obs</TableCell>
-            )}
-            <TableCell sx={{ color: "white", fontWeight: 600, py: 1.5 }} align="center">Status</TableCell>
-            {isPendente && (
-              <TableCell sx={{ color: "white", fontWeight: 600, py: 1.5 }} align="center">Acao</TableCell>
-            )}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {items.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={isPendente ? 6 : 5} align="center" sx={{ py: 4 }}>
-                <CheckCircle sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} />
-                <Typography variant="body2" color="text.secondary">
-                  {isPendente ? "Nenhum item pendente de devolucao" : "Nenhuma devolucao registrada"}
-                </Typography>
-              </TableCell>
-            </TableRow>
-          ) : (
-            items.map((mov, index) => (
-              <TableRow
-                key={mov.id}
-                sx={{
-                  backgroundColor: index % 2 === 0 ? "transparent" : alpha(theme.palette.primary.main, 0.02),
-                  "&:hover": { backgroundColor: alpha(theme.palette.primary.main, 0.06) },
-                  transition: "background-color 0.15s",
-                }}
-              >
-                <TableCell sx={{ py: 1.5 }}>
-                  <Typography variant="body2" fontWeight={500}>
-                    {mov.material_description}
-                  </Typography>
-                </TableCell>
-                <TableCell align="center">
-                  <Typography variant="body2" color="text.secondary">
-                    {formatDate(mov.date)}
-                  </Typography>
-                </TableCell>
-                <TableCell align="center">
-                  <Chip
-                    label={mov.quantity}
-                    size="small"
-                    sx={{
-                      minWidth: 32,
-                      fontWeight: 600,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                      color: theme.palette.primary.main,
-                    }}
-                  />
-                </TableCell>
-                {!isTablet && (
-                  <TableCell sx={{ maxWidth: 200, wordBreak: "break-word" }}>
-                    <Typography variant="body2" color="text.secondary">
-                      {mov.observacoes || "-"}
-                    </Typography>
-                  </TableCell>
-                )}
-                <TableCell align="center">{getStatusChip(mov.status)}</TableCell>
-                {isPendente && (
-                  <TableCell align="center">
-                    <Tooltip title="Devolver material" arrow>
-                      <IconButton
-                        size="small"
-                        onClick={() => setConfirmDialog({ open: true, item: mov })}
-                        sx={{
-                          color: theme.palette.primary.main,
-                          backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                          "&:hover": {
-                            backgroundColor: alpha(theme.palette.primary.main, 0.16),
-                            transform: "scale(1.1)",
-                          },
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        <AssignmentReturn fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-
-  const renderSkeletons = () => (
-    <Box sx={{ mt: 3 }}>
-      {[1, 2, 3].map((i) => (
-        <Skeleton key={i} variant="rounded" height={56} sx={{ mb: 1, borderRadius: 2 }} />
-      ))}
-    </Box>
-  );
-
-  const renderEmptyState = () => (
-    <Fade in>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          py: 8,
-          px: 3,
-        }}
-      >
-        <Box
-          sx={{
-            width: 80,
-            height: 80,
-            borderRadius: "50%",
-            backgroundColor: alpha(theme.palette.primary.main, 0.08),
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            mb: 3,
-          }}
-        >
-          {includeReparo ? (
-            <Build sx={{ fontSize: 36, color: theme.palette.primary.light }} />
-          ) : (
-            <Person sx={{ fontSize: 36, color: theme.palette.primary.light }} />
-          )}
-        </Box>
-        <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-          {includeReparo ? "Modo Reparos Ativo" : "Selecione um militar"}
-        </Typography>
-        <Typography variant="body2" color="text.disabled" textAlign="center" maxWidth={360}>
-          {includeReparo
-            ? "As movimentacoes de reparo serao exibidas automaticamente."
-            : "Pesquise e selecione um militar acima para visualizar suas cautelas pendentes de devolucao."}
-        </Typography>
-      </Box>
-    </Fade>
-  );
 
   const hasResults = selectedUser || includeReparo;
 
@@ -467,34 +426,144 @@ export default function Devolucoes() {
       <MenuContext>
         <div className="root-protected">
           {userRole === "admin" || userRole === "editor" || userRole === "admingeral" ? (
-            <Box sx={{ maxWidth: 1200, mx: "auto" }}>
-              {/* Header */}
-              <Box sx={{ mb: 3 }}>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontWeight: 700,
-                    color: "text.primary",
-                    mb: 0.5,
-                  }}
-                >
-                  Devoluções
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Gerencie as devoluções de materiais cautelados
-                </Typography>
-              </Box>
-
-              {/* Toggle Reparo + Search */}
+            <Box sx={{ width: "100%" }}>
+              {/* ═══ HERO HEADER ═══ */}
               <Paper
                 elevation={0}
                 sx={{
-                  p: 2.5,
+                  position: "relative",
+                  overflow: "hidden",
+                  borderRadius: 4,
                   mb: 3,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 3,
+                  p: { xs: 3, sm: 4 },
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 50%, #0a1628 100%)`,
+                  color: "white",
+                  "&::before": {
+                    content: '""',
+                    position: "absolute",
+                    top: -60,
+                    right: -60,
+                    width: 200,
+                    height: 200,
+                    borderRadius: "50%",
+                    background: alpha("#fff", 0.04),
+                  },
+                  "&::after": {
+                    content: '""',
+                    position: "absolute",
+                    bottom: -40,
+                    left: "30%",
+                    width: 150,
+                    height: 150,
+                    borderRadius: "50%",
+                    background: alpha("#fff", 0.03),
+                  },
                 }}
               >
+                <Box sx={{ position: "relative", zIndex: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                    <Avatar
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        bgcolor: alpha("#fff", 0.15),
+                        backdropFilter: "blur(10px)",
+                      }}
+                    >
+                      <AssignmentReturn sx={{ fontSize: 26 }} />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: "-0.02em" }}>
+                        Central de Devoluções
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ opacity: 0.7, fontWeight: 400, mt: 0.2 }}
+                      >
+                        Gerencie devoluções de materiais cautelados e reparos
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Progress bar when has data */}
+                  {hasResults && movimentacoes.length > 0 && (
+                    <Fade in>
+                      <Box sx={{ mt: 3 }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                          <Typography variant="caption" sx={{ opacity: 0.8, fontWeight: 500 }}>
+                            Progresso de devoluções
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                            {Math.round(progressPercent)}%
+                          </Typography>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={progressPercent}
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: alpha("#fff", 0.15),
+                            "& .MuiLinearProgress-bar": {
+                              borderRadius: 4,
+                              background: `linear-gradient(90deg, ${theme.palette.success.light} 0%, ${theme.palette.success.main} 100%)`,
+                            },
+                          }}
+                        />
+                      </Box>
+                    </Fade>
+                  )}
+
+                  {/* Stats row */}
+                  {hasResults && movimentacoes.length > 0 && (
+                    <Fade in>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 1.5,
+                          mt: 2.5,
+                        }}
+                      >
+                        <StatBadge
+                          icon={WarningAmber}
+                          label="Pendentes"
+                          value={pendentes.length}
+                          color={theme.palette.warning.light}
+                          theme={theme}
+                        />
+                        <StatBadge
+                          icon={CheckCircle}
+                          label="Devolvidos"
+                          value={devolvidos.length}
+                          color={theme.palette.success.light}
+                          theme={theme}
+                        />
+                        <StatBadge
+                          icon={Inventory2}
+                          label="Total"
+                          value={movimentacoes.length}
+                          color={alpha("#fff", 0.8)}
+                          theme={theme}
+                        />
+                      </Box>
+                    </Fade>
+                  )}
+                </Box>
+              </Paper>
+
+              {/* ═══ MODE TOGGLE + SEARCH ═══ */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: { xs: 2, sm: 3 },
+                  mb: 3,
+                  borderRadius: 4,
+                  border: `1px solid ${theme.palette.divider}`,
+                  background: theme.palette.background.paper,
+                }}
+              >
+                {/* Toggle */}
                 <Box
                   sx={{
                     display: "flex",
@@ -502,11 +571,41 @@ export default function Devolucoes() {
                     justifyContent: "space-between",
                     flexWrap: "wrap",
                     gap: 1,
-                    mb: includeReparo ? 0 : 2.5,
+                    mb: includeReparo ? 0 : 2,
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Build sx={{ fontSize: 20, color: includeReparo ? theme.palette.secondary.main : "text.disabled" }} />
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      px: 2,
+                      py: 1,
+                      borderRadius: 3,
+                      backgroundColor: includeReparo
+                        ? alpha(theme.palette.secondary.main, 0.08)
+                        : alpha(theme.palette.primary.main, 0.04),
+                      border: `1px solid ${
+                        includeReparo
+                          ? alpha(theme.palette.secondary.main, 0.2)
+                          : alpha(theme.palette.primary.main, 0.08)
+                      }`,
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    <Avatar
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        bgcolor: includeReparo
+                          ? alpha(theme.palette.secondary.main, 0.15)
+                          : alpha(theme.palette.primary.main, 0.08),
+                        color: includeReparo ? theme.palette.secondary.main : "text.disabled",
+                        transition: "all 0.3s ease",
+                      }}
+                    >
+                      <Build sx={{ fontSize: 16 }} />
+                    </Avatar>
                     <FormControlLabel
                       control={
                         <Switch
@@ -519,51 +618,50 @@ export default function Devolucoes() {
                             }
                           }}
                           color="secondary"
+                          size="small"
                         />
                       }
                       label={
-                        <Typography variant="body2" fontWeight={500}>
-                          Modo Reparos
+                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: "0.85rem" }}>
+                          {includeReparo ? "Modo Reparos" : "Modo Cautelas"}
                         </Typography>
                       }
+                      sx={{ m: 0 }}
                     />
                   </Box>
 
-                  {hasResults && (
+                  {selectedUser && !includeReparo && (
                     <Fade in>
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Badge badgeContent={pendentes.length} color="warning" max={99}>
-                          <Chip
-                            label="Pendentes"
-                            size="small"
-                            variant={pendentes.length > 0 ? "filled" : "outlined"}
-                            sx={{
-                              fontWeight: 600,
-                              backgroundColor: pendentes.length > 0
-                                ? alpha(theme.palette.warning.main, 0.12)
-                                : "transparent",
-                              color: theme.palette.warning.dark,
-                              borderColor: alpha(theme.palette.warning.main, 0.3),
-                            }}
-                          />
-                        </Badge>
-                        <Badge badgeContent={devolvidos.length} color="success" max={99}>
-                          <Chip
-                            label="Devolvidos"
-                            size="small"
-                            variant="outlined"
-                            sx={{
-                              fontWeight: 600,
-                              borderColor: alpha(theme.palette.success.main, 0.3),
-                              color: theme.palette.success.dark,
-                            }}
-                          />
-                        </Badge>
-                      </Box>
+                      <Chip
+                        avatar={
+                          <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.15) }}>
+                            <Person sx={{ fontSize: 16, color: theme.palette.primary.main }} />
+                          </Avatar>
+                        }
+                        label={selectedUser.full_name}
+                        onDelete={() => {
+                          setSelectedUser(null);
+                          setUserCritery("");
+                        }}
+                        deleteIcon={<Close sx={{ fontSize: 16 }} />}
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: "0.85rem",
+                          height: 40,
+                          borderRadius: 3,
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                          "& .MuiChip-deleteIcon": {
+                            color: "text.secondary",
+                            "&:hover": { color: theme.palette.error.main },
+                          },
+                        }}
+                      />
                     </Fade>
                   )}
                 </Box>
 
+                {/* Search */}
                 <Collapse in={!includeReparo}>
                   <UserSearch
                     onSelectUser={setSelectedUser}
@@ -573,244 +671,387 @@ export default function Devolucoes() {
                 </Collapse>
               </Paper>
 
-              {/* Selected user info bar */}
-              <Collapse in={!!selectedUser && !includeReparo}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    mb: 3,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                    borderRadius: 3,
-                  }}
-                >
-                  <Box
+              {/* ═══ LOADING STATE ═══ */}
+              {loading && (
+                <Box>
+                  <Grid container spacing={2}>
+                    {[1, 2, 3, 4].map((i) => (
+                      <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={i}>
+                        <Skeleton variant="rounded" height={180} sx={{ borderRadius: 4 }} />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+
+              {/* ═══ EMPTY STATE ═══ */}
+              {!loading && !hasResults && (
+                <Fade in>
+                  <Paper
+                    elevation={0}
                     sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.12),
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
-                      flexShrink: 0,
+                      py: { xs: 8, sm: 10 },
+                      px: 3,
+                      borderRadius: 4,
+                      border: `2px dashed ${alpha(theme.palette.primary.main, 0.15)}`,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
                     }}
                   >
-                    <Person sx={{ color: theme.palette.primary.main }} />
-                  </Box>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="subtitle2" fontWeight={600} noWrap>
-                      {selectedUser?.full_name}
+                    <Avatar
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        mb: 3,
+                      }}
+                    >
+                      <Person sx={{ fontSize: 40, color: theme.palette.primary.light }} />
+                    </Avatar>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary", mb: 1 }}>
+                      Selecione um militar
                     </Typography>
-                    {selectedUser?.OBM && (
-                      <Typography variant="caption" color="text.secondary">
-                        {selectedUser.OBM}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Chip
-                    label={`${movimentacoes.length} cautela${movimentacoes.length !== 1 ? "s" : ""}`}
-                    size="small"
-                    sx={{
-                      fontWeight: 600,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                      color: theme.palette.primary.main,
-                    }}
-                  />
-                </Paper>
-              </Collapse>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      textAlign="center"
+                      maxWidth={400}
+                      sx={{ lineHeight: 1.7 }}
+                    >
+                      Pesquise e selecione um militar no campo acima para visualizar
+                      suas cautelas e realizar devoluções de materiais.
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.disabled"
+                      sx={{ mt: 2, display: "flex", alignItems: "center", gap: 0.5 }}
+                    >
+                      <Build sx={{ fontSize: 14 }} />
+                      Ou ative o Modo Reparos para gerenciar devoluções de materiais em reparo
+                    </Typography>
+                  </Paper>
+                </Fade>
+              )}
 
-              {/* Content area */}
-              {loading ? (
-                renderSkeletons()
-              ) : !hasResults ? (
-                renderEmptyState()
-              ) : (
+              {/* ═══ NO RESULTS STATE ═══ */}
+              {!loading && hasResults && movimentacoes.length === 0 && (
                 <Fade in>
-                  <Box>
-                    {/* Pendentes Section */}
-                    {pendentes.length > 0 && (
-                      <Box sx={{ mb: 4 }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                          <WarningAmber sx={{ fontSize: 20, color: theme.palette.warning.main }} />
-                          <Typography variant="subtitle1" fontWeight={600}>
-                            Pendentes de Devolucao
-                          </Typography>
-                          <Chip
-                            label={pendentes.length}
-                            size="small"
-                            sx={{
-                              height: 22,
-                              minWidth: 22,
-                              fontWeight: 700,
-                              fontSize: "0.75rem",
-                              backgroundColor: alpha(theme.palette.warning.main, 0.15),
-                              color: theme.palette.warning.dark,
-                            }}
-                          />
-                        </Box>
-                        {isMobile
-                          ? pendentes.map((m) => renderMobileCard(m, true))
-                          : renderTable(pendentes, true)
-                        }
-                      </Box>
-                    )}
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      py: { xs: 6, sm: 8 },
+                      px: 3,
+                      borderRadius: 4,
+                      border: `1px solid ${theme.palette.divider}`,
+                    }}
+                  >
+                    <Avatar
+                      sx={{
+                        width: 72,
+                        height: 72,
+                        bgcolor: alpha(theme.palette.info.main, 0.08),
+                        mb: 2.5,
+                      }}
+                    >
+                      <SearchOff sx={{ fontSize: 36, color: theme.palette.info.light }} />
+                    </Avatar>
+                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
+                      Nenhuma movimentação encontrada
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={360}>
+                      {includeReparo
+                        ? "Não existem movimentações de reparo registradas no momento."
+                        : "Este militar não possui cautelas registradas no sistema."}
+                    </Typography>
+                  </Paper>
+                </Fade>
+              )}
 
-                    {/* Devolvidos Section */}
-                    {devolvidos.length > 0 && (
-                      <Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                          <CheckCircle sx={{ fontSize: 20, color: theme.palette.success.main }} />
-                          <Typography variant="subtitle1" fontWeight={600}>
-                            Devolvidos
-                          </Typography>
-                          <Chip
-                            label={devolvidos.length}
-                            size="small"
-                            sx={{
-                              height: 22,
-                              minWidth: 22,
-                              fontWeight: 700,
-                              fontSize: "0.75rem",
-                              backgroundColor: alpha(theme.palette.success.main, 0.15),
-                              color: theme.palette.success.dark,
-                            }}
-                          />
-                        </Box>
-                        {isMobile
-                          ? devolvidos.map((m) => renderMobileCard(m, false))
-                          : renderTable(devolvidos, false)
-                        }
-                      </Box>
-                    )}
+              {/* ═══ PENDENTES SECTION ═══ */}
+              {!loading && pendentes.length > 0 && (
+                <Box sx={{ mb: 4 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
+                    <Avatar
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        bgcolor: alpha(theme.palette.warning.main, 0.12),
+                        color: theme.palette.warning.main,
+                      }}
+                    >
+                      <WarningAmber sx={{ fontSize: 20 }} />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                        Pendentes de Devolução
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {pendentes.length} {pendentes.length === 1 ? "material aguardando" : "materiais aguardando"} devolução
+                      </Typography>
+                    </Box>
+                  </Box>
 
-                    {/* All empty */}
-                    {pendentes.length === 0 && devolvidos.length === 0 && (
-                      <Box
+                  <Grid container spacing={2}>
+                    {pendentes.map((mov, index) => (
+                      <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={mov.id}>
+                        <ItemCard
+                          mov={mov}
+                          isPendente
+                          onDevolver={(item) => setConfirmDialog({ open: true, item })}
+                          formatDate={formatDate}
+                          theme={theme}
+                          index={index}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+
+              {/* ═══ DEVOLVIDOS SECTION ═══ */}
+              {!loading && devolvidos.length > 0 && (
+                <Box>
+                  <Box
+                    onClick={() => setShowDevolvidos(!showDevolvidos)}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      cursor: "pointer",
+                      py: 1.5,
+                      px: 2,
+                      borderRadius: 3,
+                      mb: showDevolvidos ? 2.5 : 0,
+                      backgroundColor: alpha(theme.palette.success.main, 0.04),
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.12)}`,
+                      transition: "all 0.2s ease",
+                      "&:hover": {
+                        backgroundColor: alpha(theme.palette.success.main, 0.08),
+                      },
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <Avatar
                         sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          py: 6,
+                          width: 32,
+                          height: 32,
+                          bgcolor: alpha(theme.palette.success.main, 0.12),
+                          color: theme.palette.success.main,
                         }}
                       >
-                        <SearchOff sx={{ fontSize: 48, color: "text.disabled", mb: 2 }} />
-                        <Typography variant="body1" color="text.secondary">
-                          Nenhuma movimentacao encontrada
+                        <CheckCircle sx={{ fontSize: 18 }} />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                          Devolvidos
                         </Typography>
-                        <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5 }}>
-                          {includeReparo
-                            ? "Nao existem movimentacoes de reparo registradas."
-                            : "Este militar nao possui cautelas registradas."}
+                        <Typography variant="caption" color="text.secondary">
+                          {devolvidos.length} {devolvidos.length === 1 ? "item" : "itens"}
                         </Typography>
                       </Box>
-                    )}
+                    </Box>
+                    <IconButton size="small" sx={{ color: theme.palette.success.main }}>
+                      {showDevolvidos ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+                    </IconButton>
                   </Box>
-                </Fade>
+
+                  <Collapse in={showDevolvidos}>
+                    <Grid container spacing={2}>
+                      {devolvidos.map((mov, index) => (
+                        <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={mov.id}>
+                          <ItemCard
+                            mov={mov}
+                            isPendente={false}
+                            onDevolver={() => {}}
+                            formatDate={formatDate}
+                            theme={theme}
+                            index={index}
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Collapse>
+                </Box>
               )}
             </Box>
           ) : (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                py: 8,
-              }}
-            >
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 8 }}>
               <Alert severity="warning" variant="outlined" sx={{ borderRadius: 3 }}>
-                Sem permissao para acessar este recurso
+                Sem permissão para acessar este recurso
               </Alert>
             </Box>
           )}
 
-          {/* Confirm Dialog */}
+          {/* ═══ CONFIRM DIALOG ═══ */}
           <Dialog
             open={confirmDialog.open}
-            onClose={() => setConfirmDialog({ open: false, item: null })}
+            onClose={() => !devolvendo && setConfirmDialog({ open: false, item: null })}
+            maxWidth="sm"
+            fullWidth
             PaperProps={{
-              sx: { borderRadius: 3, maxWidth: 420 },
+              sx: {
+                borderRadius: 4,
+                overflow: "hidden",
+              },
             }}
           >
-            <DialogTitle sx={{ pb: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Box
-                  sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 2,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <AssignmentReturn sx={{ color: theme.palette.primary.main }} />
-                </Box>
-                <Typography variant="h6" fontWeight={600}>
-                  Confirmar Devolucao
+            {/* Dialog header with gradient */}
+            <Box
+              sx={{
+                p: 3,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                color: "white",
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              <Avatar
+                sx={{
+                  width: 52,
+                  height: 52,
+                  bgcolor: alpha("#fff", 0.15),
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                <AssignmentReturn sx={{ fontSize: 28 }} />
+              </Avatar>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Confirmar Devolução
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                  Revise os detalhes antes de confirmar
                 </Typography>
               </Box>
-            </DialogTitle>
-            <Divider />
-            <DialogContent sx={{ pt: 2.5 }}>
+            </Box>
+
+            <DialogContent sx={{ p: 3, pt: 3 }}>
               {confirmDialog.item && (
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Deseja confirmar a devolucao do seguinte material?
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+                    O material abaixo será devolvido ao estoque e o militar será notificado da devolução.
                   </Typography>
+
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 2,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                      borderRadius: 2,
+                      p: 2.5,
+                      borderRadius: 3,
+                      border: `1px solid ${theme.palette.divider}`,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
                     }}
                   >
-                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
-                      {confirmDialog.item.material_description}
-                    </Typography>
-                    <Stack direction="row" spacing={2}>
-                      <Typography variant="caption" color="text.secondary">
-                        Quantidade: {confirmDialog.item.quantity}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Data: {formatDate(confirmDialog.item.date)}
-                      </Typography>
-                    </Stack>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                      <Avatar
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          color: theme.palette.primary.main,
+                        }}
+                      >
+                        <Inventory2 />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                          {confirmDialog.item.material_description}
+                        </Typography>
+                        {confirmDialog.item.categoria && (
+                          <Typography variant="caption" color="text.disabled">
+                            {confirmDialog.item.categoria}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                    <Divider sx={{ mb: 2 }} />
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                          Quantidade
+                        </Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          {confirmDialog.item.quantity}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                          Data da Cautela
+                        </Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          {formatDate(confirmDialog.item.date)}
+                        </Typography>
+                      </Grid>
+                      {confirmDialog.item.user_name && (
+                        <Grid size={{ xs: 12 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                            Militar
+                          </Typography>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            {confirmDialog.item.user_name}
+                          </Typography>
+                        </Grid>
+                      )}
+                    </Grid>
                   </Paper>
+
+                  <Alert
+                    severity="info"
+                    variant="outlined"
+                    sx={{ mt: 2.5, borderRadius: 2, "& .MuiAlert-message": { fontSize: "0.8rem" } }}
+                  >
+                    A quantidade será adicionada de volta ao estoque atual do material.
+                  </Alert>
                 </Box>
               )}
             </DialogContent>
-            <DialogActions sx={{ p: 2, pt: 1 }}>
+
+            <Box sx={{ p: 2.5, pt: 0, display: "flex", gap: 1.5, justifyContent: "flex-end" }}>
               <Button
                 onClick={() => setConfirmDialog({ open: false, item: null })}
-                sx={{ color: "text.secondary" }}
+                disabled={devolvendo}
+                sx={{
+                  color: "text.secondary",
+                  px: 3,
+                  borderRadius: 2.5,
+                  "&:hover": { backgroundColor: alpha(theme.palette.error.main, 0.06) },
+                }}
               >
                 Cancelar
               </Button>
               <Button
                 variant="contained"
                 onClick={handleConfirmDevolver}
-                startIcon={<AssignmentReturn />}
+                disabled={devolvendo}
+                startIcon={devolvendo ? null : <AssignmentReturn />}
                 sx={{
+                  px: 4,
+                  py: 1.2,
+                  borderRadius: 2.5,
+                  fontWeight: 700,
+                  fontSize: "0.9rem",
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.35)}`,
+                  "&:hover": {
+                    boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.5)}`,
+                  },
                 }}
               >
-                Confirmar Devolucao
+                {devolvendo ? "Devolvendo..." : "Confirmar Devolução"}
               </Button>
-            </DialogActions>
+            </Box>
           </Dialog>
 
-          {/* Snackbar */}
+          {/* ═══ SNACKBAR ═══ */}
           <Snackbar
             open={snackbar.open}
-            autoHideDuration={4000}
+            autoHideDuration={5000}
             onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
             anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
           >
@@ -818,7 +1059,12 @@ export default function Devolucoes() {
               onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
               severity={snackbar.severity}
               variant="filled"
-              sx={{ borderRadius: 2 }}
+              sx={{
+                borderRadius: 3,
+                fontWeight: 600,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+                minWidth: { xs: "90vw", sm: 400 },
+              }}
             >
               {snackbar.message}
             </Alert>
