@@ -715,7 +715,7 @@ export default function Devolucoes() {
               {/* ═══════════════════ LOADING ═══════════════════ */}
               {loading && (
                 <Box sx={{ textAlign: "center", py: 2 }}>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={3}>
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                       <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={i}>
                         <Skeleton
@@ -898,7 +898,7 @@ export default function Devolucoes() {
                     {/* Tab content: Pendentes */}
                     {activeTab === 0 && (
                       pendentes.length > 0 ? (
-                        <Grid container spacing={2}>
+                        <Grid container spacing={3}>
                           {pendentes.map((mov, index) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={mov.id}>
                               <ItemCard
@@ -936,7 +936,7 @@ export default function Devolucoes() {
                     {/* Tab content: Devolvidos */}
                     {activeTab === 1 && (
                       devolvidos.length > 0 ? (
-                        <Grid container spacing={2}>
+                        <Grid container spacing={3}>
                           {devolvidos.map((mov, index) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={mov.id}>
                               <ItemCard
