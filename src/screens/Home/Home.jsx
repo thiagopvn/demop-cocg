@@ -346,7 +346,7 @@ export default function Home() {
         const returnsQuery = query(
           collection(db, "movimentacoes"),
           where("user", "==", userId),
-          where("status", "==", "devolvido")
+          where("status", "in", ["devolvido", "devolvidaDeReparo"])
         );
         const returnsSnap = await getDocs(returnsQuery);
         if (isMounted) {
@@ -394,7 +394,7 @@ export default function Home() {
         const returnsQuery = query(
           collection(db, "movimentacoes"),
           where("user", "==", userId),
-          where("status", "==", "devolvido")
+          where("status", "in", ["devolvido", "devolvidaDeReparo"])
         );
 
         unsubscribeReturns = onSnapshot(returnsQuery, (snapshot) => {
