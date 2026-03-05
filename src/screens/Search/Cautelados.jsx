@@ -31,7 +31,6 @@ import {
   Inventory as InventoryIcon,
   Search as SearchIcon,
   Person as PersonIcon,
-  DirectionsCar as CarIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Badge as BadgeIcon,
@@ -185,8 +184,7 @@ export default function Cautelados() {
     return displayedMovimentacoes.filter((mov) =>
       (mov.material_description?.toLowerCase() || '').includes(search) ||
       (mov.user_name?.toLowerCase() || '').includes(search) ||
-      (mov.user_rg?.toLowerCase() || '').includes(search) ||
-      (mov.viatura_description?.toLowerCase() || '').includes(search)
+      (mov.sender_name?.toLowerCase() || '').includes(search)
     );
   }, [displayedMovimentacoes, searchTerm]);
 
@@ -277,14 +275,13 @@ export default function Cautelados() {
       ),
     },
     {
-      field: 'user_rg',
-      headerName: 'RG',
+      field: 'sender_name',
+      headerName: 'Militar que realizou a cautela',
       icon: <BadgeIcon fontSize="small" />,
-      minWidth: 110,
-      hideOnMobile: true,
+      minWidth: 140,
       renderCell: (row) => (
         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
-          {row.user_rg || '-'}
+          {row.sender_name || '-'}
         </Typography>
       ),
     },
@@ -321,13 +318,6 @@ export default function Cautelados() {
           />
         );
       },
-    },
-    {
-      field: 'viatura_description',
-      headerName: 'Viatura',
-      icon: <CarIcon fontSize="small" />,
-      minWidth: 130,
-      hideOnMobile: true,
     },
     {
       field: 'date',
