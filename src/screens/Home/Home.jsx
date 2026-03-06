@@ -537,7 +537,7 @@ export default function Home() {
     const estoqueAtual = materials.reduce((sum, m) => sum + (m.estoque_atual || 0), 0);
     const estoqueViatura = materials.reduce((sum, m) => sum + (m.estoque_viatura || 0), 0);
     const lowStockMaterials = materials.filter(
-      (m) => (m.estoque_atual || 0) <= 5 && (m.estoque_total || 0) > 0
+      (m) => (m.estoque_atual || 0) === 0 && (m.estoque_total || 0) > 0
     );
 
     // Manutencoes filtradas por data de vencimento
@@ -1309,7 +1309,7 @@ export default function Home() {
                       {stats.lowStockMaterials.length === 1
                         ? "material com"
                         : "materiais com"}{" "}
-                      estoque baixo (5 ou menos unidades)
+                      estoque zerado
                     </Alert>
                   )}
                 </Box>
@@ -1917,7 +1917,7 @@ export default function Home() {
                     onClick={() => navigate("/material")}
                   >
                     <SectionHeader
-                      title="Estoque Baixo"
+                      title="Estoque Zerado"
                       icon={<WarningAmber sx={{ color: "#f59e0b", fontSize: 22 }} />}
                       count={stats.lowStockMaterials.length}
                     />
@@ -1972,7 +1972,7 @@ export default function Home() {
                       <Box sx={{ textAlign: "center", py: 2 }}>
                         <CheckCircle sx={{ color: "#22c55e", fontSize: 32 }} />
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: "0.8rem" }}>
-                          Estoque adequado
+                          Nenhum material zerado
                         </Typography>
                       </Box>
                     )}
