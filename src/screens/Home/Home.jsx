@@ -403,6 +403,14 @@ const MOVEMENT_LABELS = {
   aquisicao: "Aquisicao",
   descarte: "Descarte",
   reparo: "Reparo",
+};
+
+// Labels completo incluindo devolucao para exibição em listas
+const MOVEMENT_LABELS_ALL = {
+  cautela: "Cautela",
+  aquisicao: "Aquisicao",
+  descarte: "Descarte",
+  reparo: "Reparo",
   devolucao: "Devolucao",
 };
 
@@ -541,58 +549,11 @@ export default function Home() {
       (m) => m.status === "pendente" || m.status === "em_andamento"
     );
 
-    // By type counts (já filtrado)
-    // Devoluções são type="cautela" + status="devolvido", com data em returned_date
+    // By type counts - conta pelo type original de cada movimentação no período
     const byType = {};
     fm.forEach((m) => {
-      if (m.type === "cautela" && (m.status === "devolvido" || m.status === "devolvidaDeReparo")) {
-        byType["devolucao"] = (byType["devolucao"] || 0) + 1;
-      } else {
-        byType[m.type] = (byType[m.type] || 0) + 1;
-      }
+      byType[m.type] = (byType[m.type] || 0) + 1;
     });
-    // Também contar devoluções pelo returned_date que estejam no período filtrado
-    if (dateFilter !== "all") {
-      allMovements.forEach((m) => {
-        if (m.type === "cautela" && (m.status === "devolvido" || m.status === "devolvidaDeReparo") && m.returned_date) {
-          const rd = toDate(m.returned_date);
-          if (!rd) return;
-          let inPeriod = false;
-          switch (dateFilter) {
-            case "today": inPeriod = isToday(rd); break;
-            case "week": inPeriod = isThisWeek(rd); break;
-            case "month": inPeriod = isThisMonth(rd); break;
-            case "custom": {
-              const start = customStart ? new Date(customStart + "T00:00:00") : null;
-              const end = customEnd ? new Date(customEnd + "T23:59:59") : null;
-              inPeriod = (!start || rd >= start) && (!end || rd <= end);
-              break;
-            }
-            default: inPeriod = true;
-          }
-          // Só adiciona se não foi já contado pelo filtro de date principal
-          const mainDate = toDate(m.date);
-          let alreadyCounted = false;
-          if (mainDate) {
-            switch (dateFilter) {
-              case "today": alreadyCounted = isToday(mainDate); break;
-              case "week": alreadyCounted = isThisWeek(mainDate); break;
-              case "month": alreadyCounted = isThisMonth(mainDate); break;
-              case "custom": {
-                const start = customStart ? new Date(customStart + "T00:00:00") : null;
-                const end = customEnd ? new Date(customEnd + "T23:59:59") : null;
-                alreadyCounted = (!start || mainDate >= start) && (!end || mainDate <= end);
-                break;
-              }
-              default: alreadyCounted = true;
-            }
-          }
-          if (inPeriod && !alreadyCounted) {
-            byType["devolucao"] = (byType["devolucao"] || 0) + 1;
-          }
-        }
-      });
-    }
 
     // Category distribution dos materiais movimentados no período
     const materialIdsInPeriod = new Set(fm.map((m) => m.material));
@@ -654,16 +615,7 @@ export default function Home() {
         date: dayStr,
         total: dayMovements.length,
         cautelas: dayMovements.filter((m) => m.type === "cautela").length,
-        devolucoes: dayMovements.filter((m) => m.status === "devolvido" || m.status === "devolvidaDeReparo").length
-          + allMovements.filter((m) => {
-            if (m.status !== "devolvido" && m.status !== "devolvidaDeReparo") return false;
-            if (!m.returned_date) return false;
-            const rd = toDate(m.returned_date);
-            if (!rd || rd.toDateString() !== date.toDateString()) return false;
-            // Não contar se já foi contado pelo date principal
-            const md = toDate(m.date);
-            return !md || md.toDateString() !== date.toDateString();
-          }).length,
+        devolucoes: dayMovements.filter((m) => m.status === "devolvido" || m.status === "devolvidaDeReparo").length,
       });
     }
 
@@ -1915,7 +1867,7 @@ export default function Home() {
                                   )}
                                 </Box>
                                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
-                                  {MOVEMENT_LABELS[mov.type] || mov.type} - {mov.sender_name || mov.user_name || ""}
+                                  {MOVEMENT_LABELS_ALL[mov.type] || mov.type} - {mov.sender_name || mov.user_name || ""}
                                   {mov.quantity ? ` - ${mov.quantity} un.` : ""}
                                 </Typography>
                               </Box>
