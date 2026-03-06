@@ -1323,7 +1323,7 @@ export default function Home() {
                     value={stats.cautelasAtivas}
                     color="#ef4444"
                     subtitle={`${stats.taxaCautela}% do acervo`}
-                    onClick={() => navigate("/movimentacoes")}
+                    onClick={() => navigate("/search?tab=5")}
                     badge={stats.pendentesAssinatura > 0 ? stats.pendentesAssinatura : 0}
                   />
                 </Grid>
