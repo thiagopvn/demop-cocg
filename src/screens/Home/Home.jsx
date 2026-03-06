@@ -61,7 +61,6 @@ import {
   getDoc,
   updateDoc,
   orderBy,
-  limit,
   doc,
   onSnapshot,
   serverTimestamp,
@@ -290,7 +289,7 @@ const DATE_FILTERS = [
   { value: "week", label: "Esta Semana", icon: <DateRange sx={{ fontSize: 16 }} /> },
   { value: "month", label: "Este Mes", icon: <CalendarToday sx={{ fontSize: 16 }} /> },
   { value: "custom", label: "Periodo", icon: <FilterList sx={{ fontSize: 16 }} /> },
-  { value: "all", label: "Todos", icon: <Visibility sx={{ fontSize: 16 }} /> },
+  { value: "all", label: "Todo o Periodo", icon: <Visibility sx={{ fontSize: 16 }} /> },
 ];
 
 const DateFilterBar = ({ dateFilter, setDateFilter, customStart, setCustomStart, customEnd, setCustomEnd }) => (
@@ -754,8 +753,7 @@ export default function Home() {
         // Real-time movements listener
         const movQuery = query(
           collection(db, "movimentacoes"),
-          orderBy("date", "desc"),
-          limit(500)
+          orderBy("date", "desc")
         );
         const unsub = onSnapshot(movQuery, (snapshot) => {
           if (isMounted) {
@@ -1176,7 +1174,7 @@ export default function Home() {
       ? "Este Mes"
       : dateFilter === "custom"
       ? "Periodo Selecionado"
-      : "Todos";
+      : "Todo o Periodo";
 
   return (
     <PrivateRoute>
