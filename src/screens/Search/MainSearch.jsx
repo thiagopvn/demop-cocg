@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
 import {
@@ -94,7 +95,9 @@ const TabPanel = ({ children, value, index }) => {
 };
 
 export default function MainSearch() {
-  const [activeTab, setActiveTab] = useState(0);
+  const [searchParams] = useSearchParams();
+  const initialTab = parseInt(searchParams.get('tab') || '0', 10);
+  const [activeTab, setActiveTab] = useState(isNaN(initialTab) ? 0 : initialTab);
   const [categorias, setCategorias] = useState([]);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
