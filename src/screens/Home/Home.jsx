@@ -171,8 +171,8 @@ const StatCard = (props) => {
     }}
     onClick={onClick}
   >
-    <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+    <CardContent sx={{ p: { xs: 1.2, sm: 2.5 }, "&:last-child": { pb: { xs: 1.2, sm: 2.5 } } }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: { xs: 0.5, sm: 1 } }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             variant="caption"
@@ -181,7 +181,7 @@ const StatCard = (props) => {
               fontWeight: 600,
               textTransform: "uppercase",
               letterSpacing: "0.5px",
-              fontSize: { xs: "0.6rem", sm: "0.7rem" },
+              fontSize: { xs: "0.5rem", sm: "0.7rem" },
               display: "block",
               lineHeight: 1.2,
             }}
@@ -193,8 +193,8 @@ const StatCard = (props) => {
             sx={{
               fontWeight: 800,
               color: color,
-              mt: 0.5,
-              fontSize: { xs: "1.6rem", sm: "2rem" },
+              mt: 0.3,
+              fontSize: { xs: "1.2rem", sm: "2rem" },
               lineHeight: 1.1,
             }}
           >
@@ -205,9 +205,9 @@ const StatCard = (props) => {
               variant="caption"
               sx={{
                 color: "text.secondary",
-                fontSize: { xs: "0.65rem", sm: "0.7rem" },
-                mt: 0.5,
-                display: "block",
+                fontSize: { xs: "0.5rem", sm: "0.7rem" },
+                mt: 0.3,
+                display: { xs: "none", sm: "block" },
               }}
             >
               {subtitle}
@@ -218,8 +218,8 @@ const StatCard = (props) => {
               variant="determinate"
               value={Math.min(progress, 100)}
               sx={{
-                mt: 1,
-                height: 5,
+                mt: 0.5,
+                height: { xs: 3, sm: 5 },
                 borderRadius: 3,
                 bgcolor: alpha(color, 0.1),
                 "& .MuiLinearProgress-bar": {
@@ -235,22 +235,22 @@ const StatCard = (props) => {
             sx={{
               bgcolor: alpha(color, 0.12),
               color: color,
-              width: { xs: 42, sm: 52 },
-              height: { xs: 42, sm: 52 },
+              width: { xs: 28, sm: 52 },
+              height: { xs: 28, sm: 52 },
               border: `2px solid ${alpha(color, 0.2)}`,
             }}
           >
-            <IconComponent sx={{ fontSize: { xs: 22, sm: 26 } }} />
+            <IconComponent sx={{ fontSize: { xs: 14, sm: 26 } }} />
           </Avatar>
         </Badge>
       </Box>
       {onClick && (
         <Box
           sx={{
-            display: "flex",
+            display: { xs: "none", sm: "flex" },
             alignItems: "center",
             justifyContent: "flex-end",
-            mt: 1,
+            mt: 0.5,
             gap: 0.5,
           }}
         >
@@ -279,38 +279,42 @@ const DATE_FILTERS = [
 ];
 
 const DateFilterBar = ({ dateFilter, setDateFilter, customStart, setCustomStart, customEnd, setCustomEnd }) => (
-  <Box
-    sx={{
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 1,
-      alignItems: "center",
-      mb: 2,
-    }}
-  >
-    {DATE_FILTERS.map((f) => (
-      <Chip
-        key={f.value}
-        icon={f.icon}
-        label={f.label}
-        onClick={() => setDateFilter(f.value)}
-        variant={dateFilter === f.value ? "filled" : "outlined"}
-        size="small"
-        sx={{
-          fontWeight: 600,
-          fontSize: "0.75rem",
-          ...(dateFilter === f.value
-            ? {
-                bgcolor: "primary.main",
-                color: "white",
-                "& .MuiChip-icon": { color: "white" },
-              }
-            : {}),
-        }}
-      />
-    ))}
-    <Collapse in={dateFilter === "custom"} orientation="horizontal">
-      <Box sx={{ display: "flex", gap: 1, ml: 1 }}>
+  <Box sx={{ mb: 1 }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 0.5,
+        alignItems: "center",
+        mb: 1,
+      }}
+    >
+      {DATE_FILTERS.map((f) => (
+        <Chip
+          key={f.value}
+          icon={f.icon}
+          label={f.label}
+          onClick={() => setDateFilter(f.value)}
+          variant={dateFilter === f.value ? "filled" : "outlined"}
+          size="small"
+          sx={{
+            fontWeight: 600,
+            fontSize: { xs: "0.65rem", sm: "0.75rem" },
+            height: { xs: 28, sm: 32 },
+            "& .MuiChip-icon": { fontSize: { xs: 14, sm: 16 } },
+            ...(dateFilter === f.value
+              ? {
+                  bgcolor: "primary.main",
+                  color: "white",
+                  "& .MuiChip-icon": { color: "white" },
+                }
+              : {}),
+          }}
+        />
+      ))}
+    </Box>
+    {dateFilter === "custom" && (
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
         <TextField
           type="date"
           size="small"
@@ -318,7 +322,7 @@ const DateFilterBar = ({ dateFilter, setDateFilter, customStart, setCustomStart,
           value={customStart}
           onChange={(e) => setCustomStart(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          sx={{ width: 150, "& .MuiInputBase-root": { height: 32, fontSize: "0.8rem" } }}
+          sx={{ flex: 1, minWidth: 130, "& .MuiInputBase-root": { height: 36, fontSize: "0.8rem" } }}
         />
         <TextField
           type="date"
@@ -327,10 +331,10 @@ const DateFilterBar = ({ dateFilter, setDateFilter, customStart, setCustomStart,
           value={customEnd}
           onChange={(e) => setCustomEnd(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          sx={{ width: 150, "& .MuiInputBase-root": { height: 32, fontSize: "0.8rem" } }}
+          sx={{ flex: 1, minWidth: 130, "& .MuiInputBase-root": { height: 36, fontSize: "0.8rem" } }}
         />
       </Box>
-    </Collapse>
+    )}
   </Box>
 );
 
@@ -342,12 +346,23 @@ const SectionHeader = ({ title, icon, action, count }) => (
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      mb: 2,
+      mb: { xs: 1.5, sm: 2 },
+      flexWrap: "wrap",
+      gap: 0.5,
     }}
   >
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      {icon}
-      <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: "1rem", sm: "1.15rem" } }}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0, flex: 1 }}>
+      <Box sx={{ flexShrink: 0 }}>{icon}</Box>
+      <Typography
+        variant="h6"
+        fontWeight={700}
+        sx={{
+          fontSize: { xs: "0.82rem", sm: "1.05rem" },
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
         {title}
       </Typography>
       {count !== undefined && (
@@ -355,11 +370,12 @@ const SectionHeader = ({ title, icon, action, count }) => (
           label={count}
           size="small"
           sx={{
-            height: 22,
+            height: 20,
             fontWeight: 700,
-            fontSize: "0.75rem",
+            fontSize: "0.7rem",
             bgcolor: alpha("#1e3a5f", 0.1),
             color: "#1e3a5f",
+            flexShrink: 0,
           }}
         />
       )}
@@ -1181,17 +1197,15 @@ export default function Home() {
           <Fade in timeout={600}>
             <Box>
               {/* ====== HEADER ====== */}
-              <Box
-                sx={{
-                  mb: 3,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  flexWrap: "wrap",
-                  gap: 2,
-                }}
-              >
-                <Box>
+              <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
                   <Typography
                     variant="h4"
                     sx={{
@@ -1199,38 +1213,37 @@ export default function Home() {
                       background: "linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
-                      mb: 0.5,
-                      fontSize: { xs: "1.5rem", sm: "2rem" },
+                      fontSize: { xs: "1.1rem", sm: "1.5rem", md: "2rem" },
+                      lineHeight: 1.2,
                     }}
                   >
-                    Depósito de Material Operacional do GOCG
+                    Deposito de Material Operacional do GOCG
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Deposito de Material - CBMERJ
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                  <Chip
-                    icon={<Speed sx={{ fontSize: 16 }} />}
-                    label={`${stats.movHoje} mov. hoje`}
-                    size="small"
-                    sx={{
-                      fontWeight: 600,
-                      bgcolor: stats.movHoje > 0 ? alpha("#22c55e", 0.1) : alpha("#64748b", 0.1),
-                      color: stats.movHoje > 0 ? "#22c55e" : "#64748b",
-                    }}
-                  />
-                  <Tooltip title="Atualizar dados">
+                  <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexShrink: 0 }}>
+                    <Chip
+                      icon={<Speed sx={{ fontSize: { xs: 12, sm: 16 } }} />}
+                      label={`${stats.movHoje} hoje`}
+                      size="small"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: { xs: "0.6rem", sm: "0.75rem" },
+                        height: { xs: 24, sm: 32 },
+                        display: { xs: "none", sm: "flex" },
+                        bgcolor: stats.movHoje > 0 ? alpha("#22c55e", 0.1) : alpha("#64748b", 0.1),
+                        color: stats.movHoje > 0 ? "#22c55e" : "#64748b",
+                      }}
+                    />
                     <IconButton
                       onClick={() => window.location.reload()}
+                      size="small"
                       sx={{
                         bgcolor: alpha("#1e3a5f", 0.05),
                         "&:hover": { bgcolor: alpha("#1e3a5f", 0.1) },
                       }}
                     >
-                      <Refresh />
+                      <Refresh sx={{ fontSize: { xs: 18, sm: 24 } }} />
                     </IconButton>
-                  </Tooltip>
+                  </Box>
                 </Box>
               </Box>
 
@@ -1312,8 +1325,8 @@ export default function Home() {
               )}
 
               {/* ====== KPI CARDS - ROW 1 ====== */}
-              <Grid container spacing={2} sx={{ mb: 2 }}>
-                <Grid item xs={6} sm={4} md={2}>
+              <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: { xs: 1.5, sm: 2 } }}>
+                <Grid item xs={4} sm={4} md={2}>
                   <StatCard
                     icon={Assignment}
                     title="Cautelados"
@@ -1324,7 +1337,7 @@ export default function Home() {
                     badge={stats.pendentesAssinatura > 0 ? stats.pendentesAssinatura : 0}
                   />
                 </Grid>
-                <Grid item xs={6} sm={4} md={2}>
+                <Grid item xs={4} sm={4} md={2}>
                   <StatCard
                     icon={Inventory2}
                     title="Materiais"
@@ -1335,7 +1348,7 @@ export default function Home() {
                     progress={parseFloat(stats.disponibilidade)}
                   />
                 </Grid>
-                <Grid item xs={6} sm={4} md={2}>
+                <Grid item xs={4} sm={4} md={2}>
                   <StatCard
                     icon={DirectionsCar}
                     title="Viaturas"
@@ -1345,7 +1358,7 @@ export default function Home() {
                     onClick={() => navigate("/viaturas")}
                   />
                 </Grid>
-                <Grid item xs={6} sm={4} md={2}>
+                <Grid item xs={4} sm={4} md={2}>
                   <StatCard
                     icon={PeopleAlt}
                     title="Usuarios"
@@ -1358,7 +1371,7 @@ export default function Home() {
                     }
                   />
                 </Grid>
-                <Grid item xs={6} sm={4} md={2}>
+                <Grid item xs={4} sm={4} md={2}>
                   <StatCard
                     icon={HandymanOutlined}
                     title="Em Reparo"
@@ -1369,7 +1382,7 @@ export default function Home() {
                     badge={stats.manutencoesVencidas.length > 0 ? stats.manutencoesVencidas.length : 0}
                   />
                 </Grid>
-                <Grid item xs={6} sm={4} md={2}>
+                <Grid item xs={4} sm={4} md={2}>
                   <StatCard
                     icon={DonutSmall}
                     title="Aneis"
@@ -1383,18 +1396,18 @@ export default function Home() {
               {/* ====== DATE FILTER ====== */}
               <Paper
                 sx={{
-                  p: 2,
-                  mb: 3,
+                  p: { xs: 1.5, sm: 2 },
+                  mb: { xs: 2, sm: 3 },
                   borderRadius: 2,
                   border: "1px solid",
                   borderColor: "divider",
                   bgcolor: alpha("#f8fafc", 0.5),
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                  <FilterList sx={{ fontSize: 18, color: "text.secondary" }} />
-                  <Typography variant="body2" fontWeight={600} color="text.secondary">
-                    Filtrar por periodo - Graficos e movimentacoes
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+                  <FilterList sx={{ fontSize: { xs: 14, sm: 18 }, color: "text.secondary" }} />
+                  <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ fontSize: { xs: "0.7rem", sm: "0.875rem" } }}>
+                    Filtrar por periodo
                   </Typography>
                 </Box>
                 <DateFilterBar
@@ -1411,7 +1424,7 @@ export default function Home() {
               </Paper>
 
               {/* ====== CHARTS ROW ====== */}
-              <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: { xs: 2, sm: 3 } }}>
                 {/* Trend Chart */}
                 <Grid item xs={12} md={8}>
                   <Paper
@@ -1530,11 +1543,11 @@ export default function Home() {
                         </Pie>
                         <RechartsTooltip content={<CustomChartTooltip />} />
                         <Legend
-                          layout="vertical"
-                          align="right"
-                          verticalAlign="middle"
+                          layout={isMobile ? "horizontal" : "vertical"}
+                          align={isMobile ? "center" : "right"}
+                          verticalAlign={isMobile ? "bottom" : "middle"}
                           iconSize={8}
-                          wrapperStyle={{ fontSize: "11px", right: 0 }}
+                          wrapperStyle={{ fontSize: isMobile ? "9px" : "11px", right: isMobile ? "auto" : 0 }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -1543,7 +1556,7 @@ export default function Home() {
               </Grid>
 
               {/* ====== MIDDLE ROW: Movements by type + Quick Actions ====== */}
-              <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: { xs: 2, sm: 3 } }}>
                 {/* Movements by type (filtered) */}
                 <Grid item xs={12} md={4}>
                   <Paper
@@ -1778,7 +1791,7 @@ export default function Home() {
               </Grid>
 
               {/* ====== BOTTOM ROW: Recent Movements + Low Stock + Maintenance ====== */}
-              <Grid container spacing={2}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }}>
                 {/* Recent Movements */}
                 <Grid item xs={12} md={5}>
                   <Paper
@@ -1807,13 +1820,13 @@ export default function Home() {
                       }
                     />
                     {recentMovements.length > 0 ? (
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 0.5, sm: 1 } }}>
                         {recentMovements.map((mov) => (
                           <Paper
                             key={mov.id}
                             elevation={0}
                             sx={{
-                              p: 1.5,
+                              p: { xs: 1, sm: 1.5 },
                               borderRadius: 2,
                               border: "1px solid",
                               borderColor: alpha(MOVEMENT_COLORS[mov.type] || "#64748b", 0.15),
@@ -1827,11 +1840,11 @@ export default function Home() {
                             }}
                             onClick={() => navigate("/movimentacoes")}
                           >
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 1.5 } }}>
                               <Avatar
                                 sx={{
-                                  width: 34,
-                                  height: 34,
+                                  width: { xs: 28, sm: 34 },
+                                  height: { xs: 28, sm: 34 },
                                   bgcolor: alpha(MOVEMENT_COLORS[mov.type] || "#64748b", 0.1),
                                   color: MOVEMENT_COLORS[mov.type] || "#64748b",
                                 }}
@@ -1844,7 +1857,7 @@ export default function Home() {
                                     variant="body2"
                                     fontWeight={600}
                                     sx={{
-                                      fontSize: "0.82rem",
+                                      fontSize: { xs: "0.72rem", sm: "0.82rem" },
                                       overflow: "hidden",
                                       textOverflow: "ellipsis",
                                       whiteSpace: "nowrap",
@@ -1871,7 +1884,7 @@ export default function Home() {
                                   {mov.quantity ? ` - ${mov.quantity} un.` : ""}
                                 </Typography>
                               </Box>
-                              <Box sx={{ textAlign: "right", minWidth: 60 }}>
+                              <Box sx={{ textAlign: "right", minWidth: { xs: 45, sm: 60 }, flexShrink: 0 }}>
                                 <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "0.68rem" }}>
                                   {formatDateBR(mov.date)}
                                 </Typography>
