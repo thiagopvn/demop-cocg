@@ -335,7 +335,7 @@ const Material = () => {
     const stats = useMemo(() => {
         const totalMaterials = materials.length;
         const filteredCount = allFilteredMaterials.length;
-        const lowStock = materials.filter(m => (m.estoque_atual || 0) <= 5).length;
+        const lowStock = materials.filter(m => (m.estoque_atual || 0) === 0 && (m.estoque_total || 0) > 0).length;
 
         return {
             total: totalMaterials,
@@ -450,7 +450,7 @@ const Material = () => {
                                         {stats.lowStock}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                        Estoque Baixo
+                                        Estoque Zerado
                                     </Typography>
                                 </Box>
                             </Box>
