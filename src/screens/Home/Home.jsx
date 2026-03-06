@@ -520,7 +520,8 @@ export default function Home() {
     // Todos os cálculos usam filteredMovements para responder ao filtro de data
     const fm = filteredMovements;
 
-    const cautelasAtivas = fm.filter(
+    // Cautelados sempre mostra todos os ativos (não devolvidos), independente do filtro de data
+    const cautelasAtivas = allMovements.filter(
       (m) => m.type === "cautela" && m.status === "cautelado"
     );
     const pendentesAssinatura = fm.filter(
