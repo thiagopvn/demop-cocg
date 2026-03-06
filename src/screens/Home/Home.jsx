@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Grid,
@@ -7,39 +7,51 @@ import {
   Typography,
   CircularProgress,
   Paper,
-  Skeleton,
   Chip,
   IconButton,
   Fade,
-  Grow,
   Container,
   Avatar,
   alpha,
   Alert,
-  AlertTitle,
   Button,
   Snackbar,
+  Tooltip,
+  LinearProgress,
+  Badge,
+  TextField,
+  useMediaQuery,
+  useTheme,
+  Collapse,
 } from "@mui/material";
 import {
-  LocalShipping,
   Inventory,
-  Person,
-  Timeline,
   TrendingUp,
-  TrendingDown,
   SwapHoriz,
   Build,
   Delete,
   CheckCircle,
   AccessTime,
-  MoreVert,
   AssignmentTurnedIn,
   Warning,
   Assignment,
-  AccountCircle,
-  VerifiedUser,
   DonutSmall,
   Refresh,
+  CalendarToday,
+  ArrowForward,
+  WarningAmber,
+  Speed,
+  CategoryOutlined,
+  HandymanOutlined,
+  PendingActions,
+  Visibility,
+  Today,
+  DateRange,
+  FilterList,
+  Inventory2,
+  DirectionsCar,
+  PeopleAlt,
+  ReceiptLong,
 } from "@mui/icons-material";
 import {
   collection,
@@ -60,17 +72,16 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
   Legend,
-  LineChart,
-  Line,
-  Area,
   AreaChart,
+  Area,
 } from "recharts";
+import { useNavigate } from "react-router-dom";
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import db from "../../firebase/db";
@@ -78,649 +89,854 @@ import { verifyToken } from "../../firebase/token";
 import CautelaStrip from "../../components/CautelaStrip";
 import DevolucaoReceiptStrip from "../../components/DevolucaoReceiptStrip";
 
-const StatCard = ({ icon: Icon, title, value, color, loading }) => {
-  // Avoid unused variable warning
-  Icon;
-  
+// ==================== HELPER FUNCTIONS ====================
+
+const toDate = (val) => {
+  if (!val) return null;
+  if (val.toDate) return val.toDate();
+  if (val.seconds) return new Date(val.seconds * 1000);
+  return new Date(val);
+};
+
+const formatDateBR = (date) => {
+  if (!date) return "";
+  const d = toDate(date);
+  if (!d || isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("pt-BR");
+};
+
+const isToday = (date) => {
+  if (!date) return false;
+  const d = toDate(date);
+  const today = new Date();
+  return d && d.toDateString() === today.toDateString();
+};
+
+const isThisWeek = (date) => {
+  if (!date) return false;
+  const d = toDate(date);
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+  return d >= startOfWeek && d < endOfWeek;
+};
+
+const isThisMonth = (date) => {
+  if (!date) return false;
+  const d = toDate(date);
+  const now = new Date();
+  return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+};
+
+const isInRange = (date, start, end) => {
+  if (!date) return false;
+  const d = toDate(date);
+  if (!d) return false;
+  if (start && d < start) return false;
+  if (end) {
+    const endOfDay = new Date(end);
+    endOfDay.setHours(23, 59, 59, 999);
+    if (d > endOfDay) return false;
+  }
+  return true;
+};
+
+const getDaysUntil = (date) => {
+  if (!date) return Infinity;
+  const d = toDate(date);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+};
+
+// ==================== CLICKABLE STAT CARD ====================
+
+const StatCard = (props) => {
+  const { icon, title, value, color, subtitle, onClick, badge, progress } = props;
+  const IconComponent = icon;
   return (
-    <Card
-      sx={{
-        height: '100%',
-        minHeight: { xs: 120, sm: 'auto' },
-        background: `linear-gradient(135deg, ${alpha(color, 0.1)} 0%, ${alpha(color, 0.05)} 100%)`,
-        border: `1px solid ${alpha(color, 0.2)}`,
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'all 0.3s ease',
-        '&:hover': {
-          transform: { xs: 'none', sm: 'translateY(-4px)' },
-          boxShadow: `0 12px 24px ${alpha(color, 0.2)}`,
-          border: `1px solid ${alpha(color, 0.3)}`,
-        },
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 4,
-          background: `linear-gradient(90deg, ${color} 0%, ${alpha(color, 0.6)} 100%)`,
-        }
-      }}
-    >
-      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <Box sx={{ flex: 1 }}>
-            {loading ? (
-              <>
-                <Skeleton variant="text" width={100} height={20} />
-                <Skeleton variant="text" width={60} height={40} />
-              </>
-            ) : (
-              <>
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    color: 'text.secondary',
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                    display: 'block',
-                    lineHeight: 1.2
-                  }}
-                >
-                  {title}
-                </Typography>
-                <Typography 
-                  variant="h4" 
-                  sx={{ 
-                    fontWeight: 700,
-                    color: color,
-                    mt: 0.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    fontSize: { xs: '1.5rem', sm: '2.125rem' }
-                  }}
-                >
-                  {value}
-                </Typography>
-              </>
-            )}
-          </Box>
+  <Card
+    sx={{
+      height: "100%",
+      cursor: onClick ? "pointer" : "default",
+      background: `linear-gradient(135deg, ${alpha(color, 0.08)} 0%, ${alpha(color, 0.03)} 100%)`,
+      border: `1px solid ${alpha(color, 0.15)}`,
+      position: "relative",
+      overflow: "hidden",
+      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      "&:hover": onClick
+        ? {
+            transform: "translateY(-6px)",
+            boxShadow: `0 16px 32px ${alpha(color, 0.2)}`,
+            border: `1px solid ${alpha(color, 0.4)}`,
+          }
+        : {},
+      "&::before": {
+        content: '""',
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 4,
+        background: `linear-gradient(90deg, ${color} 0%, ${alpha(color, 0.5)} 100%)`,
+      },
+    }}
+    onClick={onClick}
+  >
+    <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              fontSize: { xs: "0.6rem", sm: "0.7rem" },
+              display: "block",
+              lineHeight: 1.2,
+            }}
+          >
+            {title}
+          </Typography>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 800,
+              color: color,
+              mt: 0.5,
+              fontSize: { xs: "1.6rem", sm: "2rem" },
+              lineHeight: 1.1,
+            }}
+          >
+            {value}
+          </Typography>
+          {subtitle && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                fontSize: { xs: "0.65rem", sm: "0.7rem" },
+                mt: 0.5,
+                display: "block",
+              }}
+            >
+              {subtitle}
+            </Typography>
+          )}
+          {progress !== undefined && (
+            <LinearProgress
+              variant="determinate"
+              value={Math.min(progress, 100)}
+              sx={{
+                mt: 1,
+                height: 5,
+                borderRadius: 3,
+                bgcolor: alpha(color, 0.1),
+                "& .MuiLinearProgress-bar": {
+                  bgcolor: color,
+                  borderRadius: 3,
+                },
+              }}
+            />
+          )}
+        </Box>
+        <Badge badgeContent={badge} color="error" invisible={!badge}>
           <Avatar
             sx={{
-              bgcolor: alpha(color, 0.1),
+              bgcolor: alpha(color, 0.12),
               color: color,
-              width: { xs: 40, sm: 56 },
-              height: { xs: 40, sm: 56 },
+              width: { xs: 42, sm: 52 },
+              height: { xs: 42, sm: 52 },
               border: `2px solid ${alpha(color, 0.2)}`,
             }}
           >
-            <Icon sx={{ fontSize: { xs: 20, sm: 28 } }} />
+            <IconComponent sx={{ fontSize: { xs: 22, sm: 26 } }} />
           </Avatar>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-
-const MovementCard = ({ movement }) => {
-  const getStatusColor = (type) => {
-    const colors = {
-      aquisicao: '#22c55e',
-      cautela: '#3b82f6',
-      descarte: '#ef4444',
-      reparo: '#f59e0b',
-      devolucao: '#8b5cf6',
-    };
-    return colors[type] || '#64748b';
-  };
-
-  const getStatusIcon = (type) => {
-    const icons = {
-      aquisicao: <TrendingUp />,
-      cautela: <SwapHoriz />,
-      descarte: <Delete />,
-      reparo: <Build />,
-      devolucao: <AssignmentTurnedIn />,
-    };
-    return icons[type] || <Timeline />;
-  };
-
-  return (
-    <Paper
-      sx={{
-        p: { xs: 1.5, sm: 2 },
-        mb: 1.5,
-        borderRadius: 2,
-        border: '1px solid',
-        borderColor: 'divider',
-        transition: 'all 0.2s ease',
-        '&:hover': {
-          boxShadow: 3,
-          transform: { xs: 'none', sm: 'translateX(4px)' },
-          borderColor: getStatusColor(movement.type),
-        }
-      }}
-    >
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: { xs: 'wrap', sm: 'nowrap' },
-        gap: { xs: 1, sm: 0 }
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, flex: 1 }}>
-          <Avatar
-            sx={{
-              bgcolor: alpha(getStatusColor(movement.type), 0.1),
-              color: getStatusColor(movement.type),
-              width: { xs: 36, sm: 40 },
-              height: { xs: 36, sm: 40 },
-            }}
-          >
-            {getStatusIcon(movement.type)}
-          </Avatar>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-              <Typography
-                variant="body1"
-                fontWeight={600}
-                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-              >
-                {movement.type.charAt(0).toUpperCase() + movement.type.slice(1)}
-              </Typography>
-              <Chip
-                label={movement.type}
-                size="small"
-                sx={{
-                  height: 18,
-                  fontSize: '0.65rem',
-                  bgcolor: alpha(getStatusColor(movement.type), 0.1),
-                  color: getStatusColor(movement.type),
-                  display: { xs: 'none', sm: 'flex' }
-                }}
-              />
-            </Box>
-            {movement.material_description && (
-              <Typography
-                variant="body2"
-                fontWeight={600}
-                sx={{
-                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                  color: 'primary.main',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  maxWidth: { xs: '180px', sm: '250px' }
-                }}
-              >
-                {movement.material_description}
-              </Typography>
-            )}
-            <Typography
-              variant="body2"
-              fontWeight={500}
-              sx={{
-                fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                color: 'text.secondary',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: { xs: '180px', sm: '250px' }
-              }}
-            >
-              {movement.sender_name || 'Usuário'}
-              {movement.quantity && ` • Qtd: ${movement.quantity}`}
-            </Typography>
-          </Box>
-        </Box>
-        <Box sx={{
-          textAlign: 'right',
-          minWidth: { xs: 'auto', sm: 'auto' }
-        }}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-          >
-            {new Date(movement.date?.toDate?.() || movement.date).toLocaleDateString('pt-BR')}
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-          >
-            {new Date(movement.date?.toDate?.() || movement.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-          </Typography>
-        </Box>
+        </Badge>
       </Box>
-    </Paper>
+      {onClick && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            mt: 1,
+            gap: 0.5,
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{ color: color, fontWeight: 600, fontSize: "0.65rem" }}
+          >
+            Ver detalhes
+          </Typography>
+          <ArrowForward sx={{ fontSize: 12, color: color }} />
+        </Box>
+      )}
+    </CardContent>
+  </Card>
   );
 };
+
+// ==================== DATE FILTER ====================
+
+const DATE_FILTERS = [
+  { value: "today", label: "Hoje", icon: <Today sx={{ fontSize: 16 }} /> },
+  { value: "week", label: "Esta Semana", icon: <DateRange sx={{ fontSize: 16 }} /> },
+  { value: "month", label: "Este Mes", icon: <CalendarToday sx={{ fontSize: 16 }} /> },
+  { value: "custom", label: "Periodo", icon: <FilterList sx={{ fontSize: 16 }} /> },
+  { value: "all", label: "Todos", icon: <Visibility sx={{ fontSize: 16 }} /> },
+];
+
+const DateFilterBar = ({ dateFilter, setDateFilter, customStart, setCustomStart, customEnd, setCustomEnd }) => (
+  <Box
+    sx={{
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 1,
+      alignItems: "center",
+      mb: 2,
+    }}
+  >
+    {DATE_FILTERS.map((f) => (
+      <Chip
+        key={f.value}
+        icon={f.icon}
+        label={f.label}
+        onClick={() => setDateFilter(f.value)}
+        variant={dateFilter === f.value ? "filled" : "outlined"}
+        size="small"
+        sx={{
+          fontWeight: 600,
+          fontSize: "0.75rem",
+          ...(dateFilter === f.value
+            ? {
+                bgcolor: "primary.main",
+                color: "white",
+                "& .MuiChip-icon": { color: "white" },
+              }
+            : {}),
+        }}
+      />
+    ))}
+    <Collapse in={dateFilter === "custom"} orientation="horizontal">
+      <Box sx={{ display: "flex", gap: 1, ml: 1 }}>
+        <TextField
+          type="date"
+          size="small"
+          label="De"
+          value={customStart}
+          onChange={(e) => setCustomStart(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: 150, "& .MuiInputBase-root": { height: 32, fontSize: "0.8rem" } }}
+        />
+        <TextField
+          type="date"
+          size="small"
+          label="Ate"
+          value={customEnd}
+          onChange={(e) => setCustomEnd(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          sx={{ width: 150, "& .MuiInputBase-root": { height: 32, fontSize: "0.8rem" } }}
+        />
+      </Box>
+    </Collapse>
+  </Box>
+);
+
+// ==================== SECTION HEADER ====================
+
+const SectionHeader = ({ title, icon, action, count }) => (
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      mb: 2,
+    }}
+  >
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      {icon}
+      <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: "1rem", sm: "1.15rem" } }}>
+        {title}
+      </Typography>
+      {count !== undefined && (
+        <Chip
+          label={count}
+          size="small"
+          sx={{
+            height: 22,
+            fontWeight: 700,
+            fontSize: "0.75rem",
+            bgcolor: alpha("#1e3a5f", 0.1),
+            color: "#1e3a5f",
+          }}
+        />
+      )}
+    </Box>
+    {action}
+  </Box>
+);
+
+// ==================== CHART TOOLTIP ====================
+
+const CustomChartTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <Paper sx={{ p: 1.5, border: "1px solid", borderColor: "divider", boxShadow: 3 }}>
+        <Typography variant="body2" fontWeight={700}>
+          {label}
+        </Typography>
+        {payload.map((entry, i) => (
+          <Typography key={i} variant="body2" sx={{ color: entry.color }}>
+            {entry.name}: {entry.value}
+          </Typography>
+        ))}
+      </Paper>
+    );
+  }
+  return null;
+};
+
+// ==================== MOVEMENT TYPE HELPERS ====================
+
+const MOVEMENT_COLORS = {
+  cautela: "#3b82f6",
+  aquisicao: "#22c55e",
+  descarte: "#ef4444",
+  reparo: "#f59e0b",
+  devolucao: "#8b5cf6",
+};
+
+const MOVEMENT_LABELS = {
+  cautela: "Cautela",
+  aquisicao: "Aquisicao",
+  descarte: "Descarte",
+  reparo: "Reparo",
+  devolucao: "Devolucao",
+};
+
+const MOVEMENT_ICONS = {
+  aquisicao: <TrendingUp />,
+  cautela: <SwapHoriz />,
+  descarte: <Delete />,
+  reparo: <Build />,
+  devolucao: <AssignmentTurnedIn />,
+};
+
+const STATUS_LABELS = {
+  cautelado: "Cautelado",
+  devolvido: "Devolvido",
+  devolvidaDeReparo: "Devolvida de Reparo",
+  descartado: "Descartado",
+  emEstoque: "Em Estoque",
+  emReparo: "Em Reparo",
+};
+
+// ==================== PRIORITY COLORS ====================
+
+const PRIORITY_COLORS = {
+  critica: "#ef4444",
+  alta: "#f97316",
+  media: "#f59e0b",
+  baixa: "#22c55e",
+};
+
+// ==================== MAIN COMPONENT ====================
 
 export default function Home() {
-  const [stats, setStats] = useState({
-    totalMaterials: 0,
-    totalViaturas: 0,
-    totalUsers: 0,
-    recentMovements: [],
-    allMovements: [],
-    materiaisCautelados: 0,
-    retiradasAneis: 0,
-  });
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+
+  // Core state
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null);
+  const [userName, setUserName] = useState("");
+
+
+  // Data state
+  const [allMovements, setAllMovements] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [viaturas, setViaturas] = useState([]);
+  const [rings, setRings] = useState([]);
+  const [manutencoes, setManutencoes] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+
+  // User-specific state
   const [minhasCautelas, setMinhasCautelas] = useState([]);
   const [activeCautelas, setActiveCautelas] = useState([]);
   const [returnedCautelas, setReturnedCautelas] = useState([]);
+
+  // UI state
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [showAllMovements, setShowAllMovements] = useState(false);
-  const [userRole, setUserRole] = useState(null);
-  const [userName, setUserName] = useState('');
-  const INITIAL_MOVEMENTS_COUNT = 5;
-  const MAX_MOVEMENTS_COUNT = 20;
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [dateFilter, setDateFilter] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  // ==================== DATE FILTER LOGIC ====================
+
+  const filterByDate = useCallback(
+    (items, dateField = "date") => {
+      if (dateFilter === "all") return items;
+      return items.filter((item) => {
+        const date = item[dateField];
+        if (!date) return false;
+        switch (dateFilter) {
+          case "today":
+            return isToday(date);
+          case "week":
+            return isThisWeek(date);
+          case "month":
+            return isThisMonth(date);
+          case "custom": {
+            const start = customStart ? new Date(customStart) : null;
+            const end = customEnd ? new Date(customEnd) : null;
+            return isInRange(date, start, end);
+          }
+          default:
+            return true;
+        }
+      });
+    },
+    [dateFilter, customStart, customEnd]
+  );
+
+  // ==================== COMPUTED STATS ====================
+
+  const filteredMovements = useMemo(
+    () => filterByDate(allMovements),
+    [allMovements, filterByDate]
+  );
+
+  const stats = useMemo(() => {
+    const cautelasAtivas = allMovements.filter(
+      (m) => m.type === "cautela" && m.status === "cautelado"
+    );
+    const pendentesAssinatura = allMovements.filter(
+      (m) => m.type === "cautela" && m.signed === false
+    );
+    const emReparo = allMovements.filter(
+      (m) => m.status === "emReparo"
+    );
+    const movHoje = allMovements.filter((m) => isToday(m.date));
+
+    // Estoque
+    const totalEstoque = materials.reduce((sum, m) => sum + (m.estoque_total || 0), 0);
+    const estoqueAtual = materials.reduce((sum, m) => sum + (m.estoque_atual || 0), 0);
+    const estoqueViatura = materials.reduce((sum, m) => sum + (m.estoque_viatura || 0), 0);
+    const lowStockMaterials = materials.filter(
+      (m) => (m.estoque_atual || 0) <= 5 && (m.estoque_total || 0) > 0
+    );
+
+    // Manutencoes
+    const now = new Date();
+    const manutencoesVencidas = manutencoes.filter((m) => {
+      if (m.status === "concluida" || m.status === "cancelada") return false;
+      const d = toDate(m.dueDate);
+      return d && d < now;
+    });
+    const manutencoesPendentes = manutencoes.filter(
+      (m) => m.status === "pendente" || m.status === "em_andamento"
+    );
+    const manutencoesCriticas = manutencoes.filter(
+      (m) =>
+        m.priority === "critica" &&
+        m.status !== "concluida" &&
+        m.status !== "cancelada"
+    );
+
+    // By type counts
+    const byType = {};
+    filteredMovements.forEach((m) => {
+      byType[m.type] = (byType[m.type] || 0) + 1;
+    });
+
+    // Category distribution
+    const byCategory = {};
+    materials.forEach((m) => {
+      const cat = m.categoria || "Sem Categoria";
+      byCategory[cat] = (byCategory[cat] || 0) + 1;
+    });
+
+    // Top cautela materials
+    const materialCautelaCount = {};
+    allMovements
+      .filter((m) => m.type === "cautela")
+      .forEach((m) => {
+        const desc = m.material_description || "Desconhecido";
+        materialCautelaCount[desc] = (materialCautelaCount[desc] || 0) + (m.quantity || 1);
+      });
+    const topCautelaMaterials = Object.entries(materialCautelaCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+
+    // Top users by cautelas
+    const userCautelaCount = {};
+    allMovements
+      .filter((m) => m.type === "cautela")
+      .forEach((m) => {
+        const name = m.user_name || m.sender_name || "Desconhecido";
+        userCautelaCount[name] = (userCautelaCount[name] || 0) + 1;
+      });
+    const topUsers = Object.entries(userCautelaCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    // Daily movement trend (last 14 days)
+    const dailyTrend = [];
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const dayStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      const dayMovements = allMovements.filter((m) => {
+        const md = toDate(m.date);
+        return md && md.toDateString() === date.toDateString();
+      });
+      dailyTrend.push({
+        date: dayStr,
+        total: dayMovements.length,
+        cautelas: dayMovements.filter((m) => m.type === "cautela").length,
+        devolucoes: dayMovements.filter((m) => m.type === "devolucao" || m.status === "devolvido").length,
+      });
+    }
+
+    return {
+      cautelasAtivas: cautelasAtivas.length,
+      pendentesAssinatura: pendentesAssinatura.length,
+      emReparo: emReparo.length,
+      movHoje: movHoje.length,
+      totalMateriais: materials.length,
+      totalEstoque,
+      estoqueAtual,
+      estoqueViatura,
+      totalUsers: users.length,
+      totalViaturas: viaturas.length,
+      totalRings: rings.length,
+      lowStockMaterials,
+      manutencoesVencidas,
+      manutencoesPendentes,
+      manutencoesCriticas,
+      byType,
+      byCategory,
+      topCautelaMaterials,
+      topUsers,
+      dailyTrend,
+      filteredCount: filteredMovements.length,
+      taxaCautela:
+        materials.length > 0
+          ? ((cautelasAtivas.length / materials.length) * 100).toFixed(1)
+          : 0,
+      disponibilidade:
+        totalEstoque > 0 ? ((estoqueAtual / totalEstoque) * 100).toFixed(1) : 0,
+    };
+  }, [allMovements, filteredMovements, materials, users, viaturas, rings, manutencoes]);
+
+  // ==================== DATA FETCHING ====================
 
   useEffect(() => {
-    let unsubscribeCautelas;
-    let unsubscribeReturns;
     let isMounted = true;
-
-    // Busca simples (sem listener) - mais rápida para mobile
-    const fetchCautelasSimple = async (userId) => {
-      try {
-        const movimentacoesQuery = query(
-          collection(db, "movimentacoes"),
-          where("user", "==", userId),
-          where("type", "==", "cautela"),
-          where("signed", "==", false)
-        );
-        const snapshot = await getDocs(movimentacoesQuery);
-        if (isMounted) {
-          setMinhasCautelas(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-        }
-
-        const returnsQuery = query(
-          collection(db, "movimentacoes"),
-          where("user", "==", userId),
-          where("status", "in", ["devolvido", "devolvidaDeReparo"])
-        );
-        const returnsSnap = await getDocs(returnsQuery);
-        if (isMounted) {
-          setReturnedCautelas(
-            returnsSnap.docs
-              .map((doc) => ({ id: doc.id, ...doc.data() }))
-              .filter(item => !item.user_acknowledged_return)
-          );
-        }
-
-        // Buscar materiais cautelados ativos (assinados, não devolvidos)
-        const activeQuery = query(
-          collection(db, "movimentacoes"),
-          where("user", "==", userId),
-          where("type", "==", "cautela"),
-          where("status", "==", "cautelado")
-        );
-        const activeSnap = await getDocs(activeQuery);
-        if (isMounted) {
-          setActiveCautelas(activeSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-        }
-      } catch (error) {
-        console.error("Erro ao buscar cautelas:", error);
-      }
-    };
-
-    // Busca com listeners (para admin/editor que ficam na tela)
-    const getMinhasCautelasWithListeners = async (userId) => {
-      try {
-        const movimentacoesQuery = query(
-          collection(db, "movimentacoes"),
-          where("user", "==", userId),
-          where("type", "==", "cautela"),
-          where("signed", "==", false)
-        );
-
-        unsubscribeCautelas = onSnapshot(movimentacoesQuery, (snapshot) => {
-          if (isMounted) {
-            setMinhasCautelas(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-          }
-        }, (error) => {
-          console.error("Erro ao buscar cautelas em tempo real:", error);
-        });
-
-        const returnsQuery = query(
-          collection(db, "movimentacoes"),
-          where("user", "==", userId),
-          where("status", "in", ["devolvido", "devolvidaDeReparo"])
-        );
-
-        unsubscribeReturns = onSnapshot(returnsQuery, (snapshot) => {
-          if (isMounted) {
-            setReturnedCautelas(
-              snapshot.docs
-                .map((doc) => ({ id: doc.id, ...doc.data() }))
-                .filter(item => !item.user_acknowledged_return)
-            );
-          }
-        }, (error) => {
-          console.error("Erro ao buscar comprovantes de devolução:", error);
-        });
-      } catch (error) {
-        console.error("Erro ao buscar cautelas:", error);
-      }
-    };
-
-    const fetchData = async () => {
-      try {
-        // Buscar total de materiais
-        const materialsSnap = await getDocs(collection(db, "materials"));
-        
-        // Buscar total de viaturas
-        const viaturasSnap = await getDocs(collection(db, "viaturas"));
-        
-        // Buscar total de usuários
-        const usersSnap = await getDocs(collection(db, "users"));
-        
-        // Buscar movimentações recentes (buscar 20 para permitir expandir)
-        const recentMovementsSnap = await getDocs(
-          query(
-            collection(db, "movimentacoes"),
-            orderBy("date", "desc"),
-            limit(20)
-          )
-        );
-        
-        // Buscar todas as movimentações para estatísticas
-        const allMovementsSnap = await getDocs(
-          query(
-            collection(db, "movimentacoes"),
-            orderBy("date", "desc"),
-            limit(50)
-          )
-        );
-        
-        // Buscar materiais cautelados (type='cautela' e status='cautelado')
-        const cautelasQuery = query(
-          collection(db, "movimentacoes"),
-          where("type", "==", "cautela"),
-          where("status", "==", "cautelado")
-        );
-        const cautelasSnap = await getDocs(cautelasQuery);
-        
-        // Contar materiais cautelados
-        const materiaisCautelados = cautelasSnap.size;
-        
-        // Buscar total de anéis retirados na coleção "rings"
-        let retiradasAneis = 0;
-        try {
-          const ringsSnap = await getDocs(collection(db, "rings"));
-          retiradasAneis = ringsSnap.size;
-        } catch (ringsError) {
-          console.log("Coleção rings não encontrada ou vazia:", ringsError);
-        }
-        
-        // Criar mapa de usuários para enriquecimento de dados
-        const userMap = {};
-        usersSnap.docs.forEach(userDoc => {
-          const userData = userDoc.data();
-          userMap[userDoc.id] = userData.name || userData.username || userData.email || 'Usuário';
-        });
-        
-        // Enriquecer movimentações recentes com nomes completos
-        const enrichedRecentMovements = await Promise.all(
-          recentMovementsSnap.docs.map(async (docSnap) => {
-            const data = docSnap.data();
-            let fullName = 'Usuário';
-            
-            // Primeiro tenta pegar do mapa em memória
-            if (data.user && userMap[data.user]) {
-              fullName = userMap[data.user];
-            } else if (data.user) {
-              // Se não encontrou no mapa, busca individualmente
-              try {
-                const userDocRef = doc(db, "users", data.user);
-                const userDoc = await getDoc(userDocRef);
-                if (userDoc.exists()) {
-                  const userData = userDoc.data();
-                  fullName = userData.name || userData.username || userData.email || 'Usuário';
-                }
-              } catch (userError) {
-                console.log("Erro ao buscar usuário:", userError);
-              }
-            }
-            
-            // Também pode ter o nome diretamente no documento
-            if (data.sender_name) {
-              fullName = data.sender_name;
-            }
-            
-            return {
-              id: docSnap.id,
-              ...data,
-              sender_name: fullName
-            };
-          })
-        );
-
-        setStats({
-          totalMaterials: materialsSnap.size,
-          totalViaturas: viaturasSnap.size,
-          totalUsers: usersSnap.size,
-          recentMovements: enrichedRecentMovements,
-          allMovements: allMovementsSnap.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })),
-          materiaisCautelados: materiaisCautelados,
-          retiradasAneis: retiradasAneis,
-        });
-        setLoading(false);
-      } catch (error) {
-        console.error("Erro ao buscar dados:", error);
-        setLoading(false);
-      }
-    };
+    const unsubscribers = [];
 
     const init = async () => {
       try {
         const token = localStorage.getItem("token");
         const user = await verifyToken(token);
-        const role = user?.role;
-
         if (!isMounted) return;
 
         if (user) {
-          setUserRole(role);
-          setUserName(user.username || 'Usuário');
+          setUserRole(user.role);
+          setUserName(user.username || "Usuario");
+
         }
 
-        // Para usuários comuns: busca simples sem listeners (mais rápido)
-        if (role === 'user') {
+        const role = user?.role;
+
+        // User role: simple fetch
+        if (role === "user") {
           if (user?.userId) {
-            await fetchCautelasSimple(user.userId);
+            const [pendingSnap, returnsSnap, activeSnap] = await Promise.all([
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("type", "==", "cautela"),
+                  where("signed", "==", false)
+                )
+              ),
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("status", "in", ["devolvido", "devolvidaDeReparo"])
+                )
+              ),
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("type", "==", "cautela"),
+                  where("status", "==", "cautelado")
+                )
+              ),
+            ]);
+            if (isMounted) {
+              setMinhasCautelas(
+                pendingSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+              );
+              setReturnedCautelas(
+                returnsSnap.docs
+                  .map((d) => ({ id: d.id, ...d.data() }))
+                  .filter((item) => !item.user_acknowledged_return)
+              );
+              setActiveCautelas(
+                activeSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+              );
+              setLoading(false);
+            }
+          } else {
+            if (isMounted) setLoading(false);
           }
-          if (isMounted) setLoading(false);
-        } else {
-          // Para admin/editor: usa listeners para tempo real
-          if (user?.userId) {
-            await getMinhasCautelasWithListeners(user.userId);
+          return;
+        }
+
+        // Editor/Admin: fetch everything with real-time for movements
+        const [
+          materialsSnap,
+          usersSnap,
+          viaturasSnap,
+          ringsSnap,
+          manutencoesSnap,
+          categoriasSnap,
+        ] = await Promise.all([
+          getDocs(collection(db, "materials")),
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "viaturas")),
+          getDocs(collection(db, "rings")),
+          getDocs(
+            query(
+              collection(db, "manutencoes"),
+              where("status", "in", ["pendente", "em_andamento"])
+            )
+          ),
+          getDocs(collection(db, "categorias")),
+        ]);
+
+        if (isMounted) {
+          setMaterials(materialsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+          setUsers(usersSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+          setViaturas(viaturasSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+          setRings(ringsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+          setManutencoes(manutencoesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+          setCategorias(categoriasSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        }
+
+        // Real-time movements listener
+        const movQuery = query(
+          collection(db, "movimentacoes"),
+          orderBy("date", "desc"),
+          limit(500)
+        );
+        const unsub = onSnapshot(movQuery, (snapshot) => {
+          if (isMounted) {
+            setAllMovements(
+              snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+            );
+            setLoading(false);
           }
-          await fetchData();
+        });
+        unsubscribers.push(unsub);
+
+        // User's own cautelas (real-time)
+        if (user?.userId) {
+          const cautelaUnsub = onSnapshot(
+            query(
+              collection(db, "movimentacoes"),
+              where("user", "==", user.userId),
+              where("type", "==", "cautela"),
+              where("signed", "==", false)
+            ),
+            (snap) => {
+              if (isMounted) {
+                setMinhasCautelas(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+              }
+            }
+          );
+          unsubscribers.push(cautelaUnsub);
+
+          const returnUnsub = onSnapshot(
+            query(
+              collection(db, "movimentacoes"),
+              where("user", "==", user.userId),
+              where("status", "in", ["devolvido", "devolvidaDeReparo"])
+            ),
+            (snap) => {
+              if (isMounted) {
+                setReturnedCautelas(
+                  snap.docs
+                    .map((d) => ({ id: d.id, ...d.data() }))
+                    .filter((item) => !item.user_acknowledged_return)
+                );
+              }
+            }
+          );
+          unsubscribers.push(returnUnsub);
         }
       } catch (error) {
-        console.error("Erro na inicialização:", error);
+        console.error("Erro na inicializacao:", error);
         if (isMounted) setLoading(false);
       }
     };
 
     init();
-
-    // Cleanup
     return () => {
       isMounted = false;
-      if (unsubscribeCautelas) unsubscribeCautelas();
-      if (unsubscribeReturns) unsubscribeReturns();
+      unsubscribers.forEach((u) => u());
     };
   }, []);
+
+  // ==================== HANDLERS ====================
 
   const handleSign = async (movimentacaoId) => {
     try {
       const docRef = doc(db, "movimentacoes", movimentacaoId);
       const docSnap = await getDoc(docRef);
-
       if (docSnap.exists()) {
-        await updateDoc(docRef, {
-          signed: true,
-          signed_date: serverTimestamp()
-        });
-
-        // Para usuários sem listener: atualizar estado manualmente
-        if (userRole === 'user') {
-          const signedItem = minhasCautelas.find(c => c.id === movimentacaoId);
-          setMinhasCautelas(prev => prev.filter(c => c.id !== movimentacaoId));
+        await updateDoc(docRef, { signed: true, signed_date: serverTimestamp() });
+        if (userRole === "user") {
+          const signedItem = minhasCautelas.find((c) => c.id === movimentacaoId);
+          setMinhasCautelas((prev) => prev.filter((c) => c.id !== movimentacaoId));
           if (signedItem) {
-            setActiveCautelas(prev => [...prev, { ...signedItem, signed: true, status: 'cautelado' }]);
+            setActiveCautelas((prev) => [
+              ...prev,
+              { ...signedItem, signed: true, status: "cautelado" },
+            ]);
           }
         }
-
-        setSnackbarMessage('Cautela assinada com sucesso!');
-        setSnackbarOpen(true);
-      } else {
-        setSnackbarMessage('Erro: Documento não encontrado');
+        setSnackbarMessage("Cautela assinada com sucesso!");
         setSnackbarOpen(true);
       }
     } catch (error) {
-      console.error("Erro ao assinar documento:", error);
-      setSnackbarMessage('Erro ao assinar a cautela. Tente novamente.');
+      console.error("Erro ao assinar:", error);
+      setSnackbarMessage("Erro ao assinar a cautela.");
       setSnackbarOpen(true);
     }
   };
 
   const handleAcknowledgeReturn = async (movimentacaoId) => {
     try {
-      const docRef = doc(db, "movimentacoes", movimentacaoId);
-      await updateDoc(docRef, {
-        user_acknowledged_return: true
+      await updateDoc(doc(db, "movimentacoes", movimentacaoId), {
+        user_acknowledged_return: true,
       });
-
-      // Para usuários sem listener: atualizar estado manualmente
-      if (userRole === 'user') {
-        setReturnedCautelas(prev => prev.filter(c => c.id !== movimentacaoId));
+      if (userRole === "user") {
+        setReturnedCautelas((prev) => prev.filter((c) => c.id !== movimentacaoId));
       }
-
-      setSnackbarMessage('Comprovante de devolução confirmado!');
+      setSnackbarMessage("Comprovante confirmado!");
       setSnackbarOpen(true);
     } catch (error) {
-      console.error("Erro ao confirmar comprovante:", error);
-      setSnackbarMessage('Erro ao confirmar o comprovante. Tente novamente.');
+      console.error("Erro ao confirmar:", error);
+      setSnackbarMessage("Erro ao confirmar o comprovante.");
       setSnackbarOpen(true);
     }
   };
 
-  const chartData = [
-    {
-      name: "Aquisição",
-      value: stats.allMovements.filter((m) => m.type === "aquisicao").length,
-      color: '#22c55e'
-    },
-    {
-      name: "Cautela",
-      value: stats.allMovements.filter((m) => m.type === "cautela").length,
-      color: '#3b82f6'
-    },
-    {
-      name: "Descarte",
-      value: stats.allMovements.filter((m) => m.type === "descarte").length,
-      color: '#ef4444'
-    },
-    {
-      name: "Reparo",
-      value: stats.allMovements.filter((m) => m.type === "reparo").length,
-      color: '#f59e0b'
-    },
-  ];
+  // ==================== CHART DATA ====================
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <Paper sx={{ p: 1.5, border: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="body2" fontWeight={600}>{label}</Typography>
-          <Typography variant="body2" color="primary">
-            Quantidade: {payload[0].value}
-          </Typography>
-        </Paper>
-      );
-    }
-    return null;
-  };
+  const typeChartData = useMemo(() => {
+    return Object.entries(MOVEMENT_LABELS).map(([key, label]) => ({
+      name: label,
+      value: stats.byType[key] || 0,
+      color: MOVEMENT_COLORS[key],
+    }));
+  }, [stats.byType]);
+
+  const categoryPieData = useMemo(() => {
+    const COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"];
+    return Object.entries(stats.byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name, value], i) => ({
+        name,
+        value,
+        color: COLORS[i % COLORS.length],
+      }));
+  }, [stats.byCategory]);
+
+  // ==================== LOADING ====================
 
   if (loading) {
     return (
       <Box
         sx={{
           display: "flex",
+          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
           height: "100vh",
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          gap: 2,
+          background: "linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)",
         }}
       >
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <CircularProgress size={48} />
-          <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
-            Carregando...
-          </Typography>
-        </Paper>
+        <CircularProgress size={48} sx={{ color: "white" }} />
+        <Typography variant="body1" sx={{ color: "white", opacity: 0.8 }}>
+          Carregando dashboard...
+        </Typography>
       </Box>
     );
   }
 
-  // View simplificada e otimizada para mobile para usuários comuns
-  if (userRole === 'user') {
+  // ==================== USER VIEW ====================
+
+  if (userRole === "user") {
     return (
       <PrivateRoute>
         <MenuContext>
           <Container maxWidth="sm" sx={{ py: 2, px: 2 }}>
-            {/* Header */}
             <Paper
               elevation={0}
               sx={{
                 p: 2,
                 mb: 2,
                 borderRadius: 3,
-                background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
-                color: 'white',
+                background: "linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)",
+                color: "white",
               }}
             >
               <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-                Olá, {userName}
+                Ola, {userName}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
                 Suas cautelas pendentes de assinatura
               </Typography>
             </Paper>
 
-            {/* Contador de pendências */}
             <Paper
               elevation={0}
               sx={{
                 p: 2,
                 mb: 2,
                 borderRadius: 3,
-                background: minhasCautelas.length > 0
-                  ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
-                  : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
-                border: '1px solid',
-                borderColor: minhasCautelas.length > 0 ? '#f59e0b' : '#22c55e',
+                background:
+                  minhasCautelas.length > 0
+                    ? "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)"
+                    : "linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)",
+                border: "1px solid",
+                borderColor: minhasCautelas.length > 0 ? "#f59e0b" : "#22c55e",
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <Avatar
                   sx={{
-                    bgcolor: minhasCautelas.length > 0 ? '#f59e0b' : '#22c55e',
+                    bgcolor: minhasCautelas.length > 0 ? "#f59e0b" : "#22c55e",
                     width: 48,
                     height: 48,
                   }}
@@ -728,29 +944,31 @@ export default function Home() {
                   {minhasCautelas.length > 0 ? <Warning /> : <CheckCircle />}
                 </Avatar>
                 <Box>
-                  <Typography variant="h4" fontWeight={700} color={minhasCautelas.length > 0 ? '#92400e' : '#166534'}>
+                  <Typography
+                    variant="h4"
+                    fontWeight={700}
+                    color={minhasCautelas.length > 0 ? "#92400e" : "#166534"}
+                  >
                     {minhasCautelas.length}
                   </Typography>
-                  <Typography variant="body2" color={minhasCautelas.length > 0 ? '#a16207' : '#15803d'}>
+                  <Typography
+                    variant="body2"
+                    color={minhasCautelas.length > 0 ? "#a16207" : "#15803d"}
+                  >
                     {minhasCautelas.length === 0
-                      ? 'Nenhuma cautela pendente'
+                      ? "Nenhuma cautela pendente"
                       : minhasCautelas.length === 1
-                      ? 'Cautela pendente'
-                      : 'Cautelas pendentes'}
+                      ? "Cautela pendente"
+                      : "Cautelas pendentes"}
                   </Typography>
                 </Box>
               </Box>
             </Paper>
 
-            {/* Lista de Cautelas para assinar */}
             {minhasCautelas.length > 0 ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2 }}>
                 {minhasCautelas.map((cautela) => (
-                  <CautelaStrip
-                    key={cautela.id}
-                    cautela={cautela}
-                    onSign={handleSign}
-                  />
+                  <CautelaStrip key={cautela.id} cautela={cautela} onSign={handleSign} />
                 ))}
               </Box>
             ) : (
@@ -760,26 +978,25 @@ export default function Home() {
                   p: 4,
                   mb: 2,
                   borderRadius: 3,
-                  textAlign: 'center',
-                  border: '1px solid',
-                  borderColor: 'divider',
+                  textAlign: "center",
+                  border: "1px solid",
+                  borderColor: "divider",
                 }}
               >
-                <CheckCircle sx={{ fontSize: 64, color: '#22c55e', mb: 2 }} />
-                <Typography variant="h6" fontWeight={600} color="text.primary" gutterBottom>
+                <CheckCircle sx={{ fontSize: 64, color: "#22c55e", mb: 2 }} />
+                <Typography variant="h6" fontWeight={600} gutterBottom>
                   Tudo em dia!
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Você não possui cautelas pendentes de assinatura.
+                  Voce nao possui cautelas pendentes de assinatura.
                 </Typography>
               </Paper>
             )}
 
-            {/* Materiais sob sua responsabilidade */}
             <Box sx={{ mt: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Inventory sx={{ color: '#1e3a5f', fontSize: 24 }} />
-                <Typography variant="h6" fontWeight={600} sx={{ color: '#1e3a5f' }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                <Inventory sx={{ color: "#1e3a5f", fontSize: 24 }} />
+                <Typography variant="h6" fontWeight={600} sx={{ color: "#1e3a5f" }}>
                   Materiais sob sua Responsabilidade
                 </Typography>
                 {activeCautelas.length > 0 && (
@@ -788,125 +1005,86 @@ export default function Home() {
                     size="small"
                     sx={{
                       fontWeight: 700,
-                      backgroundColor: alpha('#1e3a5f', 0.1),
-                      color: '#1e3a5f',
+                      backgroundColor: alpha("#1e3a5f", 0.1),
+                      color: "#1e3a5f",
                       height: 24,
-                      minWidth: 24,
                     }}
                   />
                 )}
               </Box>
 
               {activeCautelas.length > 0 ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {activeCautelas.map((cautela) => {
-                    const formatDate = (timestamp) => {
-                      if (!timestamp) return "";
-                      const date = new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
-                      const day = String(date.getDate()).padStart(2, "0");
-                      const month = String(date.getMonth() + 1).padStart(2, "0");
-                      const year = date.getFullYear();
-                      return `${day}/${month}/${year}`;
-                    };
-
-                    return (
-                      <Card
-                        key={cautela.id}
-                        sx={{
-                          borderRadius: 2,
-                          border: '1px solid',
-                          borderColor: alpha('#1e3a5f', 0.2),
-                          background: `linear-gradient(135deg, ${alpha('#1e3a5f', 0.03)} 0%, ${alpha('#3b82f6', 0.03)} 100%)`,
-                          position: 'relative',
-                          overflow: 'hidden',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: 4,
-                            background: 'linear-gradient(90deg, #1e3a5f 0%, #3b82f6 100%)',
-                          }
-                        }}
-                      >
-                        <CardContent sx={{ p: { xs: 2, sm: 3 }, '&:last-child': { pb: { xs: 2, sm: 3 } } }}>
-                          <Box sx={{
-                            display: 'flex',
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            justifyContent: 'space-between',
-                            alignItems: { xs: 'stretch', sm: 'flex-start' },
-                            gap: { xs: 1.5, sm: 0 }
-                          }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
-                              <Avatar
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {activeCautelas.map((cautela) => (
+                    <Card
+                      key={cautela.id}
+                      sx={{
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: alpha("#1e3a5f", 0.2),
+                        background: `linear-gradient(135deg, ${alpha("#1e3a5f", 0.03)} 0%, ${alpha("#3b82f6", 0.03)} 100%)`,
+                        position: "relative",
+                        overflow: "hidden",
+                        "&::before": {
+                          content: '""',
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 4,
+                          background: "linear-gradient(90deg, #1e3a5f 0%, #3b82f6 100%)",
+                        },
+                      }}
+                    >
+                      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 1,
+                          }}
+                        >
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1, minWidth: 0 }}>
+                            <Avatar
+                              sx={{
+                                bgcolor: alpha("#1e3a5f", 0.1),
+                                color: "#1e3a5f",
+                                width: 40,
+                                height: 40,
+                              }}
+                            >
+                              <Assignment sx={{ fontSize: 20 }} />
+                            </Avatar>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography
+                                variant="body1"
+                                fontWeight={600}
                                 sx={{
-                                  bgcolor: alpha('#1e3a5f', 0.1),
-                                  color: '#1e3a5f',
-                                  width: { xs: 40, sm: 48 },
-                                  height: { xs: 40, sm: 48 },
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
                                 }}
                               >
-                                <Assignment sx={{ fontSize: { xs: 20, sm: 24 } }} />
-                              </Avatar>
-                              <Box sx={{ flex: 1 }}>
-                                <Typography
-                                  variant="h6"
-                                  fontWeight={600}
-                                  sx={{
-                                    fontSize: { xs: '1rem', sm: '1.1rem' },
-                                    lineHeight: 1.2,
-                                    wordBreak: 'break-word'
-                                  }}
-                                >
-                                  {cautela.material_description || "Material não especificado"}
-                                </Typography>
-                                <Chip
-                                  icon={<AccessTime sx={{ fontSize: { xs: 14, sm: 16 } }} />}
-                                  label={cautela.date ? formatDate(cautela.date) : "Data não disponível"}
-                                  size="small"
-                                  sx={{
-                                    mt: 0.5,
-                                    height: { xs: 20, sm: 24 },
-                                    backgroundColor: alpha('#3b82f6', 0.1),
-                                    color: '#3b82f6',
-                                    fontSize: { xs: '0.7rem', sm: '0.8125rem' },
-                                    '& .MuiChip-icon': { color: '#3b82f6' },
-                                    '& .MuiChip-label': { px: 1 }
-                                  }}
-                                />
-                                {cautela.observacoes && (
-                                  <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{
-                                      mt: 0.5,
-                                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                                      fontStyle: 'italic',
-                                    }}
-                                  >
-                                    <strong>Obs:</strong> {cautela.observacoes}
-                                  </Typography>
-                                )}
-                              </Box>
+                                {cautela.material_description || "Material"}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatDateBR(cautela.date)}
+                              </Typography>
                             </Box>
-                            <Chip
-                              label={`${cautela.quantity || 0} un.`}
-                              sx={{
-                                fontWeight: 700,
-                                fontSize: { xs: '0.875rem', sm: '1rem' },
-                                height: { xs: 32, sm: 36 },
-                                minWidth: { xs: 70, sm: 80 },
-                                backgroundColor: alpha('#1e3a5f', 0.9),
-                                color: 'white',
-                                alignSelf: { xs: 'flex-start', sm: 'center' }
-                              }}
-                            />
                           </Box>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                          <Chip
+                            label={`${cautela.quantity || 0} un.`}
+                            sx={{
+                              fontWeight: 700,
+                              bgcolor: alpha("#1e3a5f", 0.9),
+                              color: "white",
+                            }}
+                          />
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </Box>
               ) : (
                 <Paper
@@ -914,29 +1092,25 @@ export default function Home() {
                   sx={{
                     p: 3,
                     borderRadius: 3,
-                    textAlign: 'center',
-                    border: '1px solid',
-                    borderColor: 'divider',
+                    textAlign: "center",
+                    border: "1px solid",
+                    borderColor: "divider",
                   }}
                 >
-                  <CheckCircle sx={{ fontSize: 48, color: '#22c55e', mb: 1 }} />
-                  <Typography variant="body1" fontWeight={600} color="text.primary" gutterBottom>
+                  <CheckCircle sx={{ fontSize: 48, color: "#22c55e", mb: 1 }} />
+                  <Typography variant="body1" fontWeight={600} gutterBottom>
                     Nenhum material pendente
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Você não possui materiais cautelados no momento.
                   </Typography>
                 </Paper>
               )}
             </Box>
 
-            {/* Comprovantes de devolução */}
             {returnedCautelas.length > 0 && (
               <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: '#1e3a5f' }}>
-                  Comprovantes de Devolução
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: "#1e3a5f" }}>
+                  Comprovantes de Devolucao
                 </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {returnedCautelas.map((cautela) => (
                     <DevolucaoReceiptStrip
                       key={cautela.id}
@@ -948,34 +1122,28 @@ export default function Home() {
               </Box>
             )}
 
-            {/* Botão de atualizar */}
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Box sx={{ mt: 3, textAlign: "center" }}>
               <Button
                 variant="outlined"
                 startIcon={<Refresh />}
                 onClick={() => window.location.reload()}
-                sx={{
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                }}
+                sx={{ borderRadius: 2, fontWeight: 600 }}
               >
                 Atualizar
               </Button>
             </Box>
           </Container>
 
-          {/* Snackbar para feedback */}
           <Snackbar
             open={snackbarOpen}
             autoHideDuration={4000}
             onClose={() => setSnackbarOpen(false)}
-            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            anchorOrigin={{ vertical: "top", horizontal: "center" }}
           >
             <Alert
               onClose={() => setSnackbarOpen(false)}
-              severity={snackbarMessage.includes('sucesso') ? 'success' : 'error'}
-              sx={{ width: '100%' }}
+              severity={snackbarMessage.includes("sucesso") || snackbarMessage.includes("confirmado") ? "success" : "error"}
+              sx={{ width: "100%" }}
             >
               {snackbarMessage}
             </Alert>
@@ -985,138 +1153,424 @@ export default function Home() {
     );
   }
 
-  // View completa para editores e admins
+  // ==================== ADMIN/EDITOR VIEW ====================
+
+  const recentMovements = filteredMovements.slice(0, 15);
+  const dateLabel =
+    dateFilter === "today"
+      ? "Hoje"
+      : dateFilter === "week"
+      ? "Esta Semana"
+      : dateFilter === "month"
+      ? "Este Mes"
+      : dateFilter === "custom"
+      ? "Periodo Selecionado"
+      : "Todos";
+
   return (
     <PrivateRoute>
       <MenuContext>
-        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 2, sm: 3 } }}>
+        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 1.5, sm: 3 } }}>
           <Fade in timeout={600}>
             <Box>
-              {/* Header */}
-              <Box sx={{ mb: { xs: 3, sm: 4 }, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+              {/* ====== HEADER ====== */}
+              <Box
+                sx={{
+                  mb: 3,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  flexWrap: "wrap",
+                  gap: 2,
+                }}
+              >
                 <Box>
-                  <Typography 
-                    variant="h4" 
-                    sx={{ 
-                      fontWeight: 700,
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      mb: 1,
-                      fontSize: { xs: '1.75rem', sm: '2.125rem' }
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontWeight: 800,
+                      background: "linear-gradient(135deg, #1e3a5f 0%, #3b82f6 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      mb: 0.5,
+                      fontSize: { xs: "1.5rem", sm: "2rem" },
                     }}
                   >
-                    Dashboard
+                    Central de Operacoes
                   </Typography>
-                  <Typography 
-                    variant="body1" 
-                    color="text.secondary"
-                    sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-                  >
-                    Bem-vindo ao sistema de controle de materiais
+                  <Typography variant="body2" color="text.secondary">
+                    Deposito de Material - CBMERJ
                   </Typography>
                 </Box>
-                <Button
-                  variant="outlined"
-                  startIcon={<Refresh />}
-                  onClick={() => {
-                    setLoading(true);
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 500);
-                  }}
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                  }}
-                >
-                  Atualizar
-                </Button>
-              </Box>
-
-              {/* Stats Cards */}
-              <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
-                {[
-                  { 
-                    icon: Assignment, 
-                    title: 'Materiais Cautelados', 
-                    value: stats.materiaisCautelados || 0, 
-                    color: '#ef4444',
-                    trend: null 
-                  },
-                  { 
-                    icon: Inventory, 
-                    title: 'Total de Materiais', 
-                    value: stats.totalMaterials || 0, 
-                    color: '#3b82f6',
-                    trend: null 
-                  },
-                  { 
-                    icon: Person, 
-                    title: 'Total de Usuários', 
-                    value: stats.totalUsers || 0, 
-                    color: '#22c55e',
-                    trend: null 
-                  },
-                  { 
-                    icon: DonutSmall, 
-                    title: 'Total de Anéis', 
-                    value: stats.retiradasAneis || 0, 
-                    color: '#f59e0b',
-                    trend: null 
-                  },
-                ].map((item, index) => (
-                    <Grid item xs={6} sm={6} md={3} key={index}>
-                      <StatCard {...item} loading={loading} />
-                    </Grid>
-                ))}
-              </Grid>
-
-              {/* Charts Section */}
-              <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
-                <Grid item xs={12} md={8}>
-                  <Paper 
-                    sx={{ 
-                      p: { xs: 2, sm: 3 }, 
-                      height: { xs: 300, sm: 400 },
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
+                <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                  <Chip
+                    icon={<Speed sx={{ fontSize: 16 }} />}
+                    label={`${stats.movHoje} mov. hoje`}
+                    size="small"
+                    sx={{
+                      fontWeight: 600,
+                      bgcolor: stats.movHoje > 0 ? alpha("#22c55e", 0.1) : alpha("#64748b", 0.1),
+                      color: stats.movHoje > 0 ? "#22c55e" : "#64748b",
                     }}
-                  >
-                    <Typography 
-                      variant="h6" 
-                      fontWeight={600} 
-                      sx={{ 
-                        mb: { xs: 2, sm: 3 },
-                        fontSize: { xs: '1rem', sm: '1.25rem' }
+                  />
+                  <Tooltip title="Atualizar dados">
+                    <IconButton
+                      onClick={() => window.location.reload()}
+                      sx={{
+                        bgcolor: alpha("#1e3a5f", 0.05),
+                        "&:hover": { bgcolor: alpha("#1e3a5f", 0.1) },
                       }}
                     >
-                      Movimentações por Tipo
-                    </Typography>
-                    <ResponsiveContainer width="100%" height="85%">
-                      <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={alpha('#000', 0.08)} />
-                        <XAxis 
-                          dataKey="name" 
-                          tick={{ fontSize: { xs: 10, sm: 12 } }}
-                          axisLine={{ stroke: alpha('#000', 0.1) }}
-                          angle={-45}
-                          textAnchor="end"
-                          height={60}
-                        />
-                        <YAxis 
-                          tick={{ fontSize: { xs: 10, sm: 12 } }}
-                          axisLine={{ stroke: alpha('#000', 0.1) }}
-                        />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar 
-                          dataKey="value" 
-                          radius={[8, 8, 0, 0]}
-                          animationDuration={1000}
+                      <Refresh />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+
+              {/* ====== ALERTS ====== */}
+              {(stats.manutencoesVencidas.length > 0 ||
+                stats.pendentesAssinatura > 0 ||
+                stats.lowStockMaterials.length > 0) && (
+                <Box sx={{ mb: 3, display: "flex", flexDirection: "column", gap: 1 }}>
+                  {stats.manutencoesVencidas.length > 0 && (
+                    <Alert
+                      severity="error"
+                      variant="outlined"
+                      action={
+                        <Button
+                          color="error"
+                          size="small"
+                          onClick={() => navigate("/manutencao")}
+                          sx={{ fontWeight: 600 }}
                         >
-                          {chartData.map((entry, index) => (
+                          Ver
+                        </Button>
+                      }
+                      sx={{ borderRadius: 2 }}
+                    >
+                      <strong>{stats.manutencoesVencidas.length}</strong>{" "}
+                      {stats.manutencoesVencidas.length === 1
+                        ? "manutencao vencida"
+                        : "manutencoes vencidas"}{" "}
+                      requer(em) atencao imediata
+                    </Alert>
+                  )}
+                  {stats.pendentesAssinatura > 0 && (
+                    <Alert
+                      severity="warning"
+                      variant="outlined"
+                      action={
+                        <Button
+                          color="warning"
+                          size="small"
+                          onClick={() => navigate("/movimentacoes")}
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Ver
+                        </Button>
+                      }
+                      sx={{ borderRadius: 2 }}
+                    >
+                      <strong>{stats.pendentesAssinatura}</strong>{" "}
+                      {stats.pendentesAssinatura === 1
+                        ? "cautela aguardando"
+                        : "cautelas aguardando"}{" "}
+                      assinatura
+                    </Alert>
+                  )}
+                  {stats.lowStockMaterials.length > 0 && (
+                    <Alert
+                      severity="info"
+                      variant="outlined"
+                      action={
+                        <Button
+                          color="info"
+                          size="small"
+                          onClick={() => navigate("/material")}
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Ver
+                        </Button>
+                      }
+                      sx={{ borderRadius: 2 }}
+                    >
+                      <strong>{stats.lowStockMaterials.length}</strong>{" "}
+                      {stats.lowStockMaterials.length === 1
+                        ? "material com"
+                        : "materiais com"}{" "}
+                      estoque baixo (5 ou menos unidades)
+                    </Alert>
+                  )}
+                </Box>
+              )}
+
+              {/* ====== KPI CARDS - ROW 1 ====== */}
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={6} sm={4} md={2}>
+                  <StatCard
+                    icon={Assignment}
+                    title="Cautelados"
+                    value={stats.cautelasAtivas}
+                    color="#ef4444"
+                    subtitle={`${stats.taxaCautela}% do acervo`}
+                    onClick={() => navigate("/movimentacoes")}
+                    badge={stats.pendentesAssinatura > 0 ? stats.pendentesAssinatura : 0}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <StatCard
+                    icon={Inventory2}
+                    title="Materiais"
+                    value={stats.totalMateriais}
+                    color="#3b82f6"
+                    subtitle={`${stats.estoqueAtual} un. disponiveis`}
+                    onClick={() => navigate("/material")}
+                    progress={parseFloat(stats.disponibilidade)}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <StatCard
+                    icon={DirectionsCar}
+                    title="Viaturas"
+                    value={stats.totalViaturas}
+                    color="#8b5cf6"
+                    subtitle={`${stats.estoqueViatura} itens alocados`}
+                    onClick={() => navigate("/viaturas")}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <StatCard
+                    icon={PeopleAlt}
+                    title="Usuarios"
+                    value={stats.totalUsers}
+                    color="#22c55e"
+                    onClick={
+                      userRole === "admin" || userRole === "admingeral"
+                        ? () => navigate("/usuario")
+                        : undefined
+                    }
+                  />
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <StatCard
+                    icon={HandymanOutlined}
+                    title="Em Reparo"
+                    value={stats.emReparo}
+                    color="#f59e0b"
+                    subtitle={`${stats.manutencoesPendentes.length} manut. pendentes`}
+                    onClick={() => navigate("/manutencao")}
+                    badge={stats.manutencoesVencidas.length > 0 ? stats.manutencoesVencidas.length : 0}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <StatCard
+                    icon={DonutSmall}
+                    title="Aneis"
+                    value={stats.totalRings}
+                    color="#06b6d4"
+                    onClick={() => navigate("/aneis")}
+                  />
+                </Grid>
+              </Grid>
+
+              {/* ====== DATE FILTER ====== */}
+              <Paper
+                sx={{
+                  p: 2,
+                  mb: 3,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: alpha("#f8fafc", 0.5),
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <FilterList sx={{ fontSize: 18, color: "text.secondary" }} />
+                  <Typography variant="body2" fontWeight={600} color="text.secondary">
+                    Filtrar por periodo - Graficos e movimentacoes
+                  </Typography>
+                </Box>
+                <DateFilterBar
+                  dateFilter={dateFilter}
+                  setDateFilter={setDateFilter}
+                  customStart={customStart}
+                  setCustomStart={setCustomStart}
+                  customEnd={customEnd}
+                  setCustomEnd={setCustomEnd}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  Exibindo <strong>{stats.filteredCount}</strong> movimentacoes no periodo: {dateLabel}
+                </Typography>
+              </Paper>
+
+              {/* ====== CHARTS ROW ====== */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                {/* Trend Chart */}
+                <Grid item xs={12} md={8}>
+                  <Paper
+                    sx={{
+                      p: { xs: 2, sm: 3 },
+                      height: { xs: 280, sm: 340 },
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    <SectionHeader
+                      title="Tendencia de Movimentacoes (14 dias)"
+                      icon={<TrendingUp sx={{ color: "#3b82f6", fontSize: 22 }} />}
+                    />
+                    <ResponsiveContainer width="100%" height="80%">
+                      <AreaChart
+                        data={stats.dailyTrend}
+                        margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
+                      >
+                        <defs>
+                          <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="colorCautelas" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={alpha("#000", 0.06)} />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <RechartsTooltip content={<CustomChartTooltip />} />
+                        <Area
+                          type="monotone"
+                          dataKey="total"
+                          name="Total"
+                          stroke="#3b82f6"
+                          fillOpacity={1}
+                          fill="url(#colorTotal)"
+                          strokeWidth={2}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="cautelas"
+                          name="Cautelas"
+                          stroke="#ef4444"
+                          fillOpacity={1}
+                          fill="url(#colorCautelas)"
+                          strokeWidth={2}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="devolucoes"
+                          name="Devolucoes"
+                          stroke="#22c55e"
+                          fillOpacity={0.1}
+                          fill="#22c55e"
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </Paper>
+                </Grid>
+
+                {/* Category Pie */}
+                <Grid item xs={12} md={4}>
+                  <Paper
+                    sx={{
+                      p: { xs: 2, sm: 3 },
+                      height: { xs: 280, sm: 340 },
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      cursor: "pointer",
+                      "&:hover": { borderColor: alpha("#8b5cf6", 0.3) },
+                    }}
+                    onClick={() => navigate("/categoria")}
+                  >
+                    <SectionHeader
+                      title="Materiais por Categoria"
+                      icon={<CategoryOutlined sx={{ color: "#8b5cf6", fontSize: 22 }} />}
+                      action={
+                        <Chip
+                          label={`${categorias.length} cat.`}
+                          size="small"
+                          sx={{ fontSize: "0.7rem", fontWeight: 600 }}
+                        />
+                      }
+                    />
+                    <ResponsiveContainer width="100%" height="80%">
+                      <PieChart>
+                        <Pie
+                          data={categoryPieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={isMobile ? 30 : 45}
+                          outerRadius={isMobile ? 60 : 80}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {categoryPieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip content={<CustomChartTooltip />} />
+                        <Legend
+                          layout="vertical"
+                          align="right"
+                          verticalAlign="middle"
+                          iconSize={8}
+                          wrapperStyle={{ fontSize: "11px", right: 0 }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              {/* ====== MIDDLE ROW: Movements by type + Quick Actions ====== */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                {/* Movements by type (filtered) */}
+                <Grid item xs={12} md={4}>
+                  <Paper
+                    sx={{
+                      p: { xs: 2, sm: 3 },
+                      height: { xs: 280, sm: 340 },
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    <SectionHeader
+                      title={`Movimentacoes - ${dateLabel}`}
+                      icon={<ReceiptLong sx={{ color: "#f59e0b", fontSize: 22 }} />}
+                      count={stats.filteredCount}
+                    />
+                    <ResponsiveContainer width="100%" height="78%">
+                      <BarChart data={typeChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={alpha("#000", 0.06)} />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <RechartsTooltip content={<CustomChartTooltip />} />
+                        <Bar dataKey="value" name="Quantidade" radius={[6, 6, 0, 0]} animationDuration={800}>
+                          {typeChartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Bar>
@@ -1125,239 +1579,591 @@ export default function Home() {
                   </Paper>
                 </Grid>
 
+                {/* Top Cautela Materials */}
                 <Grid item xs={12} md={4}>
-                  <Paper 
-                    sx={{ 
-                      p: { xs: 2, sm: 3 }, 
-                      height: { xs: 'auto', sm: 400 },
+                  <Paper
+                    sx={{
+                      p: { xs: 2, sm: 3 },
+                      height: { xs: 280, sm: 340 },
                       borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      background: `linear-gradient(135deg, ${alpha('#3b82f6', 0.05)} 0%, ${alpha('#8b5cf6', 0.05)} 100%)`,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      overflow: "auto",
                     }}
                   >
-                    <Typography 
-                      variant="h6" 
-                      fontWeight={600} 
-                      sx={{ 
-                        mb: { xs: 2, sm: 3 },
-                        fontSize: { xs: '1rem', sm: '1.25rem' }
+                    <SectionHeader
+                      title="Materiais Mais Cautelados"
+                      icon={<TrendingUp sx={{ color: "#ef4444", fontSize: 22 }} />}
+                    />
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      {stats.topCautelaMaterials.map(([name, count], i) => {
+                        const maxCount = stats.topCautelaMaterials[0]?.[1] || 1;
+                        return (
+                          <Box key={i}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mb: 0.3,
+                              }}
+                            >
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontSize: "0.78rem",
+                                  fontWeight: 500,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "75%",
+                                }}
+                              >
+                                {i + 1}. {name}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                sx={{ fontWeight: 700, color: "#ef4444" }}
+                              >
+                                {count}
+                              </Typography>
+                            </Box>
+                            <LinearProgress
+                              variant="determinate"
+                              value={(count / maxCount) * 100}
+                              sx={{
+                                height: 4,
+                                borderRadius: 2,
+                                bgcolor: alpha("#ef4444", 0.08),
+                                "& .MuiLinearProgress-bar": {
+                                  bgcolor: "#ef4444",
+                                  borderRadius: 2,
+                                },
+                              }}
+                            />
+                          </Box>
+                        );
+                      })}
+                      {stats.topCautelaMaterials.length === 0 && (
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+                          Sem dados de cautelas
+                        </Typography>
+                      )}
+                    </Box>
+                  </Paper>
+                </Grid>
+
+                {/* Quick Info Panel */}
+                <Grid item xs={12} md={4}>
+                  <Paper
+                    sx={{
+                      p: { xs: 2, sm: 3 },
+                      height: { xs: "auto", sm: 340 },
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1.5,
+                    }}
+                  >
+                    <SectionHeader
+                      title="Indicadores"
+                      icon={<Speed sx={{ color: "#22c55e", fontSize: 22 }} />}
+                    />
+
+                    {/* Disponibilidade */}
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: alpha("#3b82f6", 0.15),
+                        bgcolor: alpha("#3b82f6", 0.03),
                       }}
                     >
-                      Estatísticas Rápidas
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 }, height: { xs: 'auto', sm: '85%' }, justifyContent: 'center' }}>
-                      <Paper 
-                        elevation={0}
-                        sx={{ 
-                          p: { xs: 1.5, sm: 2 }, 
-                          borderRadius: 2,
-                          border: '1px solid',
-                          borderColor: alpha('#3b82f6', 0.2),
-                          background: alpha('#3b82f6', 0.05),
+                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                        <Typography variant="caption" fontWeight={600} color="text.secondary">
+                          Disponibilidade do Acervo
+                        </Typography>
+                        <Typography variant="caption" fontWeight={700} color="#3b82f6">
+                          {stats.disponibilidade}%
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={parseFloat(stats.disponibilidade)}
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          bgcolor: alpha("#3b82f6", 0.1),
+                          "& .MuiLinearProgress-bar": { bgcolor: "#3b82f6", borderRadius: 4 },
                         }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                        {stats.estoqueAtual} de {stats.totalEstoque} un. disponiveis
+                      </Typography>
+                    </Paper>
+
+                    {/* Top Users */}
+                    <Box sx={{ flex: 1 }}>
+                      <Typography
+                        variant="caption"
+                        fontWeight={600}
+                        color="text.secondary"
+                        sx={{ mb: 1, display: "block", textTransform: "uppercase", letterSpacing: 0.5 }}
                       >
-                        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          Taxa de Cautela
-                        </Typography>
-                        <Typography variant="h4" color="#3b82f6" fontWeight={700} sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
-                          {stats.totalMaterials > 0 
-                            ? `${((stats.materiaisCautelados / stats.totalMaterials) * 100).toFixed(1)}%`
-                            : '0%'
-                          }
-                        </Typography>
-                      </Paper>
-                      <Paper 
-                        elevation={0}
-                        sx={{ 
-                          p: { xs: 1.5, sm: 2 }, 
-                          borderRadius: 2,
-                          border: '1px solid',
-                          borderColor: alpha('#22c55e', 0.2),
-                          background: alpha('#22c55e', 0.05),
-                        }}
-                      >
-                        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          Movimentações Hoje
-                        </Typography>
-                        <Typography variant="h4" color="#22c55e" fontWeight={700} sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
-                          {stats.allMovements.filter(m => {
-                            const moveDate = new Date(m.date?.toDate?.() || m.date);
-                            const today = new Date();
-                            return moveDate.toDateString() === today.toDateString();
-                          }).length}
-                        </Typography>
-                      </Paper>
-                      <Paper 
-                        elevation={0}
-                        sx={{ 
-                          p: { xs: 1.5, sm: 2 }, 
-                          borderRadius: 2,
-                          border: '1px solid',
-                          borderColor: alpha('#f59e0b', 0.2),
-                          background: alpha('#f59e0b', 0.05),
-                        }}
-                      >
-                        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          Pendentes de Assinatura
-                        </Typography>
-                        <Typography variant="h4" color="#f59e0b" fontWeight={700} sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
-                          {minhasCautelas.filter(c => !c.signed).length}
-                        </Typography>
-                      </Paper>
+                        Militares com mais cautelas
+                      </Typography>
+                      {stats.topUsers.map(([name, count], i) => (
+                        <Box
+                          key={i}
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            py: 0.4,
+                          }}
+                        >
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Avatar
+                              sx={{
+                                width: 22,
+                                height: 22,
+                                fontSize: "0.65rem",
+                                bgcolor: alpha("#1e3a5f", 0.1),
+                                color: "#1e3a5f",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {i + 1}
+                            </Avatar>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontSize: "0.78rem",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                maxWidth: 150,
+                              }}
+                            >
+                              {name}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={count}
+                            size="small"
+                            sx={{
+                              height: 20,
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              bgcolor: alpha("#1e3a5f", 0.08),
+                              color: "#1e3a5f",
+                            }}
+                          />
+                        </Box>
+                      ))}
                     </Box>
                   </Paper>
                 </Grid>
               </Grid>
 
-              {/* Recent Movements & User Cautelas */}
-              <Grid container spacing={{ xs: 2, sm: 3 }}>
-                <Grid item xs={12} md={6}>
-                  <Paper 
-                    sx={{ 
+              {/* ====== BOTTOM ROW: Recent Movements + Low Stock + Maintenance ====== */}
+              <Grid container spacing={2}>
+                {/* Recent Movements */}
+                <Grid item xs={12} md={5}>
+                  <Paper
+                    sx={{
                       p: { xs: 2, sm: 3 },
                       borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      maxHeight: { xs: 400, sm: 500 },
-                      overflow: 'auto'
+                      border: "1px solid",
+                      borderColor: "divider",
+                      maxHeight: 480,
+                      overflow: "auto",
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-                      <Typography
-                        variant="h6"
-                        fontWeight={600}
-                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
-                      >
-                        Movimentações Recentes
-                      </Typography>
-                      <Chip
-                        icon={<AccessTime />}
-                        label={showAllMovements
-                          ? `Mostrando ${Math.min(stats.recentMovements.length, MAX_MOVEMENTS_COUNT)}`
-                          : `Últimas ${INITIAL_MOVEMENTS_COUNT}`
-                        }
-                        size="small"
-                        sx={{
-                          backgroundColor: alpha('#3b82f6', 0.1),
-                          color: '#3b82f6'
-                        }}
-                      />
-                    </Box>
-                    {stats.recentMovements.length > 0 ? (
-                      <>
-                        {stats.recentMovements
-                          .slice(0, showAllMovements ? MAX_MOVEMENTS_COUNT : INITIAL_MOVEMENTS_COUNT)
-                          .map((movement) => (
-                              <Box key={movement.id}>
-                                <MovementCard movement={movement} />
+                    <SectionHeader
+                      title={`Movimentacoes Recentes`}
+                      icon={<AccessTime sx={{ color: "#3b82f6", fontSize: 22 }} />}
+                      count={stats.filteredCount}
+                      action={
+                        <Button
+                          size="small"
+                          onClick={() => navigate("/movimentacoes")}
+                          endIcon={<ArrowForward sx={{ fontSize: 14 }} />}
+                          sx={{ fontSize: "0.75rem", fontWeight: 600 }}
+                        >
+                          Ver todas
+                        </Button>
+                      }
+                    />
+                    {recentMovements.length > 0 ? (
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                        {recentMovements.map((mov) => (
+                          <Paper
+                            key={mov.id}
+                            elevation={0}
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              border: "1px solid",
+                              borderColor: alpha(MOVEMENT_COLORS[mov.type] || "#64748b", 0.15),
+                              transition: "all 0.2s",
+                              cursor: "pointer",
+                              "&:hover": {
+                                borderColor: MOVEMENT_COLORS[mov.type],
+                                bgcolor: alpha(MOVEMENT_COLORS[mov.type] || "#64748b", 0.03),
+                                transform: "translateX(4px)",
+                              },
+                            }}
+                            onClick={() => navigate("/movimentacoes")}
+                          >
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                              <Avatar
+                                sx={{
+                                  width: 34,
+                                  height: 34,
+                                  bgcolor: alpha(MOVEMENT_COLORS[mov.type] || "#64748b", 0.1),
+                                  color: MOVEMENT_COLORS[mov.type] || "#64748b",
+                                }}
+                              >
+                                {MOVEMENT_ICONS[mov.type] || <SwapHoriz sx={{ fontSize: 18 }} />}
+                              </Avatar>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={600}
+                                    sx={{
+                                      fontSize: "0.82rem",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {mov.material_description || "Material"}
+                                  </Typography>
+                                  {!mov.signed && mov.type === "cautela" && (
+                                    <Chip
+                                      label="Pendente"
+                                      size="small"
+                                      sx={{
+                                        height: 16,
+                                        fontSize: "0.6rem",
+                                        fontWeight: 700,
+                                        bgcolor: alpha("#f59e0b", 0.15),
+                                        color: "#f59e0b",
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                                  {MOVEMENT_LABELS[mov.type] || mov.type} - {mov.sender_name || mov.user_name || ""}
+                                  {mov.quantity ? ` - ${mov.quantity} un.` : ""}
+                                </Typography>
                               </Box>
-                          ))
-                        }
-                        {stats.recentMovements.length > INITIAL_MOVEMENTS_COUNT && (
-                          <Box sx={{ textAlign: 'center', mt: 2 }}>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => setShowAllMovements(!showAllMovements)}
-                              sx={{
-                                borderRadius: 2,
-                                textTransform: 'none',
-                                fontWeight: 600,
-                              }}
-                            >
-                              {showAllMovements
-                                ? 'Ver menos'
-                                : `Ver mais (${Math.min(stats.recentMovements.length, MAX_MOVEMENTS_COUNT) - INITIAL_MOVEMENTS_COUNT} restantes)`
-                              }
-                            </Button>
-                          </Box>
-                        )}
-                      </>
+                              <Box sx={{ textAlign: "right", minWidth: 60 }}>
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "0.68rem" }}>
+                                  {formatDateBR(mov.date)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.68rem" }}>
+                                  {(() => {
+                                    const d = toDate(mov.date);
+                                    return d ? d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+                                  })()}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Paper>
+                        ))}
+                      </Box>
                     ) : (
-                      <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Timeline sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-                        <Typography color="text.secondary">
-                          Nenhuma movimentação recente
+                      <Box sx={{ textAlign: "center", py: 4 }}>
+                        <ReceiptLong sx={{ fontSize: 48, color: "text.disabled" }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          Nenhuma movimentacao no periodo
                         </Typography>
                       </Box>
                     )}
                   </Paper>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
-                  {minhasCautelas.length > 0 && (
-                    <Paper 
-                      sx={{ 
-                        p: { xs: 2, sm: 3 },
-                        borderRadius: 2,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        maxHeight: { xs: 400, sm: 500 },
-                        overflow: 'auto',
-                        mb: { xs: 2, sm: 3 }
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-                        <Typography 
-                          variant="h6" 
-                          fontWeight={600}
-                          sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
-                        >
-                          Suas Movimentações
-                        </Typography>
-                        <Chip 
-                          icon={<Warning />} 
-                          label={`${minhasCautelas.filter(c => !c.signed).length} pendentes`}
-                          size="small"
-                          color={minhasCautelas.filter(c => !c.signed).length > 0 ? "warning" : "success"}
-                        />
-                      </Box>
-                      {minhasCautelas.map((cautela) => (
-                          <Box key={cautela.id}>
-                            <CautelaStrip
-                              cautela={cautela}
-                              onSign={handleSign}
+                {/* Low Stock + Maintenance */}
+                <Grid item xs={12} md={3.5}>
+                  {/* Low Stock */}
+                  <Paper
+                    sx={{
+                      p: { xs: 2, sm: 2.5 },
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: stats.lowStockMaterials.length > 0 ? alpha("#f59e0b", 0.3) : "divider",
+                      mb: 2,
+                      cursor: "pointer",
+                      "&:hover": { borderColor: "#f59e0b" },
+                    }}
+                    onClick={() => navigate("/material")}
+                  >
+                    <SectionHeader
+                      title="Estoque Baixo"
+                      icon={<WarningAmber sx={{ color: "#f59e0b", fontSize: 22 }} />}
+                      count={stats.lowStockMaterials.length}
+                    />
+                    {stats.lowStockMaterials.length > 0 ? (
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.8, maxHeight: 180, overflow: "auto" }}>
+                        {stats.lowStockMaterials.slice(0, 6).map((mat) => (
+                          <Box
+                            key={mat.id}
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              p: 1,
+                              borderRadius: 1.5,
+                              bgcolor: alpha("#f59e0b", 0.04),
+                              border: "1px solid",
+                              borderColor: alpha("#f59e0b", 0.1),
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontSize: "0.78rem",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                maxWidth: "65%",
+                              }}
+                            >
+                              {mat.description}
+                            </Typography>
+                            <Chip
+                              label={`${mat.estoque_atual || 0} un.`}
+                              size="small"
+                              sx={{
+                                height: 20,
+                                fontSize: "0.7rem",
+                                fontWeight: 700,
+                                bgcolor: (mat.estoque_atual || 0) === 0 ? alpha("#ef4444", 0.1) : alpha("#f59e0b", 0.1),
+                                color: (mat.estoque_atual || 0) === 0 ? "#ef4444" : "#f59e0b",
+                              }}
                             />
                           </Box>
-                      ))}
+                        ))}
+                        {stats.lowStockMaterials.length > 6 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
+                            +{stats.lowStockMaterials.length - 6} materiais
+                          </Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      <Box sx={{ textAlign: "center", py: 2 }}>
+                        <CheckCircle sx={{ color: "#22c55e", fontSize: 32 }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: "0.8rem" }}>
+                          Estoque adequado
+                        </Typography>
+                      </Box>
+                    )}
+                  </Paper>
+
+                  {/* Maintenance */}
+                  <Paper
+                    sx={{
+                      p: { xs: 2, sm: 2.5 },
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: stats.manutencoesVencidas.length > 0 ? alpha("#ef4444", 0.3) : "divider",
+                      cursor: "pointer",
+                      "&:hover": { borderColor: "#ef4444" },
+                    }}
+                    onClick={() => navigate("/manutencao")}
+                  >
+                    <SectionHeader
+                      title="Manutencoes"
+                      icon={<HandymanOutlined sx={{ color: "#ef4444", fontSize: 22 }} />}
+                      count={stats.manutencoesPendentes.length}
+                    />
+                    {stats.manutencoesPendentes.length > 0 ? (
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.8, maxHeight: 180, overflow: "auto" }}>
+                        {stats.manutencoesPendentes
+                          .sort((a, b) => {
+                            const da = toDate(a.dueDate);
+                            const db2 = toDate(b.dueDate);
+                            return (da || Infinity) - (db2 || Infinity);
+                          })
+                          .slice(0, 5)
+                          .map((man) => {
+                            const days = getDaysUntil(man.dueDate);
+                            const isOverdue = days < 0;
+                            const isUrgent = days >= 0 && days <= 3;
+                            return (
+                              <Box
+                                key={man.id}
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  p: 1,
+                                  borderRadius: 1.5,
+                                  bgcolor: isOverdue
+                                    ? alpha("#ef4444", 0.05)
+                                    : isUrgent
+                                    ? alpha("#f59e0b", 0.05)
+                                    : alpha("#22c55e", 0.03),
+                                  border: "1px solid",
+                                  borderColor: isOverdue
+                                    ? alpha("#ef4444", 0.15)
+                                    : isUrgent
+                                    ? alpha("#f59e0b", 0.15)
+                                    : alpha("#22c55e", 0.1),
+                                }}
+                              >
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontSize: "0.78rem",
+                                      fontWeight: 500,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {man.materialDescription || man.description}
+                                  </Typography>
+                                  <Box sx={{ display: "flex", gap: 0.5, mt: 0.3 }}>
+                                    <Chip
+                                      label={man.priority || "media"}
+                                      size="small"
+                                      sx={{
+                                        height: 16,
+                                        fontSize: "0.6rem",
+                                        fontWeight: 700,
+                                        bgcolor: alpha(PRIORITY_COLORS[man.priority] || "#f59e0b", 0.1),
+                                        color: PRIORITY_COLORS[man.priority] || "#f59e0b",
+                                      }}
+                                    />
+                                    <Chip
+                                      label={man.type}
+                                      size="small"
+                                      sx={{
+                                        height: 16,
+                                        fontSize: "0.6rem",
+                                        bgcolor: alpha("#64748b", 0.08),
+                                        color: "#64748b",
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                                <Chip
+                                  label={
+                                    isOverdue
+                                      ? `${Math.abs(days)}d atrasada`
+                                      : days === 0
+                                      ? "Hoje"
+                                      : `${days}d`
+                                  }
+                                  size="small"
+                                  sx={{
+                                    height: 20,
+                                    fontSize: "0.65rem",
+                                    fontWeight: 700,
+                                    bgcolor: isOverdue
+                                      ? alpha("#ef4444", 0.1)
+                                      : isUrgent
+                                      ? alpha("#f59e0b", 0.1)
+                                      : alpha("#22c55e", 0.08),
+                                    color: isOverdue ? "#ef4444" : isUrgent ? "#f59e0b" : "#22c55e",
+                                  }}
+                                />
+                              </Box>
+                            );
+                          })}
+                      </Box>
+                    ) : (
+                      <Box sx={{ textAlign: "center", py: 2 }}>
+                        <CheckCircle sx={{ color: "#22c55e", fontSize: 32 }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: "0.8rem" }}>
+                          Sem manutencoes pendentes
+                        </Typography>
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+
+                {/* User's cautelas + Devolutions */}
+                <Grid item xs={12} md={3.5}>
+                  {minhasCautelas.length > 0 && (
+                    <Paper
+                      sx={{
+                        p: { xs: 2, sm: 2.5 },
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: alpha("#f59e0b", 0.3),
+                        mb: 2,
+                        maxHeight: 280,
+                        overflow: "auto",
+                      }}
+                    >
+                      <SectionHeader
+                        title="Suas Cautelas"
+                        icon={<PendingActions sx={{ color: "#f59e0b", fontSize: 22 }} />}
+                        count={minhasCautelas.filter((c) => !c.signed).length}
+                      />
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                        {minhasCautelas.map((cautela) => (
+                          <CautelaStrip key={cautela.id} cautela={cautela} onSign={handleSign} />
+                        ))}
+                      </Box>
                     </Paper>
                   )}
-                  
+
                   {returnedCautelas.length > 0 && (
-                    <Paper 
-                      sx={{ 
-                        p: { xs: 2, sm: 3 },
+                    <Paper
+                      sx={{
+                        p: { xs: 2, sm: 2.5 },
                         borderRadius: 2,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        maxHeight: { xs: 400, sm: 500 },
-                        overflow: 'auto'
+                        border: "1px solid",
+                        borderColor: alpha("#22c55e", 0.3),
+                        maxHeight: 280,
+                        overflow: "auto",
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-                        <Typography 
-                          variant="h6" 
-                          fontWeight={600}
-                          sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
-                        >
-                          Comprovantes de Devolução
-                        </Typography>
-                        <Chip 
-                          icon={<CheckCircle />} 
-                          label={`${returnedCautelas.length} novos`}
-                          size="small"
-                          color="success"
-                        />
+                      <SectionHeader
+                        title="Comprovantes de Devolucao"
+                        icon={<AssignmentTurnedIn sx={{ color: "#22c55e", fontSize: 22 }} />}
+                        count={returnedCautelas.length}
+                      />
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                        {returnedCautelas.map((cautela) => (
+                          <DevolucaoReceiptStrip
+                            key={cautela.id}
+                            cautela={cautela}
+                            onAcknowledge={handleAcknowledgeReturn}
+                          />
+                        ))}
                       </Box>
-                      {returnedCautelas.map((cautela) => (
-                          <Box key={cautela.id}>
-                            <DevolucaoReceiptStrip
-                              cautela={cautela}
-                              onAcknowledge={handleAcknowledgeReturn}
-                            />
-                          </Box>
-                      ))}
+                    </Paper>
+                  )}
+
+                  {minhasCautelas.length === 0 && returnedCautelas.length === 0 && (
+                    <Paper
+                      sx={{
+                        p: 3,
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        textAlign: "center",
+                      }}
+                    >
+                      <CheckCircle sx={{ fontSize: 40, color: "#22c55e", mb: 1 }} />
+                      <Typography variant="body2" fontWeight={600}>
+                        Suas pendencias
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Nenhuma cautela ou comprovante pendente
+                      </Typography>
                     </Paper>
                   )}
                 </Grid>
@@ -1365,18 +2171,17 @@ export default function Home() {
             </Box>
           </Fade>
         </Container>
-        
-        {/* Snackbar para feedback */}
+
         <Snackbar
           open={snackbarOpen}
           autoHideDuration={4000}
           onClose={() => setSnackbarOpen(false)}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
         >
-          <Alert 
-            onClose={() => setSnackbarOpen(false)} 
-            severity={snackbarMessage.includes('sucesso') ? 'success' : 'error'}
-            sx={{ width: '100%' }}
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={snackbarMessage.includes("sucesso") || snackbarMessage.includes("confirmado") ? "success" : "error"}
+            sx={{ width: "100%" }}
           >
             {snackbarMessage}
           </Alert>
