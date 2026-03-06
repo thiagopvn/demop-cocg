@@ -1196,7 +1196,7 @@ export default function Home() {
                       fontSize: { xs: "1.5rem", sm: "2rem" },
                     }}
                   >
-                    Central de Operacoes
+                    Depósito de Material Operacional do GOCG
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Deposito de Material - CBMERJ
