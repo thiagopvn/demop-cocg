@@ -92,9 +92,10 @@ import DevolucaoReceiptStrip from "../../components/DevolucaoReceiptStrip";
 
 const toDate = (val) => {
   if (!val) return null;
-  if (val.toDate) return val.toDate();
-  if (val.seconds) return new Date(val.seconds * 1000);
-  return new Date(val);
+  if (typeof val.toDate === "function") return val.toDate();
+  if (val.seconds != null) return new Date(val.seconds * 1000 + (val.nanoseconds || 0) / 1000000);
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
 };
 
 const formatDateBR = (date) => {
@@ -105,42 +106,27 @@ const formatDateBR = (date) => {
 };
 
 const isToday = (date) => {
-  if (!date) return false;
-  const d = toDate(date);
+  const d = date instanceof Date ? date : toDate(date);
+  if (!d) return false;
   const today = new Date();
-  return d && d.toDateString() === today.toDateString();
+  return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
 };
 
 const isThisWeek = (date) => {
-  if (!date) return false;
-  const d = toDate(date);
+  const d = date instanceof Date ? date : toDate(date);
+  if (!d) return false;
   const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(startOfWeek.getDate() + 7);
   return d >= startOfWeek && d < endOfWeek;
 };
 
 const isThisMonth = (date) => {
-  if (!date) return false;
-  const d = toDate(date);
-  const now = new Date();
-  return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-};
-
-const isInRange = (date, start, end) => {
-  if (!date) return false;
-  const d = toDate(date);
+  const d = date instanceof Date ? date : toDate(date);
   if (!d) return false;
-  if (start && d < start) return false;
-  if (end) {
-    const endOfDay = new Date(end);
-    endOfDay.setHours(23, 59, 59, 999);
-    if (d > endOfDay) return false;
-  }
-  return true;
+  const now = new Date();
+  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 };
 
 const getDaysUntil = (date) => {
@@ -487,19 +473,23 @@ export default function Home() {
     (items, dateField = "date") => {
       if (dateFilter === "all") return items;
       return items.filter((item) => {
-        const date = item[dateField];
-        if (!date) return false;
+        const rawDate = item[dateField];
+        if (!rawDate) return false;
+        const d = toDate(rawDate);
+        if (!d) return false;
         switch (dateFilter) {
           case "today":
-            return isToday(date);
+            return isToday(d);
           case "week":
-            return isThisWeek(date);
+            return isThisWeek(d);
           case "month":
-            return isThisMonth(date);
+            return isThisMonth(d);
           case "custom": {
-            const start = customStart ? new Date(customStart) : null;
-            const end = customEnd ? new Date(customEnd) : null;
-            return isInRange(date, start, end);
+            const start = customStart ? new Date(customStart + "T00:00:00") : null;
+            const end = customEnd ? new Date(customEnd + "T23:59:59") : null;
+            if (start && d < start) return false;
+            if (end && d > end) return false;
+            return true;
           }
           default:
             return true;
