@@ -518,18 +518,21 @@ export default function Home() {
   );
 
   const stats = useMemo(() => {
-    const cautelasAtivas = allMovements.filter(
+    // Todos os cálculos usam filteredMovements para responder ao filtro de data
+    const fm = filteredMovements;
+
+    const cautelasAtivas = fm.filter(
       (m) => m.type === "cautela" && m.status === "cautelado"
     );
-    const pendentesAssinatura = allMovements.filter(
+    const pendentesAssinatura = fm.filter(
       (m) => m.type === "cautela" && m.signed === false
     );
-    const emReparo = allMovements.filter(
+    const emReparo = fm.filter(
       (m) => m.status === "emReparo"
     );
     const movHoje = allMovements.filter((m) => isToday(m.date));
 
-    // Estoque
+    // Estoque (estado atual, não filtrado por data)
     const totalEstoque = materials.reduce((sum, m) => sum + (m.estoque_total || 0), 0);
     const estoqueAtual = materials.reduce((sum, m) => sum + (m.estoque_atual || 0), 0);
     const estoqueViatura = materials.reduce((sum, m) => sum + (m.estoque_viatura || 0), 0);
@@ -537,39 +540,38 @@ export default function Home() {
       (m) => (m.estoque_atual || 0) <= 5 && (m.estoque_total || 0) > 0
     );
 
-    // Manutencoes
+    // Manutencoes filtradas por data de vencimento
+    const filteredManutencoes = filterByDate(manutencoes, "dueDate");
     const now = new Date();
-    const manutencoesVencidas = manutencoes.filter((m) => {
+    const manutencoesVencidas = filteredManutencoes.filter((m) => {
       if (m.status === "concluida" || m.status === "cancelada") return false;
       const d = toDate(m.dueDate);
       return d && d < now;
     });
-    const manutencoesPendentes = manutencoes.filter(
+    const manutencoesPendentes = filteredManutencoes.filter(
       (m) => m.status === "pendente" || m.status === "em_andamento"
     );
-    const manutencoesCriticas = manutencoes.filter(
-      (m) =>
-        m.priority === "critica" &&
-        m.status !== "concluida" &&
-        m.status !== "cancelada"
-    );
 
-    // By type counts
+    // By type counts (já filtrado)
     const byType = {};
-    filteredMovements.forEach((m) => {
+    fm.forEach((m) => {
       byType[m.type] = (byType[m.type] || 0) + 1;
     });
 
-    // Category distribution
+    // Category distribution dos materiais movimentados no período
+    const materialIdsInPeriod = new Set(fm.map((m) => m.material));
+    const materialsInPeriod = materialIdsInPeriod.size > 0
+      ? materials.filter((m) => materialIdsInPeriod.has(m.id))
+      : materials;
     const byCategory = {};
-    materials.forEach((m) => {
+    materialsInPeriod.forEach((m) => {
       const cat = m.categoria || "Sem Categoria";
       byCategory[cat] = (byCategory[cat] || 0) + 1;
     });
 
-    // Top cautela materials
+    // Top cautela materials (filtrado)
     const materialCautelaCount = {};
-    allMovements
+    fm
       .filter((m) => m.type === "cautela")
       .forEach((m) => {
         const desc = m.material_description || "Desconhecido";
@@ -579,9 +581,9 @@ export default function Home() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8);
 
-    // Top users by cautelas
+    // Top users by cautelas (filtrado)
     const userCautelaCount = {};
-    allMovements
+    fm
       .filter((m) => m.type === "cautela")
       .forEach((m) => {
         const name = m.user_name || m.sender_name || "Desconhecido";
@@ -591,14 +593,24 @@ export default function Home() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    // Daily movement trend (last 14 days)
+    // Daily movement trend - usa filteredMovements para o range visível
     const dailyTrend = [];
-    for (let i = 13; i >= 0; i--) {
+    // Determinar range de dias baseado no filtro
+    let trendDays = 14;
+    if (dateFilter === "today") trendDays = 1;
+    else if (dateFilter === "week") trendDays = 7;
+    else if (dateFilter === "month") trendDays = 30;
+    else if (dateFilter === "custom" && customStart && customEnd) {
+      const diff = Math.ceil((new Date(customEnd) - new Date(customStart)) / (1000 * 60 * 60 * 24)) + 1;
+      trendDays = Math.min(Math.max(diff, 1), 60);
+    }
+
+    for (let i = trendDays - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       date.setHours(0, 0, 0, 0);
       const dayStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      const dayMovements = allMovements.filter((m) => {
+      const dayMovements = fm.filter((m) => {
         const md = toDate(m.date);
         return md && md.toDateString() === date.toDateString();
       });
@@ -625,13 +637,12 @@ export default function Home() {
       lowStockMaterials,
       manutencoesVencidas,
       manutencoesPendentes,
-      manutencoesCriticas,
       byType,
       byCategory,
       topCautelaMaterials,
       topUsers,
       dailyTrend,
-      filteredCount: filteredMovements.length,
+      filteredCount: fm.length,
       taxaCautela:
         materials.length > 0
           ? ((cautelasAtivas.length / materials.length) * 100).toFixed(1)
@@ -639,7 +650,7 @@ export default function Home() {
       disponibilidade:
         totalEstoque > 0 ? ((estoqueAtual / totalEstoque) * 100).toFixed(1) : 0,
     };
-  }, [allMovements, filteredMovements, materials, users, viaturas, rings, manutencoes]);
+  }, [allMovements, filteredMovements, materials, users, viaturas, rings, manutencoes, filterByDate, dateFilter, customStart, customEnd]);
 
   // ==================== DATA FETCHING ====================
 
@@ -1417,7 +1428,7 @@ export default function Home() {
                     }}
                   >
                     <SectionHeader
-                      title="Tendencia de Movimentacoes (14 dias)"
+                      title={`Tendencia de Movimentacoes - ${dateLabel}`}
                       icon={<TrendingUp sx={{ color: "#3b82f6", fontSize: 22 }} />}
                     />
                     <ResponsiveContainer width="100%" height="80%">
