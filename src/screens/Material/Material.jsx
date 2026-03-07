@@ -50,6 +50,7 @@ import MaterialDialog from '../../dialogs/MaterialDialog';
 import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
 import { deleteDoc, doc, collection, query, where, getDocs, orderBy, onSnapshot, addDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
+import { verifyToken } from '../../firebase/token';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -162,6 +163,29 @@ const Material = () => {
     const searchRef = useRef(null);
     const theme = useTheme();
     const navigate = useNavigate();
+
+    // Dados do usuario logado
+    const [loggedUserId, setLoggedUserId] = useState(null);
+    const [loggedUserName, setLoggedUserName] = useState(null);
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const token = localStorage.getItem("token");
+            if (token) {
+                try {
+                    const decoded = await verifyToken(token);
+                    setLoggedUserId(decoded.userId);
+                    const userDoc = await getDoc(doc(db, "users", decoded.userId));
+                    if (userDoc.exists()) {
+                        setLoggedUserName(userDoc.data().full_name || userDoc.data().username);
+                    }
+                } catch (error) {
+                    console.error("Erro ao verificar token:", error);
+                }
+            }
+        };
+        fetchUserData();
+    }, []);
 
     // Estados para manutenção
     const [openMaintenanceDialog, setOpenMaintenanceDialog] = useState(false);
@@ -343,6 +367,8 @@ const Material = () => {
                 await updateDoc(doc(db, "viatura_materiais", existingDoc.id), {
                     quantidade: existingData.quantidade + alocarQuantidade,
                     ultima_atualizacao: serverTimestamp(),
+                    atualizado_por: loggedUserId,
+                    atualizado_por_nome: loggedUserName,
                 });
             } else {
                 await addDoc(collection(db, "viatura_materiais"), {
@@ -354,6 +380,8 @@ const Material = () => {
                     categoria: materialToAlocar.categoria || "",
                     quantidade: alocarQuantidade,
                     data_alocacao: serverTimestamp(),
+                    alocado_por: loggedUserId,
+                    alocado_por_nome: loggedUserName,
                     status: "alocado",
                 });
             }

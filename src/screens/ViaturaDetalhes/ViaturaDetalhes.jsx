@@ -317,8 +317,8 @@ export default function ViaturaDetalhes() {
             if (materialDoc.exists()) {
                 const materialData = materialDoc.data();
                 await updateDoc(materialRef, {
-                    estoque_atual: (materialData.estoque_atual || 0) - diferenca,
-                    estoque_viatura: (materialData.estoque_viatura || 0) + diferenca,
+                    estoque_atual: Math.max(0, (materialData.estoque_atual || 0) - diferenca),
+                    estoque_viatura: Math.max(0, (materialData.estoque_viatura || 0) + diferenca),
                     ultima_movimentacao: serverTimestamp(),
                 });
             }
