@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import SearchResultsTable from "../../components/SearchResultsTable";
 import FilterChips from "../../components/FilterChips";
 import MovimentacaoDetails from "../../components/MovimentacaoDetails";
+import TransferTypeDialog from "../../dialogs/TransferTypeDialog";
 import {
   Box,
   Typography,
@@ -40,11 +41,12 @@ import {
   FilterList as FilterIcon,
   Draw as SignatureIcon,
   Phone as PhoneIcon,
-  DeleteForever as DeleteForeverIcon
+  DeleteForever as DeleteForeverIcon,
+  TransferWithinAStation as TransferIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, getDoc, doc } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 import { verifyToken } from "../../firebase/token";
@@ -79,16 +81,34 @@ export default function Cautelados() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [userRole, setUserRole] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [userName, setUserName] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMovForDelete, setSelectedMovForDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [selectedMovForTransfer, setSelectedMovForTransfer] = useState(null);
   const theme = useTheme();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      verifyToken(token).then((payload) => {
-        if (payload) setUserRole(payload.role);
+      verifyToken(token).then(async (payload) => {
+        if (payload) {
+          setUserRole(payload.role);
+          setUserId(payload.userId);
+          // Buscar nome completo do usuário
+          try {
+            const userDoc = await getDoc(doc(db, "users", payload.userId));
+            if (userDoc.exists()) {
+              setUserName(userDoc.data().full_name || payload.username);
+            } else {
+              setUserName(payload.username);
+            }
+          } catch {
+            setUserName(payload.username);
+          }
+        }
       });
     }
   }, []);
@@ -226,7 +246,6 @@ export default function Cautelados() {
     setDeleting(true);
     try {
       await deleteMovimentacao(selectedMovForDelete);
-      // Remover do cache local
       setCachedMovimentacoes((prev) => {
         const updated = {};
         for (const key in prev) {
@@ -241,6 +260,18 @@ export default function Cautelados() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleOpenTransferDialog = (mov) => {
+    setSelectedMovForTransfer(mov);
+    setTransferDialogOpen(true);
+  };
+
+  const handleTransferComplete = () => {
+    // Limpar cache para forçar re-fetch
+    setCachedMovimentacoes({});
+    setTransferDialogOpen(false);
+    setSelectedMovForTransfer(null);
   };
 
   const isAdminGeral = userRole === "admingeral";
@@ -282,7 +313,6 @@ export default function Cautelados() {
       renderCell: (row) => {
         const telefone = row.telefone_responsavel;
         if (!telefone) return '-';
-        // Formatar para WhatsApp: remover caracteres especiais e adicionar 55
         const numeroLimpo = telefone.replace(/\D/g, '');
         const numeroWpp = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
         return (
@@ -348,13 +378,23 @@ export default function Cautelados() {
         }
 
         return (
-          <Chip
-            icon={icon}
-            label={row.type || '-'}
-            size="small"
-            color={color}
-            variant="filled"
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Chip
+              icon={icon}
+              label={row.type || '-'}
+              size="small"
+              color={color}
+              variant="filled"
+            />
+            {row.original_type && (
+              <Chip
+                label={`era: ${row.original_type}`}
+                size="small"
+                variant="outlined"
+                sx={{ fontSize: '0.65rem', height: 18 }}
+              />
+            )}
+          </Box>
         );
       },
     },
@@ -363,7 +403,7 @@ export default function Cautelados() {
       headerName: 'Assinado',
       minWidth: 100,
       renderCell: (row) => {
-        if (row.signed === undefined || row.type !== 'cautela') return '-';
+        if (row.signed === undefined || (row.type !== 'cautela' && row.type !== 'saída')) return '-';
         return (
           <Chip
             icon={row.signed ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : <CancelIcon sx={{ fontSize: 14 }} />}
@@ -386,6 +426,8 @@ export default function Cautelados() {
               return { color: 'success', icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> };
             case 'cautelado':
               return { color: 'warning', icon: <AssignmentIcon sx={{ fontSize: 14 }} /> };
+            case 'descartado':
+              return { color: 'secondary', icon: <OutIcon sx={{ fontSize: 14 }} /> };
             default:
               return { color: 'default', icon: null };
           }
@@ -406,7 +448,7 @@ export default function Cautelados() {
     },
     {
       field: 'sender_name',
-      headerName: 'Militar que realizou a cautela',
+      headerName: 'Quem realizou',
       icon: <BadgeIcon fontSize="small" />,
       minWidth: 140,
       align: 'center',
@@ -419,21 +461,38 @@ export default function Cautelados() {
     ...(isAdminGeral ? [{
       field: 'actions',
       headerName: 'Acoes',
-      minWidth: 60,
+      minWidth: 100,
       align: 'center',
       renderCell: (row) => (
-        <Tooltip title="Excluir movimentação" arrow placement="top">
-          <IconButton
-            size="small"
-            sx={{ color: 'error.main' }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenDeleteDialog(row);
-            }}
-          >
-            <DeleteForeverIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          {/* Transferir tipo - apenas para cautelas ativas */}
+          {row.type === 'cautela' && row.status === 'cautelado' && (
+            <Tooltip title="Transferir tipo" arrow placement="top">
+              <IconButton
+                size="small"
+                sx={{ color: 'secondary.main' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenTransferDialog(row);
+                }}
+              >
+                <TransferIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Excluir movimentação" arrow placement="top">
+            <IconButton
+              size="small"
+              sx={{ color: 'error.main' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenDeleteDialog(row);
+              }}
+            >
+              <DeleteForeverIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
       ),
     }] : []),
   ];
@@ -540,7 +599,6 @@ export default function Cautelados() {
       {/* Results */}
       <Fade in timeout={800}>
         <Box>
-          {/* Empty state */}
           {!loading && displayedMovimentacoes.length === 0 && (
             <Alert severity="info" sx={{ borderRadius: 3 }}>
               <AlertTitle>Nenhuma movimentacao encontrada</AlertTitle>
@@ -548,7 +606,6 @@ export default function Cautelados() {
             </Alert>
           )}
 
-          {/* Results table */}
           {(loading || filteredMovimentacoes.length > 0) && (
             <SearchResultsTable
               data={filteredMovimentacoes}
@@ -652,6 +709,19 @@ export default function Cautelados() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Transfer Type Dialog */}
+      <TransferTypeDialog
+        open={transferDialogOpen}
+        onClose={() => {
+          setTransferDialogOpen(false);
+          setSelectedMovForTransfer(null);
+        }}
+        movimentacao={selectedMovForTransfer}
+        onTransferComplete={handleTransferComplete}
+        currentUserId={userId}
+        currentUserName={userName}
+      />
     </Box>
   );
 }

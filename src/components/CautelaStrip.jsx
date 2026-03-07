@@ -29,7 +29,10 @@ import {
   Warning,
   CheckCircle,
   Create,
-  VerifiedUser
+  VerifiedUser,
+  Output as OutputIcon,
+  DirectionsCar as CarIcon,
+  ShoppingCart as ConsumoIcon,
 } from "@mui/icons-material";
 
 export default function CautelaStrip({ cautela, onSign }) {
@@ -106,13 +109,30 @@ export default function CautelaStrip({ cautela, onSign }) {
                   height: { xs: 40, sm: 48 },
                 }}
               >
-                <Assignment sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                {cautela.type === 'saída'
+                  ? (cautela.subtype === 'viatura' ? <CarIcon sx={{ fontSize: { xs: 20, sm: 24 } }} /> : <OutputIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />)
+                  : <Assignment sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                }
               </Avatar>
               <Box sx={{ flex: 1 }}>
-                <Typography 
-                  variant="h6" 
+                {cautela.type === 'saída' && (
+                  <Chip
+                    label={cautela.subtype === 'viatura' ? 'Saída p/ Viatura' : 'Saída (Consumo)'}
+                    size="small"
+                    sx={{
+                      mb: 0.5,
+                      height: 20,
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      backgroundColor: alpha('#f59e0b', 0.15),
+                      color: '#b45309',
+                    }}
+                  />
+                )}
+                <Typography
+                  variant="h6"
                   fontWeight={600}
-                  sx={{ 
+                  sx={{
                     fontSize: { xs: '1rem', sm: '1.25rem' },
                     lineHeight: 1.2,
                     wordBreak: 'break-word'
@@ -305,7 +325,7 @@ export default function CautelaStrip({ cautela, onSign }) {
               Atenção: Ação Irreversível
             </AlertTitle>
             <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-              Ao assinar, você confirma ter recebido o material <strong>{cautela.material_description}</strong> em 
+              Ao assinar, você confirma {cautela.type === 'saída' ? 'a retirada' : 'o recebimento'} do material <strong>{cautela.material_description}</strong> em
               quantidade de <strong>{cautela.quantity} unidades</strong> e assume total responsabilidade pelo mesmo.
             </Typography>
           </Alert>
@@ -490,7 +510,7 @@ export default function CautelaStrip({ cautela, onSign }) {
               Comprovante de Recebimento
             </AlertTitle>
             <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-              Este documento confirma o recebimento do material sob sua responsabilidade.
+              Este documento confirma {cautela.type === 'saída' ? 'a retirada' : 'o recebimento'} do material sob sua responsabilidade.
             </Typography>
           </Alert>
 

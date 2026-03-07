@@ -538,7 +538,7 @@ export default function Home() {
       (m) => m.type === "cautela" && m.status === "cautelado"
     );
     const pendentesAssinatura = fm.filter(
-      (m) => m.type === "cautela" && m.signed === false
+      (m) => (m.type === "cautela" || m.type === "saída") && m.signed === false
     );
     const emReparo = fm.filter(
       (m) => m.status === "emReparo"
@@ -688,12 +688,20 @@ export default function Home() {
         // User role: simple fetch
         if (role === "user") {
           if (user?.userId) {
-            const [pendingSnap, returnsSnap, activeSnap] = await Promise.all([
+            const [pendingCautelasSnap, pendingSaidasSnap, returnsSnap, activeSnap] = await Promise.all([
               getDocs(
                 query(
                   collection(db, "movimentacoes"),
                   where("user", "==", user.userId),
                   where("type", "==", "cautela"),
+                  where("signed", "==", false)
+                )
+              ),
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("type", "==", "saída"),
                   where("signed", "==", false)
                 )
               ),
@@ -714,6 +722,14 @@ export default function Home() {
                 )
               ),
             ]);
+            // Filtrar saídas: só mostrar as novas (que têm subtype definido)
+            const saidasFiltradas = pendingSaidasSnap.docs.filter((d) => {
+              const data = d.data();
+              return data.subtype;
+            });
+            const pendingSnap = {
+              docs: [...pendingCautelasSnap.docs, ...saidasFiltradas]
+            };
             if (isMounted) {
               setMinhasCautelas(
                 pendingSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
@@ -780,7 +796,7 @@ export default function Home() {
         });
         unsubscribers.push(unsub);
 
-        // User's own cautelas (real-time)
+        // User's own cautelas + saídas pendentes (real-time)
         if (user?.userId) {
           const cautelaUnsub = onSnapshot(
             query(
@@ -791,11 +807,37 @@ export default function Home() {
             ),
             (snap) => {
               if (isMounted) {
-                setMinhasCautelas(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+                const cautelas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+                setMinhasCautelas((prev) => {
+                  const saidasPendentes = prev.filter((m) => m.type === "saída");
+                  return [...cautelas, ...saidasPendentes];
+                });
               }
             }
           );
           unsubscribers.push(cautelaUnsub);
+
+          const saidaUnsub = onSnapshot(
+            query(
+              collection(db, "movimentacoes"),
+              where("user", "==", user.userId),
+              where("type", "==", "saída"),
+              where("signed", "==", false)
+            ),
+            (snap) => {
+              if (isMounted) {
+                // Filtrar: só saídas novas com subtype (ignora saídas antigas)
+                const saidas = snap.docs
+                  .map((d) => ({ id: d.id, ...d.data() }))
+                  .filter((m) => m.subtype);
+                setMinhasCautelas((prev) => {
+                  const cautelasPendentes = prev.filter((m) => m.type === "cautela");
+                  return [...cautelasPendentes, ...saidas];
+                });
+              }
+            }
+          );
+          unsubscribers.push(saidaUnsub);
 
           const returnUnsub = onSnapshot(
             query(
@@ -939,7 +981,7 @@ export default function Home() {
                 Ola, {userName}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Suas cautelas pendentes de assinatura
+                Suas movimentações pendentes de assinatura
               </Typography>
             </Paper>
 
@@ -980,10 +1022,10 @@ export default function Home() {
                     color={minhasCautelas.length > 0 ? "#a16207" : "#15803d"}
                   >
                     {minhasCautelas.length === 0
-                      ? "Nenhuma cautela pendente"
+                      ? "Nenhuma movimentação pendente"
                       : minhasCautelas.length === 1
-                      ? "Cautela pendente"
-                      : "Cautelas pendentes"}
+                      ? "Movimentação pendente"
+                      : "Movimentações pendentes"}
                   </Typography>
                 </Box>
               </Box>
@@ -1012,7 +1054,7 @@ export default function Home() {
                   Tudo em dia!
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Voce nao possui cautelas pendentes de assinatura.
+                  Voce nao possui movimentações pendentes de assinatura.
                 </Typography>
               </Paper>
             )}
