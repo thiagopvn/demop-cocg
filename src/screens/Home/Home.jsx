@@ -709,7 +709,8 @@ export default function Home() {
                   collection(db, "movimentacoes"),
                   where("user", "==", user.userId),
                   where("type", "==", "cautela"),
-                  where("status", "==", "cautelado")
+                  where("status", "==", "cautelado"),
+                  where("signed", "==", true)
                 )
               ),
             ]);
