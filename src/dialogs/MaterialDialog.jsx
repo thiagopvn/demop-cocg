@@ -33,8 +33,8 @@ const MaterialDialog = ({ open, onClose, material }) => {
             if (isEditing && material) {
                 setDescription(material.description || '');
                 setCategoriaId(material.categoria_id || '');
-                setEstoqueTotal(material.estoque_total || 1);
-                setEstoqueAtual(material.estoque_atual || 1);
+                setEstoqueTotal(material.estoque_total ?? 1);
+                setEstoqueAtual(material.estoque_atual ?? 0);
             } else {
                 // Reset form for new material
                 setDescription('');

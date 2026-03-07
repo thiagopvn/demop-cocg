@@ -17,6 +17,15 @@ import {
     Skeleton,
     Tooltip,
     Popover,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Autocomplete,
+    Paper,
+    Divider,
+    Snackbar,
+    Alert,
     alpha,
     styled
 } from '@mui/material';
@@ -31,14 +40,15 @@ import {
     DirectionsCar,
     Build,
     CalendarMonth,
-    Visibility
+    Visibility,
+    LocalShipping
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import MaterialDialog from '../../dialogs/MaterialDialog';
 import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
-import { deleteDoc, doc, collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
+import { deleteDoc, doc, collection, query, where, getDocs, orderBy, onSnapshot, addDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
@@ -160,6 +170,14 @@ const Material = () => {
     const [materialViaturas, setMaterialViaturas] = useState({}); // Cache de viaturas por material
     const [viaturaPopover, setViaturaPopover] = useState({ anchorEl: null, materialId: null });
 
+    // Estados para alocar em viatura
+    const [alocarDialogOpen, setAlocarDialogOpen] = useState(false);
+    const [materialToAlocar, setMaterialToAlocar] = useState(null);
+    const [viaturasList, setViaturasList] = useState([]);
+    const [selectedViatura, setSelectedViatura] = useState(null);
+    const [alocarQuantidade, setAlocarQuantidade] = useState(1);
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
     const handleOpenDialog = (material = null) => {
         setSelectedMaterial(material);
         setOpenDialog(true);
@@ -276,6 +294,95 @@ const Material = () => {
 
     const handleViaturaPopoverClose = () => {
         setViaturaPopover({ anchorEl: null, materialId: null });
+    };
+
+    // Carregar lista de viaturas para o dialog de alocacao
+    useEffect(() => {
+        const unsubscribe = onSnapshot(
+            collection(db, 'viaturas'),
+            (snapshot) => {
+                const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                list.sort((a, b) => (a.prefixo || '').localeCompare(b.prefixo || ''));
+                setViaturasList(list);
+            }
+        );
+        return () => unsubscribe();
+    }, []);
+
+    const handleOpenAlocarDialog = (material) => {
+        setMaterialToAlocar(material);
+        setSelectedViatura(null);
+        setAlocarQuantidade(1);
+        setAlocarDialogOpen(true);
+    };
+
+    const handleAlocarEmViatura = async () => {
+        if (!materialToAlocar || !selectedViatura) return;
+        if (alocarQuantidade <= 0) {
+            setSnackbar({ open: true, message: "Quantidade deve ser maior que zero", severity: "warning" });
+            return;
+        }
+        if (alocarQuantidade > (materialToAlocar.estoque_atual || 0)) {
+            setSnackbar({ open: true, message: "Quantidade maior que o estoque disponivel", severity: "error" });
+            return;
+        }
+
+        try {
+            // Verificar se material ja esta alocado nesta viatura
+            const existingQuery = query(
+                collection(db, "viatura_materiais"),
+                where("viatura_id", "==", selectedViatura.id),
+                where("material_id", "==", materialToAlocar.id),
+                where("status", "==", "alocado")
+            );
+            const existingDocs = await getDocs(existingQuery);
+
+            if (!existingDocs.empty) {
+                const existingDoc = existingDocs.docs[0];
+                const existingData = existingDoc.data();
+                await updateDoc(doc(db, "viatura_materiais", existingDoc.id), {
+                    quantidade: existingData.quantidade + alocarQuantidade,
+                    ultima_atualizacao: serverTimestamp(),
+                });
+            } else {
+                await addDoc(collection(db, "viatura_materiais"), {
+                    viatura_id: selectedViatura.id,
+                    viatura_prefixo: selectedViatura.prefixo || "",
+                    viatura_description: selectedViatura.description || "",
+                    material_id: materialToAlocar.id,
+                    material_description: materialToAlocar.description,
+                    categoria: materialToAlocar.categoria || "",
+                    quantidade: alocarQuantidade,
+                    data_alocacao: serverTimestamp(),
+                    status: "alocado",
+                });
+            }
+
+            // Atualizar estoque do material
+            const materialRef = doc(db, "materials", materialToAlocar.id);
+            const materialDoc = await getDoc(materialRef);
+            if (materialDoc.exists()) {
+                const materialData = materialDoc.data();
+                await updateDoc(materialRef, {
+                    estoque_atual: (materialData.estoque_atual || 0) - alocarQuantidade,
+                    estoque_viatura: (materialData.estoque_viatura || 0) + alocarQuantidade,
+                    ultima_movimentacao: serverTimestamp(),
+                });
+            }
+
+            await updateDoc(doc(db, "viaturas", selectedViatura.id), {
+                ultima_movimentacao: serverTimestamp(),
+            });
+
+            setSnackbar({ open: true, message: "Material alocado na viatura com sucesso!", severity: "success" });
+            setAlocarDialogOpen(false);
+            setMaterialToAlocar(null);
+            setSelectedViatura(null);
+            setAlocarQuantidade(1);
+        } catch (error) {
+            console.error("Erro ao alocar material na viatura:", error);
+            setSnackbar({ open: true, message: "Erro ao alocar material", severity: "error" });
+        }
     };
 
     const handleDeleteMaterial = async (materialId) => {
@@ -766,9 +873,24 @@ const Material = () => {
                                             </StyledTableCell>
                                             <StyledTableCell align="right">
                                                 <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                    <Tooltip title="Alocar em Viatura">
+                                                        <IconButton
+                                                            onClick={() => handleOpenAlocarDialog(material)}
+                                                            size="small"
+                                                            disabled={!material.estoque_atual || material.estoque_atual <= 0}
+                                                            sx={{
+                                                                color: theme.palette.success.main,
+                                                                '&:hover': {
+                                                                    backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                                                },
+                                                            }}
+                                                        >
+                                                            <LocalShipping fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                     <Tooltip title="Editar Material">
-                                                        <IconButton 
-                                                            onClick={() => handleOpenDialog(material)} 
+                                                        <IconButton
+                                                            onClick={() => handleOpenDialog(material)}
                                                             color="primary"
                                                             size="small"
                                                             sx={{
@@ -781,7 +903,7 @@ const Material = () => {
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Excluir Material">
-                                                        <IconButton 
+                                                        <IconButton
                                                             onClick={() => handleDeleteMaterial(material.id)}
                                                             color="error"
                                                             size="small"
@@ -900,6 +1022,183 @@ const Material = () => {
                     );
                 })()}
             </Popover>
+
+            {/* Dialog Alocar em Viatura */}
+            <Dialog
+                open={alocarDialogOpen}
+                onClose={() => {
+                    setAlocarDialogOpen(false);
+                    setMaterialToAlocar(null);
+                    setSelectedViatura(null);
+                    setAlocarQuantidade(1);
+                }}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 2 } }}
+            >
+                <DialogTitle sx={{
+                    background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                }}>
+                    <LocalShipping />
+                    Alocar em Viatura
+                </DialogTitle>
+                <DialogContent sx={{ pt: 3 }}>
+                    {materialToAlocar && (
+                        <>
+                            <Paper sx={{ p: 2, backgroundColor: alpha(theme.palette.primary.main, 0.04), borderRadius: 2, mb: 3 }}>
+                                <Typography variant="subtitle2" color="primary" gutterBottom>
+                                    Material
+                                </Typography>
+                                <Typography variant="body1" fontWeight={600}>
+                                    {materialToAlocar.description}
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                                    <Chip
+                                        label={`Categoria: ${materialToAlocar.categoria || 'N/A'}`}
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                    <Chip
+                                        label={`Disponivel: ${materialToAlocar.estoque_atual || 0}`}
+                                        size="small"
+                                        color={materialToAlocar.estoque_atual > 0 ? "success" : "error"}
+                                    />
+                                    {(materialToAlocar.estoque_viatura || 0) > 0 && (
+                                        <Chip
+                                            icon={<DirectionsCar sx={{ fontSize: '0.85rem !important' }} />}
+                                            label={`Em viaturas: ${materialToAlocar.estoque_viatura}`}
+                                            size="small"
+                                            color="info"
+                                        />
+                                    )}
+                                </Box>
+                            </Paper>
+
+                            <Divider sx={{ mb: 3 }} />
+
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                Selecionar Viatura
+                            </Typography>
+
+                            <Autocomplete
+                                options={viaturasList}
+                                getOptionLabel={(option) =>
+                                    option.prefixo
+                                        ? `${option.prefixo} - ${option.description}`
+                                        : option.description || ''
+                                }
+                                value={selectedViatura}
+                                onChange={(_, newValue) => setSelectedViatura(newValue)}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Buscar viatura..."
+                                        variant="outlined"
+                                        size="small"
+                                        slotProps={{
+                                            input: {
+                                                ...params.InputProps,
+                                                startAdornment: (
+                                                    <>
+                                                        <InputAdornment position="start">
+                                                            <DirectionsCar color="action" fontSize="small" />
+                                                        </InputAdornment>
+                                                        {params.InputProps.startAdornment}
+                                                    </>
+                                                ),
+                                            },
+                                        }}
+                                    />
+                                )}
+                                renderOption={(props, option) => {
+                                    const { key, ...rest } = props;
+                                    return (
+                                        <li key={key} {...rest}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <DirectionsCar fontSize="small" color="action" />
+                                                <Box>
+                                                    <Typography variant="body2" fontWeight={500}>
+                                                        {option.prefixo || 'S/P'}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {option.description}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        </li>
+                                    );
+                                }}
+                                noOptionsText="Nenhuma viatura encontrada"
+                                sx={{ mb: 2 }}
+                            />
+
+                            {selectedViatura && (
+                                <TextField
+                                    label="Quantidade a alocar"
+                                    type="number"
+                                    value={alocarQuantidade}
+                                    onChange={(e) => setAlocarQuantidade(Math.max(1, parseInt(e.target.value) || 1))}
+                                    fullWidth
+                                    slotProps={{
+                                        input: {
+                                            inputProps: { min: 1, max: materialToAlocar.estoque_atual }
+                                        }
+                                    }}
+                                    helperText={`Maximo disponivel: ${materialToAlocar.estoque_atual || 0}`}
+                                />
+                            )}
+                        </>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button
+                        onClick={() => {
+                            setAlocarDialogOpen(false);
+                            setMaterialToAlocar(null);
+                            setSelectedViatura(null);
+                            setAlocarQuantidade(1);
+                        }}
+                        variant="outlined"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={handleAlocarEmViatura}
+                        variant="contained"
+                        disabled={
+                            !selectedViatura ||
+                            alocarQuantidade <= 0 ||
+                            alocarQuantidade > (materialToAlocar?.estoque_atual || 0)
+                        }
+                        sx={{
+                            background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+                            '&:hover': { background: 'linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)' }
+                        }}
+                    >
+                        Confirmar Alocacao
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Snackbar */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                    severity={snackbar.severity}
+                    sx={{ width: '100%' }}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </MenuContext>
     );
 };
