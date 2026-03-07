@@ -11,10 +11,15 @@ service cloud.firestore {
     // Block everything by default
     match /{document=**} { allow read, write: if false; }
 
-    // Users: any authenticated reads, admin writes
+    // Users: any authenticated reads, admin writes (hierarchy enforced)
     match /users/{userId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin()
+        && (isAdminGeral() || request.resource.data.role != 'admingeral');
+      allow update: if isAdmin()
+        && (isAdminGeral() || (resource.data.role != 'admingeral' && request.resource.data.role != 'admingeral'));
+      allow delete: if isAdmin()
+        && (isAdminGeral() || resource.data.role != 'admingeral');
     }
 
     // User secrets (passwords): ONLY admingeral reads, Cloud Functions write via Admin SDK
