@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
@@ -28,15 +28,20 @@ import {
     alpha,
     Divider,
     Paper,
+    InputAdornment,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
+import EditIcon from "@mui/icons-material/Edit";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import CategoryIcon from "@mui/icons-material/Category";
 import PersonIcon from "@mui/icons-material/Person";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import {
     doc,
     getDoc,
@@ -52,6 +57,7 @@ import {
 import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
 import MaterialSearch from "../../components/MaterialSearch";
+import { useDebounce } from "../../hooks/useDebounce";
 import excelIcon from "../../assets/excel.svg";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 
@@ -65,12 +71,21 @@ export default function ViaturaDetalhes() {
     const [userId, setUserId] = useState(null);
     const [userName, setUserName] = useState(null);
 
+    // Search & filter
+    const [searchTerm, setSearchTerm] = useState("");
+    const [activeFilter, setActiveFilter] = useState("todos");
+    const searchRef = useRef(null);
+    const debouncedSearch = useDebounce(searchTerm, 250);
+
     // Dialog states
     const [alocarDialogOpen, setAlocarDialogOpen] = useState(false);
     const [desalocarDialogOpen, setDesalocarDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [quantidade, setQuantidade] = useState(1);
     const [materialToDesalocar, setMaterialToDesalocar] = useState(null);
+    const [materialToEdit, setMaterialToEdit] = useState(null);
+    const [editQuantidade, setEditQuantidade] = useState(0);
     const [motivoDesalocacao, setMotivoDesalocacao] = useState("");
 
     // Snackbar
@@ -84,8 +99,6 @@ export default function ViaturaDetalhes() {
                     const decodedToken = await verifyToken(token);
                     setUserRole(decodedToken.role);
                     setUserId(decodedToken.userId);
-
-                    // Buscar nome do usuario
                     const userDoc = await getDoc(doc(db, "users", decodedToken.userId));
                     if (userDoc.exists()) {
                         setUserName(userDoc.data().full_name || userDoc.data().username);
@@ -95,7 +108,6 @@ export default function ViaturaDetalhes() {
                 }
             }
         };
-
         fetchUserData();
     }, []);
 
@@ -115,37 +127,68 @@ export default function ViaturaDetalhes() {
                 setSnackbar({ open: true, message: "Erro ao carregar viatura", severity: "error" });
             }
         };
-
-        if (id) {
-            fetchViatura();
-        }
+        if (id) fetchViatura();
     }, [id, navigate]);
 
     // Listener em tempo real para materiais alocados
     useEffect(() => {
         if (!id) return;
-
-        const viaturaMaterialsCollection = collection(db, "viatura_materiais");
         const q = query(
-            viaturaMaterialsCollection,
+            collection(db, "viatura_materiais"),
             where("viatura_id", "==", id),
             where("status", "==", "alocado")
         );
-
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const materiais = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            }));
+            const materiais = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
             setMateriaisAlocados(materiais);
             setLoading(false);
         }, (error) => {
             console.error("Erro ao buscar materiais:", error);
             setLoading(false);
         });
-
         return () => unsubscribe();
     }, [id]);
+
+    // Categorias unicas para filtros
+    const categorias = useMemo(() => {
+        const cats = new Set();
+        materiaisAlocados.forEach(m => {
+            if (m.categoria) cats.add(m.categoria);
+        });
+        return Array.from(cats).sort();
+    }, [materiaisAlocados]);
+
+    // Materiais filtrados, buscados e ordenados alfabeticamente
+    const materiaisFiltrados = useMemo(() => {
+        let result = [...materiaisAlocados];
+
+        // Filtro por categoria
+        if (activeFilter !== "todos") {
+            result = result.filter(m => m.categoria === activeFilter);
+        }
+
+        // Busca por texto
+        if (debouncedSearch.trim()) {
+            const terms = debouncedSearch.toLowerCase().trim().split(/\s+/);
+            result = result.filter(m => {
+                const text = `${m.material_description || ''} ${m.categoria || ''}`.toLowerCase();
+                return terms.every(t => text.includes(t));
+            });
+        }
+
+        // Ordenar alfabeticamente
+        result.sort((a, b) =>
+            (a.material_description || '').localeCompare(b.material_description || '', 'pt-BR')
+        );
+
+        return result;
+    }, [materiaisAlocados, activeFilter, debouncedSearch]);
+
+    // Quantidade total alocada
+    const totalQuantidade = useMemo(() =>
+        materiaisFiltrados.reduce((sum, m) => sum + (m.quantidade || 0), 0),
+        [materiaisFiltrados]
+    );
 
     // Alocar material na viatura
     const handleAlocarMaterial = async () => {
@@ -153,19 +196,16 @@ export default function ViaturaDetalhes() {
             setSnackbar({ open: true, message: "Selecione um material", severity: "warning" });
             return;
         }
-
         if (quantidade <= 0) {
             setSnackbar({ open: true, message: "Quantidade deve ser maior que zero", severity: "warning" });
             return;
         }
-
         if (quantidade > selectedMaterial.estoque_atual) {
             setSnackbar({ open: true, message: "Quantidade maior que o estoque disponivel", severity: "error" });
             return;
         }
 
         try {
-            // Verificar se material ja esta alocado nesta viatura
             const existingQuery = query(
                 collection(db, "viatura_materiais"),
                 where("viatura_id", "==", id),
@@ -175,19 +215,15 @@ export default function ViaturaDetalhes() {
             const existingDocs = await getDocs(existingQuery);
 
             if (!existingDocs.empty) {
-                // Atualizar quantidade existente
                 const existingDoc = existingDocs.docs[0];
                 const existingData = existingDoc.data();
-                const newQuantidade = existingData.quantidade + quantidade;
-
                 await updateDoc(doc(db, "viatura_materiais", existingDoc.id), {
-                    quantidade: newQuantidade,
+                    quantidade: existingData.quantidade + quantidade,
                     ultima_atualizacao: serverTimestamp(),
                     atualizado_por: userId,
                     atualizado_por_nome: userName,
                 });
             } else {
-                // Criar nova alocacao
                 await addDoc(collection(db, "viatura_materiais"), {
                     viatura_id: id,
                     viatura_prefixo: viatura.prefixo,
@@ -215,10 +251,7 @@ export default function ViaturaDetalhes() {
                 });
             }
 
-            // Atualizar viatura
-            await updateDoc(doc(db, "viaturas", id), {
-                ultima_movimentacao: serverTimestamp(),
-            });
+            await updateDoc(doc(db, "viaturas", id), { ultima_movimentacao: serverTimestamp() });
 
             setSnackbar({ open: true, message: "Material alocado com sucesso!", severity: "success" });
             setAlocarDialogOpen(false);
@@ -230,12 +263,82 @@ export default function ViaturaDetalhes() {
         }
     };
 
+    // Editar quantidade do material alocado
+    const handleEditQuantidade = async () => {
+        if (!materialToEdit) return;
+
+        const novaQtd = Number(editQuantidade);
+        const qtdAtual = materialToEdit.quantidade;
+        const diferenca = novaQtd - qtdAtual; // positivo = mais na viatura, negativo = devolver
+
+        // Se zero, desalocar
+        if (novaQtd === 0) {
+            setEditDialogOpen(false);
+            setMaterialToDesalocar(materialToEdit);
+            setMotivoDesalocacao("Quantidade editada para zero");
+            setDesalocarDialogOpen(true);
+            return;
+        }
+
+        if (novaQtd < 0) {
+            setSnackbar({ open: true, message: "Quantidade nao pode ser negativa", severity: "warning" });
+            return;
+        }
+
+        // Verificar estoque se estiver aumentando
+        if (diferenca > 0) {
+            const materialRef = doc(db, "materials", materialToEdit.material_id);
+            const materialDoc = await getDoc(materialRef);
+            if (materialDoc.exists()) {
+                const estoqueDisp = materialDoc.data().estoque_atual || 0;
+                if (diferenca > estoqueDisp) {
+                    setSnackbar({
+                        open: true,
+                        message: `Estoque insuficiente. Disponivel: ${estoqueDisp}`,
+                        severity: "error"
+                    });
+                    return;
+                }
+            }
+        }
+
+        try {
+            // Atualizar viatura_materiais
+            await updateDoc(doc(db, "viatura_materiais", materialToEdit.id), {
+                quantidade: novaQtd,
+                ultima_atualizacao: serverTimestamp(),
+                atualizado_por: userId,
+                atualizado_por_nome: userName,
+            });
+
+            // Atualizar estoque do material
+            const materialRef = doc(db, "materials", materialToEdit.material_id);
+            const materialDoc = await getDoc(materialRef);
+            if (materialDoc.exists()) {
+                const materialData = materialDoc.data();
+                await updateDoc(materialRef, {
+                    estoque_atual: (materialData.estoque_atual || 0) - diferenca,
+                    estoque_viatura: (materialData.estoque_viatura || 0) + diferenca,
+                    ultima_movimentacao: serverTimestamp(),
+                });
+            }
+
+            await updateDoc(doc(db, "viaturas", id), { ultima_movimentacao: serverTimestamp() });
+
+            setSnackbar({ open: true, message: "Quantidade atualizada com sucesso!", severity: "success" });
+            setEditDialogOpen(false);
+            setMaterialToEdit(null);
+        } catch (error) {
+            console.error("Erro ao editar quantidade:", error);
+            setSnackbar({ open: true, message: "Erro ao editar quantidade", severity: "error" });
+        }
+    };
+
     // Desalocar material da viatura
     const handleDesalocarMaterial = async () => {
         if (!materialToDesalocar) return;
 
         try {
-            // Atualizar registro de alocacao
             await updateDoc(doc(db, "viatura_materiais", materialToDesalocar.id), {
                 status: "desalocado",
                 data_desalocacao: serverTimestamp(),
@@ -244,7 +347,6 @@ export default function ViaturaDetalhes() {
                 motivo_desalocacao: motivoDesalocacao || null,
             });
 
-            // Devolver ao estoque do material
             const materialRef = doc(db, "materials", materialToDesalocar.material_id);
             const materialDoc = await getDoc(materialRef);
             if (materialDoc.exists()) {
@@ -256,10 +358,7 @@ export default function ViaturaDetalhes() {
                 });
             }
 
-            // Atualizar viatura
-            await updateDoc(doc(db, "viaturas", id), {
-                ultima_movimentacao: serverTimestamp(),
-            });
+            await updateDoc(doc(db, "viaturas", id), { ultima_movimentacao: serverTimestamp() });
 
             setSnackbar({ open: true, message: "Material desalocado com sucesso!", severity: "success" });
             setDesalocarDialogOpen(false);
@@ -272,7 +371,7 @@ export default function ViaturaDetalhes() {
     };
 
     const handleExportExcel = () => {
-        const dataToExport = materiaisAlocados.map((m) => ({
+        const dataToExport = materiaisFiltrados.map((m) => ({
             material_description: m.material_description,
             categoria: m.categoria,
             quantity: m.quantidade,
@@ -281,6 +380,17 @@ export default function ViaturaDetalhes() {
             viatura_description: viatura?.prefixo,
         }));
         exportarMovimentacoes(dataToExport, `materiais_${viatura?.prefixo || 'viatura'}`);
+    };
+
+    const handleClearSearch = useCallback(() => {
+        setSearchTerm("");
+        searchRef.current?.focus();
+    }, []);
+
+    const openEditDialog = (material) => {
+        setMaterialToEdit(material);
+        setEditQuantidade(material.quantidade);
+        setEditDialogOpen(true);
     };
 
     if (loading) {
@@ -384,6 +494,89 @@ export default function ViaturaDetalhes() {
                         </Box>
                     )}
 
+                    {/* Barra de busca e filtros */}
+                    {materiaisAlocados.length > 0 && (
+                        <Card sx={{ mb: 3, borderRadius: 2, p: 2 }}>
+                            <TextField
+                                ref={searchRef}
+                                size="small"
+                                fullWidth
+                                variant="outlined"
+                                placeholder="Buscar material alocado..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Escape' && handleClearSearch()}
+                                slotProps={{
+                                    input: {
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon color="action" />
+                                            </InputAdornment>
+                                        ),
+                                        endAdornment: searchTerm && (
+                                            <InputAdornment position="end">
+                                                <IconButton size="small" onClick={handleClearSearch}>
+                                                    <ClearIcon fontSize="small" />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
+                                sx={{
+                                    mb: categorias.length > 0 ? 2 : 0,
+                                    '& .MuiOutlinedInput-root': { borderRadius: 2 },
+                                }}
+                            />
+
+                            {/* Filtros por categoria */}
+                            {categorias.length > 0 && (
+                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                                    <FilterListIcon fontSize="small" color="action" />
+                                    <Chip
+                                        label={`Todos (${materiaisAlocados.length})`}
+                                        size="small"
+                                        color={activeFilter === "todos" ? "primary" : "default"}
+                                        variant={activeFilter === "todos" ? "filled" : "outlined"}
+                                        onClick={() => setActiveFilter("todos")}
+                                        sx={{ fontWeight: activeFilter === "todos" ? 600 : 400 }}
+                                    />
+                                    {categorias.map(cat => {
+                                        const count = materiaisAlocados.filter(m => m.categoria === cat).length;
+                                        return (
+                                            <Chip
+                                                key={cat}
+                                                label={`${cat} (${count})`}
+                                                size="small"
+                                                color={activeFilter === cat ? "secondary" : "default"}
+                                                variant={activeFilter === cat ? "filled" : "outlined"}
+                                                onClick={() => setActiveFilter(activeFilter === cat ? "todos" : cat)}
+                                                sx={{ fontWeight: activeFilter === cat ? 600 : 400 }}
+                                            />
+                                        );
+                                    })}
+                                </Box>
+                            )}
+
+                            {/* Info de resultados */}
+                            {(debouncedSearch || activeFilter !== "todos") && (
+                                <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
+                                    <Chip
+                                        size="small"
+                                        label={`${materiaisFiltrados.length} de ${materiaisAlocados.length} materiais`}
+                                        color="info"
+                                        variant="outlined"
+                                    />
+                                    <Chip
+                                        size="small"
+                                        label={`Total: ${totalQuantidade} unid.`}
+                                        color="primary"
+                                        variant="outlined"
+                                    />
+                                </Box>
+                            )}
+                        </Card>
+                    )}
+
                     {/* Lista de Materiais */}
                     <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
                         <Box sx={{
@@ -396,104 +589,147 @@ export default function ViaturaDetalhes() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <InventoryIcon sx={{ color: 'white' }} />
                                 <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
-                                    Materiais Alocados ({materiaisAlocados.length})
+                                    Materiais Alocados ({materiaisFiltrados.length})
                                 </Typography>
                             </Box>
+                            {materiaisFiltrados.length > 0 && (
+                                <Chip
+                                    label={`${totalQuantidade} unid. total`}
+                                    size="small"
+                                    sx={{
+                                        backgroundColor: 'rgba(255,255,255,0.2)',
+                                        color: 'white',
+                                        fontWeight: 600
+                                    }}
+                                />
+                            )}
                         </Box>
 
-                        {materiaisAlocados.length === 0 ? (
+                        {materiaisFiltrados.length === 0 ? (
                             <Box sx={{ p: 4, textAlign: 'center' }}>
                                 <InventoryIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
                                 <Typography variant="h6" color="text.secondary">
-                                    Nenhum material alocado
+                                    {materiaisAlocados.length === 0
+                                        ? "Nenhum material alocado"
+                                        : "Nenhum material encontrado com os filtros atuais"
+                                    }
                                 </Typography>
                                 <Typography variant="body2" color="text.disabled">
-                                    {(userRole === "admin" || userRole === "admingeral")
-                                        ? "Clique em 'Alocar Material' para adicionar materiais a esta viatura"
-                                        : "Esta viatura ainda nao possui materiais alocados"}
+                                    {materiaisAlocados.length === 0
+                                        ? (userRole === "admin" || userRole === "admingeral")
+                                            ? "Clique em 'Alocar Material' para adicionar materiais a esta viatura"
+                                            : "Esta viatura ainda nao possui materiais alocados"
+                                        : "Tente alterar os termos de busca ou limpar os filtros"
+                                    }
                                 </Typography>
+                                {materiaisAlocados.length > 0 && (
+                                    <Button
+                                        size="small"
+                                        onClick={() => { setSearchTerm(""); setActiveFilter("todos"); }}
+                                        sx={{ mt: 1, textTransform: 'none' }}
+                                    >
+                                        Limpar filtros
+                                    </Button>
+                                )}
                             </Box>
                         ) : (
-                            <Table size="medium">
-                                <TableHead>
-                                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                                        <TableCell sx={{ fontWeight: 700 }}>Material</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Categoria</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Quantidade</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Data Alocacao</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Alocado Por</TableCell>
-                                        {(userRole === "admin" || userRole === "admingeral") && (
-                                            <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acoes</TableCell>
-                                        )}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {materiaisAlocados.map((material) => (
-                                        <TableRow key={material.id} hover>
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <InventoryIcon fontSize="small" color="primary" />
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        {material.material_description}
-                                                    </Typography>
-                                                </Box>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Chip
-                                                    icon={<CategoryIcon />}
-                                                    label={material.categoria || 'N/A'}
-                                                    size="small"
-                                                    variant="outlined"
-                                                />
-                                            </TableCell>
-                                            <TableCell sx={{ textAlign: 'center' }}>
-                                                <Chip
-                                                    label={material.quantidade}
-                                                    color="primary"
-                                                    size="small"
-                                                    sx={{ fontWeight: 700 }}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Typography variant="body2">
-                                                    {material.data_alocacao?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <PersonIcon fontSize="small" color="action" />
-                                                    <Typography variant="body2">
-                                                        {material.alocado_por_nome || 'N/A'}
-                                                    </Typography>
-                                                </Box>
-                                            </TableCell>
+                            <Box sx={{ overflowX: 'auto' }}>
+                                <Table size="medium">
+                                    <TableHead>
+                                        <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                                            <TableCell sx={{ fontWeight: 700 }}>Material</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Categoria</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Quantidade</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Data Alocacao</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Alocado Por</TableCell>
                                             {(userRole === "admin" || userRole === "admingeral") && (
-                                                <TableCell sx={{ textAlign: 'center' }}>
-                                                    <Tooltip title="Desalocar material">
-                                                        <IconButton
-                                                            color="error"
-                                                            onClick={() => {
-                                                                setMaterialToDesalocar(material);
-                                                                setDesalocarDialogOpen(true);
-                                                            }}
-                                                            sx={{
-                                                                '&:hover': { backgroundColor: alpha('#f44336', 0.1) }
-                                                            }}
-                                                        >
-                                                            <RemoveCircleIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </TableCell>
+                                                <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acoes</TableCell>
                                             )}
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHead>
+                                    <TableBody>
+                                        {materiaisFiltrados.map((material) => (
+                                            <TableRow key={material.id} hover>
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <InventoryIcon fontSize="small" color="primary" />
+                                                        <Typography variant="body2" fontWeight={500}>
+                                                            {material.material_description}
+                                                        </Typography>
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        icon={<CategoryIcon />}
+                                                        label={material.categoria || 'N/A'}
+                                                        size="small"
+                                                        variant="outlined"
+                                                    />
+                                                </TableCell>
+                                                <TableCell sx={{ textAlign: 'center' }}>
+                                                    <Chip
+                                                        label={material.quantidade}
+                                                        color="primary"
+                                                        size="small"
+                                                        sx={{ fontWeight: 700 }}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2">
+                                                        {material.data_alocacao?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <PersonIcon fontSize="small" color="action" />
+                                                        <Typography variant="body2">
+                                                            {material.alocado_por_nome || 'N/A'}
+                                                        </Typography>
+                                                    </Box>
+                                                </TableCell>
+                                                {(userRole === "admin" || userRole === "admingeral") && (
+                                                    <TableCell sx={{ textAlign: 'center' }}>
+                                                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                                                            <Tooltip title="Editar quantidade">
+                                                                <IconButton
+                                                                    color="primary"
+                                                                    size="small"
+                                                                    onClick={() => openEditDialog(material)}
+                                                                    sx={{
+                                                                        '&:hover': { backgroundColor: alpha('#1976d2', 0.1) }
+                                                                    }}
+                                                                >
+                                                                    <EditIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            <Tooltip title="Desalocar material">
+                                                                <IconButton
+                                                                    color="error"
+                                                                    size="small"
+                                                                    onClick={() => {
+                                                                        setMaterialToDesalocar(material);
+                                                                        setDesalocarDialogOpen(true);
+                                                                    }}
+                                                                    sx={{
+                                                                        '&:hover': { backgroundColor: alpha('#f44336', 0.1) }
+                                                                    }}
+                                                                >
+                                                                    <RemoveCircleIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </Box>
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </Box>
                         )}
                     </Card>
 
                     {/* FAB Exportar Excel */}
-                    {materiaisAlocados.length > 0 && (
+                    {materiaisFiltrados.length > 0 && (
                         <Tooltip title="Exportar para Excel">
                             <Fab
                                 size="medium"
@@ -609,6 +845,104 @@ export default function ViaturaDetalhes() {
                             }}
                         >
                             Confirmar Alocacao
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Dialog Editar Quantidade */}
+                <Dialog
+                    open={editDialogOpen}
+                    onClose={() => { setEditDialogOpen(false); setMaterialToEdit(null); }}
+                    maxWidth="sm"
+                    fullWidth
+                    PaperProps={{ sx: { borderRadius: 2 } }}
+                >
+                    <DialogTitle sx={{
+                        background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                    }}>
+                        <EditIcon />
+                        Editar Quantidade
+                    </DialogTitle>
+                    <DialogContent sx={{ pt: 3 }}>
+                        {materialToEdit && (
+                            <>
+                                <Paper sx={{ p: 2, backgroundColor: '#f5f5f5', borderRadius: 2, mb: 2 }}>
+                                    <Typography variant="subtitle2" color="primary" gutterBottom>
+                                        Material
+                                    </Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {materialToEdit.material_description}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', gap: 2, mt: 1, flexWrap: 'wrap' }}>
+                                        <Chip
+                                            label={`Categoria: ${materialToEdit.categoria || 'N/A'}`}
+                                            size="small"
+                                            variant="outlined"
+                                        />
+                                        <Chip
+                                            label={`Atual na viatura: ${materialToEdit.quantidade}`}
+                                            size="small"
+                                            color="primary"
+                                        />
+                                    </Box>
+                                </Paper>
+
+                                <TextField
+                                    label="Nova quantidade"
+                                    type="number"
+                                    value={editQuantidade}
+                                    onChange={(e) => setEditQuantidade(Math.max(0, parseInt(e.target.value) || 0))}
+                                    fullWidth
+                                    slotProps={{
+                                        input: {
+                                            inputProps: { min: 0 }
+                                        }
+                                    }}
+                                    helperText={
+                                        editQuantidade === 0
+                                            ? "Quantidade zero ira desalocar o material da viatura"
+                                            : editQuantidade > materialToEdit.quantidade
+                                                ? `Sera retirado mais ${editQuantidade - materialToEdit.quantidade} do estoque`
+                                                : editQuantidade < materialToEdit.quantidade
+                                                    ? `Sera devolvido ${materialToEdit.quantidade - editQuantidade} ao estoque`
+                                                    : "Sem alteracao"
+                                    }
+                                />
+
+                                {editQuantidade !== materialToEdit.quantidade && (
+                                    <Alert
+                                        severity={editQuantidade === 0 ? "warning" : "info"}
+                                        sx={{ mt: 2 }}
+                                    >
+                                        {editQuantidade === 0
+                                            ? "O material sera completamente desalocado desta viatura e devolvido ao estoque."
+                                            : editQuantidade > materialToEdit.quantidade
+                                                ? `${editQuantidade - materialToEdit.quantidade} unidade(s) sera(ao) retirada(s) do estoque disponivel.`
+                                                : `${materialToEdit.quantidade - editQuantidade} unidade(s) sera(ao) devolvida(s) ao estoque disponivel.`
+                                        }
+                                    </Alert>
+                                )}
+                            </>
+                        )}
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2 }}>
+                        <Button
+                            onClick={() => { setEditDialogOpen(false); setMaterialToEdit(null); }}
+                            variant="outlined"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleEditQuantidade}
+                            variant="contained"
+                            disabled={editQuantidade === materialToEdit?.quantidade}
+                            color={editQuantidade === 0 ? "warning" : "primary"}
+                        >
+                            {editQuantidade === 0 ? "Desalocar" : "Salvar"}
                         </Button>
                     </DialogActions>
                 </Dialog>
