@@ -119,6 +119,28 @@ const MovimentacaoDetails = ({ movimentacao, title = "Detalhes da Movimentacao",
           />
         )}
 
+        {/* Subtype for saída */}
+        {movimentacao.subtype && (
+          <DetailRow
+            label="Subtipo"
+            value={movimentacao.subtype === 'viatura' ? 'Para Viatura' : 'Consumo'}
+            chipColor={movimentacao.subtype === 'viatura' ? 'info' : 'secondary'}
+          />
+        )}
+
+        {/* Transfer info */}
+        {movimentacao.original_type && (
+          <DetailRow
+            label="Tipo Original"
+            value={movimentacao.original_type}
+            chipColor="warning"
+          />
+        )}
+        <DetailRow label="Transferido por" value={movimentacao.transferred_by_name} />
+        {movimentacao.observacoes_transferencia && (
+          <DetailRow label="Obs. Transferência" value={movimentacao.observacoes_transferencia} />
+        )}
+
         {/* Repair specific fields */}
         <DetailRow label="Local de Reparo" value={movimentacao.repairLocation} />
         <DetailRow label="Numero SEI" value={movimentacao.seiNumber} />
