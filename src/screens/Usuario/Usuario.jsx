@@ -37,7 +37,8 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import db from "../../firebase/db";
-import { callCreateUserAccount, callDeleteUserAccount, callUpdateUserPassword } from '../../firebase/functions';
+import { callCreateUserAccount, callDeleteUserAccount, callResetUserPassword } from '../../firebase/functions';
+import LockResetIcon from "@mui/icons-material/LockReset";
 import UsuarioDialog from "../../dialogs/UsuarioDialog";
 import { verifyToken } from "../../firebase/token";
 import AddIcon from "@mui/icons-material/Add";
@@ -55,6 +56,8 @@ export default function Usuario() {
   const [userId, setUserId] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDeleteId, setUserToDeleteId] = useState(null);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [userToResetId, setUserToResetId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [userSecrets, setUserSecrets] = useState({});
@@ -310,18 +313,35 @@ export default function Usuario() {
 
       await updateDoc(userDocRef, updateData);
 
-      // Se senha foi fornecida, atualizar via Cloud Function
-      if (data.password) {
-        await callUpdateUserPassword(data.id, data.password);
-      }
-
       setEditDialogOpen(false);
       setEditData(null);
-      // Listener em tempo real atualiza automaticamente
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error);
       alert("Erro ao atualizar usuário.");
     }
+  };
+
+  // Resetar senha do usuário
+  const handleResetPassword = (id) => {
+    setUserToResetId(id);
+    setResetDialogOpen(true);
+  };
+
+  const confirmResetPassword = async () => {
+    try {
+      await callResetUserPassword(userToResetId);
+      alert("Senha resetada para 123456. O usuário deverá alterá-la no próximo login.");
+    } catch (error) {
+      console.error("Erro ao resetar senha:", error);
+      alert("Erro ao resetar senha.");
+    }
+    setResetDialogOpen(false);
+    setUserToResetId(null);
+  };
+
+  const cancelResetPassword = () => {
+    setResetDialogOpen(false);
+    setUserToResetId(null);
   };
 
   return (
@@ -604,7 +624,7 @@ export default function Usuario() {
                           </Tooltip>
                           
                           <Tooltip title="Editar usuário">
-                            <IconButton 
+                            <IconButton
                               onClick={() => handleOpenEditDialog(user)}
                               sx={{
                                 backgroundColor: 'rgba(76, 175, 80, 0.1)',
@@ -618,7 +638,25 @@ export default function Usuario() {
                               <EditIcon sx={{ color: '#4caf50' }} />
                             </IconButton>
                           </Tooltip>
-                          
+
+                          {(userRole === "admin" || userRole === "admingeral") && (
+                          <Tooltip title="Resetar senha">
+                            <IconButton
+                              onClick={() => handleResetPassword(user.id)}
+                              sx={{
+                                backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                                  transform: 'scale(1.05)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              <LockResetIcon sx={{ color: '#ff9800' }} />
+                            </IconButton>
+                          </Tooltip>
+                          )}
+
                           <Tooltip title="Excluir usuário">
                             <IconButton 
                               onClick={() => handleDelete(user.id)}
@@ -725,6 +763,27 @@ export default function Usuario() {
             </Button>
             <Button onClick={confirmDeleteUser} color="error">
               Excluir
+            </Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog
+          open={resetDialogOpen}
+          onClose={cancelResetPassword}
+        >
+          <DialogTitle>
+            {"Resetar Senha?"}
+          </DialogTitle>
+          <DialogContent>
+            <Typography>
+              A senha deste usuário será resetada para <strong>123456</strong>. No próximo login, o usuário será obrigado a criar uma nova senha.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={cancelResetPassword} color="primary">
+              Cancelar
+            </Button>
+            <Button onClick={confirmResetPassword} color="warning">
+              Resetar
             </Button>
           </DialogActions>
         </Dialog>

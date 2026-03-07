@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { Lock, Person, Settings, Visibility, VisibilityOff } from "@mui/icons-material";
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { callVerifyLogin, callCheckHasUsers } from '../../firebase/functions';
+import ChangePasswordDialog from '../../dialogs/ChangePasswordDialog';
 
 export default function LoginScreen() {
   const [hasUser, setHasUser] = useState(false);
@@ -17,6 +18,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const navigate = useNavigate();
 
   const loginTheme = createTheme({
@@ -144,6 +146,13 @@ export default function LoginScreen() {
       const token = await generateToken({ userId: userData.userId, username: userData.username, role: userData.role });
       await firebaseAuthSignIn(userData.customToken);
       localStorage.setItem("token", token);
+
+      if (userData.mustChangePassword) {
+        setLoading(false);
+        setShowChangePassword(true);
+        return;
+      }
+
       navigate("/home");
     } catch (err) {
       const message = err?.message || "Erro ao fazer login. Tente novamente.";
@@ -557,6 +566,17 @@ export default function LoginScreen() {
         >
           Desenvolvido pelo ASP OF BM Thiago Santos
         </Typography>
+
+        <ChangePasswordDialog
+          open={showChangePassword}
+          forced={true}
+          onClose={(success) => {
+            if (success) {
+              setShowChangePassword(false);
+              navigate("/home");
+            }
+          }}
+        />
       </Box>
     </ThemeProvider>
   );

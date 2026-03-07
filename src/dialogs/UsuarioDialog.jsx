@@ -261,6 +261,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             }
                         }}
                     />
+                    {!editData && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <TextField
                             fullWidth
@@ -334,6 +335,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             }}
                         />
                     </div>
+                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <TextField
