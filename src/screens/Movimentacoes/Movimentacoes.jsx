@@ -15,7 +15,11 @@ import {
     Container,
     Alert,
     AlertTitle,
-    Collapse
+    Collapse,
+    Dialog,
+    DialogContent,
+    alpha,
+    Grow
 } from "@mui/material";
 import {
     Delete as DeleteIcon,
@@ -29,7 +33,10 @@ import {
     Build as RepairIcon,
     CheckCircle as CheckIcon,
     Save as SaveIcon,
-    Clear as ClearIcon
+    Clear as ClearIcon,
+    Error as ErrorIcon,
+    Warning as WarningIcon,
+    Close as CloseIcon
 } from '@mui/icons-material';
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
@@ -61,7 +68,15 @@ export default function Movimentacao() {
     const [numeroSei, setNumeroSei] = useState("");
     const [motivoReparo, setMotivoReparo] = useState("");
     const [observacoes, setObservacoes] = useState("");
+    const [feedbackModal, setFeedbackModal] = useState({ open: false, type: 'success', title: '', message: '', details: [] });
 
+    const showFeedback = (type, title, message, details = []) => {
+        setFeedbackModal({ open: true, type, title, message, details });
+    };
+
+    const closeFeedback = () => {
+        setFeedbackModal(prev => ({ ...prev, open: false }));
+    };
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -196,19 +211,19 @@ export default function Movimentacao() {
             
             const qtd = parseInt(quantidade);
             if (qtd <= 0) {
-                alert("A quantidade deve ser maior que zero.");
+                showFeedback('warning', 'Quantidade inválida', 'A quantidade deve ser maior que zero.');
                 return;
             }
 
             if (materialSelected.estoque_atual < qtd) {
-                alert("A quantidade selecionada é maior que o estoque atual.");
+                showFeedback('warning', 'Estoque insuficiente', 'A quantidade selecionada é maior que o estoque atual.');
                 return;
             }
 
             // Verificar se o material já foi adicionado
             const materialExistente = materiaisSelected.find(m => m.material.id === materialSelected.id);
             if (materialExistente) {
-                alert("Este material já foi adicionado à lista.");
+                showFeedback('warning', 'Material duplicado', 'Este material já foi adicionado à lista.');
                 return;
             }
 
@@ -248,13 +263,13 @@ export default function Movimentacao() {
                 // Validar se o material tem ID válido
                 if (!material || !material.id) {
                     console.error("Material inválido encontrado:", material);
-                    alert(`Erro: Material sem ID válido encontrado. Detalhes: ${material?.description || 'Material desconhecido'}`);
+                    showFeedback('error', 'Material inválido', `Material sem ID válido encontrado.`, [material?.description || 'Material desconhecido']);
                     return;
                 }
 
                 // Verificar estoque atual antes de salvar
                 if (material.estoque_atual < qtd) {
-                    alert(`Estoque insuficiente para o material: ${material.description}`);
+                    showFeedback('warning', 'Estoque insuficiente', `Estoque insuficiente para o material: ${material.description}`);
                     return;
                 }
 
@@ -300,11 +315,19 @@ export default function Movimentacao() {
                 await addDoc(movimentacoesCollection, movementData);
             }
 
-            alert("Todos os materiais foram cautelados com sucesso!");
+            const detalhes = materiaisSelected.map(item => `${item.material.description} (Qtd: ${item.quantidade})`);
+            showFeedback(
+                'success',
+                'Cautela realizada!',
+                userSelected
+                    ? `Materiais cautelados para ${userSelected.full_name} com sucesso.`
+                    : 'Todos os materiais foram cautelados com sucesso.',
+                detalhes
+            );
             limparTudo();
         } catch (error) {
             console.error("Erro ao salvar múltiplos materiais:", error);
-            alert("Erro ao salvar as movimentações. Tente novamente.");
+            showFeedback('error', 'Erro ao salvar', 'Ocorreu um erro ao salvar as movimentações. Tente novamente.');
         }
     };
 
@@ -319,14 +342,14 @@ export default function Movimentacao() {
             // Para movimentações com material único
             const qtd = parseInt(quantidade);
             if (!qtd || qtd <= 0) {
-                alert("A quantidade deve ser maior que zero.");
+                showFeedback('warning', 'Quantidade inválida', 'A quantidade deve ser maior que zero.');
                 return;
             }
 
             // Validar se o material selecionado tem ID válido
             if (!materialSelected || !materialSelected.id) {
                 console.error("Material selecionado inválido:", materialSelected);
-                alert(`Erro: Material sem ID válido. Detalhes: ${materialSelected?.description || 'Material desconhecido'}`);
+                showFeedback('error', 'Material inválido', `Material sem ID válido.`, [materialSelected?.description || 'Material desconhecido']);
                 return;
             }
 
@@ -376,7 +399,7 @@ export default function Movimentacao() {
                     break;
                 case 'saída':
                     if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
-                        alert("A quantidade de saída é maior que o estoque atual.");
+                        showFeedback('warning', 'Estoque insuficiente', 'A quantidade de saída é maior que o estoque atual.');
                         return;
                     }
                     newEstoqueTotal = materialSelected.estoque_total - parseInt(quantidade);
@@ -385,7 +408,7 @@ export default function Movimentacao() {
                     break;
                 case 'reparo':
                     if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
-                        alert("A quantidade para reparo é maior que o estoque atual.");
+                        showFeedback('warning', 'Estoque insuficiente', 'A quantidade para reparo é maior que o estoque atual.');
                         return;
                     }
                     newEstoqueAtual = materialSelected.estoque_atual - parseInt(quantidade);
@@ -393,7 +416,7 @@ export default function Movimentacao() {
                     break;
                 case 'cautela':
                     if (materialSelected.estoque_atual - parseInt(quantidade) < 0) {
-                        alert("A quantidade para cautela é maior que o estoque atual.");
+                        showFeedback('warning', 'Estoque insuficiente', 'A quantidade para cautela é maior que o estoque atual.');
                         return;
                     }
                     newEstoqueAtual = materialSelected.estoque_atual - parseInt(quantidade);
@@ -414,10 +437,18 @@ export default function Movimentacao() {
             const movimentacoesCollection = collection(db, "movimentacoes");
             await addDoc(movimentacoesCollection, movementData);
 
-            limparTudo(); // Limpa tudo, incluindo o tipo de movimentação
+            const tipoLabels = { entrada: 'Entrada', cautela: 'Cautela', saída: 'Saída', reparo: 'Inoperante' };
+            showFeedback(
+                'success',
+                `${tipoLabels[tipoMovimentacao] || 'Movimentação'} registrada!`,
+                `${materialSelected.description} — ${tipoLabels[tipoMovimentacao]?.toLowerCase() || 'movimentação'} de ${qtd} unidade(s) realizada com sucesso.`,
+                userSelected ? [`Militar: ${userSelected.full_name}`] : []
+            );
+            limparTudo();
 
         } catch (error) {
             console.error("Erro ao salvar movimentação:", error);
+            showFeedback('error', 'Erro ao salvar', 'Ocorreu um erro ao salvar a movimentação. Tente novamente.');
         }
     };
 
@@ -941,6 +972,182 @@ export default function Movimentacao() {
                                 </Box>
                             </Box>
                     </Container>
+
+                    {/* Modal de Feedback */}
+                    <Dialog
+                        open={feedbackModal.open}
+                        onClose={closeFeedback}
+                        TransitionComponent={Grow}
+                        PaperProps={{
+                            sx: {
+                                borderRadius: 4,
+                                overflow: 'hidden',
+                                minWidth: { xs: '90vw', sm: 420 },
+                                maxWidth: 480,
+                                boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+                            }
+                        }}
+                    >
+                        {/* Header com gradiente */}
+                        <Box
+                            sx={{
+                                background: feedbackModal.type === 'success'
+                                    ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)'
+                                    : feedbackModal.type === 'error'
+                                        ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)'
+                                        : 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)',
+                                py: 4,
+                                px: 3,
+                                textAlign: 'center',
+                                position: 'relative',
+                            }}
+                        >
+                            {/* Botão fechar */}
+                            <IconButton
+                                onClick={closeFeedback}
+                                sx={{
+                                    position: 'absolute',
+                                    top: 8,
+                                    right: 8,
+                                    color: 'rgba(255,255,255,0.7)',
+                                    '&:hover': { color: 'white', backgroundColor: 'rgba(255,255,255,0.15)' },
+                                }}
+                            >
+                                <CloseIcon fontSize="small" />
+                            </IconButton>
+
+                            {/* Ícone circular animado */}
+                            <Box
+                                sx={{
+                                    width: 80,
+                                    height: 80,
+                                    borderRadius: '50%',
+                                    backgroundColor: 'rgba(255,255,255,0.2)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    mx: 'auto',
+                                    mb: 2,
+                                    backdropFilter: 'blur(8px)',
+                                    border: '3px solid rgba(255,255,255,0.3)',
+                                    animation: feedbackModal.open ? 'popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+                                    '@keyframes popIn': {
+                                        '0%': { transform: 'scale(0)', opacity: 0 },
+                                        '100%': { transform: 'scale(1)', opacity: 1 },
+                                    },
+                                }}
+                            >
+                                {feedbackModal.type === 'success' && <CheckIcon sx={{ fontSize: 44, color: 'white' }} />}
+                                {feedbackModal.type === 'error' && <ErrorIcon sx={{ fontSize: 44, color: 'white' }} />}
+                                {feedbackModal.type === 'warning' && <WarningIcon sx={{ fontSize: 44, color: 'white' }} />}
+                            </Box>
+
+                            <Typography variant="h5" sx={{ color: 'white', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                                {feedbackModal.title}
+                            </Typography>
+                        </Box>
+
+                        {/* Conteúdo */}
+                        <DialogContent sx={{ px: 3, pt: 3, pb: 1 }}>
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                    color: 'text.secondary',
+                                    textAlign: 'center',
+                                    fontSize: '1rem',
+                                    lineHeight: 1.6,
+                                }}
+                            >
+                                {feedbackModal.message}
+                            </Typography>
+
+                            {/* Lista de detalhes */}
+                            {feedbackModal.details.length > 0 && (
+                                <Box
+                                    sx={{
+                                        mt: 2.5,
+                                        p: 2,
+                                        borderRadius: 3,
+                                        backgroundColor: feedbackModal.type === 'success'
+                                            ? alpha('#22c55e', 0.06)
+                                            : feedbackModal.type === 'error'
+                                                ? alpha('#ef4444', 0.06)
+                                                : alpha('#f59e0b', 0.06),
+                                        border: '1px solid',
+                                        borderColor: feedbackModal.type === 'success'
+                                            ? alpha('#22c55e', 0.15)
+                                            : feedbackModal.type === 'error'
+                                                ? alpha('#ef4444', 0.15)
+                                                : alpha('#f59e0b', 0.15),
+                                    }}
+                                >
+                                    {feedbackModal.details.map((detail, index) => (
+                                        <Box
+                                            key={index}
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.5,
+                                                py: 0.75,
+                                                borderBottom: index < feedbackModal.details.length - 1 ? '1px solid' : 'none',
+                                                borderColor: alpha('#000', 0.06),
+                                            }}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    width: 6,
+                                                    height: 6,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: feedbackModal.type === 'success'
+                                                        ? '#22c55e'
+                                                        : feedbackModal.type === 'error'
+                                                            ? '#ef4444'
+                                                            : '#f59e0b',
+                                                    flexShrink: 0,
+                                                }}
+                                            />
+                                            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500 }}>
+                                                {detail}
+                                            </Typography>
+                                        </Box>
+                                    ))}
+                                </Box>
+                            )}
+                        </DialogContent>
+
+                        {/* Botão */}
+                        <Box sx={{ px: 3, pb: 3, pt: 1 }}>
+                            <Button
+                                fullWidth
+                                variant="contained"
+                                onClick={closeFeedback}
+                                disableElevation
+                                sx={{
+                                    py: 1.5,
+                                    borderRadius: 3,
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    fontSize: '1rem',
+                                    background: feedbackModal.type === 'success'
+                                        ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                                        : feedbackModal.type === 'error'
+                                            ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                                            : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                    '&:hover': {
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: feedbackModal.type === 'success'
+                                            ? '0 8px 24px rgba(34, 197, 94, 0.4)'
+                                            : feedbackModal.type === 'error'
+                                                ? '0 8px 24px rgba(239, 68, 68, 0.4)'
+                                                : '0 8px 24px rgba(245, 158, 11, 0.4)',
+                                    },
+                                    transition: 'all 0.2s ease',
+                                }}
+                            >
+                                {feedbackModal.type === 'success' ? 'Entendido' : 'Fechar'}
+                            </Button>
+                        </Box>
+                    </Dialog>
                 </div>
             </MenuContext>
         </PrivateRoute>
