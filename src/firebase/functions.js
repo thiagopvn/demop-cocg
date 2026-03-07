@@ -53,9 +53,15 @@ export async function callDeleteUserAccount(userId) {
   return result.data;
 }
 
-export async function callUpdateUserPassword(userId, password) {
-  const fn = getCallable('updateUserPassword');
-  const result = await fn({ userId, password });
+export async function callResetUserPassword(userId) {
+  const fn = getCallable('resetUserPassword');
+  const result = await fn({ userId });
+  return result.data;
+}
+
+export async function callChangeOwnPassword(currentPassword, newPassword) {
+  const fn = getCallable('changeOwnPassword');
+  const result = await fn({ currentPassword, newPassword });
   return result.data;
 }
 

@@ -108,12 +108,15 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
     firestoreId: userId,
   });
 
+  const mustChangePassword = secretDoc.exists && secretDoc.data().must_change_password === true;
+
   return {
     userId,
     username: userData.username,
     email: userData.email,
     role,
     customToken,
+    mustChangePassword,
   };
 });
 
@@ -268,22 +271,73 @@ exports.deleteUserAccount = onCall({ region: "southamerica-east1" }, async (requ
 });
 
 // ============================================================
-// f) updateUserPassword — callable (admin/admingeral only)
+// f) resetUserPassword — callable (admin/admingeral only)
+//    Resets password to "123456" and flags must_change_password
 // ============================================================
-exports.updateUserPassword = onCall({ region: "southamerica-east1" }, async (request) => {
+exports.resetUserPassword = onCall({ region: "southamerica-east1" }, async (request) => {
   requireAdmin(request);
 
-  const { userId, password } = request.data || {};
-  if (!userId || !password) {
-    throw new HttpsError("invalid-argument", "userId e password são obrigatórios.");
+  const { userId } = request.data || {};
+  if (!userId) {
+    throw new HttpsError("invalid-argument", "userId é obrigatório.");
+  }
+
+  const userDoc = await db.collection("users").doc(userId).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("not-found", "Usuário não encontrado.");
   }
 
   await db.collection("user_secrets").doc(userId).set(
-    { password, updated_at: new Date() },
+    { password: "123456", must_change_password: true, updated_at: new Date() },
     { merge: true }
   );
 
-  return { message: "Senha atualizada com sucesso." };
+  return { message: "Senha resetada para 123456." };
+});
+
+// ============================================================
+// f2) changeOwnPassword — callable (any authenticated user)
+//     Allows user to change their own password
+// ============================================================
+exports.changeOwnPassword = onCall({ region: "southamerica-east1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+  }
+
+  const firestoreId = request.auth.token.firestoreId;
+  if (!firestoreId) {
+    throw new HttpsError("failed-precondition", "Usuário sem ID no Firestore.");
+  }
+
+  const { currentPassword, newPassword } = request.data || {};
+  if (!newPassword) {
+    throw new HttpsError("invalid-argument", "Nova senha é obrigatória.");
+  }
+
+  if (newPassword === "123456") {
+    throw new HttpsError("invalid-argument", "A nova senha não pode ser 123456.");
+  }
+
+  const secretDoc = await db.collection("user_secrets").doc(firestoreId).get();
+  if (!secretDoc.exists) {
+    throw new HttpsError("not-found", "Dados de senha não encontrados.");
+  }
+
+  const secretData = secretDoc.data();
+
+  // If NOT a forced change, verify current password
+  if (!secretData.must_change_password) {
+    if (!currentPassword || currentPassword !== secretData.password) {
+      throw new HttpsError("permission-denied", "Senha atual incorreta.");
+    }
+  }
+
+  await db.collection("user_secrets").doc(firestoreId).set(
+    { password: newPassword, must_change_password: false, updated_at: new Date() },
+    { merge: true }
+  );
+
+  return { message: "Senha alterada com sucesso." };
 });
 
 // ============================================================

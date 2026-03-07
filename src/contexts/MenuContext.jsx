@@ -19,7 +19,8 @@ import {
   AssignmentReturnOutlined,
   CalendarMonth,
   WhatsApp,
-  SupportAgent
+  SupportAgent,
+  LockOutlined
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -54,6 +55,7 @@ import db from '../firebase/db';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { verifyToken } from '../firebase/token';
 import { getPendingMaintenancesCount, checkAndNotifyMaintenances } from '../services/maintenanceNotificationService';
+import ChangePasswordDialog from '../dialogs/ChangePasswordDialog';
 
 function MenuContext({ children }) {
   const [active, setActive] = React.useState(0);
@@ -67,6 +69,7 @@ function MenuContext({ children }) {
   const [userName, setUserName] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
   const [maintenanceBadge, setMaintenanceBadge] = useState({ overdue: 0, today: 0, total: 0 });
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const allMenuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'editor', 'admin', 'admingeral'] },
@@ -476,7 +479,31 @@ function MenuContext({ children }) {
 
       {/* Bottom Actions */}
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Tooltip title={!drawerOpen ? 'Alterar Senha' : ''} placement="right">
+          <Button
+            fullWidth
+            variant="contained"
+            startIcon={drawerOpen && <LockOutlined />}
+            onClick={() => setChangePasswordOpen(true)}
+            sx={{
+              justifyContent: drawerOpen ? 'flex-start' : 'center',
+              background: 'rgba(255, 152, 0, 0.1)',
+              color: '#ff9800',
+              border: '1px solid rgba(255, 152, 0, 0.3)',
+              boxShadow: 'none',
+              borderRadius: 2,
+              py: 1.2,
+              '&:hover': {
+                background: 'rgba(255, 152, 0, 0.2)',
+                borderColor: '#ff9800',
+                boxShadow: '0 4px 12px rgba(255, 152, 0, 0.2)',
+              }
+            }}
+          >
+            {drawerOpen ? 'Alterar Senha' : <LockOutlined />}
+          </Button>
+        </Tooltip>
         <Tooltip title={!drawerOpen ? 'Sair' : ''} placement="right">
           <Button
             fullWidth
@@ -829,6 +856,16 @@ function MenuContext({ children }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onClose={(success) => {
+          setChangePasswordOpen(false);
+          if (success) {
+            alert("Senha alterada com sucesso!");
+          }
+        }}
+      />
 
       {/* Cleanup Dialog */}
       <Dialog
