@@ -111,10 +111,14 @@ export default function Usuario() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const usersList = snapshot.docs.map((doc) => ({
+        let usersList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
+        // Hierarquia: admin não pode ver admingeral
+        if (userRole !== "admingeral") {
+          usersList = usersList.filter((u) => u.role !== "admingeral");
+        }
         setAllUsers(usersList);
         setLoading(false);
       },

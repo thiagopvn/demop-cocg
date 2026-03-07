@@ -189,6 +189,11 @@ exports.createUserAccount = onCall({ region: "southamerica-east1" }, async (requ
     throw new HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
   }
 
+  // Hierarchy: only admingeral can create admingeral users
+  if (role === "admingeral" && request.auth.token.role !== "admingeral") {
+    throw new HttpsError("permission-denied", "Apenas o administrador geral pode criar usuários admingeral.");
+  }
+
   // Check unique username
   const usernameSnap = await db
     .collection("users")
@@ -250,6 +255,11 @@ exports.deleteUserAccount = onCall({ region: "southamerica-east1" }, async (requ
     throw new HttpsError("not-found", "Usuário não encontrado.");
   }
 
+  // Hierarchy: only admingeral can delete admingeral users
+  if (userDoc.data().role === "admingeral" && request.auth.token.role !== "admingeral") {
+    throw new HttpsError("permission-denied", "Apenas o administrador geral pode excluir usuários admingeral.");
+  }
+
   // Delete user_secrets
   try {
     await db.collection("user_secrets").doc(userId).delete();
@@ -285,6 +295,11 @@ exports.resetUserPassword = onCall({ region: "southamerica-east1" }, async (requ
   const userDoc = await db.collection("users").doc(userId).get();
   if (!userDoc.exists) {
     throw new HttpsError("not-found", "Usuário não encontrado.");
+  }
+
+  // Hierarchy: only admingeral can reset admingeral passwords
+  if (userDoc.data().role === "admingeral" && request.auth.token.role !== "admingeral") {
+    throw new HttpsError("permission-denied", "Apenas o administrador geral pode resetar senhas de admingeral.");
   }
 
   await db.collection("user_secrets").doc(userId).set(
