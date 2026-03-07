@@ -16,6 +16,7 @@ import {
     Card,
     Skeleton,
     Tooltip,
+    Popover,
     alpha,
     styled
 } from '@mui/material';
@@ -37,7 +38,7 @@ import { useMaterials } from '../../contexts/MaterialContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import MaterialDialog from '../../dialogs/MaterialDialog';
 import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
-import { deleteDoc, doc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { deleteDoc, doc, collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
@@ -156,6 +157,8 @@ const Material = () => {
     const [openMaintenanceDialog, setOpenMaintenanceDialog] = useState(false);
     const [selectedMaterialForMaintenance, setSelectedMaterialForMaintenance] = useState(null);
     const [materialMaintenances, setMaterialMaintenances] = useState({}); // Cache de manutenções por material
+    const [materialViaturas, setMaterialViaturas] = useState({}); // Cache de viaturas por material
+    const [viaturaPopover, setViaturaPopover] = useState({ anchorEl: null, materialId: null });
 
     const handleOpenDialog = (material = null) => {
         setSelectedMaterial(material);
@@ -217,6 +220,30 @@ const Material = () => {
         loadMaintenancesForMaterials();
     }, []);
 
+    // Listener em tempo real para alocações de materiais em viaturas
+    useEffect(() => {
+        const q = query(
+            collection(db, 'viatura_materiais'),
+            where('status', '==', 'alocado')
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const byMaterial = {};
+            snapshot.docs.forEach(d => {
+                const data = d.data();
+                const mid = data.material_id;
+                if (!byMaterial[mid]) byMaterial[mid] = [];
+                byMaterial[mid].push({
+                    viatura_id: data.viatura_id,
+                    prefixo: data.viatura_prefixo || '',
+                    description: data.viatura_description || '',
+                    quantidade: data.quantidade || 1,
+                });
+            });
+            setMaterialViaturas(byMaterial);
+        });
+        return () => unsubscribe();
+    }, []);
+
     // Função para verificar se material tem manutenção pendente
     const getMaintenanceInfo = (materialId) => {
         const maintenances = materialMaintenances[materialId] || [];
@@ -241,6 +268,14 @@ const Material = () => {
             upcoming: upcoming.length,
             nextMaintenance: maintenances[0]
         };
+    };
+
+    const handleViaturaPopoverOpen = (event, materialId) => {
+        setViaturaPopover({ anchorEl: event.currentTarget, materialId });
+    };
+
+    const handleViaturaPopoverClose = () => {
+        setViaturaPopover({ anchorEl: null, materialId: null });
     };
 
     const handleDeleteMaterial = async (materialId) => {
@@ -641,7 +676,16 @@ const Material = () => {
                                                         color="info"
                                                         size="small"
                                                         variant="filled"
-                                                        sx={{ minWidth: 60 }}
+                                                        onClick={(e) => handleViaturaPopoverOpen(e, material.id)}
+                                                        sx={{
+                                                            minWidth: 60,
+                                                            cursor: 'pointer',
+                                                            '&:hover': {
+                                                                transform: 'scale(1.05)',
+                                                                boxShadow: 2,
+                                                            },
+                                                            transition: 'all 0.2s ease',
+                                                        }}
                                                     />
                                                 ) : (
                                                     <Typography variant="body2" color="text.disabled">
@@ -791,6 +835,71 @@ const Material = () => {
                 onClose={handleCloseMaintenanceDialog}
                 material={selectedMaterialForMaintenance}
             />
+
+            <Popover
+                open={Boolean(viaturaPopover.anchorEl)}
+                anchorEl={viaturaPopover.anchorEl}
+                onClose={handleViaturaPopoverClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            borderRadius: 2,
+                            mt: 0.5,
+                            minWidth: 220,
+                            maxWidth: 320,
+                            boxShadow: 6,
+                        },
+                    },
+                }}
+            >
+                {(() => {
+                    const viaturas = materialViaturas[viaturaPopover.materialId] || [];
+                    return (
+                        <Box sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                                <DirectionsCar fontSize="small" color="info" />
+                                <Typography variant="subtitle2" fontWeight={600} color="info.main">
+                                    Distribuição por Viatura
+                                </Typography>
+                            </Box>
+                            {viaturas.length > 0 ? (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    {viaturas.map((v, idx) => (
+                                        <Box
+                                            key={idx}
+                                            sx={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                p: 1,
+                                                borderRadius: 1.5,
+                                                backgroundColor: alpha(theme.palette.info.main, 0.06),
+                                                border: `1px solid ${alpha(theme.palette.info.main, 0.12)}`,
+                                            }}
+                                        >
+                                            <Typography variant="body2" fontWeight={500} sx={{ flex: 1 }}>
+                                                {v.prefixo ? `${v.prefixo} - ${v.description}` : v.description}
+                                            </Typography>
+                                            <Chip
+                                                label={v.quantidade}
+                                                size="small"
+                                                color="info"
+                                                sx={{ fontWeight: 700, ml: 1, minWidth: 32 }}
+                                            />
+                                        </Box>
+                                    ))}
+                                </Box>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                    Sem detalhes disponíveis
+                                </Typography>
+                            )}
+                        </Box>
+                    );
+                })()}
+            </Popover>
         </MenuContext>
     );
 };
