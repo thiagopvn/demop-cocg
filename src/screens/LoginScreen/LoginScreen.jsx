@@ -175,6 +175,7 @@ export default function LoginScreen() {
   };
 
   return (
+    <>
     <ThemeProvider theme={loginTheme}>
       <Box 
         className="root-login" 
@@ -567,17 +568,19 @@ export default function LoginScreen() {
           Desenvolvido pelo ASP OF BM Thiago Santos
         </Typography>
 
-        <ChangePasswordDialog
-          open={showChangePassword}
-          forced={true}
-          onClose={(success) => {
-            if (success) {
-              setShowChangePassword(false);
-              navigate("/home");
-            }
-          }}
-        />
       </Box>
     </ThemeProvider>
+
+    <ChangePasswordDialog
+      open={showChangePassword}
+      forced={true}
+      onClose={(success) => {
+        if (success) {
+          setShowChangePassword(false);
+          navigate("/home");
+        }
+      }}
+    />
+    </>
   );
 }
