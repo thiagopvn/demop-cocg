@@ -29,6 +29,10 @@ import {
     Divider,
     Paper,
     InputAdornment,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -42,6 +46,8 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
+import UpdateIcon from "@mui/icons-material/Update";
 import {
     doc,
     getDoc,
@@ -90,6 +96,10 @@ export default function ViaturaDetalhes() {
 
     // Snackbar
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+    // Ordenação
+    const [sortBy, setSortBy] = useState('descricao_asc');
+    const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -158,7 +168,7 @@ export default function ViaturaDetalhes() {
         return Array.from(cats).sort();
     }, [materiaisAlocados]);
 
-    // Materiais filtrados, buscados e ordenados alfabeticamente
+    // Materiais filtrados, buscados e ordenados
     const materiaisFiltrados = useMemo(() => {
         let result = [...materiaisAlocados];
 
@@ -176,13 +186,30 @@ export default function ViaturaDetalhes() {
             });
         }
 
-        // Ordenar alfabeticamente
-        result.sort((a, b) =>
-            (a.material_description || '').localeCompare(b.material_description || '', 'pt-BR')
-        );
+        // Ordenação
+        result.sort((a, b) => {
+            switch (sortBy) {
+                case 'descricao_asc':
+                    return (a.material_description || '').localeCompare(b.material_description || '', 'pt-BR');
+                case 'descricao_desc':
+                    return (b.material_description || '').localeCompare(a.material_description || '', 'pt-BR');
+                case 'conferencia_asc': {
+                    const dateA = a.ultima_atualizacao?.toDate?.() || a.data_alocacao?.toDate?.() || new Date(0);
+                    const dateB = b.ultima_atualizacao?.toDate?.() || b.data_alocacao?.toDate?.() || new Date(0);
+                    return dateA - dateB;
+                }
+                case 'conferencia_desc': {
+                    const dateA = a.ultima_atualizacao?.toDate?.() || a.data_alocacao?.toDate?.() || new Date(0);
+                    const dateB = b.ultima_atualizacao?.toDate?.() || b.data_alocacao?.toDate?.() || new Date(0);
+                    return dateB - dateA;
+                }
+                default:
+                    return 0;
+            }
+        });
 
         return result;
-    }, [materiaisAlocados, activeFilter, debouncedSearch]);
+    }, [materiaisAlocados, activeFilter, debouncedSearch, sortBy]);
 
     // Quantidade total alocada
     const totalQuantidade = useMemo(() =>
@@ -557,6 +584,64 @@ export default function ViaturaDetalhes() {
                                 </Box>
                             )}
 
+                            {/* Botão de ordenação */}
+                            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <Tooltip title="Ordenar materiais">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        startIcon={<SwapVertIcon />}
+                                        onClick={(e) => setSortMenuAnchor(e.currentTarget)}
+                                        sx={{
+                                            borderRadius: 2,
+                                            textTransform: 'none',
+                                            fontWeight: 500,
+                                            fontSize: '0.8rem',
+                                        }}
+                                    >
+                                        {sortBy === 'descricao_asc' ? 'A → Z' :
+                                         sortBy === 'descricao_desc' ? 'Z → A' :
+                                         sortBy === 'conferencia_asc' ? 'Mais antigas' :
+                                         'Mais recentes'}
+                                    </Button>
+                                </Tooltip>
+                                <Menu
+                                    anchorEl={sortMenuAnchor}
+                                    open={Boolean(sortMenuAnchor)}
+                                    onClose={() => setSortMenuAnchor(null)}
+                                    PaperProps={{ sx: { borderRadius: 2, minWidth: 220 } }}
+                                >
+                                    <MenuItem
+                                        selected={sortBy === 'descricao_asc'}
+                                        onClick={() => { setSortBy('descricao_asc'); setSortMenuAnchor(null); }}
+                                    >
+                                        <ListItemIcon><SwapVertIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText>Descrição A → Z</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem
+                                        selected={sortBy === 'descricao_desc'}
+                                        onClick={() => { setSortBy('descricao_desc'); setSortMenuAnchor(null); }}
+                                    >
+                                        <ListItemIcon><SwapVertIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText>Descrição Z → A</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem
+                                        selected={sortBy === 'conferencia_asc'}
+                                        onClick={() => { setSortBy('conferencia_asc'); setSortMenuAnchor(null); }}
+                                    >
+                                        <ListItemIcon><UpdateIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText>Conferência mais antiga</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem
+                                        selected={sortBy === 'conferencia_desc'}
+                                        onClick={() => { setSortBy('conferencia_desc'); setSortMenuAnchor(null); }}
+                                    >
+                                        <ListItemIcon><UpdateIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText>Conferência mais recente</ListItemText>
+                                    </MenuItem>
+                                </Menu>
+                            </Box>
+
                             {/* Info de resultados */}
                             {(debouncedSearch || activeFilter !== "todos") && (
                                 <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
@@ -645,6 +730,12 @@ export default function ViaturaDetalhes() {
                                             {(userRole === "admin" || userRole === "admingeral") && (
                                                 <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acoes</TableCell>
                                             )}
+                                            <TableCell sx={{ fontWeight: 700, textAlign: 'center', minWidth: 150 }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                                                    <UpdateIcon fontSize="small" />
+                                                    Última Conferência
+                                                </Box>
+                                            </TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -720,6 +811,43 @@ export default function ViaturaDetalhes() {
                                                         </Box>
                                                     </TableCell>
                                                 )}
+                                                <TableCell sx={{ textAlign: 'center' }}>
+                                                    {(() => {
+                                                        const confDate = material.ultima_atualizacao?.toDate?.() || material.data_alocacao?.toDate?.();
+                                                        const confPor = material.atualizado_por_nome || material.alocado_por_nome;
+                                                        if (!confDate) {
+                                                            return (
+                                                                <Typography variant="caption" color="text.disabled">
+                                                                    Sem registro
+                                                                </Typography>
+                                                            );
+                                                        }
+                                                        const now = new Date();
+                                                        const diffDays = Math.floor((now - confDate) / (1000 * 60 * 60 * 24));
+                                                        const isOld = diffDays > 30;
+                                                        return (
+                                                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.3 }}>
+                                                                <Chip
+                                                                    size="small"
+                                                                    label={confDate.toLocaleDateString('pt-BR') + ' ' + confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                    color={isOld ? 'warning' : 'success'}
+                                                                    variant={isOld ? 'filled' : 'outlined'}
+                                                                    sx={{ fontSize: '0.7rem', fontWeight: 600, height: 22 }}
+                                                                />
+                                                                {confPor && (
+                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                                                                        {confPor}
+                                                                    </Typography>
+                                                                )}
+                                                                {isOld && (
+                                                                    <Typography variant="caption" color="warning.main" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                                        {diffDays} dias atrás
+                                                                    </Typography>
+                                                                )}
+                                                            </Box>
+                                                        );
+                                                    })()}
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

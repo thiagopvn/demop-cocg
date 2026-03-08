@@ -18,7 +18,7 @@ import { addDoc, updateDoc, doc, serverTimestamp, collection } from 'firebase/fi
 import db from '../firebase/db';
 import { CategoriaContext } from '../contexts/CategoriaContext';
 
-const MaterialDialog = ({ open, onClose, material }) => {
+const MaterialDialog = ({ open, onClose, material, loggedUserName }) => {
     const { categorias } = useContext(CategoriaContext);
     const [description, setDescription] = useState('');
     const [categoriaId, setCategoriaId] = useState('');
@@ -61,6 +61,8 @@ const MaterialDialog = ({ open, onClose, material }) => {
             estoque_total: Number(estoqueTotal),
             estoque_atual: Number(estoqueAtual),
             ultima_movimentacao: serverTimestamp(),
+            conferido_por: loggedUserName || null,
+            ultima_conferencia: serverTimestamp(),
         };
 
         try {

@@ -27,7 +27,11 @@ import {
     Snackbar,
     Alert,
     alpha,
-    styled
+    styled,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText
 } from '@mui/material';
 import {
     Add,
@@ -41,7 +45,9 @@ import {
     Build,
     CalendarMonth,
     Visibility,
-    LocalShipping
+    LocalShipping,
+    SwapVert,
+    Update
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -201,6 +207,10 @@ const Material = () => {
     const [selectedViatura, setSelectedViatura] = useState(null);
     const [alocarQuantidade, setAlocarQuantidade] = useState(1);
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+    // Ordenação
+    const [sortBy, setSortBy] = useState('descricao_asc'); // descricao_asc, descricao_desc, conferencia_asc, conferencia_desc
+    const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
 
     const handleOpenDialog = (material = null) => {
         setSelectedMaterial(material);
@@ -470,23 +480,48 @@ const Material = () => {
         setVisibleCount(ITEMS_PER_PAGE);
     }, [debouncedSearchTerm]);
 
-    // Filtro otimizado - retorna todos os materiais filtrados
+    // Filtro otimizado - retorna todos os materiais filtrados e ordenados
     const allFilteredMaterials = useMemo(() => {
+        let result;
         if (!debouncedSearchTerm || debouncedSearchTerm.trim().length === 0) {
-            return materials;
+            result = [...materials];
+        } else {
+            const searchLower = debouncedSearchTerm.toLowerCase().trim();
+            const keywords = searchLower.split(/\s+/).filter(k => k.length > 0);
+
+            result = materials.filter(material => {
+                const text = `${material.description || ''} ${material.categoria || ''}`.toLowerCase();
+                for (const keyword of keywords) {
+                    if (!text.includes(keyword)) return false;
+                }
+                return true;
+            });
         }
 
-        const searchLower = debouncedSearchTerm.toLowerCase().trim();
-        const keywords = searchLower.split(/\s+/).filter(k => k.length > 0);
-
-        return materials.filter(material => {
-            const text = `${material.description || ''} ${material.categoria || ''}`.toLowerCase();
-            for (const keyword of keywords) {
-                if (!text.includes(keyword)) return false;
+        // Ordenação
+        result.sort((a, b) => {
+            switch (sortBy) {
+                case 'descricao_asc':
+                    return (a.description || '').localeCompare(b.description || '', 'pt-BR');
+                case 'descricao_desc':
+                    return (b.description || '').localeCompare(a.description || '', 'pt-BR');
+                case 'conferencia_asc': {
+                    const dateA = a.ultima_conferencia?.toDate?.() || a.ultima_movimentacao?.toDate?.() || new Date(0);
+                    const dateB = b.ultima_conferencia?.toDate?.() || b.ultima_movimentacao?.toDate?.() || new Date(0);
+                    return dateA - dateB;
+                }
+                case 'conferencia_desc': {
+                    const dateA = a.ultima_conferencia?.toDate?.() || a.ultima_movimentacao?.toDate?.() || new Date(0);
+                    const dateB = b.ultima_conferencia?.toDate?.() || b.ultima_movimentacao?.toDate?.() || new Date(0);
+                    return dateB - dateA;
+                }
+                default:
+                    return 0;
             }
-            return true;
         });
-    }, [materials, debouncedSearchTerm]);
+
+        return result;
+    }, [materials, debouncedSearchTerm, sortBy]);
 
     // Materiais visíveis (limitados pelo visibleCount)
     const filteredMaterials = useMemo(() => {
@@ -543,6 +578,9 @@ const Material = () => {
                         <Skeleton variant="circular" width={32} height={32} />
                         <Skeleton variant="circular" width={32} height={32} />
                     </Box>
+                </StyledTableCell>
+                <StyledTableCell align="center">
+                    <Skeleton variant="text" height={20} width={100} />
                 </StyledTableCell>
             </StyledTableRow>
         ))
@@ -672,7 +710,65 @@ const Material = () => {
                             },
                         }}
                     />
-                    
+
+                    {/* Botão de ordenação */}
+                    <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <Tooltip title="Ordenar materiais">
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<SwapVert />}
+                                onClick={(e) => setSortMenuAnchor(e.currentTarget)}
+                                sx={{
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontWeight: 500,
+                                    fontSize: '0.8rem',
+                                }}
+                            >
+                                {sortBy === 'descricao_asc' ? 'A → Z' :
+                                 sortBy === 'descricao_desc' ? 'Z → A' :
+                                 sortBy === 'conferencia_asc' ? 'Mais antigas' :
+                                 'Mais recentes'}
+                            </Button>
+                        </Tooltip>
+                        <Menu
+                            anchorEl={sortMenuAnchor}
+                            open={Boolean(sortMenuAnchor)}
+                            onClose={() => setSortMenuAnchor(null)}
+                            PaperProps={{ sx: { borderRadius: 2, minWidth: 220 } }}
+                        >
+                            <MenuItem
+                                selected={sortBy === 'descricao_asc'}
+                                onClick={() => { setSortBy('descricao_asc'); setSortMenuAnchor(null); }}
+                            >
+                                <ListItemIcon><SwapVert fontSize="small" /></ListItemIcon>
+                                <ListItemText>Descrição A → Z</ListItemText>
+                            </MenuItem>
+                            <MenuItem
+                                selected={sortBy === 'descricao_desc'}
+                                onClick={() => { setSortBy('descricao_desc'); setSortMenuAnchor(null); }}
+                            >
+                                <ListItemIcon><SwapVert fontSize="small" /></ListItemIcon>
+                                <ListItemText>Descrição Z → A</ListItemText>
+                            </MenuItem>
+                            <MenuItem
+                                selected={sortBy === 'conferencia_asc'}
+                                onClick={() => { setSortBy('conferencia_asc'); setSortMenuAnchor(null); }}
+                            >
+                                <ListItemIcon><Update fontSize="small" /></ListItemIcon>
+                                <ListItemText>Conferência mais antiga</ListItemText>
+                            </MenuItem>
+                            <MenuItem
+                                selected={sortBy === 'conferencia_desc'}
+                                onClick={() => { setSortBy('conferencia_desc'); setSortMenuAnchor(null); }}
+                            >
+                                <ListItemIcon><Update fontSize="small" /></ListItemIcon>
+                                <ListItemText>Conferência mais recente</ListItemText>
+                            </MenuItem>
+                        </Menu>
+                    </Box>
+
                     {/* Search Results Info */}
                     {debouncedSearchTerm && (
                             <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -732,6 +828,12 @@ const Material = () => {
                                 <TableCell align="right" sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
                                     Ações
                                 </TableCell>
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center', minWidth: 160 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                                        <Update fontSize="small" />
+                                        Última Conferência
+                                    </Box>
+                                </TableCell>
                             </TableRow>
                         </StyledTableHead>
                         <TableBody>
@@ -739,7 +841,7 @@ const Material = () => {
                                 <>
                                     {renderLoadingSkeleton()}
                                     <TableRow>
-                                        <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                                        <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                                 <CircularProgress size={24} />
                                                 <Typography variant="body2" color="text.secondary">
@@ -751,7 +853,7 @@ const Material = () => {
                                 </>
                             ) : filteredMaterials.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                             <Inventory sx={{ fontSize: 48, color: 'text.disabled' }} />
                                             <Typography variant="h6" color="text.secondary">
@@ -946,6 +1048,43 @@ const Material = () => {
                                                     </Tooltip>
                                                 </Box>
                                             </StyledTableCell>
+                                            <StyledTableCell align="center">
+                                                {(() => {
+                                                    const confDate = material.ultima_conferencia?.toDate?.() || material.ultima_movimentacao?.toDate?.();
+                                                    const confPor = material.conferido_por;
+                                                    if (!confDate) {
+                                                        return (
+                                                            <Typography variant="caption" color="text.disabled">
+                                                                Sem registro
+                                                            </Typography>
+                                                        );
+                                                    }
+                                                    const now = new Date();
+                                                    const diffDays = Math.floor((now - confDate) / (1000 * 60 * 60 * 24));
+                                                    const isOld = diffDays > 30;
+                                                    return (
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.3 }}>
+                                                            <Chip
+                                                                size="small"
+                                                                label={confDate.toLocaleDateString('pt-BR') + ' ' + confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                color={isOld ? 'warning' : 'success'}
+                                                                variant={isOld ? 'filled' : 'outlined'}
+                                                                sx={{ fontSize: '0.7rem', fontWeight: 600, height: 22 }}
+                                                            />
+                                                            {confPor && (
+                                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                                                                    {confPor}
+                                                                </Typography>
+                                                            )}
+                                                            {isOld && (
+                                                                <Typography variant="caption" color="warning.main" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                                    {diffDays} dias atrás
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                    );
+                                                })()}
+                                            </StyledTableCell>
                                         </StyledTableRow>
                                 ))
                             )}
@@ -978,6 +1117,7 @@ const Material = () => {
                 open={openDialog}
                 onClose={handleCloseDialog}
                 material={selectedMaterial}
+                loggedUserName={loggedUserName}
             />
 
             <MaintenanceDialog
