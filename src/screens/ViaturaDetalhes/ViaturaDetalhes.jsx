@@ -30,6 +30,10 @@ import {
     Paper,
     InputAdornment,
     TableSortLabel,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -43,6 +47,9 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
+import SortByAlphaIcon from "@mui/icons-material/SortByAlpha";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import {
     doc,
     getDoc,
@@ -96,6 +103,8 @@ export default function ViaturaDetalhes() {
     const [sortField, setSortField] = useState('material_description');
     const [sortDirection, setSortDirection] = useState('asc');
 
+    const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
+
     const handleSort = (field) => {
         if (sortField === field) {
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -103,6 +112,12 @@ export default function ViaturaDetalhes() {
             setSortField(field);
             setSortDirection('asc');
         }
+    };
+
+    const handleSortMenu = (field, direction) => {
+        setSortField(field);
+        setSortDirection(direction);
+        setSortMenuAnchor(null);
     };
 
     useEffect(() => {
@@ -589,6 +604,56 @@ export default function ViaturaDetalhes() {
                                     })}
                                 </Box>
                             )}
+
+                            {/* Ordenação rápida */}
+                            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <Tooltip title="Ordenação rápida">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        startIcon={<SwapVertIcon />}
+                                        onClick={(e) => setSortMenuAnchor(e.currentTarget)}
+                                        sx={{
+                                            borderRadius: 2,
+                                            textTransform: 'none',
+                                            fontWeight: 500,
+                                            fontSize: '0.8rem',
+                                            color: 'text.secondary',
+                                            borderColor: (theme) => alpha(theme.palette.divider, 0.5),
+                                            '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
+                                        }}
+                                    >
+                                        {sortField === 'material_description' ? `Material ${sortDirection === 'asc' ? 'A→Z' : 'Z→A'}` :
+                                         sortField === 'categoria' ? `Categoria ${sortDirection === 'asc' ? 'A→Z' : 'Z→A'}` :
+                                         sortField === 'quantidade' ? `Quantidade ${sortDirection === 'asc' ? '↑' : '↓'}` :
+                                         sortField === 'data_alocacao' ? `Alocação ${sortDirection === 'asc' ? 'antiga' : 'recente'}` :
+                                         `Conferência ${sortDirection === 'asc' ? 'antiga' : 'recente'}`}
+                                    </Button>
+                                </Tooltip>
+                                <Menu
+                                    anchorEl={sortMenuAnchor}
+                                    open={Boolean(sortMenuAnchor)}
+                                    onClose={() => setSortMenuAnchor(null)}
+                                    PaperProps={{ sx: { borderRadius: 2, minWidth: 200 } }}
+                                >
+                                    <MenuItem onClick={() => handleSortMenu('material_description', 'asc')} selected={sortField === 'material_description' && sortDirection === 'asc'}>
+                                        <ListItemIcon><SortByAlphaIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText>Material A → Z</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleSortMenu('material_description', 'desc')} selected={sortField === 'material_description' && sortDirection === 'desc'}>
+                                        <ListItemIcon><SortByAlphaIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText>Material Z → A</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleSortMenu('conferencia', 'asc')} selected={sortField === 'conferencia' && sortDirection === 'asc'}>
+                                        <ListItemIcon><AccessTimeIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText>Conferência mais antiga</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleSortMenu('conferencia', 'desc')} selected={sortField === 'conferencia' && sortDirection === 'desc'}>
+                                        <ListItemIcon><AccessTimeIcon fontSize="small" /></ListItemIcon>
+                                        <ListItemText>Conferência mais recente</ListItemText>
+                                    </MenuItem>
+                                </Menu>
+                            </Box>
 
                             {/* Info de resultados */}
                             {(debouncedSearch || activeFilter !== "todos") && (
