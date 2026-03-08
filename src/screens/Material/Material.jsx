@@ -1062,6 +1062,7 @@ const Material = () => {
                                                     const now = new Date();
                                                     const diffDays = Math.floor((now - confDate) / (1000 * 60 * 60 * 24));
                                                     const isOld = diffDays > 30;
+                                                    const isVeryOld = diffDays > 180;
                                                     return (
                                                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.3 }}>
                                                             <Chip
@@ -1076,9 +1077,9 @@ const Material = () => {
                                                                     {confPor}
                                                                 </Typography>
                                                             )}
-                                                            {isOld && (
-                                                                <Typography variant="caption" color="warning.main" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
-                                                                    {diffDays} dias atrás
+                                                            {isVeryOld && (
+                                                                <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                                                                    +6 meses sem conferência
                                                                 </Typography>
                                                             )}
                                                         </Box>
