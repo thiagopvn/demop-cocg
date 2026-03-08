@@ -29,10 +29,7 @@ import {
     Divider,
     Paper,
     InputAdornment,
-    Menu,
-    MenuItem,
-    ListItemIcon,
-    ListItemText,
+    TableSortLabel,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -46,8 +43,6 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import SwapVertIcon from "@mui/icons-material/SwapVert";
-import UpdateIcon from "@mui/icons-material/Update";
 import {
     doc,
     getDoc,
@@ -97,9 +92,18 @@ export default function ViaturaDetalhes() {
     // Snackbar
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
-    // Ordenação
-    const [sortBy, setSortBy] = useState('descricao_asc');
-    const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
+    // Ordenação por coluna
+    const [sortField, setSortField] = useState('material_description');
+    const [sortDirection, setSortDirection] = useState('asc');
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -186,22 +190,24 @@ export default function ViaturaDetalhes() {
             });
         }
 
-        // Ordenação
+        const dir = sortDirection === 'asc' ? 1 : -1;
         result.sort((a, b) => {
-            switch (sortBy) {
-                case 'descricao_asc':
-                    return (a.material_description || '').localeCompare(b.material_description || '', 'pt-BR');
-                case 'descricao_desc':
-                    return (b.material_description || '').localeCompare(a.material_description || '', 'pt-BR');
-                case 'conferencia_asc': {
-                    const dateA = a.ultima_atualizacao?.toDate?.() || a.data_alocacao?.toDate?.() || new Date(0);
-                    const dateB = b.ultima_atualizacao?.toDate?.() || b.data_alocacao?.toDate?.() || new Date(0);
-                    return dateA - dateB;
+            switch (sortField) {
+                case 'material_description':
+                    return dir * (a.material_description || '').localeCompare(b.material_description || '', 'pt-BR');
+                case 'categoria':
+                    return dir * (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR');
+                case 'quantidade':
+                    return dir * ((a.quantidade || 0) - (b.quantidade || 0));
+                case 'data_alocacao': {
+                    const dateA = a.data_alocacao?.toDate?.() || new Date(0);
+                    const dateB = b.data_alocacao?.toDate?.() || new Date(0);
+                    return dir * (dateA - dateB);
                 }
-                case 'conferencia_desc': {
+                case 'conferencia': {
                     const dateA = a.ultima_atualizacao?.toDate?.() || a.data_alocacao?.toDate?.() || new Date(0);
                     const dateB = b.ultima_atualizacao?.toDate?.() || b.data_alocacao?.toDate?.() || new Date(0);
-                    return dateB - dateA;
+                    return dir * (dateA - dateB);
                 }
                 default:
                     return 0;
@@ -209,7 +215,7 @@ export default function ViaturaDetalhes() {
         });
 
         return result;
-    }, [materiaisAlocados, activeFilter, debouncedSearch, sortBy]);
+    }, [materiaisAlocados, activeFilter, debouncedSearch, sortField, sortDirection]);
 
     // Quantidade total alocada
     const totalQuantidade = useMemo(() =>
@@ -584,64 +590,6 @@ export default function ViaturaDetalhes() {
                                 </Box>
                             )}
 
-                            {/* Botão de ordenação */}
-                            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <Tooltip title="Ordenar materiais">
-                                    <Button
-                                        size="small"
-                                        variant="outlined"
-                                        startIcon={<SwapVertIcon />}
-                                        onClick={(e) => setSortMenuAnchor(e.currentTarget)}
-                                        sx={{
-                                            borderRadius: 2,
-                                            textTransform: 'none',
-                                            fontWeight: 500,
-                                            fontSize: '0.8rem',
-                                        }}
-                                    >
-                                        {sortBy === 'descricao_asc' ? 'A → Z' :
-                                         sortBy === 'descricao_desc' ? 'Z → A' :
-                                         sortBy === 'conferencia_asc' ? 'Mais antigas' :
-                                         'Mais recentes'}
-                                    </Button>
-                                </Tooltip>
-                                <Menu
-                                    anchorEl={sortMenuAnchor}
-                                    open={Boolean(sortMenuAnchor)}
-                                    onClose={() => setSortMenuAnchor(null)}
-                                    PaperProps={{ sx: { borderRadius: 2, minWidth: 220 } }}
-                                >
-                                    <MenuItem
-                                        selected={sortBy === 'descricao_asc'}
-                                        onClick={() => { setSortBy('descricao_asc'); setSortMenuAnchor(null); }}
-                                    >
-                                        <ListItemIcon><SwapVertIcon fontSize="small" /></ListItemIcon>
-                                        <ListItemText>Descrição A → Z</ListItemText>
-                                    </MenuItem>
-                                    <MenuItem
-                                        selected={sortBy === 'descricao_desc'}
-                                        onClick={() => { setSortBy('descricao_desc'); setSortMenuAnchor(null); }}
-                                    >
-                                        <ListItemIcon><SwapVertIcon fontSize="small" /></ListItemIcon>
-                                        <ListItemText>Descrição Z → A</ListItemText>
-                                    </MenuItem>
-                                    <MenuItem
-                                        selected={sortBy === 'conferencia_asc'}
-                                        onClick={() => { setSortBy('conferencia_asc'); setSortMenuAnchor(null); }}
-                                    >
-                                        <ListItemIcon><UpdateIcon fontSize="small" /></ListItemIcon>
-                                        <ListItemText>Conferência mais antiga</ListItemText>
-                                    </MenuItem>
-                                    <MenuItem
-                                        selected={sortBy === 'conferencia_desc'}
-                                        onClick={() => { setSortBy('conferencia_desc'); setSortMenuAnchor(null); }}
-                                    >
-                                        <ListItemIcon><UpdateIcon fontSize="small" /></ListItemIcon>
-                                        <ListItemText>Conferência mais recente</ListItemText>
-                                    </MenuItem>
-                                </Menu>
-                            </Box>
-
                             {/* Info de resultados */}
                             {(debouncedSearch || activeFilter !== "todos") && (
                                 <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
@@ -722,19 +670,54 @@ export default function ViaturaDetalhes() {
                                 <Table size="medium">
                                     <TableHead>
                                         <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                                            <TableCell sx={{ fontWeight: 700 }}>Material</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Categoria</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Quantidade</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Data Alocacao</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>
+                                                <TableSortLabel
+                                                    active={sortField === 'material_description'}
+                                                    direction={sortField === 'material_description' ? sortDirection : 'asc'}
+                                                    onClick={() => handleSort('material_description')}
+                                                >
+                                                    Material
+                                                </TableSortLabel>
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>
+                                                <TableSortLabel
+                                                    active={sortField === 'categoria'}
+                                                    direction={sortField === 'categoria' ? sortDirection : 'asc'}
+                                                    onClick={() => handleSort('categoria')}
+                                                >
+                                                    Categoria
+                                                </TableSortLabel>
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>
+                                                <TableSortLabel
+                                                    active={sortField === 'quantidade'}
+                                                    direction={sortField === 'quantidade' ? sortDirection : 'asc'}
+                                                    onClick={() => handleSort('quantidade')}
+                                                >
+                                                    Qtd
+                                                </TableSortLabel>
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>
+                                                <TableSortLabel
+                                                    active={sortField === 'data_alocacao'}
+                                                    direction={sortField === 'data_alocacao' ? sortDirection : 'asc'}
+                                                    onClick={() => handleSort('data_alocacao')}
+                                                >
+                                                    Data Alocação
+                                                </TableSortLabel>
+                                            </TableCell>
                                             <TableCell sx={{ fontWeight: 700 }}>Alocado Por</TableCell>
                                             {(userRole === "admin" || userRole === "admingeral") && (
-                                                <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acoes</TableCell>
+                                                <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Ações</TableCell>
                                             )}
-                                            <TableCell sx={{ fontWeight: 700, textAlign: 'center', minWidth: 150 }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
-                                                    <UpdateIcon fontSize="small" />
-                                                    Última Conferência
-                                                </Box>
+                                            <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>
+                                                <TableSortLabel
+                                                    active={sortField === 'conferencia'}
+                                                    direction={sortField === 'conferencia' ? sortDirection : 'asc'}
+                                                    onClick={() => handleSort('conferencia')}
+                                                >
+                                                    Conferência
+                                                </TableSortLabel>
                                             </TableCell>
                                         </TableRow>
                                     </TableHead>
@@ -817,35 +800,56 @@ export default function ViaturaDetalhes() {
                                                         const confPor = material.atualizado_por_nome || material.alocado_por_nome;
                                                         if (!confDate) {
                                                             return (
-                                                                <Typography variant="caption" color="text.disabled">
-                                                                    Sem registro
-                                                                </Typography>
+                                                                <Typography variant="caption" color="text.disabled">—</Typography>
                                                             );
                                                         }
-                                                        const now = new Date();
-                                                        const diffDays = Math.floor((now - confDate) / (1000 * 60 * 60 * 24));
-                                                        const isOld = diffDays > 30;
+                                                        const diffDays = Math.floor((new Date() - confDate) / 86400000);
                                                         const isVeryOld = diffDays > 180;
                                                         return (
-                                                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.3 }}>
-                                                                <Chip
-                                                                    size="small"
-                                                                    label={confDate.toLocaleDateString('pt-BR') + ' ' + confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                                                    color={isOld ? 'warning' : 'success'}
-                                                                    variant={isOld ? 'filled' : 'outlined'}
-                                                                    sx={{ fontSize: '0.7rem', fontWeight: 600, height: 22 }}
-                                                                />
-                                                                {confPor && (
-                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                                                                        {confPor}
+                                                            <Tooltip
+                                                                title={confPor ? `Conferido por ${confPor}` : ''}
+                                                                arrow
+                                                                placement="top"
+                                                            >
+                                                                <Box sx={{
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.2,
+                                                                    cursor: 'default',
+                                                                }}>
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        sx={{
+                                                                            fontSize: '0.78rem',
+                                                                            fontWeight: 500,
+                                                                            color: isVeryOld ? 'error.main' : 'text.primary',
+                                                                            whiteSpace: 'nowrap',
+                                                                        }}
+                                                                    >
+                                                                        {confDate.toLocaleDateString('pt-BR')}
                                                                     </Typography>
-                                                                )}
-                                                                {isVeryOld && (
-                                                                    <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
-                                                                        +6 meses sem conferência
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        sx={{
+                                                                            fontSize: '0.7rem',
+                                                                            color: isVeryOld ? 'error.main' : 'text.secondary',
+                                                                        }}
+                                                                    >
+                                                                        {confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                        {confPor ? ` · ${confPor}` : ''}
                                                                     </Typography>
-                                                                )}
-                                                            </Box>
+                                                                    {isVeryOld && (
+                                                                        <Chip
+                                                                            label="+6 meses"
+                                                                            size="small"
+                                                                            color="error"
+                                                                            variant="outlined"
+                                                                            sx={{ height: 18, fontSize: '0.6rem', mt: 0.2 }}
+                                                                        />
+                                                                    )}
+                                                                </Box>
+                                                            </Tooltip>
                                                         );
                                                     })()}
                                                 </TableCell>

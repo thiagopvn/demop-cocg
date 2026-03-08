@@ -28,10 +28,7 @@ import {
     Alert,
     alpha,
     styled,
-    Menu,
-    MenuItem,
-    ListItemIcon,
-    ListItemText
+    TableSortLabel
 } from '@mui/material';
 import {
     Add,
@@ -45,9 +42,7 @@ import {
     Build,
     CalendarMonth,
     Visibility,
-    LocalShipping,
-    SwapVert,
-    Update
+    LocalShipping
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -208,9 +203,18 @@ const Material = () => {
     const [alocarQuantidade, setAlocarQuantidade] = useState(1);
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
-    // Ordenação
-    const [sortBy, setSortBy] = useState('descricao_asc'); // descricao_asc, descricao_desc, conferencia_asc, conferencia_desc
-    const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
+    // Ordenação por coluna (clique no cabeçalho)
+    const [sortField, setSortField] = useState('description');
+    const [sortDirection, setSortDirection] = useState('asc');
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
 
     const handleOpenDialog = (material = null) => {
         setSelectedMaterial(material);
@@ -498,22 +502,19 @@ const Material = () => {
             });
         }
 
-        // Ordenação
+        const dir = sortDirection === 'asc' ? 1 : -1;
         result.sort((a, b) => {
-            switch (sortBy) {
-                case 'descricao_asc':
-                    return (a.description || '').localeCompare(b.description || '', 'pt-BR');
-                case 'descricao_desc':
-                    return (b.description || '').localeCompare(a.description || '', 'pt-BR');
-                case 'conferencia_asc': {
+            switch (sortField) {
+                case 'description':
+                    return dir * (a.description || '').localeCompare(b.description || '', 'pt-BR');
+                case 'categoria':
+                    return dir * (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR');
+                case 'estoque':
+                    return dir * ((a.estoque_atual || 0) - (b.estoque_atual || 0));
+                case 'conferencia': {
                     const dateA = a.ultima_conferencia?.toDate?.() || a.ultima_movimentacao?.toDate?.() || new Date(0);
                     const dateB = b.ultima_conferencia?.toDate?.() || b.ultima_movimentacao?.toDate?.() || new Date(0);
-                    return dateA - dateB;
-                }
-                case 'conferencia_desc': {
-                    const dateA = a.ultima_conferencia?.toDate?.() || a.ultima_movimentacao?.toDate?.() || new Date(0);
-                    const dateB = b.ultima_conferencia?.toDate?.() || b.ultima_movimentacao?.toDate?.() || new Date(0);
-                    return dateB - dateA;
+                    return dir * (dateA - dateB);
                 }
                 default:
                     return 0;
@@ -521,7 +522,7 @@ const Material = () => {
         });
 
         return result;
-    }, [materials, debouncedSearchTerm, sortBy]);
+    }, [materials, debouncedSearchTerm, sortField, sortDirection]);
 
     // Materiais visíveis (limitados pelo visibleCount)
     const filteredMaterials = useMemo(() => {
@@ -711,64 +712,6 @@ const Material = () => {
                         }}
                     />
 
-                    {/* Botão de ordenação */}
-                    <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <Tooltip title="Ordenar materiais">
-                            <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<SwapVert />}
-                                onClick={(e) => setSortMenuAnchor(e.currentTarget)}
-                                sx={{
-                                    borderRadius: 2,
-                                    textTransform: 'none',
-                                    fontWeight: 500,
-                                    fontSize: '0.8rem',
-                                }}
-                            >
-                                {sortBy === 'descricao_asc' ? 'A → Z' :
-                                 sortBy === 'descricao_desc' ? 'Z → A' :
-                                 sortBy === 'conferencia_asc' ? 'Mais antigas' :
-                                 'Mais recentes'}
-                            </Button>
-                        </Tooltip>
-                        <Menu
-                            anchorEl={sortMenuAnchor}
-                            open={Boolean(sortMenuAnchor)}
-                            onClose={() => setSortMenuAnchor(null)}
-                            PaperProps={{ sx: { borderRadius: 2, minWidth: 220 } }}
-                        >
-                            <MenuItem
-                                selected={sortBy === 'descricao_asc'}
-                                onClick={() => { setSortBy('descricao_asc'); setSortMenuAnchor(null); }}
-                            >
-                                <ListItemIcon><SwapVert fontSize="small" /></ListItemIcon>
-                                <ListItemText>Descrição A → Z</ListItemText>
-                            </MenuItem>
-                            <MenuItem
-                                selected={sortBy === 'descricao_desc'}
-                                onClick={() => { setSortBy('descricao_desc'); setSortMenuAnchor(null); }}
-                            >
-                                <ListItemIcon><SwapVert fontSize="small" /></ListItemIcon>
-                                <ListItemText>Descrição Z → A</ListItemText>
-                            </MenuItem>
-                            <MenuItem
-                                selected={sortBy === 'conferencia_asc'}
-                                onClick={() => { setSortBy('conferencia_asc'); setSortMenuAnchor(null); }}
-                            >
-                                <ListItemIcon><Update fontSize="small" /></ListItemIcon>
-                                <ListItemText>Conferência mais antiga</ListItemText>
-                            </MenuItem>
-                            <MenuItem
-                                selected={sortBy === 'conferencia_desc'}
-                                onClick={() => { setSortBy('conferencia_desc'); setSortMenuAnchor(null); }}
-                            >
-                                <ListItemIcon><Update fontSize="small" /></ListItemIcon>
-                                <ListItemText>Conferência mais recente</ListItemText>
-                            </MenuItem>
-                        </Menu>
-                    </Box>
-
                     {/* Search Results Info */}
                     {debouncedSearchTerm && (
                             <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -799,16 +742,35 @@ const Material = () => {
                         <StyledTableHead>
                             <TableRow>
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Inventory fontSize="small" />
+                                    <TableSortLabel
+                                        active={sortField === 'description'}
+                                        direction={sortField === 'description' ? sortDirection : 'asc'}
+                                        onClick={() => handleSort('description')}
+                                        sx={{ color: 'white !important', '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' } }}
+                                    >
+                                        <Inventory fontSize="small" sx={{ mr: 0.5 }} />
                                         Descrição
-                                    </Box>
+                                    </TableSortLabel>
                                 </TableCell>
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
-                                    Categoria
+                                    <TableSortLabel
+                                        active={sortField === 'categoria'}
+                                        direction={sortField === 'categoria' ? sortDirection : 'asc'}
+                                        onClick={() => handleSort('categoria')}
+                                        sx={{ color: 'white !important', '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' } }}
+                                    >
+                                        Categoria
+                                    </TableSortLabel>
                                 </TableCell>
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
-                                    Estoque (Disp./Total)
+                                    <TableSortLabel
+                                        active={sortField === 'estoque'}
+                                        direction={sortField === 'estoque' ? sortDirection : 'asc'}
+                                        onClick={() => handleSort('estoque')}
+                                        sx={{ color: 'white !important', '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' }, justifyContent: 'center' }}
+                                    >
+                                        Estoque
+                                    </TableSortLabel>
                                 </TableCell>
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
@@ -828,11 +790,15 @@ const Material = () => {
                                 <TableCell align="right" sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
                                     Ações
                                 </TableCell>
-                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center', minWidth: 160 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
-                                        <Update fontSize="small" />
-                                        Última Conferência
-                                    </Box>
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
+                                    <TableSortLabel
+                                        active={sortField === 'conferencia'}
+                                        direction={sortField === 'conferencia' ? sortDirection : 'asc'}
+                                        onClick={() => handleSort('conferencia')}
+                                        sx={{ color: 'white !important', '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' }, justifyContent: 'center' }}
+                                    >
+                                        Conferência
+                                    </TableSortLabel>
                                 </TableCell>
                             </TableRow>
                         </StyledTableHead>
@@ -1054,35 +1020,56 @@ const Material = () => {
                                                     const confPor = material.conferido_por;
                                                     if (!confDate) {
                                                         return (
-                                                            <Typography variant="caption" color="text.disabled">
-                                                                Sem registro
-                                                            </Typography>
+                                                            <Typography variant="caption" color="text.disabled">—</Typography>
                                                         );
                                                     }
-                                                    const now = new Date();
-                                                    const diffDays = Math.floor((now - confDate) / (1000 * 60 * 60 * 24));
-                                                    const isOld = diffDays > 30;
+                                                    const diffDays = Math.floor((new Date() - confDate) / 86400000);
                                                     const isVeryOld = diffDays > 180;
                                                     return (
-                                                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.3 }}>
-                                                            <Chip
-                                                                size="small"
-                                                                label={confDate.toLocaleDateString('pt-BR') + ' ' + confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                                                color={isOld ? 'warning' : 'success'}
-                                                                variant={isOld ? 'filled' : 'outlined'}
-                                                                sx={{ fontSize: '0.7rem', fontWeight: 600, height: 22 }}
-                                                            />
-                                                            {confPor && (
-                                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                                                                    {confPor}
+                                                        <Tooltip
+                                                            title={confPor ? `Conferido por ${confPor}` : ''}
+                                                            arrow
+                                                            placement="top"
+                                                        >
+                                                            <Box sx={{
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                alignItems: 'center',
+                                                                gap: 0.2,
+                                                                cursor: 'default',
+                                                            }}>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    sx={{
+                                                                        fontSize: '0.78rem',
+                                                                        fontWeight: 500,
+                                                                        color: isVeryOld ? 'error.main' : 'text.primary',
+                                                                        whiteSpace: 'nowrap',
+                                                                    }}
+                                                                >
+                                                                    {confDate.toLocaleDateString('pt-BR')}
                                                                 </Typography>
-                                                            )}
-                                                            {isVeryOld && (
-                                                                <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
-                                                                    +6 meses sem conferência
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
+                                                                        fontSize: '0.7rem',
+                                                                        color: isVeryOld ? 'error.main' : 'text.secondary',
+                                                                    }}
+                                                                >
+                                                                    {confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                    {confPor ? ` · ${confPor}` : ''}
                                                                 </Typography>
-                                                            )}
-                                                        </Box>
+                                                                {isVeryOld && (
+                                                                    <Chip
+                                                                        label="+6 meses"
+                                                                        size="small"
+                                                                        color="error"
+                                                                        variant="outlined"
+                                                                        sx={{ height: 18, fontSize: '0.6rem', mt: 0.2 }}
+                                                                    />
+                                                                )}
+                                                            </Box>
+                                                        </Tooltip>
                                                     );
                                                 })()}
                                             </StyledTableCell>
