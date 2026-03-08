@@ -28,7 +28,11 @@ import {
     Alert,
     alpha,
     styled,
-    TableSortLabel
+    TableSortLabel,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText
 } from '@mui/material';
 import {
     Add,
@@ -42,7 +46,10 @@ import {
     Build,
     CalendarMonth,
     Visibility,
-    LocalShipping
+    LocalShipping,
+    SwapVert,
+    SortByAlpha,
+    AccessTime
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -207,6 +214,8 @@ const Material = () => {
     const [sortField, setSortField] = useState('description');
     const [sortDirection, setSortDirection] = useState('asc');
 
+    const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
+
     const handleSort = (field) => {
         if (sortField === field) {
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -214,6 +223,12 @@ const Material = () => {
             setSortField(field);
             setSortDirection('asc');
         }
+    };
+
+    const handleSortMenu = (field, direction) => {
+        setSortField(field);
+        setSortDirection(direction);
+        setSortMenuAnchor(null);
     };
 
     const handleOpenDialog = (material = null) => {
@@ -711,6 +726,55 @@ const Material = () => {
                             },
                         }}
                     />
+
+                    {/* Ordenação rápida */}
+                    <Box sx={{ mt: 1.5, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Tooltip title="Ordenação rápida">
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<SwapVert />}
+                                onClick={(e) => setSortMenuAnchor(e.currentTarget)}
+                                sx={{
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontWeight: 500,
+                                    fontSize: '0.8rem',
+                                    color: 'text.secondary',
+                                    borderColor: alpha(theme.palette.divider, 0.5),
+                                    '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
+                                }}
+                            >
+                                {sortField === 'description' ? `Descrição ${sortDirection === 'asc' ? 'A→Z' : 'Z→A'}` :
+                                 sortField === 'categoria' ? `Categoria ${sortDirection === 'asc' ? 'A→Z' : 'Z→A'}` :
+                                 sortField === 'estoque' ? `Estoque ${sortDirection === 'asc' ? '↑' : '↓'}` :
+                                 `Conferência ${sortDirection === 'asc' ? 'antiga' : 'recente'}`}
+                            </Button>
+                        </Tooltip>
+                        <Menu
+                            anchorEl={sortMenuAnchor}
+                            open={Boolean(sortMenuAnchor)}
+                            onClose={() => setSortMenuAnchor(null)}
+                            PaperProps={{ sx: { borderRadius: 2, minWidth: 200 } }}
+                        >
+                            <MenuItem onClick={() => handleSortMenu('description', 'asc')} selected={sortField === 'description' && sortDirection === 'asc'}>
+                                <ListItemIcon><SortByAlpha fontSize="small" /></ListItemIcon>
+                                <ListItemText>Descrição A → Z</ListItemText>
+                            </MenuItem>
+                            <MenuItem onClick={() => handleSortMenu('description', 'desc')} selected={sortField === 'description' && sortDirection === 'desc'}>
+                                <ListItemIcon><SortByAlpha fontSize="small" /></ListItemIcon>
+                                <ListItemText>Descrição Z → A</ListItemText>
+                            </MenuItem>
+                            <MenuItem onClick={() => handleSortMenu('conferencia', 'asc')} selected={sortField === 'conferencia' && sortDirection === 'asc'}>
+                                <ListItemIcon><AccessTime fontSize="small" /></ListItemIcon>
+                                <ListItemText>Conferência mais antiga</ListItemText>
+                            </MenuItem>
+                            <MenuItem onClick={() => handleSortMenu('conferencia', 'desc')} selected={sortField === 'conferencia' && sortDirection === 'desc'}>
+                                <ListItemIcon><AccessTime fontSize="small" /></ListItemIcon>
+                                <ListItemText>Conferência mais recente</ListItemText>
+                            </MenuItem>
+                        </Menu>
+                    </Box>
 
                     {/* Search Results Info */}
                     {debouncedSearchTerm && (
