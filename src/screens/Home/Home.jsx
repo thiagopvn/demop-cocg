@@ -606,33 +606,77 @@ export default function Home() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    // Daily movement trend - usa filteredMovements para o range visível
+    // Daily/monthly movement trend - usa filteredMovements para o range visível
     const dailyTrend = [];
-    // Determinar range de dias baseado no filtro
-    let trendDays = 14;
-    if (dateFilter === "today") trendDays = 1;
-    else if (dateFilter === "week") trendDays = 7;
-    else if (dateFilter === "month") trendDays = 30;
-    else if (dateFilter === "custom" && customStart && customEnd) {
-      const diff = Math.ceil((new Date(customEnd) - new Date(customStart)) / (1000 * 60 * 60 * 24)) + 1;
-      trendDays = Math.min(Math.max(diff, 1), 60);
-    }
 
-    for (let i = trendDays - 1; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      date.setHours(0, 0, 0, 0);
-      const dayStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      const dayMovements = fm.filter((m) => {
+    if (dateFilter === "all") {
+      // "Todo o Periodo": agrupar por mês desde a primeira movimentação
+      const monthMap = {};
+      fm.forEach((m) => {
         const md = toDate(m.date);
-        return md && md.toDateString() === date.toDateString();
+        if (!md) return;
+        const key = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, "0")}`;
+        if (!monthMap[key]) monthMap[key] = { total: 0, cautelas: 0, devolucoes: 0 };
+        monthMap[key].total++;
+        if (m.type === "cautela") monthMap[key].cautelas++;
+        if (m.status === "devolvido" || m.status === "devolvidaDeReparo") monthMap[key].devolucoes++;
       });
-      dailyTrend.push({
-        date: dayStr,
-        total: dayMovements.length,
-        cautelas: dayMovements.filter((m) => m.type === "cautela").length,
-        devolucoes: dayMovements.filter((m) => m.status === "devolvido" || m.status === "devolvidaDeReparo").length,
-      });
+      // Preencher meses faltantes entre o primeiro e o último
+      const sortedKeys = Object.keys(monthMap).sort();
+      if (sortedKeys.length > 0) {
+        const [firstY, firstM] = sortedKeys[0].split("-").map(Number);
+        const now = new Date();
+        const cursor = new Date(firstY, firstM - 1, 1);
+        const end = new Date(now.getFullYear(), now.getMonth(), 1);
+        while (cursor <= end) {
+          const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+          const label = cursor.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+          const data = monthMap[key] || { total: 0, cautelas: 0, devolucoes: 0 };
+          dailyTrend.push({ date: label, ...data });
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+    } else {
+      // Determinar range de dias baseado no filtro
+      let startDate, endDate;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (dateFilter === "today") {
+        startDate = new Date(today);
+        endDate = new Date(today);
+      } else if (dateFilter === "week") {
+        startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 6);
+        endDate = new Date(today);
+      } else if (dateFilter === "month") {
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = new Date(today);
+      } else if (dateFilter === "custom" && customStart && customEnd) {
+        startDate = new Date(customStart + "T00:00:00");
+        endDate = new Date(customEnd + "T00:00:00");
+      } else {
+        startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 13);
+        endDate = new Date(today);
+      }
+
+      const cursor = new Date(startDate);
+      while (cursor <= endDate) {
+        const current = new Date(cursor);
+        const dayStr = current.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+        const dayMovements = fm.filter((m) => {
+          const md = toDate(m.date);
+          return md && md.toDateString() === current.toDateString();
+        });
+        dailyTrend.push({
+          date: dayStr,
+          total: dayMovements.length,
+          cautelas: dayMovements.filter((m) => m.type === "cautela").length,
+          devolucoes: dayMovements.filter((m) => m.status === "devolvido" || m.status === "devolvidaDeReparo").length,
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
     }
 
     return {
@@ -1486,7 +1530,7 @@ export default function Home() {
                     <ResponsiveContainer width="100%" height="80%">
                       <AreaChart
                         data={stats.dailyTrend}
-                        margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
+                        margin={{ top: 5, right: 10, left: -10, bottom: stats.dailyTrend.length > 15 ? 20 : 5 }}
                       >
                         <defs>
                           <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
@@ -1501,9 +1545,12 @@ export default function Home() {
                         <CartesianGrid strokeDasharray="3 3" stroke={alpha("#000", 0.06)} />
                         <XAxis
                           dataKey="date"
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: stats.dailyTrend.length > 20 ? 9 : 11 }}
                           axisLine={false}
                           tickLine={false}
+                          interval={stats.dailyTrend.length > 30 ? Math.ceil(stats.dailyTrend.length / 15) - 1 : 0}
+                          angle={stats.dailyTrend.length > 15 ? -45 : 0}
+                          textAnchor={stats.dailyTrend.length > 15 ? "end" : "middle"}
                         />
                         <YAxis
                           tick={{ fontSize: 11 }}
