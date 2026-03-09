@@ -63,6 +63,7 @@ import UserSearch from "../../components/UserSearch";
 import db from "../../firebase/db";
 import { collection, addDoc, updateDoc, doc, getDocs, query, where, orderBy, serverTimestamp } from "firebase/firestore";
 import { verifyToken } from "../../firebase/token";
+import { logAudit } from '../../firebase/auditLog';
 
 const STEPS = {
     entrada: ['Tipo', 'Material', 'Detalhes', 'Confirmar'],
@@ -259,6 +260,17 @@ export default function Movimentacao() {
                 await addDoc(collection(db, "movimentacoes"), movementData);
             }
 
+            for (const itemMaterial of materiaisSelected) {
+                logAudit({
+                    action: 'movimentacao_create',
+                    userId,
+                    userName,
+                    targetCollection: 'movimentacoes',
+                    targetName: itemMaterial.material.description,
+                    details: { tipo: 'cautela', quantidade: itemMaterial.quantidade, militar: userSelected?.full_name },
+                });
+            }
+
             const detalhes = materiaisSelected.map(item => `${item.material.description} (Qtd: ${item.quantidade})`);
             showFeedback('success', 'Cautela realizada!',
                 userSelected ? `Materiais cautelados para ${userSelected.full_name} com sucesso.` : 'Materiais cautelados com sucesso.',
@@ -425,6 +437,20 @@ export default function Movimentacao() {
             const subtypeLabel = saidaSubtipo === 'viatura'
                 ? ` para ${saidaViaturaSelected?.prefixo || 'viatura'}`
                 : saidaSubtipo === 'consumo' ? ' (consumo)' : '';
+
+            logAudit({
+                action: 'movimentacao_create',
+                userId,
+                userName,
+                targetCollection: 'movimentacoes',
+                targetName: materialSelected.description,
+                details: {
+                    tipo: tipoMovimentacao,
+                    quantidade: qtd,
+                    militar: userSelected?.full_name,
+                    viatura: saidaViaturaSelected ? `${saidaViaturaSelected.prefixo} - ${saidaViaturaSelected.description}` : undefined,
+                },
+            });
 
             showFeedback(
                 'success',

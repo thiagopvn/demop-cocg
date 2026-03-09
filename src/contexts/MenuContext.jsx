@@ -20,7 +20,8 @@ import {
   CalendarMonth,
   WhatsApp,
   SupportAgent,
-  LockOutlined
+  LockOutlined,
+  AssessmentOutlined
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -73,6 +74,7 @@ function MenuContext({ children }) {
 
   const allMenuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'editor', 'admin', 'admingeral'] },
+    { icon: AssessmentOutlined, label: 'Atividades', path: '/atividades', id: 11, roles: ['admingeral'] },
     { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['editor', 'admin', 'admingeral'] },
     { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['editor', 'admin', 'admingeral'] },
     { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['editor', 'admin', 'admingeral'] },

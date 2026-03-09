@@ -32,12 +32,12 @@ import {
   collection,
   updateDoc,
   getDoc,
-  getDocs,
   orderBy,
   onSnapshot,
 } from "firebase/firestore";
 import db from "../../firebase/db";
 import { callCreateUserAccount, callDeleteUserAccount, callResetUserPassword } from '../../firebase/functions';
+import { logAudit } from '../../firebase/auditLog';
 import LockResetIcon from "@mui/icons-material/LockReset";
 import UsuarioDialog from "../../dialogs/UsuarioDialog";
 import { verifyToken } from "../../firebase/token";
@@ -54,13 +54,13 @@ export default function Usuario() {
   const [anchorEls, setAnchorEls] = useState({});
   const [userRole, setUserRole] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [userName, setUserName] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDeleteId, setUserToDeleteId] = useState(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [userToResetId, setUserToResetId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [userSecrets, setUserSecrets] = useState({});
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -73,6 +73,7 @@ export default function Usuario() {
           const decodedToken = await verifyToken(token);
           setUserRole(decodedToken.role);
           setUserId(decodedToken.userId);
+          setUserName(decodedToken.username || 'Usuário');
         } catch (error) {
           console.error("Erro ao verificar token:", error);
           setUserRole(null);
@@ -127,20 +128,6 @@ export default function Usuario() {
         setLoading(false);
       }
     );
-
-    // Se admingeral, carregar senhas da coleção user_secrets
-    if (userRole === "admingeral") {
-      const secretsCollection = collection(db, "user_secrets");
-      getDocs(secretsCollection).then((snap) => {
-        const secrets = {};
-        snap.docs.forEach((d) => {
-          secrets[d.id] = d.data().password;
-        });
-        setUserSecrets(secrets);
-      }).catch((err) => {
-        console.error("Erro ao carregar senhas:", err);
-      });
-    }
 
     return () => unsubscribe();
   }, [userRole, userId]);
@@ -228,6 +215,14 @@ export default function Usuario() {
         telefone: data.telefone,
         obm: data.OBM,
       });
+      logAudit({
+        action: 'user_create',
+        userId,
+        userName,
+        targetCollection: 'users',
+        targetName: data.full_name,
+        details: { role: data.role, username: data.username },
+      });
       setDialogOpen(false);
       // Listener em tempo real atualiza automaticamente
     } catch (error) {
@@ -260,8 +255,16 @@ export default function Usuario() {
         }
       }
       try {
+        const deletedUser = users.find(u => u.id === userToDeleteId);
         await callDeleteUserAccount(userToDeleteId);
-        // Listener em tempo real atualiza automaticamente
+        logAudit({
+          action: 'user_delete',
+          userId,
+          userName,
+          targetCollection: 'users',
+          targetId: userToDeleteId,
+          targetName: deletedUser?.full_name || deletedUser?.username || userToDeleteId,
+        });
       } catch (error) {
         console.error("Erro ao excluir usuário:", error);
         alert("Erro ao excluir usuário");
@@ -316,6 +319,15 @@ export default function Usuario() {
       };
 
       await updateDoc(userDocRef, updateData);
+      logAudit({
+        action: 'user_update',
+        userId,
+        userName,
+        targetCollection: 'users',
+        targetId: data.id,
+        targetName: data.full_name,
+        details: { role: data.role, username: data.username },
+      });
 
       setEditDialogOpen(false);
       setEditData(null);
@@ -333,7 +345,16 @@ export default function Usuario() {
 
   const confirmResetPassword = async () => {
     try {
+      const resetUser = users.find(u => u.id === userToResetId);
       await callResetUserPassword(userToResetId);
+      logAudit({
+        action: 'user_password_reset',
+        userId,
+        userName,
+        targetCollection: 'users',
+        targetId: userToResetId,
+        targetName: resetUser?.full_name || resetUser?.username || userToResetId,
+      });
       alert("Senha resetada para 123456. O usuário deverá alterá-la no próximo login.");
     } catch (error) {
       console.error("Erro ao resetar senha:", error);
@@ -543,17 +564,6 @@ export default function Usuario() {
                   >
                     Role
                   </TableCell>
-                  {userRole === "admingeral" && (
-                    <TableCell
-                      sx={{
-                        textAlign: "center",
-                        backgroundColor: "#ddeeee",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      Senha
-                    </TableCell>
-                  )}
                   <TableCell
                     sx={{
                       textAlign: "center",
@@ -568,7 +578,7 @@ export default function Usuario() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={userRole === "admingeral" ? 4 : 3} sx={{ textAlign: "center", py: 4 }}>
+                    <TableCell colSpan={3} sx={{ textAlign: "center", py: 4 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                         <CircularProgress size={24} />
                         <Typography variant="body2" color="text.secondary">
@@ -579,7 +589,7 @@ export default function Usuario() {
                   </TableRow>
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={userRole === "admingeral" ? 4 : 3} sx={{ textAlign: "center", py: 4 }}>
+                    <TableCell colSpan={3} sx={{ textAlign: "center", py: 4 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                         <PersonIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
                         <Typography variant="body1" color="text.secondary">
@@ -599,11 +609,6 @@ export default function Usuario() {
                       <TableCell sx={{ textAlign: "center" }}>
                         {user.role}
                       </TableCell>
-                      {userRole === "admingeral" && (
-                        <TableCell sx={{ textAlign: "center", fontFamily: "monospace", fontSize: "0.85rem" }}>
-                          {userSecrets[user.id] || "—"}
-                        </TableCell>
-                      )}
                       <TableCell sx={{ textAlign: "center" }}>
                         <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                           <Tooltip title="Ver informações completas">
