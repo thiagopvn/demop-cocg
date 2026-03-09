@@ -11,6 +11,7 @@ import { Add, Edit } from "@mui/icons-material";
 import CategoriaDialog from "../../dialogs/CategoriaDialog";
 import { verifyToken } from "../../firebase/token";
 import { CategoriaContext } from "../../contexts/CategoriaContext";
+import { logAudit } from '../../firebase/auditLog';
 import { yellow } from "@mui/material/colors";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 
@@ -21,6 +22,8 @@ export default function Categoria() {
     const [dialogSaveOpen, setDialogSaveOpen] = React.useState(false);
     const [editData, setEditData] = React.useState(null);
     const [userRole, setUserRole] = useState(null);
+    const [loggedUserId, setLoggedUserId] = useState(null);
+    const [loggedUserName, setLoggedUserName] = useState(null);
     const [dialogEditOpen, setDialogEditOpen] = useState(false);
     const { updateCategorias } = useContext(CategoriaContext);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -34,6 +37,8 @@ export default function Categoria() {
                 try {
                     const decodedToken = await verifyToken(token);
                     setUserRole(decodedToken.role);
+                    setLoggedUserId(decodedToken.userId);
+                    setLoggedUserName(decodedToken.username || 'Usuário');
                 } catch (error) {
                     console.error("Erro ao verificar token:", error);
                     setUserRole(null);
@@ -126,7 +131,14 @@ export default function Categoria() {
             description_lower: data.description.toLowerCase(),
             created_at: new Date(),
         });
-        console.log("Document written with ID: ", docRef.id);
+        logAudit({
+            action: 'categoria_create',
+            userId: loggedUserId,
+            userName: loggedUserName,
+            targetCollection: 'categorias',
+            targetId: docRef.id,
+            targetName: data.description,
+        });
         filter("");
         setDialogSaveOpen(false);
         updateCategorias();
@@ -150,6 +162,14 @@ export default function Categoria() {
         try {
             const categoriaDocRef = doc(db, "categorias", categoriaToDelete.id);
             await deleteDoc(categoriaDocRef);
+            logAudit({
+                action: 'categoria_delete',
+                userId: loggedUserId,
+                userName: loggedUserName,
+                targetCollection: 'categorias',
+                targetId: categoriaToDelete.id,
+                targetName: categoriaToDelete.description,
+            });
             filter("");
             updateCategorias();
         } catch (error) {
@@ -179,14 +199,21 @@ export default function Categoria() {
         console.log(data);
         try {
             const categoriaDocRef = doc(db, "categorias", data.id); // Obtém a referência do documento a ser atualizado
-            await updateDoc(categoriaDocRef, { // Atualiza os campos do documento
+            await updateDoc(categoriaDocRef, {
                 description: data.description,
                 description_lower: data.description.toLowerCase(),
             });
-            console.log("Documento atualizado com sucesso!");
-            filter(""); // Atualiza a lista de categorias
-            setDialogEditOpen(false); // Fecha o diálogo de edição
-            setEditData(null); // Limpa os dados de edição
+            logAudit({
+                action: 'categoria_update',
+                userId: loggedUserId,
+                userName: loggedUserName,
+                targetCollection: 'categorias',
+                targetId: data.id,
+                targetName: data.description,
+            });
+            filter("");
+            setDialogEditOpen(false);
+            setEditData(null);
             updateCategorias();
         }
         catch (error) {

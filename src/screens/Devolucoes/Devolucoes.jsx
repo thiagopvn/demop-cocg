@@ -3,6 +3,7 @@ import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { verifyToken } from "../../firebase/token";
+import { logAudit } from "../../firebase/auditLog";
 import {
   Box,
   Typography,
@@ -364,12 +365,16 @@ export default function Devolucoes() {
   const [showDevolvidos, setShowDevolvidos] = useState(false);
   const [devolvendo, setDevolvendo] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [loggedUserId, setLoggedUserId] = useState(null);
+  const [loggedUserName, setLoggedUserName] = useState(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
       const token = localStorage.getItem("token");
       const user = await verifyToken(token);
       setUserRole(user.role);
+      setLoggedUserId(user.userId);
+      setLoggedUserName(user.username || 'Usuário');
     };
     fetchUserRole();
   }, []);
@@ -452,6 +457,16 @@ export default function Devolucoes() {
           m.id === movimentacao.id ? { ...m, status: newStatus, returned_date: new Date() } : m
         )
       );
+
+      logAudit({
+        action: 'devolucao_create',
+        userId: loggedUserId,
+        userName: loggedUserName,
+        targetCollection: 'movimentacoes',
+        targetId: movimentacao.id,
+        targetName: movimentacao.material_description,
+        details: { quantidade: movimentacao.quantity, militar: movimentacao.user_name },
+      });
 
       setSnackbar({
         open: true,

@@ -13,6 +13,7 @@ import Rings from './screens/Rings/Rings';
 import MainSearch from './screens/Search/MainSearch';
 import Manutencao from './screens/Manutencao/Manutencao';
 import ViaturaDetalhes from './screens/ViaturaDetalhes/ViaturaDetalhes';
+import Atividades from './screens/Atividades/Atividades';
 import PrivateRoute from './contexts/PrivateRoute';
 
 function App() {
@@ -74,6 +75,13 @@ function App() {
         <Route path='/manutencao' element={
           <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
             <Manutencao />
+          </PrivateRoute>
+        } />
+
+        {/* Rota restrita a admingeral */}
+        <Route path='/atividades' element={
+          <PrivateRoute allowedRoles={['admingeral']}>
+            <Atividades />
           </PrivateRoute>
         } />
 

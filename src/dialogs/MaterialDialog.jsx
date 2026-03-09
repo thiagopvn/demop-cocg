@@ -17,8 +17,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import { addDoc, updateDoc, doc, serverTimestamp, collection } from 'firebase/firestore';
 import db from '../firebase/db';
 import { CategoriaContext } from '../contexts/CategoriaContext';
+import { logAudit } from '../firebase/auditLog';
 
-const MaterialDialog = ({ open, onClose, material, loggedUserName }) => {
+const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId }) => {
     const { categorias } = useContext(CategoriaContext);
     const [description, setDescription] = useState('');
     const [categoriaId, setCategoriaId] = useState('');
@@ -69,12 +70,30 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName }) => {
             if (isEditing && material?.id) {
                 const materialDoc = doc(db, 'materials', material.id);
                 await updateDoc(materialDoc, data);
+                logAudit({
+                    action: 'material_update',
+                    userId: loggedUserId,
+                    userName: loggedUserName,
+                    targetCollection: 'materials',
+                    targetId: material.id,
+                    targetName: description,
+                    details: { categoria: data.categoria, estoque_total: data.estoque_total, estoque_atual: data.estoque_atual },
+                });
             } else {
                 const materialsCollection = collection(db, 'materials');
-                await addDoc(materialsCollection, {
+                const newDoc = await addDoc(materialsCollection, {
                     ...data,
                     maintenance_status: "operante",
                     created_at: serverTimestamp(),
+                });
+                logAudit({
+                    action: 'material_create',
+                    userId: loggedUserId,
+                    userName: loggedUserName,
+                    targetCollection: 'materials',
+                    targetId: newDoc.id,
+                    targetName: description,
+                    details: { categoria: data.categoria, estoque_total: data.estoque_total, estoque_atual: data.estoque_atual },
                 });
             }
             onClose();

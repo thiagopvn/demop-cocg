@@ -48,6 +48,7 @@ import {
 import db from "../../firebase/db";
 import ViaturaDialog from "../../dialogs/ViaturaDialog";
 import { verifyToken } from "../../firebase/token";
+import { logAudit } from '../../firebase/auditLog';
 
 export default function Viaturas() {
     const navigate = useNavigate();
@@ -58,6 +59,8 @@ export default function Viaturas() {
     const [dialogSaveOpen, setDialogSaveOpen] = useState(false);
     const [editData, setEditData] = useState(null);
     const [userRole, setUserRole] = useState(null);
+    const [loggedUserId, setLoggedUserId] = useState(null);
+    const [loggedUserName, setLoggedUserName] = useState(null);
     const [dialogEditOpen, setDialogEditOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [viaturaToDeleteId, setViaturaToDeleteId] = useState(null);
@@ -70,6 +73,8 @@ export default function Viaturas() {
                 try {
                     const decodedToken = await verifyToken(token);
                     setUserRole(decodedToken.role);
+                    setLoggedUserId(decodedToken.userId);
+                    setLoggedUserName(decodedToken.username || 'Usuário');
                 } catch (error) {
                     console.error("Erro ao verificar token:", error);
                     setUserRole(null);
@@ -222,12 +227,20 @@ export default function Viaturas() {
         }
 
         try {
-            await addDoc(viaturaCollection, {
+            const newDoc = await addDoc(viaturaCollection, {
                 prefixo: data.prefixo.toUpperCase(),
                 description: data.description,
                 description_lower: data.description.toLowerCase(),
                 created_at: new Date(),
                 ultima_movimentacao: new Date(),
+            });
+            logAudit({
+                action: 'viatura_create',
+                userId: loggedUserId,
+                userName: loggedUserName,
+                targetCollection: 'viaturas',
+                targetId: newDoc.id,
+                targetName: `${data.prefixo.toUpperCase()} - ${data.description}`,
             });
             filter("");
             setDialogSaveOpen(false);
@@ -262,7 +275,16 @@ export default function Viaturas() {
                 }
 
                 const viaturaDocRef = doc(db, "viaturas", viaturaToDeleteId);
+                const deletedViatura = filteredViaturas.find(v => v.id === viaturaToDeleteId);
                 await deleteDoc(viaturaDocRef);
+                logAudit({
+                    action: 'viatura_delete',
+                    userId: loggedUserId,
+                    userName: loggedUserName,
+                    targetCollection: 'viaturas',
+                    targetId: viaturaToDeleteId,
+                    targetName: deletedViatura ? `${deletedViatura.prefixo} - ${deletedViatura.description}` : viaturaToDeleteId,
+                });
                 filter("");
             } catch (error) {
                 console.error("Erro ao excluir viatura:", error);
@@ -309,6 +331,14 @@ export default function Viaturas() {
                 description: data.description,
                 description_lower: data.description.toLowerCase(),
                 ultima_movimentacao: new Date(),
+            });
+            logAudit({
+                action: 'viatura_update',
+                userId: loggedUserId,
+                userName: loggedUserName,
+                targetCollection: 'viaturas',
+                targetId: data.id,
+                targetName: `${data.prefixo.toUpperCase()} - ${data.description}`,
             });
             filter("");
             setDialogEditOpen(false);

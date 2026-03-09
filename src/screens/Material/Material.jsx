@@ -61,6 +61,7 @@ import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
+import { logAudit } from '../../firebase/auditLog';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // Limite de itens por página
@@ -431,6 +432,18 @@ const Material = () => {
                 ultima_movimentacao: serverTimestamp(),
             });
 
+            logAudit({
+                action: 'material_allocate',
+                userId: loggedUserId,
+                userName: loggedUserName,
+                targetCollection: 'viatura_materiais',
+                targetId: materialToAlocar.id,
+                targetName: materialToAlocar.description,
+                details: {
+                    viatura: selectedViatura.prefixo ? `${selectedViatura.prefixo} - ${selectedViatura.description}` : selectedViatura.description,
+                    quantidade: alocarQuantidade,
+                },
+            });
             setSnackbar({ open: true, message: "Material alocado na viatura com sucesso!", severity: "success" });
             setAlocarDialogOpen(false);
             setMaterialToAlocar(null);
@@ -445,7 +458,16 @@ const Material = () => {
     const handleDeleteMaterial = async (materialId) => {
         if (window.confirm('Tem certeza que deseja excluir este material?')) {
             try {
+                const mat = materials.find(m => m.id === materialId);
                 await deleteDoc(doc(db, 'materials', materialId));
+                logAudit({
+                    action: 'material_delete',
+                    userId: loggedUserId,
+                    userName: loggedUserName,
+                    targetCollection: 'materials',
+                    targetId: materialId,
+                    targetName: mat?.description || materialId,
+                });
             } catch (error) {
                 console.error('Erro ao excluir material:', error);
                 alert('Erro ao excluir material');
@@ -1170,6 +1192,7 @@ const Material = () => {
                 onClose={handleCloseDialog}
                 material={selectedMaterial}
                 loggedUserName={loggedUserName}
+                loggedUserId={loggedUserId}
             />
 
             <MaintenanceDialog

@@ -84,5 +84,12 @@ service cloud.firestore {
       allow read: if isAuth();
       allow create, update, delete: if isEditorOrAdmin();
     }
+
+    // Audit logs: any authenticated user can write, only admingeral can read
+    match /audit_logs/{docId} {
+      allow read: if isAdminGeral();
+      allow create: if isAuth();
+      allow update, delete: if false;
+    }
   }
 }
