@@ -25,14 +25,6 @@ import {
     TableSortLabel,
     styled,
     Divider,
-    Button,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    LinearProgress,
-    Alert,
-    Snackbar,
 } from '@mui/material';
 import {
     Search,
@@ -52,12 +44,11 @@ import {
     LockReset,
     Category,
     CalendarMonth,
-    History,
 } from '@mui/icons-material';
-import { collection, query, orderBy, onSnapshot, where, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
-import { ACTION_LABELS, ACTION_COLORS, migrateHistoricalAuditLogs } from '../../firebase/auditLog';
+import { ACTION_LABELS, ACTION_COLORS } from '../../firebase/auditLog';
 import { useDebounce } from '../../hooks/useDebounce';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
@@ -136,12 +127,6 @@ export default function Atividades() {
     const [tabValue, setTabValue] = useState(0);
     const [sortField, setSortField] = useState('timestamp');
     const [sortDirection, setSortDirection] = useState('desc');
-
-    // Migracao retroativa
-    const [migrateDialogOpen, setMigrateDialogOpen] = useState(false);
-    const [migrating, setMigrating] = useState(false);
-    const [migrateProgress, setMigrateProgress] = useState('');
-    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -356,24 +341,6 @@ export default function Atividades() {
         return <Icon fontSize="small" />;
     };
 
-    const handleMigrate = async () => {
-        setMigrating(true);
-        setMigrateProgress('Iniciando migracao...');
-        try {
-            const result = await migrateHistoricalAuditLogs((etapa, count, msg) => {
-                setMigrateProgress(msg);
-            });
-            setMigrateDialogOpen(false);
-            setSnackbar({ open: true, message: `Migracao concluida! ${result.total} registros importados.`, severity: 'success' });
-        } catch (error) {
-            console.error('Erro na migracao:', error);
-            setSnackbar({ open: true, message: 'Erro na migracao. Verifique o console.', severity: 'error' });
-        } finally {
-            setMigrating(false);
-            setMigrateProgress('');
-        }
-    };
-
     const renderDetailsText = (log) => {
         if (!log.details) return null;
         const parts = [];
@@ -393,31 +360,13 @@ export default function Atividades() {
             <MenuContext>
                 <Box sx={{ p: 3 }}>
                     {/* Header */}
-                    <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-                        <Box>
-                            <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: 'primary.main' }}>
-                                Atividade dos Militares
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Acompanhe todas as acoes realizadas por cada militar no sistema
-                            </Typography>
-                        </Box>
-                        <Button
-                            variant="contained"
-                            startIcon={<History />}
-                            onClick={() => setMigrateDialogOpen(true)}
-                            sx={{
-                                borderRadius: 2,
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                px: 3,
-                                py: 1.5,
-                                background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-                                '&:hover': { background: 'linear-gradient(135deg, #f57c00 0%, #e65100 100%)' },
-                            }}
-                        >
-                            Importar Historico
-                        </Button>
+                    <Box sx={{ mb: 3 }}>
+                        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: 'primary.main' }}>
+                            Atividade dos Militares
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Acompanhe todas as acoes realizadas por cada militar no sistema
+                        </Typography>
                     </Box>
 
                     {/* Stats Cards */}
@@ -856,87 +805,6 @@ export default function Atividades() {
                             )}
                         </Box>
                     )}
-                    {/* Dialog de Migracao */}
-                    <Dialog
-                        open={migrateDialogOpen}
-                        onClose={() => !migrating && setMigrateDialogOpen(false)}
-                        maxWidth="sm"
-                        fullWidth
-                        PaperProps={{ sx: { borderRadius: 2 } }}
-                    >
-                        <DialogTitle sx={{
-                            background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-                            color: 'white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                        }}>
-                            <History />
-                            Importar Historico Retroativo
-                        </DialogTitle>
-                        <DialogContent sx={{ pt: 3 }}>
-                            {!migrating ? (
-                                <Box>
-                                    <Typography variant="body1" gutterBottom>
-                                        Esta acao vai importar dados historicos das seguintes fontes:
-                                    </Typography>
-                                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                        <Chip icon={<SwapHoriz />} label="Movimentacoes (cautelas, entradas, saidas, reparos)" variant="outlined" sx={{ justifyContent: 'flex-start' }} />
-                                        <Chip icon={<SwapHoriz />} label="Devolucoes realizadas" variant="outlined" sx={{ justifyContent: 'flex-start' }} />
-                                        <Chip icon={<LocalShipping />} label="Alocacoes de materiais em viaturas" variant="outlined" sx={{ justifyContent: 'flex-start' }} />
-                                        <Chip icon={<Inventory />} label="Ultima conferencia de cada material" variant="outlined" sx={{ justifyContent: 'flex-start' }} />
-                                    </Box>
-                                    <Alert severity="info" sx={{ mt: 2 }}>
-                                        Execute apenas uma vez. Se executar novamente, os registros serao duplicados.
-                                    </Alert>
-                                </Box>
-                            ) : (
-                                <Box sx={{ py: 2 }}>
-                                    <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />
-                                    <Typography variant="body2" color="text.secondary" textAlign="center">
-                                        {migrateProgress}
-                                    </Typography>
-                                </Box>
-                            )}
-                        </DialogContent>
-                        <DialogActions sx={{ p: 2 }}>
-                            <Button
-                                onClick={() => setMigrateDialogOpen(false)}
-                                disabled={migrating}
-                                variant="outlined"
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                onClick={handleMigrate}
-                                disabled={migrating}
-                                variant="contained"
-                                startIcon={migrating ? <CircularProgress size={18} color="inherit" /> : <History />}
-                                sx={{
-                                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-                                    '&:hover': { background: 'linear-gradient(135deg, #f57c00 0%, #e65100 100%)' },
-                                }}
-                            >
-                                {migrating ? 'Importando...' : 'Iniciar Importacao'}
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
-
-                    {/* Snackbar */}
-                    <Snackbar
-                        open={snackbar.open}
-                        autoHideDuration={6000}
-                        onClose={() => setSnackbar({ ...snackbar, open: false })}
-                        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-                    >
-                        <Alert
-                            onClose={() => setSnackbar({ ...snackbar, open: false })}
-                            severity={snackbar.severity}
-                            sx={{ width: '100%' }}
-                        >
-                            {snackbar.message}
-                        </Alert>
-                    </Snackbar>
                 </Box>
             </MenuContext>
         </PrivateRoute>
