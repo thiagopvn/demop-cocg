@@ -25,6 +25,16 @@ import {
     TableSortLabel,
     styled,
     Divider,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    Avatar,
+    LinearProgress,
+    Fab,
+    Snackbar,
+    Alert,
 } from '@mui/material';
 import {
     Search,
@@ -44,11 +54,20 @@ import {
     LockReset,
     Category,
     CalendarMonth,
+    Add,
+    Assignment,
+    AccessTime,
+    Flag,
+    CheckCircle,
+    Cancel,
+    Message,
+    Visibility,
+    PlaylistAddCheck,
 } from '@mui/icons-material';
-import { collection, query, orderBy, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, Timestamp, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
-import { ACTION_LABELS, ACTION_COLORS } from '../../firebase/auditLog';
+import { ACTION_LABELS, ACTION_COLORS, logAudit } from '../../firebase/auditLog';
 import { useDebounce } from '../../hooks/useDebounce';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
@@ -115,6 +134,45 @@ const ACTION_ICONS = {
     ring_delete: Delete,
 };
 
+const TASK_TYPES = {
+    conferencia: { label: 'Conferencia de Material', icon: Inventory, color: '#3b82f6' },
+    contagem: { label: 'Contagem de Material', icon: PlaylistAddCheck, color: '#8b5cf6' },
+    verificacao: { label: 'Verificacao', icon: Search, color: '#f59e0b' },
+    assinatura: { label: 'Atencao para Assinatura', icon: Assignment, color: '#ef4444' },
+    procurar: { label: 'Procurar Material', icon: Search, color: '#06b6d4' },
+    atualizar: { label: 'Atualizar Material', icon: Edit, color: '#22c55e' },
+    mensagem: { label: 'Mensagem / Ordem Geral', icon: Message, color: '#ff6b35' },
+};
+
+const PRIORITY_OPTIONS = [
+    { value: 'baixa', label: 'Baixa', color: '#22c55e' },
+    { value: 'media', label: 'Media', color: '#f59e0b' },
+    { value: 'alta', label: 'Alta', color: '#f97316' },
+    { value: 'urgente', label: 'Urgente', color: '#ef4444' },
+];
+
+const DURATION_OPTIONS = [
+    { value: 1, label: '1 dia' },
+    { value: 2, label: '2 dias' },
+    { value: 3, label: '3 dias' },
+    { value: 7, label: '1 semana' },
+    { value: 15, label: '15 dias' },
+    { value: 30, label: '1 mes' },
+];
+
+const getTimeRemaining = (expiresAt) => {
+    if (!expiresAt) return null;
+    const exp = expiresAt?.toDate ? expiresAt.toDate() : new Date(expiresAt);
+    const now = new Date();
+    const diff = exp - now;
+    if (diff <= 0) return { expired: true, text: 'Expirada' };
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    if (days > 0) return { expired: false, text: `${days}d ${hours}h restantes` };
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return { expired: false, text: `${hours}h ${minutes}min restantes` };
+};
+
 export default function Atividades() {
     const theme = useTheme();
     const [logs, setLogs] = useState([]);
@@ -128,6 +186,23 @@ export default function Atividades() {
     const [sortField, setSortField] = useState('timestamp');
     const [sortDirection, setSortDirection] = useState('desc');
 
+    // Task management state
+    const [tasks, setTasks] = useState([]);
+    const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+    const [taskForm, setTaskForm] = useState({
+        title: '',
+        description: '',
+        type: 'conferencia',
+        targetCount: '',
+        priority: 'media',
+        durationDays: 1,
+    });
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+    const [loggedUserId, setLoggedUserId] = useState('');
+    const [loggedUserName, setLoggedUserName] = useState('');
+
     const debouncedSearch = useDebounce(searchTerm, 300);
 
     useEffect(() => {
@@ -137,6 +212,8 @@ export default function Atividades() {
                 try {
                     const decoded = await verifyToken(token);
                     setUserRole(decoded.role);
+                    setLoggedUserId(decoded.userId || decoded.firestoreId || '');
+                    setLoggedUserName(decoded.username || '');
                 } catch (error) {
                     console.error('Erro ao verificar token:', error);
                 }
@@ -144,6 +221,32 @@ export default function Atividades() {
         };
         fetchUserData();
     }, []);
+
+    // Real-time tasks listener
+    useEffect(() => {
+        if (userRole !== 'admingeral') return;
+
+        const q = query(
+            collection(db, 'tarefas_demop'),
+            orderBy('createdAt', 'desc')
+        );
+        const unsub = onSnapshot(q, (snapshot) => {
+            const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            // Auto-expire tasks
+            const now = new Date();
+            list.forEach(task => {
+                if (task.status === 'ativa' && task.expiresAt) {
+                    const exp = task.expiresAt?.toDate ? task.expiresAt.toDate() : new Date(task.expiresAt);
+                    if (exp < now) {
+                        updateDoc(doc(db, 'tarefas_demop', task.id), { status: 'expirada' });
+                    }
+                }
+            });
+            setTasks(list);
+        });
+
+        return () => unsub();
+    }, [userRole]);
 
     useEffect(() => {
         if (userRole !== 'admingeral') return;
@@ -330,6 +433,94 @@ export default function Atividades() {
         }
     };
 
+    // Task handlers
+    const handleCreateTask = async () => {
+        if (!taskForm.title.trim()) return;
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + taskForm.durationDays);
+        expiresAt.setHours(23, 59, 59, 999);
+
+        try {
+            await addDoc(collection(db, 'tarefas_demop'), {
+                title: taskForm.title.trim(),
+                description: taskForm.description.trim(),
+                type: taskForm.type,
+                targetCount: (taskForm.type === 'conferencia' || taskForm.type === 'contagem') && taskForm.targetCount
+                    ? Number(taskForm.targetCount) : null,
+                priority: taskForm.priority,
+                durationDays: taskForm.durationDays,
+                expiresAt: Timestamp.fromDate(expiresAt),
+                createdAt: serverTimestamp(),
+                createdBy: loggedUserId,
+                createdByName: loggedUserName,
+                status: 'ativa',
+                progress: 0,
+                completedAt: null,
+                completedBy: null,
+                completedByName: null,
+            });
+
+            logAudit({
+                action: 'tarefa_create',
+                userId: loggedUserId,
+                userName: loggedUserName,
+                targetCollection: 'tarefas_demop',
+                targetName: taskForm.title.trim(),
+                details: { type: taskForm.type, priority: taskForm.priority, duracao: `${taskForm.durationDays} dias` },
+            });
+
+            setTaskForm({ title: '', description: '', type: 'conferencia', targetCount: '', priority: 'media', durationDays: 1 });
+            setTaskDialogOpen(false);
+            setSnackbarMessage('Ordem de servico criada com sucesso!');
+            setSnackbarSeverity('success');
+            setSnackbarOpen(true);
+        } catch (error) {
+            console.error('Erro ao criar tarefa:', error);
+            setSnackbarMessage('Erro ao criar ordem de servico.');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+        }
+    };
+
+    const handleCancelTask = async (taskId, taskTitle) => {
+        try {
+            await updateDoc(doc(db, 'tarefas_demop', taskId), {
+                status: 'cancelada',
+                completedAt: serverTimestamp(),
+                completedByName: loggedUserName,
+            });
+            logAudit({
+                action: 'tarefa_cancel',
+                userId: loggedUserId,
+                userName: loggedUserName,
+                targetCollection: 'tarefas_demop',
+                targetId: taskId,
+                targetName: taskTitle,
+            });
+            setSnackbarMessage('Ordem cancelada.');
+            setSnackbarSeverity('info');
+            setSnackbarOpen(true);
+        } catch (error) {
+            console.error('Erro ao cancelar tarefa:', error);
+        }
+    };
+
+    const handleDeleteTask = async (taskId) => {
+        try {
+            await deleteDoc(doc(db, 'tarefas_demop', taskId));
+            setSnackbarMessage('Ordem removida.');
+            setSnackbarSeverity('info');
+            setSnackbarOpen(true);
+        } catch (error) {
+            console.error('Erro ao excluir tarefa:', error);
+        }
+    };
+
+    const activeTasks = useMemo(() => tasks.filter(t => t.status === 'ativa'), [tasks]);
+    const completedTasks = useMemo(() => tasks.filter(t => t.status === 'concluida'), [tasks]);
+    const cancelledExpiredTasks = useMemo(() => tasks.filter(t => t.status === 'cancelada' || t.status === 'expirada'), [tasks]);
+
     const formatDate = (timestamp) => {
         if (!timestamp?.toDate) return '-';
         const date = timestamp.toDate();
@@ -432,6 +623,28 @@ export default function Atividades() {
                         >
                             <Tab icon={<Assessment sx={{ fontSize: '1.1rem' }} />} iconPosition="start" label="Resumo por Militar" />
                             <Tab icon={<Timeline sx={{ fontSize: '1.1rem' }} />} iconPosition="start" label="Historico Completo" />
+                            <Tab
+                                icon={<Assignment sx={{ fontSize: '1.1rem' }} />}
+                                iconPosition="start"
+                                label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        Ordens de Servico
+                                        {activeTasks.length > 0 && (
+                                            <Chip
+                                                label={activeTasks.length}
+                                                size="small"
+                                                sx={{
+                                                    height: 20,
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 700,
+                                                    bgcolor: '#ff6b35',
+                                                    color: 'white',
+                                                }}
+                                            />
+                                        )}
+                                    </Box>
+                                }
+                            />
                         </Tabs>
                     </Paper>
 
@@ -805,6 +1018,400 @@ export default function Atividades() {
                             )}
                         </Box>
                     )}
+                    {/* Tab 2: Ordens de Servico */}
+                    {tabValue === 2 && (
+                        <Box>
+                            {/* Active Tasks */}
+                            <Box sx={{ mb: 4 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                    <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Flag sx={{ color: '#ff6b35' }} />
+                                        Ordens Ativas
+                                        {activeTasks.length > 0 && (
+                                            <Chip label={activeTasks.length} size="small" sx={{ fontWeight: 700, bgcolor: '#ff6b35', color: 'white' }} />
+                                        )}
+                                    </Typography>
+                                    <Button
+                                        variant="contained"
+                                        startIcon={<Add />}
+                                        onClick={() => setTaskDialogOpen(true)}
+                                        sx={{
+                                            bgcolor: '#ff6b35',
+                                            fontWeight: 700,
+                                            borderRadius: 2,
+                                            px: 3,
+                                            '&:hover': { bgcolor: '#e55a2b' },
+                                        }}
+                                    >
+                                        Nova Ordem
+                                    </Button>
+                                </Box>
+
+                                {activeTasks.length === 0 ? (
+                                    <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 3, border: '2px dashed', borderColor: 'divider' }}>
+                                        <Assignment sx={{ fontSize: 64, color: 'text.disabled', mb: 1 }} />
+                                        <Typography variant="h6" color="text.secondary">Nenhuma ordem ativa</Typography>
+                                        <Typography variant="body2" color="text.disabled">
+                                            Crie uma nova ordem de servico para o DEMOP
+                                        </Typography>
+                                    </Paper>
+                                ) : (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        {activeTasks.map(task => {
+                                            const typeInfo = TASK_TYPES[task.type] || TASK_TYPES.mensagem;
+                                            const priorityInfo = PRIORITY_OPTIONS.find(p => p.value === task.priority) || PRIORITY_OPTIONS[1];
+                                            const timeRemaining = getTimeRemaining(task.expiresAt);
+                                            const IconComp = typeInfo.icon;
+                                            const progressPercent = task.targetCount ? Math.min((task.progress || 0) / task.targetCount * 100, 100) : null;
+
+                                            return (
+                                                <Paper
+                                                    key={task.id}
+                                                    sx={{
+                                                        p: 3,
+                                                        borderRadius: 3,
+                                                        border: '2px solid',
+                                                        borderColor: alpha(priorityInfo.color, 0.4),
+                                                        background: `linear-gradient(135deg, ${alpha(typeInfo.color, 0.04)} 0%, ${alpha(priorityInfo.color, 0.04)} 100%)`,
+                                                        position: 'relative',
+                                                        overflow: 'hidden',
+                                                        '&::before': {
+                                                            content: '""',
+                                                            position: 'absolute',
+                                                            top: 0, left: 0, right: 0, height: 5,
+                                                            background: `linear-gradient(90deg, ${typeInfo.color} 0%, ${priorityInfo.color} 100%)`,
+                                                        },
+                                                    }}
+                                                >
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
+                                                        <Avatar sx={{
+                                                            bgcolor: alpha(typeInfo.color, 0.15),
+                                                            color: typeInfo.color,
+                                                            width: 48, height: 48,
+                                                        }}>
+                                                            <IconComp />
+                                                        </Avatar>
+                                                        <Box sx={{ flex: 1 }}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                                                <Chip
+                                                                    label={typeInfo.label}
+                                                                    size="small"
+                                                                    sx={{ bgcolor: alpha(typeInfo.color, 0.12), color: typeInfo.color, fontWeight: 600, fontSize: '0.72rem' }}
+                                                                />
+                                                                <Chip
+                                                                    icon={<Flag sx={{ fontSize: '14px !important' }} />}
+                                                                    label={priorityInfo.label.toUpperCase()}
+                                                                    size="small"
+                                                                    sx={{
+                                                                        bgcolor: alpha(priorityInfo.color, 0.12),
+                                                                        color: priorityInfo.color,
+                                                                        fontWeight: 700,
+                                                                        fontSize: '0.7rem',
+                                                                        '& .MuiChip-icon': { color: priorityInfo.color },
+                                                                    }}
+                                                                />
+                                                            </Box>
+                                                            <Typography variant="h6" fontWeight={700}>{task.title}</Typography>
+                                                            {task.description && (
+                                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                                                    {task.description}
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                            <Tooltip title="Cancelar ordem">
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={() => handleCancelTask(task.id, task.title)}
+                                                                    sx={{ color: '#ef4444' }}
+                                                                >
+                                                                    <Cancel fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </Box>
+                                                    </Box>
+
+                                                    {/* Progress bar for counting tasks */}
+                                                    {task.targetCount && (
+                                                        <Box sx={{ mb: 2 }}>
+                                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                                                <Typography variant="body2" fontWeight={600}>
+                                                                    Progresso
+                                                                </Typography>
+                                                                <Typography variant="body2" fontWeight={700} color={typeInfo.color}>
+                                                                    {task.progress || 0} / {task.targetCount}
+                                                                </Typography>
+                                                            </Box>
+                                                            <LinearProgress
+                                                                variant="determinate"
+                                                                value={progressPercent}
+                                                                sx={{
+                                                                    height: 10,
+                                                                    borderRadius: 5,
+                                                                    bgcolor: alpha(typeInfo.color, 0.1),
+                                                                    '& .MuiLinearProgress-bar': {
+                                                                        bgcolor: typeInfo.color,
+                                                                        borderRadius: 5,
+                                                                    },
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                    )}
+
+                                                    {/* Footer */}
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                            <Chip
+                                                                icon={<AccessTime sx={{ fontSize: '14px !important' }} />}
+                                                                label={timeRemaining?.text || ''}
+                                                                size="small"
+                                                                sx={{
+                                                                    bgcolor: timeRemaining?.expired ? alpha('#ef4444', 0.1) : alpha('#3b82f6', 0.1),
+                                                                    color: timeRemaining?.expired ? '#ef4444' : '#3b82f6',
+                                                                    fontWeight: 600,
+                                                                    '& .MuiChip-icon': { color: timeRemaining?.expired ? '#ef4444' : '#3b82f6' },
+                                                                }}
+                                                            />
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                Criada por {task.createdByName} em {formatDate(task.createdAt)}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Paper>
+                                            );
+                                        })}
+                                    </Box>
+                                )}
+                            </Box>
+
+                            {/* Completed Tasks */}
+                            {completedTasks.length > 0 && (
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <CheckCircle sx={{ color: '#22c55e' }} />
+                                        Concluidas ({completedTasks.length})
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                        {completedTasks.slice(0, 10).map(task => {
+                                            const typeInfo = TASK_TYPES[task.type] || TASK_TYPES.mensagem;
+                                            return (
+                                                <Paper
+                                                    key={task.id}
+                                                    sx={{
+                                                        p: 2,
+                                                        borderRadius: 2,
+                                                        border: '1px solid',
+                                                        borderColor: alpha('#22c55e', 0.2),
+                                                        bgcolor: alpha('#22c55e', 0.03),
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 2,
+                                                    }}
+                                                >
+                                                    <CheckCircle sx={{ color: '#22c55e' }} />
+                                                    <Box sx={{ flex: 1 }}>
+                                                        <Typography variant="body2" fontWeight={600}>{task.title}</Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {task.completedByName ? `Concluida por: ${task.completedByName}` : 'Concluida'} - {formatDate(task.completedAt)}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Chip label={typeInfo.label} size="small" sx={{ bgcolor: alpha(typeInfo.color, 0.1), color: typeInfo.color, fontSize: '0.7rem' }} />
+                                                    <Tooltip title="Excluir registro">
+                                                        <IconButton size="small" onClick={() => handleDeleteTask(task.id)} sx={{ color: 'text.disabled' }}>
+                                                            <Delete fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Paper>
+                                            );
+                                        })}
+                                    </Box>
+                                </Box>
+                            )}
+
+                            {/* Cancelled/Expired Tasks */}
+                            {cancelledExpiredTasks.length > 0 && (
+                                <Box>
+                                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                                        <Cancel sx={{ color: 'text.disabled' }} />
+                                        Canceladas / Expiradas ({cancelledExpiredTasks.length})
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                        {cancelledExpiredTasks.slice(0, 10).map(task => (
+                                            <Paper
+                                                key={task.id}
+                                                sx={{
+                                                    p: 2,
+                                                    borderRadius: 2,
+                                                    border: '1px solid',
+                                                    borderColor: 'divider',
+                                                    opacity: 0.6,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 2,
+                                                }}
+                                            >
+                                                <Cancel sx={{ color: 'text.disabled' }} />
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography variant="body2" fontWeight={500}>{task.title}</Typography>
+                                                    <Typography variant="caption" color="text.disabled">
+                                                        {task.status === 'expirada' ? 'Expirada' : 'Cancelada'} - {formatDate(task.completedAt || task.expiresAt)}
+                                                    </Typography>
+                                                </Box>
+                                                <Tooltip title="Excluir registro">
+                                                    <IconButton size="small" onClick={() => handleDeleteTask(task.id)} sx={{ color: 'text.disabled' }}>
+                                                        <Delete fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Paper>
+                                        ))}
+                                    </Box>
+                                </Box>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* Task Creation Dialog */}
+                    <Dialog
+                        open={taskDialogOpen}
+                        onClose={() => setTaskDialogOpen(false)}
+                        fullWidth
+                        maxWidth="sm"
+                        PaperProps={{
+                            sx: {
+                                borderRadius: 3,
+                                overflow: 'hidden',
+                            },
+                        }}
+                    >
+                        <Box sx={{
+                            height: 5,
+                            background: 'linear-gradient(90deg, #ff6b35 0%, #1e3a5f 100%)',
+                        }} />
+                        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.3rem', pb: 0 }}>
+                            Nova Ordem de Servico
+                        </DialogTitle>
+                        <Typography variant="body2" color="text.secondary" sx={{ px: 3, pb: 2 }}>
+                            Crie uma tarefa ou mensagem para o permanencia do DEMOP
+                        </Typography>
+                        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '0 !important' }}>
+                            <FormControl fullWidth>
+                                <InputLabel>Tipo da Ordem</InputLabel>
+                                <Select
+                                    value={taskForm.type}
+                                    label="Tipo da Ordem"
+                                    onChange={(e) => setTaskForm(prev => ({ ...prev, type: e.target.value }))}
+                                >
+                                    {Object.entries(TASK_TYPES).map(([key, info]) => (
+                                        <MenuItem key={key} value={key}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                <info.icon sx={{ color: info.color, fontSize: 20 }} />
+                                                {info.label}
+                                            </Box>
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <TextField
+                                label="Titulo da Ordem"
+                                value={taskForm.title}
+                                onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                                placeholder="Ex: Conferir 40 materiais hoje"
+                                fullWidth
+                            />
+
+                            <TextField
+                                label="Descricao / Mensagem (opcional)"
+                                value={taskForm.description}
+                                onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))}
+                                placeholder="Detalhes adicionais sobre a tarefa..."
+                                fullWidth
+                                multiline
+                                rows={3}
+                            />
+
+                            {(taskForm.type === 'conferencia' || taskForm.type === 'contagem') && (
+                                <TextField
+                                    label="Meta de materiais a conferir"
+                                    type="number"
+                                    value={taskForm.targetCount}
+                                    onChange={(e) => setTaskForm(prev => ({ ...prev, targetCount: e.target.value }))}
+                                    placeholder="Ex: 40"
+                                    fullWidth
+                                    slotProps={{ input: { inputProps: { min: 1 } } }}
+                                    helperText="O progresso sera atualizado automaticamente a cada conferencia de material"
+                                />
+                            )}
+
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Prioridade</InputLabel>
+                                    <Select
+                                        value={taskForm.priority}
+                                        label="Prioridade"
+                                        onChange={(e) => setTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                                    >
+                                        {PRIORITY_OPTIONS.map(p => (
+                                            <MenuItem key={p.value} value={p.value}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: p.color }} />
+                                                    {p.label}
+                                                </Box>
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                <FormControl fullWidth>
+                                    <InputLabel>Duracao</InputLabel>
+                                    <Select
+                                        value={taskForm.durationDays}
+                                        label="Duracao"
+                                        onChange={(e) => setTaskForm(prev => ({ ...prev, durationDays: e.target.value }))}
+                                    >
+                                        {DURATION_OPTIONS.map(d => (
+                                            <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
+                        </DialogContent>
+                        <DialogActions sx={{ p: 3, pt: 1 }}>
+                            <Button onClick={() => setTaskDialogOpen(false)} sx={{ fontWeight: 600 }}>
+                                Cancelar
+                            </Button>
+                            <Button
+                                variant="contained"
+                                onClick={handleCreateTask}
+                                disabled={!taskForm.title.trim()}
+                                sx={{
+                                    bgcolor: '#ff6b35',
+                                    fontWeight: 700,
+                                    px: 4,
+                                    borderRadius: 2,
+                                    '&:hover': { bgcolor: '#e55a2b' },
+                                }}
+                            >
+                                Criar Ordem
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+
+                    {/* Snackbar */}
+                    <Snackbar
+                        open={snackbarOpen}
+                        autoHideDuration={4000}
+                        onClose={() => setSnackbarOpen(false)}
+                        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                    >
+                        <Alert
+                            onClose={() => setSnackbarOpen(false)}
+                            severity={snackbarSeverity}
+                            sx={{ width: '100%' }}
+                        >
+                            {snackbarMessage}
+                        </Alert>
+                    </Snackbar>
                 </Box>
             </MenuContext>
         </PrivateRoute>

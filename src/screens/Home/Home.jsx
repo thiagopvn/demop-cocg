@@ -85,8 +85,28 @@ import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
+import { logAudit } from "../../firebase/auditLog";
 import CautelaStrip from "../../components/CautelaStrip";
 import DevolucaoReceiptStrip from "../../components/DevolucaoReceiptStrip";
+
+// ==================== TASK TYPE CONFIG ====================
+
+const TASK_TYPES_CONFIG = {
+  conferencia: { label: 'Conferencia de Material', color: '#3b82f6' },
+  contagem: { label: 'Contagem de Material', color: '#8b5cf6' },
+  verificacao: { label: 'Verificacao', color: '#f59e0b' },
+  assinatura: { label: 'Atencao para Assinatura', color: '#ef4444' },
+  procurar: { label: 'Procurar Material', color: '#06b6d4' },
+  atualizar: { label: 'Atualizar Material', color: '#22c55e' },
+  mensagem: { label: 'Mensagem / Ordem', color: '#ff6b35' },
+};
+
+const TASK_PRIORITY_COLORS = {
+  baixa: '#22c55e',
+  media: '#f59e0b',
+  alta: '#f97316',
+  urgente: '#ef4444',
+};
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -479,6 +499,9 @@ export default function Home() {
   const [manutencoes, setManutencoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
 
+  // Task state
+  const [demopTasks, setDemopTasks] = useState([]);
+
   // User-specific state
   const [minhasCautelas, setMinhasCautelas] = useState([]);
   const [activeCautelas, setActiveCautelas] = useState([]);
@@ -840,6 +863,26 @@ export default function Home() {
         });
         unsubscribers.push(unsub);
 
+        // Real-time DEMOP tasks listener
+        const tasksQuery = query(
+          collection(db, "tarefas_demop"),
+          where("status", "==", "ativa"),
+          orderBy("createdAt", "desc")
+        );
+        const taskUnsub = onSnapshot(tasksQuery, (snapshot) => {
+          if (isMounted) {
+            const now = new Date();
+            const activeTasks = snapshot.docs
+              .map((d) => ({ id: d.id, ...d.data() }))
+              .filter(t => {
+                const exp = t.expiresAt?.toDate ? t.expiresAt.toDate() : null;
+                return !exp || exp > now;
+              });
+            setDemopTasks(activeTasks);
+          }
+        });
+        unsubscribers.push(taskUnsub);
+
         // User's own cautelas + saídas pendentes (real-time)
         if (user?.userId) {
           const cautelaUnsub = onSnapshot(
@@ -955,6 +998,40 @@ export default function Home() {
     } catch (error) {
       console.error("Erro ao confirmar:", error);
       setSnackbarMessage("Erro ao confirmar o comprovante.");
+      setSnackbarOpen(true);
+    }
+  };
+
+  // ==================== TASK HANDLER ====================
+
+  const handleCompleteTask = async (taskId) => {
+    try {
+      const task = demopTasks.find((t) => t.id === taskId);
+      const taskRef = doc(db, "tarefas_demop", taskId);
+      await updateDoc(taskRef, {
+        status: "concluida",
+        completedAt: serverTimestamp(),
+        completedBy: userName,
+        completedByName: userName,
+      });
+
+      // Notificar admingeral via audit_log
+      logAudit({
+        action: 'tarefa_complete',
+        userId: 'dashboard',
+        userName: userName,
+        targetCollection: 'tarefas_demop',
+        targetId: taskId,
+        targetName: task?.title || 'Tarefa',
+        details: { concluida_por: userName, concluida_manualmente: true },
+      });
+
+      setDemopTasks((prev) => prev.filter((t) => t.id !== taskId));
+      setSnackbarMessage("Tarefa concluida com sucesso!");
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error("Erro ao concluir tarefa:", error);
+      setSnackbarMessage("Erro ao concluir a tarefa.");
       setSnackbarOpen(true);
     }
   };
@@ -1333,6 +1410,215 @@ export default function Home() {
                   </Box>
                 </Box>
               </Box>
+
+              {/* ====== DEMOP TASKS BANNER ====== */}
+              {demopTasks.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  {demopTasks.map((task) => {
+                    const typeInfo = TASK_TYPES_CONFIG[task.type] || TASK_TYPES_CONFIG.mensagem;
+                    const priorityColor = TASK_PRIORITY_COLORS[task.priority] || '#f59e0b';
+                    const isUrgent = task.priority === 'urgente' || task.priority === 'alta';
+                    const progressPercent = task.targetCount ? Math.min(((task.progress || 0) / task.targetCount) * 100, 100) : null;
+
+                    const expiresAtDate = task.expiresAt?.toDate ? task.expiresAt.toDate() : null;
+                    let timeText = '';
+                    if (expiresAtDate) {
+                      const diff = expiresAtDate - new Date();
+                      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                      timeText = days > 0 ? `${days}d ${hours}h` : `${hours}h`;
+                    }
+
+                    return (
+                      <Paper
+                        key={task.id}
+                        elevation={isUrgent ? 8 : 4}
+                        sx={{
+                          p: { xs: 2, sm: 3 },
+                          mb: 2,
+                          borderRadius: 3,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          border: '2px solid',
+                          borderColor: priorityColor,
+                          background: (t) => t.palette.mode === 'dark'
+                            ? `linear-gradient(135deg, ${alpha(typeInfo.color, 0.15)} 0%, ${alpha(priorityColor, 0.1)} 100%)`
+                            : `linear-gradient(135deg, ${alpha(typeInfo.color, 0.06)} 0%, ${alpha(priorityColor, 0.04)} 100%)`,
+                          boxShadow: `0 8px 32px ${alpha(priorityColor, 0.25)}`,
+                          animation: isUrgent ? 'taskPulse 3s ease-in-out infinite' : 'none',
+                          '@keyframes taskPulse': {
+                            '0%, 100%': { boxShadow: `0 8px 32px ${alpha(priorityColor, 0.25)}` },
+                            '50%': { boxShadow: `0 8px 48px ${alpha(priorityColor, 0.45)}` },
+                          },
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0,
+                            height: 6,
+                            background: `linear-gradient(90deg, ${typeInfo.color} 0%, ${priorityColor} 50%, ${typeInfo.color} 100%)`,
+                            backgroundSize: '200% 100%',
+                            animation: isUrgent ? 'shimmer 2s linear infinite' : 'none',
+                            '@keyframes shimmer': {
+                              '0%': { backgroundPosition: '200% 0' },
+                              '100%': { backgroundPosition: '-200% 0' },
+                            },
+                          },
+                        }}
+                      >
+                        {/* Header */}
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, sm: 2 }, mb: 2 }}>
+                          <Avatar
+                            sx={{
+                              bgcolor: alpha(typeInfo.color, 0.15),
+                              color: typeInfo.color,
+                              width: { xs: 40, sm: 56 },
+                              height: { xs: 40, sm: 56 },
+                              border: `2px solid ${alpha(typeInfo.color, 0.3)}`,
+                            }}
+                          >
+                            <Assignment sx={{ fontSize: { xs: 20, sm: 28 } }} />
+                          </Avatar>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                              variant="overline"
+                              sx={{
+                                fontWeight: 800,
+                                letterSpacing: 1.5,
+                                color: priorityColor,
+                                fontSize: { xs: '0.6rem', sm: '0.7rem' },
+                              }}
+                            >
+                              ORDEM DE SERVICO - DEMOP
+                            </Typography>
+                            <Typography
+                              variant="h5"
+                              sx={{
+                                fontWeight: 800,
+                                fontSize: { xs: '1rem', sm: '1.35rem' },
+                                lineHeight: 1.3,
+                                color: 'text.primary',
+                              }}
+                            >
+                              {task.title}
+                            </Typography>
+                            {task.description && (
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  mt: 0.5,
+                                  color: 'text.secondary',
+                                  fontSize: { xs: '0.8rem', sm: '0.92rem' },
+                                  lineHeight: 1.5,
+                                }}
+                              >
+                                {task.description}
+                              </Typography>
+                            )}
+                          </Box>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5, flexShrink: 0 }}>
+                            <Chip
+                              label={task.priority?.toUpperCase()}
+                              size="small"
+                              sx={{
+                                fontWeight: 800,
+                                fontSize: { xs: '0.6rem', sm: '0.7rem' },
+                                bgcolor: alpha(priorityColor, 0.15),
+                                color: priorityColor,
+                                border: `1px solid ${alpha(priorityColor, 0.3)}`,
+                              }}
+                            />
+                            <Chip
+                              label={typeInfo.label}
+                              size="small"
+                              sx={{
+                                fontWeight: 600,
+                                fontSize: { xs: '0.55rem', sm: '0.65rem' },
+                                bgcolor: alpha(typeInfo.color, 0.1),
+                                color: typeInfo.color,
+                              }}
+                            />
+                          </Box>
+                        </Box>
+
+                        {/* Progress Bar */}
+                        {task.targetCount && (
+                          <Box sx={{ mb: 2, px: { xs: 0, sm: 1 } }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                              <Typography variant="body2" fontWeight={700} sx={{ fontSize: { xs: '0.78rem', sm: '0.88rem' } }}>
+                                Progresso da Conferencia
+                              </Typography>
+                              <Typography variant="body2" fontWeight={800} sx={{ color: typeInfo.color, fontSize: { xs: '0.78rem', sm: '0.88rem' } }}>
+                                {task.progress || 0} / {task.targetCount} materiais
+                              </Typography>
+                            </Box>
+                            <LinearProgress
+                              variant="determinate"
+                              value={progressPercent}
+                              sx={{
+                                height: { xs: 8, sm: 12 },
+                                borderRadius: 6,
+                                bgcolor: alpha(typeInfo.color, 0.1),
+                                '& .MuiLinearProgress-bar': {
+                                  bgcolor: typeInfo.color,
+                                  borderRadius: 6,
+                                  transition: 'transform 0.5s ease',
+                                },
+                              }}
+                            />
+                          </Box>
+                        )}
+
+                        {/* Footer */}
+                        <Box sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: 1,
+                          pt: 1,
+                          borderTop: `1px solid ${alpha(priorityColor, 0.15)}`,
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, flexWrap: 'wrap' }}>
+                            <Chip
+                              icon={<AccessTime sx={{ fontSize: '14px !important' }} />}
+                              label={`Expira em ${timeText}`}
+                              size="small"
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                                bgcolor: alpha('#3b82f6', 0.1),
+                                color: '#3b82f6',
+                                '& .MuiChip-icon': { color: '#3b82f6' },
+                              }}
+                            />
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.6rem', sm: '0.72rem' } }}>
+                              Por: {task.createdByName}
+                            </Typography>
+                          </Box>
+                          {!task.targetCount && userRole !== 'user' && (
+                            <Button
+                              variant="contained"
+                              size="small"
+                              startIcon={<CheckCircle sx={{ fontSize: 16 }} />}
+                              onClick={() => handleCompleteTask(task.id)}
+                              sx={{
+                                bgcolor: '#22c55e',
+                                fontWeight: 700,
+                                borderRadius: 2,
+                                fontSize: { xs: '0.7rem', sm: '0.78rem' },
+                                px: { xs: 1.5, sm: 2.5 },
+                                '&:hover': { bgcolor: '#16a34a' },
+                              }}
+                            >
+                              Concluir
+                            </Button>
+                          )}
+                        </Box>
+                      </Paper>
+                    );
+                  })}
+                </Box>
+              )}
 
               {/* ====== ALERTS ====== */}
               {(stats.manutencoesVencidas.length > 0 ||

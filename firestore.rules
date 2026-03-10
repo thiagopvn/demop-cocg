@@ -91,5 +91,15 @@ service cloud.firestore {
       allow create: if isAuth();
       allow update, delete: if false;
     }
+
+    // Tarefas DEMOP: all auth reads, admingeral full control, editor+ can only update progress/completion
+    match /tarefas_demop/{docId} {
+      allow read: if isAuth();
+      allow create, delete: if isAdminGeral();
+      allow update: if isAdminGeral()
+        || (isEditorOrAdmin()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['progress', 'status', 'completedAt', 'completedBy', 'completedByName']));
+    }
   }
 }

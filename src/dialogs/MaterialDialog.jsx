@@ -18,6 +18,7 @@ import { addDoc, updateDoc, doc, serverTimestamp, collection } from 'firebase/fi
 import db from '../firebase/db';
 import { CategoriaContext } from '../contexts/CategoriaContext';
 import { logAudit } from '../firebase/auditLog';
+import { incrementTaskProgress } from '../firebase/taskProgress';
 
 const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId }) => {
     const { categorias } = useContext(CategoriaContext);
@@ -79,6 +80,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId 
                     targetName: description,
                     details: { categoria: data.categoria, estoque_total: data.estoque_total, estoque_atual: data.estoque_atual },
                 });
+                incrementTaskProgress(loggedUserId, loggedUserName);
             } else {
                 const materialsCollection = collection(db, 'materials');
                 const newDoc = await addDoc(materialsCollection, {
