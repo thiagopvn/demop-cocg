@@ -54,9 +54,9 @@ export const ACTION_LABELS = {
     ring_create: 'Criou anel',
     ring_update: 'Editou anel',
     ring_delete: 'Excluiu anel',
-    tarefa_create: 'Criou ordem de servico',
-    tarefa_complete: 'Concluiu ordem de servico',
-    tarefa_cancel: 'Cancelou ordem de servico',
+    tarefa_create: 'Criou missao do dia',
+    tarefa_complete: 'Concluiu missao do dia',
+    tarefa_cancel: 'Cancelou missao do dia',
 };
 
 // Cores para cada tipo de ação

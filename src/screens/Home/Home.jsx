@@ -98,7 +98,7 @@ const TASK_TYPES_CONFIG = {
   assinatura: { label: 'Atencao para Assinatura', color: '#ef4444' },
   procurar: { label: 'Procurar Material', color: '#06b6d4' },
   atualizar: { label: 'Atualizar Material', color: '#22c55e' },
-  mensagem: { label: 'Mensagem / Ordem', color: '#ff6b35' },
+  mensagem: { label: 'Mensagem / Recado', color: '#ff6b35' },
 };
 
 const TASK_PRIORITY_COLORS = {
@@ -1027,7 +1027,7 @@ export default function Home() {
       });
 
       setDemopTasks((prev) => prev.filter((t) => t.id !== taskId));
-      setSnackbarMessage("Tarefa concluida com sucesso!");
+      setSnackbarMessage("Missao concluida com sucesso!");
       setSnackbarOpen(true);
     } catch (error) {
       console.error("Erro ao concluir tarefa:", error);
@@ -1488,7 +1488,7 @@ export default function Home() {
                                 fontSize: { xs: '0.6rem', sm: '0.7rem' },
                               }}
                             >
-                              ORDEM DE SERVICO - DEMOP
+                              MISSAO DO DIA - DEMOP
                             </Typography>
                             <Typography
                               variant="h5"

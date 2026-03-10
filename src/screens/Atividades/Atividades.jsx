@@ -141,7 +141,7 @@ const TASK_TYPES = {
     assinatura: { label: 'Atencao para Assinatura', icon: Assignment, color: '#ef4444' },
     procurar: { label: 'Procurar Material', icon: Search, color: '#06b6d4' },
     atualizar: { label: 'Atualizar Material', icon: Edit, color: '#22c55e' },
-    mensagem: { label: 'Mensagem / Ordem Geral', icon: Message, color: '#ff6b35' },
+    mensagem: { label: 'Mensagem / Recado', icon: Message, color: '#ff6b35' },
 };
 
 const PRIORITY_OPTIONS = [
@@ -472,12 +472,12 @@ export default function Atividades() {
 
             setTaskForm({ title: '', description: '', type: 'conferencia', targetCount: '', priority: 'media', durationDays: 1 });
             setTaskDialogOpen(false);
-            setSnackbarMessage('Ordem de servico criada com sucesso!');
+            setSnackbarMessage('Missao do dia criada com sucesso!');
             setSnackbarSeverity('success');
             setSnackbarOpen(true);
         } catch (error) {
             console.error('Erro ao criar tarefa:', error);
-            setSnackbarMessage('Erro ao criar ordem de servico.');
+            setSnackbarMessage('Erro ao criar missao do dia.');
             setSnackbarSeverity('error');
             setSnackbarOpen(true);
         }
@@ -498,7 +498,7 @@ export default function Atividades() {
                 targetId: taskId,
                 targetName: taskTitle,
             });
-            setSnackbarMessage('Ordem cancelada.');
+            setSnackbarMessage('Missao cancelada.');
             setSnackbarSeverity('info');
             setSnackbarOpen(true);
         } catch (error) {
@@ -509,7 +509,7 @@ export default function Atividades() {
     const handleDeleteTask = async (taskId) => {
         try {
             await deleteDoc(doc(db, 'tarefas_demop', taskId));
-            setSnackbarMessage('Ordem removida.');
+            setSnackbarMessage('Missao removida.');
             setSnackbarSeverity('info');
             setSnackbarOpen(true);
         } catch (error) {
@@ -628,7 +628,7 @@ export default function Atividades() {
                                 iconPosition="start"
                                 label={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        Ordens de Servico
+                                        Missao do Dia
                                         {activeTasks.length > 0 && (
                                             <Chip
                                                 label={activeTasks.length}
@@ -1018,7 +1018,7 @@ export default function Atividades() {
                             )}
                         </Box>
                     )}
-                    {/* Tab 2: Ordens de Servico */}
+                    {/* Tab 2: Missao do Dia */}
                     {tabValue === 2 && (
                         <Box>
                             {/* Active Tasks */}
@@ -1026,7 +1026,7 @@ export default function Atividades() {
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                                     <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Flag sx={{ color: '#ff6b35' }} />
-                                        Ordens Ativas
+                                        Missoes Ativas
                                         {activeTasks.length > 0 && (
                                             <Chip label={activeTasks.length} size="small" sx={{ fontWeight: 700, bgcolor: '#ff6b35', color: 'white' }} />
                                         )}
@@ -1043,16 +1043,16 @@ export default function Atividades() {
                                             '&:hover': { bgcolor: '#e55a2b' },
                                         }}
                                     >
-                                        Nova Ordem
+                                        Nova Missao
                                     </Button>
                                 </Box>
 
                                 {activeTasks.length === 0 ? (
                                     <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 3, border: '2px dashed', borderColor: 'divider' }}>
                                         <Assignment sx={{ fontSize: 64, color: 'text.disabled', mb: 1 }} />
-                                        <Typography variant="h6" color="text.secondary">Nenhuma ordem ativa</Typography>
+                                        <Typography variant="h6" color="text.secondary">Nenhuma missao ativa</Typography>
                                         <Typography variant="body2" color="text.disabled">
-                                            Crie uma nova ordem de servico para o DEMOP
+                                            Crie uma nova missao do dia para o DEMOP
                                         </Typography>
                                     </Paper>
                                 ) : (
@@ -1119,7 +1119,7 @@ export default function Atividades() {
                                                             )}
                                                         </Box>
                                                         <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                                            <Tooltip title="Cancelar ordem">
+                                                            <Tooltip title="Cancelar missao">
                                                                 <IconButton
                                                                     size="small"
                                                                     onClick={() => handleCancelTask(task.id, task.title)}
@@ -1288,17 +1288,17 @@ export default function Atividades() {
                             background: 'linear-gradient(90deg, #ff6b35 0%, #1e3a5f 100%)',
                         }} />
                         <DialogTitle sx={{ fontWeight: 700, fontSize: '1.3rem', pb: 0 }}>
-                            Nova Ordem de Servico
+                            Nova Missao do Dia
                         </DialogTitle>
                         <Typography variant="body2" color="text.secondary" sx={{ px: 3, pb: 2 }}>
-                            Crie uma tarefa ou mensagem para o permanencia do DEMOP
+                            Crie uma missao ou mensagem para o permanencia do DEMOP
                         </Typography>
                         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '0 !important' }}>
                             <FormControl fullWidth>
-                                <InputLabel>Tipo da Ordem</InputLabel>
+                                <InputLabel>Tipo da Missao</InputLabel>
                                 <Select
                                     value={taskForm.type}
-                                    label="Tipo da Ordem"
+                                    label="Tipo da Missao"
                                     onChange={(e) => setTaskForm(prev => ({ ...prev, type: e.target.value }))}
                                 >
                                     {Object.entries(TASK_TYPES).map(([key, info]) => (
@@ -1313,7 +1313,7 @@ export default function Atividades() {
                             </FormControl>
 
                             <TextField
-                                label="Titulo da Ordem"
+                                label="Titulo da Missao"
                                 value={taskForm.title}
                                 onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
                                 placeholder="Ex: Conferir 40 materiais hoje"
@@ -1392,7 +1392,7 @@ export default function Atividades() {
                                     '&:hover': { bgcolor: '#e55a2b' },
                                 }}
                             >
-                                Criar Ordem
+                                Criar Missao
                             </Button>
                         </DialogActions>
                     </Dialog>
