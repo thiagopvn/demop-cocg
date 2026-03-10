@@ -38,4 +38,8 @@ export const viaturaMaterialsCollection = collection(db, 'viatura_materiais');
 export const userSecretsCollection = collection(db, 'user_secrets');
 // ------------------------------------
 
+// --- COLEÇÃO DE TAREFAS/ORDENS DO DEMOP ---
+export const tarefasDemopCollection = collection(db, 'tarefas_demop');
+// ------------------------------------
+
 export default db;
