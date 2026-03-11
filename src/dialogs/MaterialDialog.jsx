@@ -48,7 +48,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId 
     }, [material, open, isEditing]);
 
     const handleSubmit = async () => {
-        if (!description || !categoriaId || estoqueTotal <= 0) {
+        if (!description || !categoriaId || estoqueTotal === '' || Number(estoqueTotal) < 0) {
             alert('Por favor, preencha todos os campos corretamente.');
             return;
         }
@@ -158,7 +158,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId 
                     variant="outlined"
                     value={estoqueTotal}
                     onChange={(e) => setEstoqueTotal(e.target.value)}
-                    InputProps={{ inputProps: { min: 1 } }}
+                    InputProps={{ inputProps: { min: 0 } }}
                     sx={{ mb: 2 }}
                 />
                 <TextField
