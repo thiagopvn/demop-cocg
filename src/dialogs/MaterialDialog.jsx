@@ -1,32 +1,38 @@
 import { useState, useEffect, useContext } from 'react';
-import { 
-    Dialog, 
-    DialogTitle, 
-    DialogContent, 
-    DialogActions, 
-    Button, 
-    TextField, 
-    Select, 
-    MenuItem, 
-    FormControl, 
-    InputLabel, 
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    TextField,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
     CircularProgress,
-    IconButton 
+    IconButton,
+    Alert,
+    Box,
+    Typography,
+    Chip
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { addDoc, updateDoc, doc, serverTimestamp, collection } from 'firebase/firestore';
 import db from '../firebase/db';
 import { CategoriaContext } from '../contexts/CategoriaContext';
 import { logAudit } from '../firebase/auditLog';
+import { findSimilarMaterials } from '../utils/materialSimilarity';
 import { incrementTaskProgress } from '../firebase/taskProgress';
 
-const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId }) => {
+const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId, materials = [] }) => {
     const { categorias } = useContext(CategoriaContext);
     const [description, setDescription] = useState('');
     const [categoriaId, setCategoriaId] = useState('');
     const [estoqueTotal, setEstoqueTotal] = useState(1);
     const [estoqueAtual, setEstoqueAtual] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [similarMaterials, setSimilarMaterials] = useState([]);
 
     const isEditing = material != null;
 
@@ -46,6 +52,25 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId 
             }
         }
     }, [material, open, isEditing]);
+
+    useEffect(() => {
+        if (!open || !description || description.length < 3) {
+            setSimilarMaterials([]);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            const similar = findSimilarMaterials(
+                description,
+                materials,
+                material?.id,
+                0.5
+            );
+            setSimilarMaterials(similar);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [description, materials, material, open]);
 
     const handleSubmit = async () => {
         if (!description || !categoriaId || estoqueTotal === '' || Number(estoqueTotal) < 0) {
@@ -136,6 +161,26 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId 
                     onChange={(e) => setDescription(e.target.value)}
                     sx={{ mb: 2 }}
                 />
+                {similarMaterials.length > 0 && (
+                    <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            Materiais similares já cadastrados:
+                        </Typography>
+                        {similarMaterials.map(m => (
+                            <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                                <Typography variant="body2">
+                                    • {m.description}
+                                </Typography>
+                                <Chip
+                                    label={m.categoria || 'Sem cat.'}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ height: 20, fontSize: '0.7rem' }}
+                                />
+                            </Box>
+                        ))}
+                    </Alert>
+                )}
                 <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
                     <InputLabel>Categoria</InputLabel>
                     <Select
