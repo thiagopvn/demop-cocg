@@ -21,7 +21,8 @@ import {
   WhatsApp,
   SupportAgent,
   LockOutlined,
-  AssessmentOutlined
+  AssessmentOutlined,
+  AccountCircle
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -49,7 +50,9 @@ import {
   Zoom,
   Fade,
   alpha,
-  Paper
+  Paper,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import db from '../firebase/db';
@@ -71,6 +74,7 @@ function MenuContext({ children }) {
   const [isCleaning, setIsCleaning] = useState(false);
   const [maintenanceBadge, setMaintenanceBadge] = useState({ overdue: 0, today: 0, total: 0 });
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const allMenuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'editor', 'admin', 'admingeral'] },
@@ -84,6 +88,7 @@ function MenuContext({ children }) {
     { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1, roles: ['admin', 'admingeral'] },
     { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['editor', 'admin', 'admingeral'] },
     { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: AccountCircle, label: 'Meu Perfil', path: '/perfil', id: 12, roles: ['user', 'editor', 'admin', 'admingeral'] },
   ];
 
   // Filtrar itens de menu baseado no papel do usuário
@@ -860,10 +865,26 @@ function MenuContext({ children }) {
         onClose={(success) => {
           setChangePasswordOpen(false);
           if (success) {
-            alert("Senha alterada com sucesso!");
+            setSnackbar({ open: true, message: 'Senha alterada com sucesso!', severity: 'success' });
           }
         }}
       />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%', borderRadius: 2 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       {/* Cleanup Dialog */}
       <Dialog

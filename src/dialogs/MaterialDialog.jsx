@@ -10,6 +10,7 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
+    FormHelperText,
     CircularProgress,
     IconButton,
     Alert,
@@ -33,11 +34,13 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const [estoqueAtual, setEstoqueAtual] = useState(1);
     const [loading, setLoading] = useState(false);
     const [similarMaterials, setSimilarMaterials] = useState([]);
+    const [errors, setErrors] = useState({});
 
     const isEditing = material != null;
 
     useEffect(() => {
         if (open) {
+            setErrors({});
             if (isEditing && material) {
                 setDescription(material.description || '');
                 setCategoriaId(material.categoria_id || '');
@@ -73,10 +76,21 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     }, [description, materials, material, open]);
 
     const handleSubmit = async () => {
-        if (!description || !categoriaId || estoqueTotal === '' || Number(estoqueTotal) < 0) {
-            alert('Por favor, preencha todos os campos corretamente.');
+        const newErrors = {};
+        if (!description) {
+            newErrors.description = 'Descrição é obrigatória';
+        }
+        if (!categoriaId) {
+            newErrors.categoriaId = 'Categoria é obrigatória';
+        }
+        if (estoqueTotal === '' || Number(estoqueTotal) < 0) {
+            newErrors.estoqueTotal = 'Estoque deve ser >= 0';
+        }
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
+        setErrors({});
         setLoading(true);
 
         const selectedCategoria = categorias.find(c => c.id === categoriaId);
@@ -126,7 +140,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             onClose();
         } catch (error) {
             console.error("Erro ao salvar material: ", error);
-            alert('Falha ao salvar o material.');
+            setErrors(prev => ({ ...prev, general: 'Falha ao salvar o material.' }));
         } finally {
             setLoading(false);
         }
@@ -150,6 +164,11 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                 </IconButton>
             </DialogTitle>
             <DialogContent>
+                {errors.general && (
+                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrors(prev => { const { general, ...rest } = prev; return rest; })}>
+                        {errors.general}
+                    </Alert>
+                )}
                 <TextField
                     autoFocus
                     margin="dense"
@@ -158,7 +177,12 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     fullWidth
                     variant="outlined"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => {
+                        setDescription(e.target.value);
+                        setErrors(prev => { const { description, ...rest } = prev; return rest; });
+                    }}
+                    error={!!errors.description}
+                    helperText={errors.description}
                     sx={{ mb: 2 }}
                 />
                 {similarMaterials.length > 0 && (
@@ -212,12 +236,15 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                         </Box>
                     </Alert>
                 )}
-                <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
+                <FormControl fullWidth margin="dense" sx={{ mb: 2 }} error={!!errors.categoriaId}>
                     <InputLabel>Categoria</InputLabel>
                     <Select
                         value={categoriaId}
                         label="Categoria"
-                        onChange={(e) => setCategoriaId(e.target.value)}
+                        onChange={(e) => {
+                            setCategoriaId(e.target.value);
+                            setErrors(prev => { const { categoriaId, ...rest } = prev; return rest; });
+                        }}
                     >
                         {categorias.map(cat => (
                             <MenuItem key={cat.id} value={cat.id}>
@@ -225,6 +252,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                             </MenuItem>
                         ))}
                     </Select>
+                    {errors.categoriaId && <FormHelperText>{errors.categoriaId}</FormHelperText>}
                 </FormControl>
                 <TextField
                     margin="dense"
@@ -233,7 +261,12 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     fullWidth
                     variant="outlined"
                     value={estoqueTotal}
-                    onChange={(e) => setEstoqueTotal(e.target.value)}
+                    onChange={(e) => {
+                        setEstoqueTotal(e.target.value);
+                        setErrors(prev => { const { estoqueTotal, ...rest } = prev; return rest; });
+                    }}
+                    error={!!errors.estoqueTotal}
+                    helperText={errors.estoqueTotal}
                     InputProps={{ inputProps: { min: 0 } }}
                     sx={{ mb: 2 }}
                 />
