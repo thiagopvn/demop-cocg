@@ -35,7 +35,11 @@ import {
     ListItemText,
     Accordion,
     AccordionSummary,
-    AccordionDetails
+    AccordionDetails,
+    Checkbox,
+    FormControl,
+    Select,
+    InputLabel
 } from '@mui/material';
 import {
     Add,
@@ -54,7 +58,12 @@ import {
     SortByAlpha,
     AccessTime,
     ContentCopy,
-    WarningAmber
+    WarningAmber,
+    CheckBox,
+    CheckBoxOutlineBlank,
+    FactCheck,
+    FilterList,
+    ClearAll
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -226,6 +235,15 @@ const Material = () => {
     const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
     const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false);
     const [showUncheckedDialog, setShowUncheckedDialog] = useState(false);
+
+    // Filter states
+    const [filterCategoria, setFilterCategoria] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [filterEstoque, setFilterEstoque] = useState('');
+
+    // Conference mode states
+    const [conferenceMode, setConferenceMode] = useState(false);
+    const [selectedForConference, setSelectedForConference] = useState(new Set());
 
     const handleSort = (field) => {
         if (sortField === field) {
@@ -526,10 +544,31 @@ const Material = () => {
 
     const debouncedSearchTerm = useDebounce(searchTerm, 250);
 
-    // Reset visibleCount quando pesquisa muda
+    // Reset visibleCount e filtros quando pesquisa muda
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
+        setFilterCategoria('');
+        setFilterStatus('');
+        setFilterEstoque('');
     }, [debouncedSearchTerm]);
+
+    // Unique categories for filter dropdown
+    const uniqueCategories = useMemo(() => {
+        const cats = new Set();
+        materials.forEach(m => {
+            if (m.categoria) cats.add(m.categoria);
+        });
+        return [...cats].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    }, [materials]);
+
+    // Check if any filter is active
+    const hasActiveFilters = filterCategoria || filterStatus || filterEstoque;
+
+    const handleClearFilters = useCallback(() => {
+        setFilterCategoria('');
+        setFilterStatus('');
+        setFilterEstoque('');
+    }, []);
 
     // Filtro otimizado - retorna todos os materiais filtrados e ordenados
     const allFilteredMaterials = useMemo(() => {
@@ -547,6 +586,25 @@ const Material = () => {
                 }
                 return true;
             });
+        }
+
+        // Apply category filter
+        if (filterCategoria) {
+            result = result.filter(m => m.categoria === filterCategoria);
+        }
+
+        // Apply status filter
+        if (filterStatus) {
+            result = result.filter(m => m.maintenance_status === filterStatus);
+        }
+
+        // Apply stock filter
+        if (filterEstoque) {
+            if (filterEstoque === 'zerado') {
+                result = result.filter(m => (m.estoque_atual || 0) === 0);
+            } else if (filterEstoque === 'em_estoque') {
+                result = result.filter(m => (m.estoque_atual || 0) > 0);
+            }
         }
 
         const dir = sortDirection === 'asc' ? 1 : -1;
@@ -569,7 +627,7 @@ const Material = () => {
         });
 
         return result;
-    }, [materials, debouncedSearchTerm, sortField, sortDirection]);
+    }, [materials, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque]);
 
     // Materiais visíveis (limitados pelo visibleCount)
     const filteredMaterials = useMemo(() => {
@@ -583,6 +641,78 @@ const Material = () => {
 
     // Verifica se há mais itens para carregar
     const hasMore = allFilteredMaterials.length > visibleCount;
+
+    // Conference mode handlers
+    const handleToggleConferenceMode = useCallback(() => {
+        setConferenceMode(prev => {
+            if (prev) {
+                setSelectedForConference(new Set());
+            }
+            return !prev;
+        });
+    }, []);
+
+    const handleToggleConferenceItem = useCallback((materialId) => {
+        setSelectedForConference(prev => {
+            const next = new Set(prev);
+            if (next.has(materialId)) {
+                next.delete(materialId);
+            } else {
+                next.add(materialId);
+            }
+            return next;
+        });
+    }, []);
+
+    const handleSelectAllVisible = useCallback(() => {
+        setSelectedForConference(prev => {
+            const allVisibleIds = filteredMaterials.map(m => m.id);
+            const allSelected = allVisibleIds.every(id => prev.has(id));
+            if (allSelected) {
+                // Deselect all visible
+                const next = new Set(prev);
+                allVisibleIds.forEach(id => next.delete(id));
+                return next;
+            } else {
+                // Select all visible
+                const next = new Set(prev);
+                allVisibleIds.forEach(id => next.add(id));
+                return next;
+            }
+        });
+    }, [filteredMaterials]);
+
+    const handleConferirSelecionados = useCallback(async () => {
+        if (selectedForConference.size === 0) return;
+        try {
+            const promises = [...selectedForConference].map(materialId =>
+                updateDoc(doc(db, 'materials', materialId), {
+                    ultima_conferencia: serverTimestamp(),
+                    conferido_por: loggedUserName,
+                })
+            );
+            await Promise.all(promises);
+            setSnackbar({
+                open: true,
+                message: `${selectedForConference.size} materia${selectedForConference.size !== 1 ? 'is' : 'l'} conferido${selectedForConference.size !== 1 ? 's' : ''} com sucesso!`,
+                severity: 'success',
+            });
+            setSelectedForConference(new Set());
+            setConferenceMode(false);
+        } catch (error) {
+            console.error('Erro ao conferir materiais:', error);
+            setSnackbar({
+                open: true,
+                message: 'Erro ao conferir materiais selecionados',
+                severity: 'error',
+            });
+        }
+    }, [selectedForConference, loggedUserName]);
+
+    const handleCancelConference = useCallback(() => {
+        setSelectedForConference(new Set());
+        setConferenceMode(false);
+    }, []);
 
     // Statistics
     const stats = useMemo(() => {
@@ -676,25 +806,49 @@ const Material = () => {
                             Gerencie o inventário completo de materiais e equipamentos
                         </Typography>
                     </Box>
-                    <Button
-                        variant="contained"
-                        startIcon={<Add />}
-                        onClick={() => handleOpenDialog()}
-                        sx={{ 
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            px: 3,
-                            py: 1.5,
-                            boxShadow: 2,
-                            '&:hover': {
-                                boxShadow: 4,
-                                transform: 'translateY(-2px)',
-                            },
-                        }}
-                    >
-                        Novo Material
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {isAdmin && (
+                            <Button
+                                variant={conferenceMode ? 'contained' : 'outlined'}
+                                startIcon={<FactCheck />}
+                                onClick={handleToggleConferenceMode}
+                                color={conferenceMode ? 'success' : 'primary'}
+                                sx={{
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    px: 3,
+                                    py: 1.5,
+                                    boxShadow: conferenceMode ? 3 : 0,
+                                    '&:hover': {
+                                        boxShadow: conferenceMode ? 5 : 2,
+                                        transform: 'translateY(-2px)',
+                                    },
+                                }}
+                            >
+                                {conferenceMode ? 'Sair Conferência' : 'Modo Conferência'}
+                            </Button>
+                        )}
+                        <Button
+                            variant="contained"
+                            startIcon={<Add />}
+                            onClick={() => handleOpenDialog()}
+                            sx={{
+                                borderRadius: 2,
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                px: 3,
+                                py: 1.5,
+                                boxShadow: 2,
+                                '&:hover': {
+                                    boxShadow: 4,
+                                    transform: 'translateY(-2px)',
+                                },
+                            }}
+                        >
+                            Novo Material
+                        </Button>
+                    </Box>
                 </StyledHeader>
 
                 {/* Statistics Cards */}
@@ -906,6 +1060,73 @@ const Material = () => {
                         </Menu>
                     </Box>
 
+                    {/* Filters */}
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, alignItems: 'center' }}>
+                        <FilterList fontSize="small" sx={{ color: 'text.secondary', mr: 0.5 }} />
+                        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+                            <InputLabel id="filter-categoria-label">Categoria</InputLabel>
+                            <Select
+                                labelId="filter-categoria-label"
+                                value={filterCategoria}
+                                label="Categoria"
+                                onChange={(e) => setFilterCategoria(e.target.value)}
+                                sx={{ borderRadius: 2, fontSize: '0.85rem' }}
+                            >
+                                <MenuItem value="">Todas</MenuItem>
+                                {uniqueCategories.map(cat => (
+                                    <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+                            <InputLabel id="filter-status-label">Status</InputLabel>
+                            <Select
+                                labelId="filter-status-label"
+                                value={filterStatus}
+                                label="Status"
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                sx={{ borderRadius: 2, fontSize: '0.85rem' }}
+                            >
+                                <MenuItem value="">Todos</MenuItem>
+                                <MenuItem value="operante">Operante</MenuItem>
+                                <MenuItem value="em_manutencao">Em Manutenção</MenuItem>
+                                <MenuItem value="inoperante">Inoperante</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+                            <InputLabel id="filter-estoque-label">Estoque</InputLabel>
+                            <Select
+                                labelId="filter-estoque-label"
+                                value={filterEstoque}
+                                label="Estoque"
+                                onChange={(e) => setFilterEstoque(e.target.value)}
+                                sx={{ borderRadius: 2, fontSize: '0.85rem' }}
+                            >
+                                <MenuItem value="">Todos</MenuItem>
+                                <MenuItem value="zerado">Estoque Zerado</MenuItem>
+                                <MenuItem value="em_estoque">Em Estoque</MenuItem>
+                            </Select>
+                        </FormControl>
+                        {hasActiveFilters && (
+                            <Chip
+                                icon={<ClearAll />}
+                                label="Limpar Filtros"
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                onClick={handleClearFilters}
+                                onDelete={handleClearFilters}
+                                sx={{
+                                    borderRadius: 2,
+                                    fontWeight: 500,
+                                    '&:hover': {
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                    },
+                                }}
+                            />
+                        )}
+                    </Box>
+
                     {/* Search Results Info */}
                     {debouncedSearchTerm && (
                             <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -935,6 +1156,21 @@ const Material = () => {
                     <Table>
                         <StyledTableHead>
                             <TableRow>
+                                {conferenceMode && (
+                                    <TableCell sx={{ color: 'white', fontWeight: 600, width: 48, p: 0.5 }} align="center">
+                                        <Checkbox
+                                            checked={filteredMaterials.length > 0 && filteredMaterials.every(m => selectedForConference.has(m.id))}
+                                            indeterminate={filteredMaterials.some(m => selectedForConference.has(m.id)) && !filteredMaterials.every(m => selectedForConference.has(m.id))}
+                                            onChange={handleSelectAllVisible}
+                                            sx={{
+                                                color: 'rgba(255,255,255,0.7)',
+                                                '&.Mui-checked': { color: 'white' },
+                                                '&.MuiCheckbox-indeterminate': { color: 'white' },
+                                            }}
+                                            size="small"
+                                        />
+                                    </TableCell>
+                                )}
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
                                     <TableSortLabel
                                         active={sortField === 'description'}
@@ -1001,7 +1237,7 @@ const Material = () => {
                                 <>
                                     {renderLoadingSkeleton()}
                                     <TableRow>
-                                        <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                                        <TableCell colSpan={conferenceMode ? 9 : 8} align="center" sx={{ py: 4 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                                 <CircularProgress size={24} />
                                                 <Typography variant="body2" color="text.secondary">
@@ -1013,14 +1249,14 @@ const Material = () => {
                                 </>
                             ) : filteredMaterials.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={conferenceMode ? 9 : 8} align="center" sx={{ py: 6 }}>
                                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                             <Inventory sx={{ fontSize: 48, color: 'text.disabled' }} />
                                             <Typography variant="h6" color="text.secondary">
                                                 {debouncedSearchTerm ? 'Nenhum material encontrado' : 'Nenhum material cadastrado'}
                                             </Typography>
                                             <Typography variant="body2" color="text.disabled">
-                                                {debouncedSearchTerm 
+                                                {debouncedSearchTerm
                                                     ? `Não encontramos materiais para "${debouncedSearchTerm}"`
                                                     : 'Comece adicionando um novo material ao sistema'
                                                 }
@@ -1040,7 +1276,22 @@ const Material = () => {
                                 </TableRow>
                             ) : (
                                 filteredMaterials.map((material) => (
-                                    <StyledTableRow hover key={material.id}>
+                                    <StyledTableRow hover key={material.id} selected={conferenceMode && selectedForConference.has(material.id)}>
+                                            {conferenceMode && (
+                                                <StyledTableCell align="center" sx={{ width: 48, p: 0.5 }}>
+                                                    <Checkbox
+                                                        checked={selectedForConference.has(material.id)}
+                                                        onChange={() => handleToggleConferenceItem(material.id)}
+                                                        size="small"
+                                                        icon={<CheckBoxOutlineBlank fontSize="small" />}
+                                                        checkedIcon={<CheckBox fontSize="small" />}
+                                                        sx={{
+                                                            color: 'text.secondary',
+                                                            '&.Mui-checked': { color: 'success.main' },
+                                                        }}
+                                                    />
+                                                </StyledTableCell>
+                                            )}
                                             <StyledTableCell>
                                                 <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.4 }}>
                                                     {material.description}
@@ -1535,6 +1786,60 @@ const Material = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Conference Mode Floating Action Bar */}
+            {conferenceMode && (
+                <Paper sx={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    p: 2,
+                    zIndex: 1200,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 2,
+                    boxShadow: 6,
+                    borderTop: `3px solid ${theme.palette.success.main}`,
+                    backgroundColor: theme.palette.background.paper,
+                }}>
+                    <Chip
+                        icon={<FactCheck />}
+                        label={`${selectedForConference.size} selecionado${selectedForConference.size !== 1 ? 's' : ''}`}
+                        color={selectedForConference.size > 0 ? 'success' : 'default'}
+                        variant="filled"
+                        sx={{ fontWeight: 600 }}
+                    />
+                    <Button
+                        variant="contained"
+                        color="success"
+                        onClick={handleConferirSelecionados}
+                        disabled={selectedForConference.size === 0}
+                        startIcon={<CheckBox />}
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            px: 3,
+                        }}
+                    >
+                        Conferir Selecionados
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={handleCancelConference}
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 500,
+                        }}
+                    >
+                        Cancelar
+                    </Button>
+                </Paper>
+            )}
 
             {/* Snackbar */}
             <Snackbar

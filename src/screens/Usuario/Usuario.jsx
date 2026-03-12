@@ -186,24 +186,6 @@ export default function Usuario() {
   };
 
   const handleSaveUser = async (data) => {
-    if (
-      !data.username ||
-      !data.full_name ||
-      !data.email ||
-      !data.password ||
-      !data.role ||
-      !data.rg ||
-      !data.telefone ||
-      !data.OBM
-    ) {
-      alert("Preencha todos os campos");
-      return;
-    }
-    if (data.password !== data.confirmPassword) {
-      alert("As senhas não são iguais");
-      return;
-    }
-
     try {
       await callCreateUserAccount({
         username: data.username,
@@ -229,9 +211,9 @@ export default function Usuario() {
       console.error("Erro ao salvar usuário:", error);
       const msg = error?.message || "Erro ao salvar usuário";
       if (msg.includes("já cadastrado") || msg.includes("already-exists")) {
-        alert(msg);
+        throw new Error(msg);
       } else {
-        alert("Erro ao salvar usuário");
+        throw new Error("Erro ao salvar usuário");
       }
     }
   };
@@ -333,7 +315,7 @@ export default function Usuario() {
       setEditData(null);
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error);
-      alert("Erro ao atualizar usuário.");
+      throw new Error("Erro ao atualizar usuário.");
     }
   };
 

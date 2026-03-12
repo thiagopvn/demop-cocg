@@ -11,9 +11,11 @@ import {
     Radio,
     FormLabel,
     FormControl,
+    FormHelperText,
     Select,
     MenuItem,
     InputLabel,
+    Alert,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -104,7 +106,9 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
     const [showPassword, setShowPassword] = useState(false);
     const [editMode, setEditMode] = useState(!!editData);
     const [loggedUser, setLoggedUser] = useState(null);
+    const [errors, setErrors] = useState({});
     useEffect(() => {
+        setErrors({});
         if (editData) {
             setData({
                 id: editData.id || "",
@@ -145,7 +149,9 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
     }, []);
 
     const handleChange = (e) => {
-        setData({ ...data, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setData({ ...data, [name]: value });
+        setErrors(prev => { const { [name]: _, general, ...rest } = prev; return rest; });
     };
 
     const handleClickShowPassword = () => {
@@ -154,6 +160,36 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
 
     const handleMouseDownPassword = (event) => {
         event.preventDefault();
+    };
+
+    const handleValidateAndSubmit = async () => {
+        const newErrors = {};
+        if (!data.username) newErrors.username = 'RG de login é obrigatório';
+        if (!data.full_name) newErrors.full_name = 'Nome de Guerra é obrigatório';
+        if (!data.email) newErrors.email = 'Email é obrigatório';
+        if (!editData) {
+            if (!data.password) newErrors.password = 'Senha é obrigatória';
+            if (!data.confirmPassword) newErrors.confirmPassword = 'Confirmação de senha é obrigatória';
+            if (data.password && data.confirmPassword && data.password !== data.confirmPassword) {
+                newErrors.confirmPassword = 'As senhas não são iguais';
+            }
+        }
+        if (!data.rg) newErrors.rg = 'RG é obrigatório';
+        if (!data.telefone) newErrors.telefone = 'Telefone é obrigatório';
+        if (!data.OBM) newErrors.OBM = 'OBM é obrigatório';
+        if (!data.role) newErrors.role = 'Permissão é obrigatória';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+        setErrors({});
+        try {
+            await onSubmit(data);
+        } catch (error) {
+            const msg = error?.message || 'Erro ao salvar usuário';
+            setErrors({ general: msg });
+        }
     };
 
     return (
@@ -202,6 +238,11 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
 
             <DialogContent sx={{ padding: '24px' }}>
                 <div style={{ display: 'grid', gap: '20px' }}>
+                    {errors.general && (
+                        <Alert severity="error" onClose={() => setErrors(prev => { const { general, ...rest } = prev; return rest; })}>
+                            {errors.general}
+                        </Alert>
+                    )}
                     <TextField
                         fullWidth
                         label="RG"
@@ -209,6 +250,8 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         value={data.username}
                         onChange={handleChange}
                         disabled={editMode}
+                        error={!!errors.username}
+                        helperText={errors.username}
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
@@ -228,6 +271,8 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         name="full_name"
                         value={data.full_name}
                         onChange={handleChange}
+                        error={!!errors.full_name}
+                        helperText={errors.full_name}
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
@@ -248,6 +293,8 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         value={data.email}
                         onChange={handleChange}
                         autoComplete="off"
+                        error={!!errors.email}
+                        helperText={errors.email}
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
@@ -271,6 +318,8 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             value={data.password}
                             onChange={handleChange}
                             autoComplete="new-password"
+                            error={!!errors.password}
+                            helperText={errors.password}
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
@@ -306,6 +355,8 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             name="confirmPassword"
                             value={data.confirmPassword}
                             onChange={handleChange}
+                            error={!!errors.confirmPassword}
+                            helperText={errors.confirmPassword}
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
@@ -344,6 +395,8 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             name="rg"
                             value={data.rg}
                             onChange={handleChange}
+                            error={!!errors.rg}
+                            helperText={errors.rg}
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
@@ -363,6 +416,8 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             name="telefone"
                             value={data.telefone}
                             onChange={handleChange}
+                            error={!!errors.telefone}
+                            helperText={errors.telefone}
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
@@ -378,7 +433,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         />
                     </div>
                     
-                    <FormControl fullWidth>
+                    <FormControl fullWidth error={!!errors.OBM}>
                         <InputLabel id="obm-select-label">OBM</InputLabel>
                         <Select
                             labelId="obm-select-label"
@@ -404,6 +459,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                                 </MenuItem>
                             ))}
                         </Select>
+                        {errors.OBM && <FormHelperText>{errors.OBM}</FormHelperText>}
                     </FormControl>
                     {(loggedUser?.role === "admin" || loggedUser?.role === "admingeral") && (
                         <FormControl component="fieldset" fullWidth>
@@ -461,7 +517,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                     
                     <Button
                         variant="contained"
-                        onClick={() => onSubmit(data)}
+                        onClick={handleValidateAndSubmit}
                         fullWidth
                         sx={{ 
                             marginTop: '32px',
