@@ -60,37 +60,47 @@ if (import.meta.env.PROD) {
     });
   } catch (e) { /* ignore */ }
 
-  // 5. Detectar DevTools aberto via debugger trap
-  const devtoolsDetector = () => {
-    const start = performance.now();
-    // eslint-disable-next-line no-debugger
-    debugger;
-    const end = performance.now();
-    if (end - start > 50) {
-      // DevTools provavelmente aberto (debugger causou pausa)
-      try {
-        localStorage.removeItem('token');
-        sessionStorage.clear();
-        window.location.replace('/');
-      } catch (e) { /* ignore */ }
-    }
-  };
-  setInterval(devtoolsDetector, 3000);
+  // Detectar se é dispositivo móvel/touch (DevTools não disponíveis)
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+    ('ontouchstart' in window && navigator.maxTouchPoints > 1);
 
-  // 6. Detectar DevTools via tamanho da janela
-  const sizeDetector = () => {
-    const threshold = 160;
-    const widthDiff = window.outerWidth - window.innerWidth > threshold;
-    const heightDiff = window.outerHeight - window.innerHeight > threshold;
-    if (widthDiff || heightDiff) {
-      try {
-        localStorage.removeItem('token');
-        sessionStorage.clear();
-        window.location.replace('/');
-      } catch (e) { /* ignore */ }
-    }
-  };
-  setInterval(sizeDetector, 2000);
+  // 5. Detectar DevTools aberto via debugger trap (apenas desktop)
+  if (!isMobile) {
+    const devtoolsDetector = () => {
+      const start = performance.now();
+      // eslint-disable-next-line no-debugger
+      debugger;
+      const end = performance.now();
+      if (end - start > 50) {
+        // DevTools provavelmente aberto (debugger causou pausa)
+        try {
+          localStorage.removeItem('token');
+          sessionStorage.clear();
+          window.location.replace('/');
+        } catch (e) { /* ignore */ }
+      }
+    };
+    setInterval(devtoolsDetector, 3000);
+  }
+
+  // 6. Detectar DevTools via tamanho da janela (apenas desktop)
+  // No iOS, o teclado virtual e a barra de enderecos alteram innerHeight,
+  // causando falsos positivos que disparam reload infinito.
+  if (!isMobile) {
+    const sizeDetector = () => {
+      const threshold = 160;
+      const widthDiff = window.outerWidth - window.innerWidth > threshold;
+      const heightDiff = window.outerHeight - window.innerHeight > threshold;
+      if (widthDiff || heightDiff) {
+        try {
+          localStorage.removeItem('token');
+          sessionStorage.clear();
+          window.location.replace('/');
+        } catch (e) { /* ignore */ }
+      }
+    };
+    setInterval(sizeDetector, 2000);
+  }
 
   // 7. Bloquear TODOS os atalhos de DevTools
   document.addEventListener('keydown', (e) => {
