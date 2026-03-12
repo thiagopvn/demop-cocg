@@ -162,23 +162,54 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     sx={{ mb: 2 }}
                 />
                 {similarMaterials.length > 0 && (
-                    <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                            Materiais similares já cadastrados:
+                    <Alert
+                        severity="warning"
+                        sx={{
+                            mb: 2, borderRadius: 2.5,
+                            border: '1px solid',
+                            borderColor: 'warning.light',
+                            '& .MuiAlert-icon': { alignItems: 'flex-start', pt: 0.5 },
+                        }}
+                    >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                            Possível material duplicado
                         </Typography>
-                        {similarMaterials.map(m => (
-                            <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
-                                <Typography variant="body2">
-                                    • {m.description}
-                                </Typography>
-                                <Chip
-                                    label={m.categoria || 'Sem cat.'}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{ height: 20, fontSize: '0.7rem' }}
-                                />
-                            </Box>
-                        ))}
+                        <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary', lineHeight: 1.5 }}>
+                            Já possuímos materiais cadastrados com nomes muito similares.
+                            Tem certeza que deseja criar um novo em vez de adicionar estoque ao existente?
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+                            {similarMaterials.map(m => (
+                                <Box
+                                    key={m.id}
+                                    sx={{
+                                        display: 'flex', alignItems: 'center', gap: 1,
+                                        p: 1, borderRadius: 1.5,
+                                        bgcolor: 'rgba(255, 152, 0, 0.06)',
+                                        border: '1px solid rgba(255, 152, 0, 0.15)',
+                                    }}
+                                >
+                                    <Typography variant="body2" fontWeight={600} sx={{ flex: 1, minWidth: 0 }} noWrap>
+                                        {m.description}
+                                    </Typography>
+                                    <Chip
+                                        label={m.categoria || 'Sem cat.'}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }}
+                                    />
+                                    <Chip
+                                        label={`${Math.round(m.similarity * 100)}%`}
+                                        size="small"
+                                        sx={{
+                                            height: 22, fontSize: '0.7rem', fontWeight: 700, flexShrink: 0,
+                                            bgcolor: m.similarity >= 0.8 ? 'error.main' : 'warning.main',
+                                            color: 'white',
+                                        }}
+                                    />
+                                </Box>
+                            ))}
+                        </Box>
                     </Alert>
                 )}
                 <FormControl fullWidth margin="dense" sx={{ mb: 2 }}>
