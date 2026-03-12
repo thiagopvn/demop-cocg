@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -16,15 +16,23 @@ import {
     Alert,
     Box,
     Typography,
-    Chip
+    Chip,
+    LinearProgress
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ImageIcon from '@mui/icons-material/Image';
 import { addDoc, updateDoc, doc, serverTimestamp, collection } from 'firebase/firestore';
-import db from '../firebase/db';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import db, { storage } from '../firebase/db';
 import { CategoriaContext } from '../contexts/CategoriaContext';
 import { logAudit } from '../firebase/auditLog';
 import { findSimilarMaterials } from '../utils/materialSimilarity';
 import { incrementTaskProgress } from '../firebase/taskProgress';
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId, materials = [] }) => {
     const { categorias } = useContext(CategoriaContext);
@@ -36,22 +44,35 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const [similarMaterials, setSimilarMaterials] = useState([]);
     const [errors, setErrors] = useState({});
 
+    // Image states
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [existingImageUrl, setExistingImageUrl] = useState(null);
+    const [removeImage, setRemoveImage] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const fileInputRef = useRef(null);
+
     const isEditing = material != null;
 
     useEffect(() => {
         if (open) {
             setErrors({});
+            setImageFile(null);
+            setImagePreview(null);
+            setRemoveImage(false);
+            setUploadProgress(0);
             if (isEditing && material) {
                 setDescription(material.description || '');
                 setCategoriaId(material.categoria_id || '');
                 setEstoqueTotal(material.estoque_total ?? 1);
                 setEstoqueAtual(material.estoque_atual ?? 0);
+                setExistingImageUrl(material.image_url || null);
             } else {
-                // Reset form for new material
                 setDescription('');
                 setCategoriaId('');
                 setEstoqueTotal(1);
                 setEstoqueAtual(1);
+                setExistingImageUrl(null);
             }
         }
     }, [material, open, isEditing]);
@@ -74,6 +95,81 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
         return () => clearTimeout(timer);
     }, [description, materials, material, open]);
+
+    const handleImageSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+            setErrors(prev => ({ ...prev, image: 'Use apenas JPG, PNG ou WebP.' }));
+            return;
+        }
+        if (file.size > MAX_IMAGE_SIZE) {
+            setErrors(prev => ({ ...prev, image: 'Imagem muito grande. Máximo: 5MB.' }));
+            return;
+        }
+
+        setErrors(prev => { const { image, ...rest } = prev; return rest; });
+        setImageFile(file);
+        setRemoveImage(false);
+
+        const reader = new FileReader();
+        reader.onload = (ev) => setImagePreview(ev.target.result);
+        reader.readAsDataURL(file);
+    };
+
+    const handleRemoveImage = () => {
+        setImageFile(null);
+        setImagePreview(null);
+        if (existingImageUrl) {
+            setRemoveImage(true);
+        }
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    const uploadImage = async (materialId) => {
+        if (!imageFile) return null;
+
+        const timestamp = Date.now();
+        const ext = imageFile.name.split('.').pop();
+        const storagePath = `materials/${materialId}/${timestamp}.${ext}`;
+        const storageRef = ref(storage, storagePath);
+
+        return new Promise((resolve, reject) => {
+            const uploadTask = uploadBytesResumable(storageRef, imageFile, {
+                contentType: imageFile.type,
+            });
+
+            uploadTask.on(
+                'state_changed',
+                (snapshot) => {
+                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                    setUploadProgress(progress);
+                },
+                (error) => reject(error),
+                async () => {
+                    try {
+                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                        resolve({ downloadURL, storagePath });
+                    } catch (error) {
+                        reject(error);
+                    }
+                }
+            );
+        });
+    };
+
+    const deleteOldImage = async (path) => {
+        if (!path) return;
+        try {
+            const storageRef = ref(storage, path);
+            await deleteObject(storageRef);
+        } catch (e) {
+            // Ignore if file doesn't exist
+        }
+    };
 
     const handleSubmit = async () => {
         const newErrors = {};
@@ -108,6 +204,25 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
         try {
             if (isEditing && material?.id) {
+                // Handle image changes for existing material
+                if (imageFile) {
+                    // Delete old image if exists
+                    if (material.image_storagePath) {
+                        await deleteOldImage(material.image_storagePath);
+                    }
+                    const result = await uploadImage(material.id);
+                    if (result) {
+                        data.image_url = result.downloadURL;
+                        data.image_storagePath = result.storagePath;
+                    }
+                } else if (removeImage) {
+                    if (material.image_storagePath) {
+                        await deleteOldImage(material.image_storagePath);
+                    }
+                    data.image_url = null;
+                    data.image_storagePath = null;
+                }
+
                 const materialDoc = doc(db, 'materials', material.id);
                 await updateDoc(materialDoc, data);
                 logAudit({
@@ -126,7 +241,21 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     ...data,
                     maintenance_status: "operante",
                     created_at: serverTimestamp(),
+                    image_url: null,
+                    image_storagePath: null,
                 });
+
+                // Upload image after doc created (need the ID for storage path)
+                if (imageFile) {
+                    const result = await uploadImage(newDoc.id);
+                    if (result) {
+                        await updateDoc(doc(db, 'materials', newDoc.id), {
+                            image_url: result.downloadURL,
+                            image_storagePath: result.storagePath,
+                        });
+                    }
+                }
+
                 logAudit({
                     action: 'material_create',
                     userId: loggedUserId,
@@ -145,6 +274,8 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             setLoading(false);
         }
     };
+
+    const currentImage = imagePreview || (!removeImage ? existingImageUrl : null);
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -169,6 +300,112 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                         {errors.general}
                     </Alert>
                 )}
+
+                {/* Image Upload Section */}
+                <Box sx={{ mb: 2, mt: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontSize: '0.85rem' }}>
+                        Foto do Material
+                    </Typography>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 2,
+                        }}
+                    >
+                        {/* Preview / Placeholder */}
+                        <Box
+                            sx={{
+                                width: 100,
+                                height: 100,
+                                borderRadius: 2,
+                                border: '2px dashed',
+                                borderColor: errors.image ? 'error.main' : 'divider',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                overflow: 'hidden',
+                                bgcolor: 'grey.50',
+                                flexShrink: 0,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                    borderColor: 'primary.main',
+                                    bgcolor: 'action.hover',
+                                },
+                            }}
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {currentImage ? (
+                                <Box
+                                    component="img"
+                                    src={currentImage}
+                                    alt="Preview"
+                                    sx={{
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'cover',
+                                    }}
+                                />
+                            ) : (
+                                <Box sx={{ textAlign: 'center', p: 1 }}>
+                                    <ImageIcon sx={{ fontSize: 32, color: 'text.disabled' }} />
+                                    <Typography variant="caption" display="block" color="text.disabled" sx={{ fontSize: '0.65rem', lineHeight: 1.2 }}>
+                                        Sem foto
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Box>
+
+                        {/* Buttons */}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<PhotoCameraIcon />}
+                                onClick={() => fileInputRef.current?.click()}
+                                sx={{ textTransform: 'none', fontSize: '0.8rem' }}
+                            >
+                                {currentImage ? 'Trocar' : 'Adicionar'}
+                            </Button>
+                            {currentImage && (
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    color="error"
+                                    startIcon={<DeleteIcon />}
+                                    onClick={handleRemoveImage}
+                                    sx={{ textTransform: 'none', fontSize: '0.8rem' }}
+                                >
+                                    Remover
+                                </Button>
+                            )}
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
+                                JPG, PNG ou WebP. Máx 5MB.
+                            </Typography>
+                        </Box>
+                    </Box>
+                    {errors.image && (
+                        <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                            {errors.image}
+                        </Typography>
+                    )}
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                        <LinearProgress
+                            variant="determinate"
+                            value={uploadProgress}
+                            sx={{ mt: 1, borderRadius: 1 }}
+                        />
+                    )}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={handleImageSelect}
+                    />
+                </Box>
+
                 <TextField
                     autoFocus
                     margin="dense"
