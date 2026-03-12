@@ -355,7 +355,7 @@ export default function Viaturas() {
     return (
         <PrivateRoute>
             <MenuContext>
-                <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh' }}>
+                <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100dvh' }}>
                     {userRole === "user" && (
                         <Box
                             sx={{

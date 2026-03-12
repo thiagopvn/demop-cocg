@@ -445,7 +445,7 @@ export default function ViaturaDetalhes() {
         return (
             <PrivateRoute>
                 <MenuContext>
-                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100dvh' }}>
                         <CircularProgress />
                     </Box>
                 </MenuContext>
@@ -456,7 +456,7 @@ export default function ViaturaDetalhes() {
     return (
         <PrivateRoute>
             <MenuContext>
-                <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh' }}>
+                <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100dvh' }}>
                     {/* Header */}
                     <Box sx={{ mb: 3 }}>
                         <Button
