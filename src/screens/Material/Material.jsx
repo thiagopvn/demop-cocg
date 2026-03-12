@@ -49,7 +49,9 @@ import {
     LocalShipping,
     SwapVert,
     SortByAlpha,
-    AccessTime
+    AccessTime,
+    ContentCopy,
+    EventBusy
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -63,6 +65,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import { logAudit } from '../../firebase/auditLog';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { findDuplicateGroups } from '../../utils/materialSimilarity';
 
 // Limite de itens por página
 const ITEMS_PER_PAGE = 50;
@@ -176,6 +179,7 @@ const Material = () => {
     // Dados do usuario logado
     const [loggedUserId, setLoggedUserId] = useState(null);
     const [loggedUserName, setLoggedUserName] = useState(null);
+    const [userRole, setUserRole] = useState(null);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -184,6 +188,7 @@ const Material = () => {
                 try {
                     const decoded = await verifyToken(token);
                     setLoggedUserId(decoded.userId);
+                    setUserRole(decoded.role);
                     const userDoc = await getDoc(doc(db, "users", decoded.userId));
                     if (userDoc.exists()) {
                         setLoggedUserName(userDoc.data().full_name || userDoc.data().username);
@@ -216,6 +221,8 @@ const Material = () => {
     const [sortDirection, setSortDirection] = useState('asc');
 
     const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
+    const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false);
+    const [showUncheckedDialog, setShowUncheckedDialog] = useState(false);
 
     const handleSort = (field) => {
         if (sortField === field) {
@@ -580,14 +587,43 @@ const Material = () => {
         const filteredCount = allFilteredMaterials.length;
         const lowStock = materials.filter(m => (m.estoque_atual || 0) === 0 && (m.estoque_total || 0) > 0).length;
 
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        const semConferencia = materials.filter(m => {
+            const confDate = m.ultima_conferencia?.toDate?.() || m.ultima_movimentacao?.toDate?.();
+            return !confDate || confDate < sixMonthsAgo;
+        }).length;
+
         return {
             total: totalMaterials,
             filtered: filteredCount,
             lowStock,
+            semConferencia,
             showing: filteredMaterials.length,
             totalFiltered: filteredCount
         };
     }, [materials, allFilteredMaterials, filteredMaterials]);
+
+    const isAdmin = userRole === 'admin' || userRole === 'admingeral';
+
+    const duplicateGroups = useMemo(() => {
+        if (!isAdmin) return [];
+        return findDuplicateGroups(materials);
+    }, [materials, isAdmin]);
+
+    const uncheckedMaterials = useMemo(() => {
+        if (!isAdmin) return [];
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        return materials.filter(m => {
+            const confDate = m.ultima_conferencia?.toDate?.() || m.ultima_movimentacao?.toDate?.();
+            return !confDate || confDate < sixMonthsAgo;
+        }).sort((a, b) => {
+            const dateA = a.ultima_conferencia?.toDate?.() || a.ultima_movimentacao?.toDate?.() || new Date(0);
+            const dateB = b.ultima_conferencia?.toDate?.() || b.ultima_movimentacao?.toDate?.() || new Date(0);
+            return dateA - dateB;
+        });
+    }, [materials, isAdmin]);
 
     // Loading skeleton rows
     const renderLoadingSkeleton = () => (
@@ -697,6 +733,58 @@ const Material = () => {
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                         Estoque Zerado
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </StatCard>
+                    )}
+
+                    {isAdmin && duplicateGroups.length > 0 && (
+                        <StatCard
+                            sx={{ flex: 1, minWidth: 200, cursor: 'pointer', '&:hover': { borderColor: alpha(theme.palette.warning.main, 0.5) } }}
+                            onClick={() => setShowDuplicatesDialog(true)}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                                    color: 'warning.main'
+                                }}>
+                                    <ContentCopy />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" fontWeight={600} color="warning.main">
+                                        {duplicateGroups.length}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Possíveis Duplicados
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </StatCard>
+                    )}
+
+                    {isAdmin && stats.semConferencia > 0 && (
+                        <StatCard
+                            sx={{ flex: 1, minWidth: 200, cursor: 'pointer', '&:hover': { borderColor: alpha(theme.palette.error.main, 0.5) } }}
+                            onClick={() => setShowUncheckedDialog(true)}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    backgroundColor: alpha(theme.palette.error.main, 0.1),
+                                    color: 'error.main'
+                                }}>
+                                    <EventBusy />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" fontWeight={600} color="error.main">
+                                        {stats.semConferencia}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Sem Conferência +6 meses
                                     </Typography>
                                 </Box>
                             </Box>
@@ -1193,6 +1281,7 @@ const Material = () => {
                 material={selectedMaterial}
                 loggedUserName={loggedUserName}
                 loggedUserId={loggedUserId}
+                materials={materials}
             />
 
             <MaintenanceDialog
@@ -1442,6 +1531,94 @@ const Material = () => {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            {/* Dialog: Materiais Duplicados */}
+            <Dialog open={showDuplicatesDialog} onClose={() => setShowDuplicatesDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
+                    <ContentCopy color="warning" />
+                    <Box>
+                        <Typography variant="h6" fontWeight={600}>Materiais Possivelmente Duplicados</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            {duplicateGroups.length} grupo{duplicateGroups.length !== 1 ? 's' : ''} encontrado{duplicateGroups.length !== 1 ? 's' : ''}
+                        </Typography>
+                    </Box>
+                </DialogTitle>
+                <DialogContent dividers>
+                    {duplicateGroups.map((group, idx) => (
+                        <Paper
+                            key={idx}
+                            sx={{
+                                p: 2, mb: 2,
+                                bgcolor: alpha(theme.palette.warning.main, 0.04),
+                                border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                                borderRadius: 2
+                            }}
+                        >
+                            <Typography variant="subtitle2" color="warning.main" sx={{ mb: 1, fontWeight: 600 }}>
+                                Grupo {idx + 1}
+                            </Typography>
+                            {group.map(m => (
+                                <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, flexWrap: 'wrap' }}>
+                                    <Typography variant="body2" fontWeight={500}>• {m.description}</Typography>
+                                    <Chip label={m.categoria || 'Sem cat.'} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                    <Chip label={`Est: ${m.estoque_total || 0}`} size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                </Box>
+                            ))}
+                        </Paper>
+                    ))}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowDuplicatesDialog(false)}>Fechar</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog: Materiais Sem Conferência */}
+            <Dialog open={showUncheckedDialog} onClose={() => setShowUncheckedDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
+                    <EventBusy color="error" />
+                    <Box>
+                        <Typography variant="h6" fontWeight={600}>Sem Conferência (+6 meses)</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            {uncheckedMaterials.length} materia{uncheckedMaterials.length !== 1 ? 'is' : 'l'}
+                        </Typography>
+                    </Box>
+                </DialogTitle>
+                <DialogContent dividers>
+                    {uncheckedMaterials.map(m => {
+                        const confDate = m.ultima_conferencia?.toDate?.() || m.ultima_movimentacao?.toDate?.();
+                        const days = confDate ? Math.floor((new Date() - confDate) / 86400000) : null;
+                        return (
+                            <Box
+                                key={m.id}
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    py: 1.2,
+                                    borderBottom: '1px solid',
+                                    borderColor: 'divider',
+                                    '&:last-child': { borderBottom: 'none' }
+                                }}
+                            >
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                    <Typography variant="body2" fontWeight={500} noWrap>{m.description}</Typography>
+                                    <Typography variant="caption" color="text.secondary">{m.categoria || 'Sem categoria'}</Typography>
+                                </Box>
+                                <Chip
+                                    label={days ? `${days} dias` : 'Nunca'}
+                                    size="small"
+                                    color="error"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.7rem', ml: 1, flexShrink: 0 }}
+                                />
+                            </Box>
+                        );
+                    })}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowUncheckedDialog(false)}>Fechar</Button>
+                </DialogActions>
+            </Dialog>
         </MenuContext>
     );
 };
