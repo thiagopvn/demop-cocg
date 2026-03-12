@@ -245,6 +245,9 @@ const Material = () => {
     const [conferenceMode, setConferenceMode] = useState(false);
     const [selectedForConference, setSelectedForConference] = useState(new Set());
 
+    // Image lightbox
+    const [lightboxImage, setLightboxImage] = useState(null);
+
     const handleSort = (field) => {
         if (sortField === field) {
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -1171,6 +1174,9 @@ const Material = () => {
                                         />
                                     </TableCell>
                                 )}
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', width: 56, textAlign: 'center', p: 1 }}>
+                                    Foto
+                                </TableCell>
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
                                     <TableSortLabel
                                         active={sortField === 'description'}
@@ -1237,7 +1243,7 @@ const Material = () => {
                                 <>
                                     {renderLoadingSkeleton()}
                                     <TableRow>
-                                        <TableCell colSpan={conferenceMode ? 9 : 8} align="center" sx={{ py: 4 }}>
+                                        <TableCell colSpan={conferenceMode ? 10 : 9} align="center" sx={{ py: 4 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                                 <CircularProgress size={24} />
                                                 <Typography variant="body2" color="text.secondary">
@@ -1249,7 +1255,7 @@ const Material = () => {
                                 </>
                             ) : filteredMaterials.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={conferenceMode ? 9 : 8} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={conferenceMode ? 10 : 9} align="center" sx={{ py: 6 }}>
                                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                             <Inventory sx={{ fontSize: 48, color: 'text.disabled' }} />
                                             <Typography variant="h6" color="text.secondary">
@@ -1292,6 +1298,45 @@ const Material = () => {
                                                     />
                                                 </StyledTableCell>
                                             )}
+                                            <StyledTableCell align="center" sx={{ width: 56, p: 0.5 }}>
+                                                {material.image_url ? (
+                                                    <Box
+                                                        component="img"
+                                                        src={material.image_url}
+                                                        alt={material.description}
+                                                        onClick={() => setLightboxImage(material.image_url)}
+                                                        sx={{
+                                                            width: 40,
+                                                            height: 40,
+                                                            borderRadius: 1,
+                                                            objectFit: 'cover',
+                                                            cursor: 'pointer',
+                                                            border: '1px solid',
+                                                            borderColor: 'divider',
+                                                            transition: 'all 0.2s ease',
+                                                            '&:hover': {
+                                                                transform: 'scale(1.15)',
+                                                                boxShadow: 2,
+                                                            },
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <Box
+                                                        sx={{
+                                                            width: 40,
+                                                            height: 40,
+                                                            borderRadius: 1,
+                                                            bgcolor: 'grey.100',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            mx: 'auto',
+                                                        }}
+                                                    >
+                                                        <Inventory sx={{ fontSize: 18, color: 'text.disabled' }} />
+                                                    </Box>
+                                                )}
+                                            </StyledTableCell>
                                             <StyledTableCell>
                                                 <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.4 }}>
                                                     {material.description}
@@ -1840,6 +1885,40 @@ const Material = () => {
                     </Button>
                 </Paper>
             )}
+
+            {/* Image Lightbox */}
+            <Dialog
+                open={Boolean(lightboxImage)}
+                onClose={() => setLightboxImage(null)}
+                maxWidth="md"
+                PaperProps={{
+                    sx: {
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                        bgcolor: 'transparent',
+                        boxShadow: 'none',
+                    },
+                }}
+                slotProps={{
+                    backdrop: { sx: { backgroundColor: 'rgba(0,0,0,0.85)' } },
+                }}
+            >
+                {lightboxImage && (
+                    <Box
+                        component="img"
+                        src={lightboxImage}
+                        alt="Material"
+                        onClick={() => setLightboxImage(null)}
+                        sx={{
+                            maxWidth: '90vw',
+                            maxHeight: '85vh',
+                            objectFit: 'contain',
+                            cursor: 'pointer',
+                            borderRadius: 2,
+                        }}
+                    />
+                )}
+            </Dialog>
 
             {/* Snackbar */}
             <Snackbar
