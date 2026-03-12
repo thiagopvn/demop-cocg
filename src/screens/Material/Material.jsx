@@ -1304,13 +1304,16 @@ const Material = () => {
                                                         component="img"
                                                         src={material.image_url}
                                                         alt={material.description}
-                                                        onClick={() => setLightboxImage(material.image_url)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setLightboxImage(material.image_url);
+                                                        }}
                                                         sx={{
                                                             width: 40,
                                                             height: 40,
                                                             borderRadius: 1,
                                                             objectFit: 'cover',
-                                                            cursor: 'pointer',
+                                                            cursor: 'zoom-in',
                                                             border: '1px solid',
                                                             borderColor: 'divider',
                                                             transition: 'all 0.2s ease',
@@ -1890,33 +1893,47 @@ const Material = () => {
             <Dialog
                 open={Boolean(lightboxImage)}
                 onClose={() => setLightboxImage(null)}
-                maxWidth="md"
+                maxWidth={false}
                 PaperProps={{
                     sx: {
                         borderRadius: 3,
                         overflow: 'hidden',
-                        bgcolor: 'transparent',
-                        boxShadow: 'none',
+                        bgcolor: '#000',
+                        maxWidth: '92vw',
+                        maxHeight: '90vh',
+                        m: 1,
                     },
-                }}
-                slotProps={{
-                    backdrop: { sx: { backgroundColor: 'rgba(0,0,0,0.85)' } },
                 }}
             >
                 {lightboxImage && (
-                    <Box
-                        component="img"
-                        src={lightboxImage}
-                        alt="Material"
-                        onClick={() => setLightboxImage(null)}
-                        sx={{
-                            maxWidth: '90vw',
-                            maxHeight: '85vh',
-                            objectFit: 'contain',
-                            cursor: 'pointer',
-                            borderRadius: 2,
-                        }}
-                    />
+                    <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <IconButton
+                            onClick={() => setLightboxImage(null)}
+                            sx={{
+                                position: 'absolute',
+                                top: 8,
+                                right: 8,
+                                color: 'white',
+                                bgcolor: 'rgba(0,0,0,0.5)',
+                                zIndex: 1,
+                                '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                            }}
+                            size="small"
+                        >
+                            <Clear />
+                        </IconButton>
+                        <Box
+                            component="img"
+                            src={lightboxImage}
+                            alt="Material"
+                            sx={{
+                                maxWidth: '90vw',
+                                maxHeight: '85vh',
+                                objectFit: 'contain',
+                                display: 'block',
+                            }}
+                        />
+                    </Box>
                 )}
             </Dialog>
 

@@ -203,19 +203,13 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         };
 
         try {
+            let savedDocId = null;
+
             if (isEditing && material?.id) {
-                // Handle image changes for existing material
-                if (imageFile) {
-                    // Delete old image if exists
-                    if (material.image_storagePath) {
-                        await deleteOldImage(material.image_storagePath);
-                    }
-                    const result = await uploadImage(material.id);
-                    if (result) {
-                        data.image_url = result.downloadURL;
-                        data.image_storagePath = result.storagePath;
-                    }
-                } else if (removeImage) {
+                savedDocId = material.id;
+
+                // Handle image removal (without upload)
+                if (removeImage && !imageFile) {
                     if (material.image_storagePath) {
                         await deleteOldImage(material.image_storagePath);
                     }
@@ -244,17 +238,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     image_url: null,
                     image_storagePath: null,
                 });
-
-                // Upload image after doc created (need the ID for storage path)
-                if (imageFile) {
-                    const result = await uploadImage(newDoc.id);
-                    if (result) {
-                        await updateDoc(doc(db, 'materials', newDoc.id), {
-                            image_url: result.downloadURL,
-                            image_storagePath: result.storagePath,
-                        });
-                    }
-                }
+                savedDocId = newDoc.id;
 
                 logAudit({
                     action: 'material_create',
@@ -266,10 +250,34 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     details: { categoria: data.categoria, estoque_total: data.estoque_total, estoque_atual: data.estoque_atual },
                 });
             }
+
+            // Upload image separately (non-blocking for material save)
+            if (imageFile && savedDocId) {
+                try {
+                    // Delete old image if replacing
+                    if (isEditing && material?.image_storagePath) {
+                        await deleteOldImage(material.image_storagePath);
+                    }
+                    const result = await uploadImage(savedDocId);
+                    if (result) {
+                        await updateDoc(doc(db, 'materials', savedDocId), {
+                            image_url: result.downloadURL,
+                            image_storagePath: result.storagePath,
+                        });
+                    }
+                } catch (imgError) {
+                    console.error("Erro ao fazer upload da imagem:", imgError);
+                    // Material was saved successfully, just image failed
+                    setErrors(prev => ({ ...prev, general: 'Material salvo, mas houve erro ao enviar a foto. Tente editar o material e enviar a foto novamente.' }));
+                    setLoading(false);
+                    return; // Don't close dialog so user sees the warning
+                }
+            }
+
             onClose();
         } catch (error) {
-            console.error("Erro ao salvar material: ", error);
-            setErrors(prev => ({ ...prev, general: 'Falha ao salvar o material.' }));
+            console.error("Erro ao salvar material:", error);
+            setErrors(prev => ({ ...prev, general: `Falha ao salvar o material: ${error.message || error}` }));
         } finally {
             setLoading(false);
         }
