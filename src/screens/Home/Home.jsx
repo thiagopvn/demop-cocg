@@ -1068,7 +1068,7 @@ export default function Home() {
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          height: "100vh",
+          height: "100dvh",
           gap: 2,
           background: "linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)",
         }}

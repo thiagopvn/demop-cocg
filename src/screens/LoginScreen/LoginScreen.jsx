@@ -180,7 +180,7 @@ export default function LoginScreen() {
       <Box 
         className="root-login" 
         sx={{
-          minHeight: '100vh',
+          minHeight: '100dvh',
           background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 30%, #334155 70%, #475569 100%)',
           display: 'flex',
           alignItems: 'center',

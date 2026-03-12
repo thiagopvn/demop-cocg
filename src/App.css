@@ -9,7 +9,7 @@ body {
 /* Container principal protegido */
 .root-protected {
     padding: 80px 24px 24px 24px;
-    min-height: calc(100vh - 80px);
+    min-height: calc(100dvh - 80px);
     box-sizing: border-box;
 }
 

@@ -211,12 +211,11 @@ function MenuContext({ children }) {
   const drawer = (
     <Box
       sx={{
-        height: '100vh',
-        maxHeight: '100vh',
+        height: '100dvh',
+        maxHeight: '100dvh',
         display: 'flex',
         flexDirection: 'column',
-        background: 'linear-gradient(180deg, rgba(30,58,95,0.98) 0%, rgba(30,58,95,0.95) 100%)',
-        backdropFilter: 'blur(10px)',
+        background: 'linear-gradient(180deg, #1e3a5f 0%, #1e3a5f 100%)',
         borderRight: '1px solid rgba(255,255,255,0.08)',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         overflow: 'hidden',
@@ -535,7 +534,7 @@ function MenuContext({ children }) {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+    <Box sx={{ display: 'flex', minHeight: '100dvh', backgroundColor: '#f8fafc' }}>
       {/* Mobile App Bar */}
       <Box
         sx={{
@@ -546,10 +545,10 @@ function MenuContext({ children }) {
           right: 0,
           height: 64,
           backgroundColor: 'rgba(30,58,95,0.98)',
-          backdropFilter: 'blur(10px)',
           alignItems: 'center',
           justifyContent: 'space-between',
           px: 2,
+          paddingTop: 'env(safe-area-inset-top, 0px)',
           zIndex: 1300,
           boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
         }}
@@ -614,7 +613,7 @@ function MenuContext({ children }) {
           mt: { xs: '64px', md: 0 },
           transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           position: 'relative',
-          minHeight: '100vh',
+          minHeight: '100dvh',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -639,9 +638,7 @@ function MenuContext({ children }) {
 
         {/* Page Content */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: { xs: 2, sm: 3, md: 4 } }}>
-          <Fade in timeout={500}>
-            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</Box>
-          </Fade>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</Box>
         </Box>
 
         {/* Footer Moderno */}
@@ -653,8 +650,7 @@ function MenuContext({ children }) {
             px: { xs: 2, sm: 4 },
             borderTop: '1px solid',
             borderColor: alpha('#1e3a5f', 0.1),
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
-            backdropFilter: 'blur(20px)',
+            background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)',
           }}
         >
           <Box
