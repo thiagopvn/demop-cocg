@@ -32,7 +32,10 @@ import {
     Menu,
     MenuItem,
     ListItemIcon,
-    ListItemText
+    ListItemText,
+    Accordion,
+    AccordionSummary,
+    AccordionDetails
 } from '@mui/material';
 import {
     Add,
@@ -51,7 +54,7 @@ import {
     SortByAlpha,
     AccessTime,
     ContentCopy,
-    EventBusy
+    WarningAmber
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -741,24 +744,32 @@ const Material = () => {
 
                     {isAdmin && duplicateGroups.length > 0 && (
                         <StatCard
-                            sx={{ flex: 1, minWidth: 200, cursor: 'pointer', '&:hover': { borderColor: alpha(theme.palette.warning.main, 0.5) } }}
+                            sx={{
+                                flex: 1, minWidth: 200, cursor: 'pointer',
+                                background: `linear-gradient(135deg, ${alpha('#ff9800', 0.08)} 0%, ${alpha('#e65100', 0.03)} 100%)`,
+                                border: `1px solid ${alpha('#ff9800', 0.15)}`,
+                                '&:hover': {
+                                    transform: 'translateY(-3px)',
+                                    boxShadow: `0 8px 24px ${alpha('#ff9800', 0.15)}`,
+                                    borderColor: alpha('#ff9800', 0.35),
+                                },
+                            }}
                             onClick={() => setShowDuplicatesDialog(true)}
                         >
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box sx={{
-                                    p: 1.5,
-                                    borderRadius: 2,
-                                    backgroundColor: alpha(theme.palette.warning.main, 0.1),
-                                    color: 'warning.main'
+                                    p: 1.5, borderRadius: 2.5,
+                                    background: `linear-gradient(135deg, ${alpha('#ff9800', 0.2)} 0%, ${alpha('#e65100', 0.12)} 100%)`,
+                                    color: '#e65100', display: 'flex',
                                 }}>
                                     <ContentCopy />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h6" fontWeight={600} color="warning.main">
+                                    <Typography variant="h5" fontWeight={700} sx={{ color: '#e65100', lineHeight: 1.2 }}>
                                         {duplicateGroups.length}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Possíveis Duplicados
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                        Possíveis Duplicidades
                                     </Typography>
                                 </Box>
                             </Box>
@@ -767,24 +778,32 @@ const Material = () => {
 
                     {isAdmin && stats.semConferencia > 0 && (
                         <StatCard
-                            sx={{ flex: 1, minWidth: 200, cursor: 'pointer', '&:hover': { borderColor: alpha(theme.palette.error.main, 0.5) } }}
+                            sx={{
+                                flex: 1, minWidth: 200, cursor: 'pointer',
+                                background: `linear-gradient(135deg, ${alpha('#ef5350', 0.08)} 0%, ${alpha('#c62828', 0.03)} 100%)`,
+                                border: `1px solid ${alpha('#ef5350', 0.15)}`,
+                                '&:hover': {
+                                    transform: 'translateY(-3px)',
+                                    boxShadow: `0 8px 24px ${alpha('#ef5350', 0.15)}`,
+                                    borderColor: alpha('#ef5350', 0.35),
+                                },
+                            }}
                             onClick={() => setShowUncheckedDialog(true)}
                         >
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box sx={{
-                                    p: 1.5,
-                                    borderRadius: 2,
-                                    backgroundColor: alpha(theme.palette.error.main, 0.1),
-                                    color: 'error.main'
+                                    p: 1.5, borderRadius: 2.5,
+                                    background: `linear-gradient(135deg, ${alpha('#ef5350', 0.2)} 0%, ${alpha('#c62828', 0.12)} 100%)`,
+                                    color: '#c62828', display: 'flex',
                                 }}>
-                                    <EventBusy />
+                                    <WarningAmber />
                                 </Box>
                                 <Box>
-                                    <Typography variant="h6" fontWeight={600} color="error.main">
+                                    <Typography variant="h5" fontWeight={700} sx={{ color: '#c62828', lineHeight: 1.2 }}>
                                         {stats.semConferencia}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Sem Conferência +6 meses
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                        Revisão Necessária (+6 meses)
                                     </Typography>
                                 </Box>
                             </Box>
@@ -1532,58 +1551,153 @@ const Material = () => {
                 </Alert>
             </Snackbar>
 
-            {/* Dialog: Materiais Duplicados */}
-            <Dialog open={showDuplicatesDialog} onClose={() => setShowDuplicatesDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
-                    <ContentCopy color="warning" />
-                    <Box>
-                        <Typography variant="h6" fontWeight={600}>Materiais Possivelmente Duplicados</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            {duplicateGroups.length} grupo{duplicateGroups.length !== 1 ? 's' : ''} encontrado{duplicateGroups.length !== 1 ? 's' : ''}
-                        </Typography>
+            {/* Dialog: Possíveis Duplicidades */}
+            <Dialog
+                open={showDuplicatesDialog}
+                onClose={() => setShowDuplicatesDialog(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+            >
+                <DialogTitle sx={{
+                    background: `linear-gradient(135deg, ${alpha('#ff9800', 0.08)} 0%, ${alpha('#e65100', 0.04)} 100%)`,
+                    borderBottom: `1px solid ${alpha('#ff9800', 0.12)}`,
+                    py: 2.5, px: 3,
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{
+                            p: 1, borderRadius: 2,
+                            background: `linear-gradient(135deg, ${alpha('#ff9800', 0.2)} 0%, ${alpha('#e65100', 0.12)} 100%)`,
+                            color: '#e65100', display: 'flex',
+                        }}>
+                            <ContentCopy fontSize="small" />
+                        </Box>
+                        <Box>
+                            <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.3 }}>
+                                Possíveis Duplicidades
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {duplicateGroups.length} grupo{duplicateGroups.length !== 1 ? 's' : ''} detectado{duplicateGroups.length !== 1 ? 's' : ''} &middot; Itens com patrimônios diferentes são ignorados
+                            </Typography>
+                        </Box>
                     </Box>
                 </DialogTitle>
-                <DialogContent dividers>
+                <DialogContent sx={{ p: 0 }}>
                     {duplicateGroups.map((group, idx) => (
-                        <Paper
+                        <Accordion
                             key={idx}
+                            defaultExpanded={idx === 0}
+                            disableGutters
                             sx={{
-                                p: 2, mb: 2,
-                                bgcolor: alpha(theme.palette.warning.main, 0.04),
-                                border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                                borderRadius: 2
+                                '&:before': { display: 'none' },
+                                boxShadow: 'none',
+                                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                                '&:last-of-type': { borderBottom: 'none' },
                             }}
                         >
-                            <Typography variant="subtitle2" color="warning.main" sx={{ mb: 1, fontWeight: 600 }}>
-                                Grupo {idx + 1}
-                            </Typography>
-                            {group.map(m => (
-                                <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, flexWrap: 'wrap' }}>
-                                    <Typography variant="body2" fontWeight={500}>• {m.description}</Typography>
-                                    <Chip label={m.categoria || 'Sem cat.'} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
-                                    <Chip label={`Est: ${m.estoque_total || 0}`} size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon />}
+                                sx={{
+                                    px: 3, py: 0.5,
+                                    '&:hover': { bgcolor: alpha('#ff9800', 0.04) },
+                                }}
+                            >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    <Chip
+                                        label={`Grupo ${idx + 1}`}
+                                        size="small"
+                                        sx={{
+                                            fontWeight: 600, fontSize: '0.7rem',
+                                            bgcolor: alpha('#ff9800', 0.12),
+                                            color: '#e65100', border: 'none',
+                                        }}
+                                    />
+                                    <Typography variant="body2" color="text.secondary">
+                                        {group.length} materiais similares
+                                    </Typography>
                                 </Box>
-                            ))}
-                        </Paper>
+                            </AccordionSummary>
+                            <AccordionDetails sx={{ px: 3, pb: 2, pt: 0 }}>
+                                {group.map((m, mIdx) => (
+                                    <Box
+                                        key={m.id}
+                                        sx={{
+                                            display: 'flex', alignItems: 'center', gap: 1.5,
+                                            py: 1, flexWrap: 'wrap',
+                                            borderTop: mIdx > 0 ? `1px dashed ${alpha(theme.palette.divider, 0.4)}` : 'none',
+                                        }}
+                                    >
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Typography variant="body2" fontWeight={500} noWrap>
+                                                {m.description}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {m.categoria || 'Sem categoria'} &middot; Est. Total: {m.estoque_total || 0}
+                                            </Typography>
+                                        </Box>
+                                        {mIdx > 0 && m.similarity != null && (
+                                            <Chip
+                                                label={`${Math.round(m.similarity * 100)}%`}
+                                                size="small"
+                                                sx={{
+                                                    fontWeight: 700, fontSize: '0.7rem',
+                                                    bgcolor: m.similarity >= 0.8
+                                                        ? alpha('#ef5350', 0.12)
+                                                        : alpha('#ff9800', 0.12),
+                                                    color: m.similarity >= 0.8 ? '#c62828' : '#e65100',
+                                                    border: 'none', minWidth: 48,
+                                                }}
+                                            />
+                                        )}
+                                    </Box>
+                                ))}
+                            </AccordionDetails>
+                        </Accordion>
                     ))}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setShowDuplicatesDialog(false)}>Fechar</Button>
+                <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
+                    <Button
+                        onClick={() => setShowDuplicatesDialog(false)}
+                        variant="outlined"
+                        sx={{ borderRadius: 2, textTransform: 'none' }}
+                    >
+                        Fechar
+                    </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Dialog: Materiais Sem Conferência */}
-            <Dialog open={showUncheckedDialog} onClose={() => setShowUncheckedDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pb: 1 }}>
-                    <EventBusy color="error" />
-                    <Box>
-                        <Typography variant="h6" fontWeight={600}>Sem Conferência (+6 meses)</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            {uncheckedMaterials.length} materia{uncheckedMaterials.length !== 1 ? 'is' : 'l'}
-                        </Typography>
+            {/* Dialog: Revisão Necessária */}
+            <Dialog
+                open={showUncheckedDialog}
+                onClose={() => setShowUncheckedDialog(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+            >
+                <DialogTitle sx={{
+                    background: `linear-gradient(135deg, ${alpha('#ef5350', 0.08)} 0%, ${alpha('#c62828', 0.04)} 100%)`,
+                    borderBottom: `1px solid ${alpha('#ef5350', 0.12)}`,
+                    py: 2.5, px: 3,
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{
+                            p: 1, borderRadius: 2,
+                            background: `linear-gradient(135deg, ${alpha('#ef5350', 0.2)} 0%, ${alpha('#c62828', 0.12)} 100%)`,
+                            color: '#c62828', display: 'flex',
+                        }}>
+                            <WarningAmber fontSize="small" />
+                        </Box>
+                        <Box>
+                            <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.3 }}>
+                                Revisão Necessária
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {uncheckedMaterials.length} materia{uncheckedMaterials.length !== 1 ? 'is' : 'l'} sem conferência há mais de 6 meses
+                            </Typography>
+                        </Box>
                     </Box>
                 </DialogTitle>
-                <DialogContent dividers>
+                <DialogContent sx={{ p: 0 }}>
                     {uncheckedMaterials.map(m => {
                         const confDate = m.ultima_conferencia?.toDate?.() || m.ultima_movimentacao?.toDate?.();
                         const days = confDate ? Math.floor((new Date() - confDate) / 86400000) : null;
@@ -1591,32 +1705,47 @@ const Material = () => {
                             <Box
                                 key={m.id}
                                 sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    py: 1.2,
-                                    borderBottom: '1px solid',
-                                    borderColor: 'divider',
-                                    '&:last-child': { borderBottom: 'none' }
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    px: 3, py: 1.5,
+                                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.4)}`,
+                                    '&:last-child': { borderBottom: 'none' },
+                                    '&:hover': { bgcolor: alpha('#ef5350', 0.02) },
+                                    transition: 'background-color 0.15s',
                                 }}
                             >
                                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                                    <Typography variant="body2" fontWeight={500} noWrap>{m.description}</Typography>
-                                    <Typography variant="caption" color="text.secondary">{m.categoria || 'Sem categoria'}</Typography>
+                                    <Typography variant="body2" fontWeight={500} noWrap>
+                                        {m.description}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {m.categoria || 'Sem categoria'}
+                                        {confDate ? ` · Conferido em ${confDate.toLocaleDateString('pt-BR')}` : ''}
+                                    </Typography>
                                 </Box>
                                 <Chip
-                                    label={days ? `${days} dias` : 'Nunca'}
+                                    label={days ? `${days} dias` : 'Nunca conferido'}
                                     size="small"
-                                    color="error"
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.7rem', ml: 1, flexShrink: 0 }}
+                                    sx={{
+                                        fontWeight: 600, fontSize: '0.7rem', ml: 1.5, flexShrink: 0,
+                                        bgcolor: !days || days > 365
+                                            ? alpha('#c62828', 0.12)
+                                            : alpha('#ef5350', 0.12),
+                                        color: !days || days > 365 ? '#c62828' : '#d32f2f',
+                                        border: 'none',
+                                    }}
                                 />
                             </Box>
                         );
                     })}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setShowUncheckedDialog(false)}>Fechar</Button>
+                <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
+                    <Button
+                        onClick={() => setShowUncheckedDialog(false)}
+                        variant="outlined"
+                        sx={{ borderRadius: 2, textTransform: 'none' }}
+                    >
+                        Fechar
+                    </Button>
                 </DialogActions>
             </Dialog>
         </MenuContext>
