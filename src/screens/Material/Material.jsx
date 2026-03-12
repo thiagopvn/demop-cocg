@@ -608,11 +608,12 @@ const Material = () => {
     }, [materials, allFilteredMaterials, filteredMaterials]);
 
     const isAdmin = userRole === 'admin' || userRole === 'admingeral';
+    const isAdminGeral = userRole === 'admingeral';
 
     const duplicateGroups = useMemo(() => {
-        if (!isAdmin) return [];
+        if (!isAdminGeral) return [];
         return findDuplicateGroups(materials);
-    }, [materials, isAdmin]);
+    }, [materials, isAdminGeral]);
 
     const uncheckedMaterials = useMemo(() => {
         if (!isAdmin) return [];
@@ -742,7 +743,7 @@ const Material = () => {
                         </StatCard>
                     )}
 
-                    {isAdmin && duplicateGroups.length > 0 && (
+                    {isAdminGeral && duplicateGroups.length > 0 && (
                         <StatCard
                             sx={{
                                 flex: 1, minWidth: 200, cursor: 'pointer',
