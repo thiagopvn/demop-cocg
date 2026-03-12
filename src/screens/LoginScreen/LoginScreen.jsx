@@ -10,6 +10,96 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { callVerifyLogin, callCheckHasUsers } from '../../firebase/functions';
 import ChangePasswordDialog from '../../dialogs/ChangePasswordDialog';
 
+const loginTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#60a5fa',
+      light: '#93c5fd',
+      dark: '#3b82f6',
+    },
+    background: {
+      default: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      paper: 'rgba(30, 41, 59, 0.8)'
+    },
+    text: {
+      primary: '#f1f5f9',
+      secondary: 'rgba(241, 245, 249, 0.7)'
+    }
+  },
+  components: {
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          borderRadius: '12px',
+          transition: 'all 0.3s ease',
+          '& input': {
+            color: '#f1f5f9',
+            paddingLeft: '16px',
+            paddingRight: '16px',
+            '&::placeholder': {
+              color: 'rgba(241, 245, 249, 0.5)'
+            }
+          },
+          '& .MuiInputAdornment-root': {
+            '& svg': {
+              color: 'rgba(241, 245, 249, 0.6)',
+              transition: 'color 0.3s ease'
+            }
+          },
+          '&:hover': {
+            backgroundColor: 'rgba(15, 23, 42, 0.8)',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#60a5fa',
+              borderWidth: '2px'
+            },
+            '& .MuiInputAdornment-root svg': {
+              color: '#60a5fa'
+            }
+          },
+          '&.Mui-focused': {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#60a5fa',
+              borderWidth: '2px'
+            },
+            '& .MuiInputAdornment-root svg': {
+              color: '#60a5fa'
+            }
+          }
+        },
+        notchedOutline: {
+          borderColor: 'rgba(241, 245, 249, 0.2)',
+          borderWidth: '1px'
+        }
+      }
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: 'rgba(241, 245, 249, 0.6)',
+          '&.Mui-focused': {
+            color: '#60a5fa'
+          }
+        }
+      }
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: '12px',
+          textTransform: 'none',
+          fontSize: '1rem',
+          fontWeight: 600,
+          padding: '12px 24px',
+          transition: 'all 0.3s ease'
+        }
+      }
+    }
+  }
+});
+
 export default function LoginScreen() {
   const [hasUser, setHasUser] = useState(false);
   const [username, setUsername] = useState("");
@@ -20,97 +110,6 @@ export default function LoginScreen() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const navigate = useNavigate();
-
-  const loginTheme = createTheme({
-    palette: {
-      mode: 'dark',
-      primary: {
-        main: '#60a5fa',
-        light: '#93c5fd',
-        dark: '#3b82f6',
-      },
-      background: {
-        default: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-        paper: 'rgba(30, 41, 59, 0.8)'
-      },
-      text: {
-        primary: '#f1f5f9',
-        secondary: 'rgba(241, 245, 249, 0.7)'
-      }
-    },
-    components: {
-      MuiOutlinedInput: {
-        styleOverrides: {
-          root: {
-            backgroundColor: 'rgba(15, 23, 42, 0.6)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '12px',
-            transition: 'all 0.3s ease',
-            '& input': {
-              color: '#f1f5f9',
-              paddingLeft: '16px',
-              paddingRight: '16px',
-              '&::placeholder': {
-                color: 'rgba(241, 245, 249, 0.5)'
-              }
-            },
-            '& .MuiInputAdornment-root': {
-              '& svg': {
-                color: 'rgba(241, 245, 249, 0.6)',
-                transition: 'color 0.3s ease'
-              }
-            },
-            '&:hover': {
-              backgroundColor: 'rgba(15, 23, 42, 0.8)',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#60a5fa',
-                borderWidth: '2px'
-              },
-              '& .MuiInputAdornment-root svg': {
-                color: '#60a5fa'
-              }
-            },
-            '&.Mui-focused': {
-              backgroundColor: 'rgba(15, 23, 42, 0.9)',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#60a5fa',
-                borderWidth: '2px'
-              },
-              '& .MuiInputAdornment-root svg': {
-                color: '#60a5fa'
-              }
-            }
-          },
-          notchedOutline: {
-            borderColor: 'rgba(241, 245, 249, 0.2)',
-            borderWidth: '1px'
-          }
-        }
-      },
-      MuiInputLabel: {
-        styleOverrides: {
-          root: {
-            color: 'rgba(241, 245, 249, 0.6)',
-            '&.Mui-focused': {
-              color: '#60a5fa'
-            }
-          }
-        }
-      },
-      MuiButton: {
-        styleOverrides: {
-          root: {
-            borderRadius: '12px',
-            textTransform: 'none',
-            fontSize: '1rem',
-            fontWeight: 600,
-            padding: '12px 24px',
-            transition: 'all 0.3s ease'
-          }
-        }
-      }
-    }
-  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -196,7 +195,6 @@ export default function LoginScreen() {
             width: '200%',
             height: '200%',
             background: 'radial-gradient(circle, rgba(96, 165, 250, 0.15) 0%, transparent 70%)',
-            animation: 'pulse 15s ease-in-out infinite'
           },
           '&::after': {
             content: '""',
@@ -206,21 +204,11 @@ export default function LoginScreen() {
             width: '60%',
             height: '60%',
             background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%)',
-            animation: 'pulse 20s ease-in-out infinite reverse'
           }
         }}
       >
         <style>
           {`
-            @keyframes pulse {
-              0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.4; }
-              50% { transform: scale(1.2) rotate(180deg); opacity: 0.2; }
-            }
-            @keyframes float {
-              0%, 100% { transform: translateY(0px) rotate(0deg); }
-              33% { transform: translateY(-15px) rotate(2deg); }
-              66% { transform: translateY(-5px) rotate(-1deg); }
-            }
             @keyframes slideInUp {
               from {
                 opacity: 0;
@@ -231,78 +219,22 @@ export default function LoginScreen() {
                 transform: translateY(0) scale(1);
               }
             }
-            @keyframes shimmer {
-              0% { background-position: -200px 0; }
-              100% { background-position: 200px 0; }
-            }
-            @keyframes glow {
-              0%, 100% { box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(241, 245, 249, 0.1); }
-              50% { box-shadow: 0 35px 70px -12px rgba(59, 130, 246, 0.5), 0 0 0 1px rgba(96, 165, 250, 0.3); }
-            }
-            @keyframes particles {
-              0%, 100% { transform: translateY(0px) translateX(0px) rotate(0deg); opacity: 0.4; }
-              25% { transform: translateY(-100px) translateX(50px) rotate(90deg); opacity: 0.8; }
-              50% { transform: translateY(-50px) translateX(-30px) rotate(180deg); opacity: 0.2; }
-              75% { transform: translateY(-150px) translateX(-50px) rotate(270deg); opacity: 0.6; }
-            }
           `}
         </style>
-        
-        {/* Floating particles */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '10%',
-            left: '10%',
-            width: '4px',
-            height: '4px',
-            background: 'rgba(96, 165, 250, 0.6)',
-            borderRadius: '50%',
-            animation: 'particles 25s linear infinite',
-            zIndex: 1
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '20%',
-            right: '15%',
-            width: '6px',
-            height: '6px',
-            background: 'rgba(139, 92, 246, 0.5)',
-            borderRadius: '50%',
-            animation: 'particles 30s linear infinite 5s',
-            zIndex: 1
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: '15%',
-            left: '20%',
-            width: '3px',
-            height: '3px',
-            background: 'rgba(96, 165, 250, 0.7)',
-            borderRadius: '50%',
-            animation: 'particles 20s linear infinite 10s',
-            zIndex: 1
-          }}
-        />
-        
         
         {/* Main login card */}
         <Card 
           className="card-login" 
           sx={{ 
-            bgcolor: 'rgba(30, 41, 59, 0.85)',
-            backdropFilter: 'blur(25px)',
+            bgcolor: 'rgba(30, 41, 59, 0.95)',
             borderRadius: '32px',
             padding: '4rem 3rem 3rem 3rem',
             maxWidth: '480px',
             width: '100%',
             position: 'relative',
             zIndex: 3,
-            animation: 'slideInUp 0.8s ease-out, glow 4s ease-in-out infinite',
+            animation: 'slideInUp 0.8s ease-out',
+            boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(241, 245, 249, 0.1)',
             border: '1px solid rgba(241, 245, 249, 0.1)',
             '&::before': {
               content: '""',
@@ -329,8 +261,7 @@ export default function LoginScreen() {
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                mb: 3,
-                animation: 'float 6s ease-in-out infinite'
+                mb: 3
               }}
             >
               <img 
@@ -350,8 +281,6 @@ export default function LoginScreen() {
                 background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f59e0b 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                backgroundSize: '200% 200%',
-                animation: 'shimmer 3s ease-in-out infinite',
                 mb: 1,
                 letterSpacing: '0.5px'
               }}
@@ -542,8 +471,7 @@ export default function LoginScreen() {
               width: '100%',
               borderRadius: '16px',
               boxShadow: '0 15px 35px -10px rgba(239, 68, 68, 0.4)',
-              backdropFilter: 'blur(10px)',
-              backgroundColor: 'rgba(239, 68, 68, 0.9)'
+              backgroundColor: '#ef4444'
             }}
           >
             {error}
