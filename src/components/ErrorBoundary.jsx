@@ -5,11 +5,11 @@ import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMessage: '' };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorMessage: error?.message || String(error) };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -58,9 +58,15 @@ class ErrorBoundary extends React.Component {
               Algo deu errado
             </Typography>
 
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
               Ocorreu um erro inesperado. Tente recarregar a página.
             </Typography>
+
+            {this.state.errorMessage && (
+              <Typography variant="caption" color="text.disabled" sx={{ mb: 3, display: 'block', wordBreak: 'break-word' }}>
+                {this.state.errorMessage}
+              </Typography>
+            )}
 
             <Button
               variant="contained"
