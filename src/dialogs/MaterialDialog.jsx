@@ -78,7 +78,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     }, [material, open, isEditing]);
 
     useEffect(() => {
-        if (!open || !description || description.length < 3) {
+        if (!open || isEditing || !description || description.length < 3) {
             setSimilarMaterials([]);
             return;
         }
@@ -94,7 +94,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [description, materials, material, open]);
+    }, [description, materials, material, open, isEditing]);
 
     const handleImageSelect = (e) => {
         const file = e.target.files?.[0];
