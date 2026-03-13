@@ -31,8 +31,68 @@ import { logAudit } from '../firebase/auditLog';
 import { findSimilarMaterials } from '../utils/materialSimilarity';
 import { incrementTaskProgress } from '../firebase/taskProgress';
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB (antes da compressão)
+const MAX_DIMENSION = 1200; // px
+const COMPRESSION_QUALITY = 0.8;
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
+/**
+ * Comprime e redimensiona imagem via Canvas.
+ * Retorna um File pronto para upload (JPEG, tipicamente 100-400KB).
+ */
+const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+
+            let { width, height } = img;
+
+            // Redimensionar se maior que MAX_DIMENSION
+            if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+                if (width > height) {
+                    height = Math.round((height * MAX_DIMENSION) / width);
+                    width = MAX_DIMENSION;
+                } else {
+                    width = Math.round((width * MAX_DIMENSION) / height);
+                    height = MAX_DIMENSION;
+                }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) {
+                        reject(new Error('Falha ao comprimir imagem'));
+                        return;
+                    }
+                    const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    resolve(compressed);
+                },
+                'image/jpeg',
+                COMPRESSION_QUALITY
+            );
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Erro ao carregar imagem'));
+        };
+
+        img.src = url;
+    });
+};
 
 const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId, materials = [] }) => {
     const { categorias } = useContext(CategoriaContext);
@@ -96,26 +156,32 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         return () => clearTimeout(timer);
     }, [description, materials, material, open, isEditing]);
 
-    const handleImageSelect = (e) => {
+    const handleImageSelect = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-            setErrors(prev => ({ ...prev, image: 'Use apenas JPG, PNG ou WebP.' }));
+        if (!file.type.startsWith('image/')) {
+            setErrors(prev => ({ ...prev, image: 'Selecione um arquivo de imagem.' }));
             return;
         }
         if (file.size > MAX_IMAGE_SIZE) {
-            setErrors(prev => ({ ...prev, image: 'Imagem muito grande. Máximo: 5MB.' }));
+            setErrors(prev => ({ ...prev, image: 'Imagem muito grande. Máximo: 20MB.' }));
             return;
         }
 
         setErrors(prev => { const { image, ...rest } = prev; return rest; });
-        setImageFile(file);
-        setRemoveImage(false);
 
-        const reader = new FileReader();
-        reader.onload = (ev) => setImagePreview(ev.target.result);
-        reader.readAsDataURL(file);
+        try {
+            const compressed = await compressImage(file);
+            setImageFile(compressed);
+            setRemoveImage(false);
+
+            const reader = new FileReader();
+            reader.onload = (ev) => setImagePreview(ev.target.result);
+            reader.readAsDataURL(compressed);
+        } catch {
+            setErrors(prev => ({ ...prev, image: 'Erro ao processar imagem. Tente outra.' }));
+        }
     };
 
     const handleRemoveImage = () => {
@@ -133,8 +199,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         if (!imageFile) return null;
 
         const timestamp = Date.now();
-        const ext = imageFile.name.split('.').pop();
-        const storagePath = `materials/${materialId}/${timestamp}.${ext}`;
+        const storagePath = `materials/${materialId}/${timestamp}.jpg`;
         const storageRef = ref(storage, storagePath);
 
         return new Promise((resolve, reject) => {
@@ -389,7 +454,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                                 </Button>
                             )}
                             <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
-                                JPG, PNG ou WebP. Máx 5MB.
+                                Foto do celular ou qualquer imagem. Comprimida automaticamente.
                             </Typography>
                         </Box>
                     </Box>
@@ -408,7 +473,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     <input
                         ref={fileInputRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
+                        accept="image/*"
                         style={{ display: 'none' }}
                         onChange={handleImageSelect}
                     />
