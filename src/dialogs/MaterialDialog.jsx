@@ -20,7 +20,8 @@ import {
     LinearProgress
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import CollectionsIcon from '@mui/icons-material/Collections';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
 import { addDoc, updateDoc, doc, serverTimestamp, collection } from 'firebase/firestore';
@@ -111,6 +112,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const [removeImage, setRemoveImage] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
 
     const isEditing = material != null;
 
@@ -160,7 +162,10 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!file.type.startsWith('image/')) {
+        // Validação robusta: alguns navegadores mobile não definem file.type para fotos da câmera
+        const isImage = (file.type && file.type.startsWith('image/')) ||
+            /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(file.name);
+        if (!isImage) {
             setErrors(prev => ({ ...prev, image: 'Selecione um arquivo de imagem.' }));
             return;
         }
@@ -172,15 +177,40 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         setErrors(prev => { const { image, ...rest } = prev; return rest; });
 
         try {
-            const compressed = await compressImage(file);
-            setImageFile(compressed);
+            let processedFile;
+            try {
+                processedFile = await compressImage(file);
+            } catch {
+                // Fallback: se a compressão falhar (ex: HEIC em navegadores que não suportam),
+                // usa o arquivo original
+                processedFile = file;
+            }
+            setImageFile(processedFile);
             setRemoveImage(false);
 
             const reader = new FileReader();
             reader.onload = (ev) => setImagePreview(ev.target.result);
-            reader.readAsDataURL(compressed);
+            reader.onerror = () => {
+                // Fallback: cria preview via URL.createObjectURL
+                setImagePreview(URL.createObjectURL(processedFile));
+            };
+            reader.readAsDataURL(processedFile);
         } catch {
             setErrors(prev => ({ ...prev, image: 'Erro ao processar imagem. Tente outra.' }));
+        }
+    };
+
+    const handleCameraClick = () => {
+        if (cameraInputRef.current) {
+            cameraInputRef.current.value = '';
+            cameraInputRef.current.click();
+        }
+    };
+
+    const handleGalleryClick = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+            fileInputRef.current.click();
         }
     };
 
@@ -190,9 +220,8 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         if (existingImageUrl) {
             setRemoveImage(true);
         }
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (cameraInputRef.current) cameraInputRef.current.value = '';
     };
 
     const uploadImage = async (materialId) => {
@@ -332,10 +361,14 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     }
                 } catch (imgError) {
                     console.error("Erro ao fazer upload da imagem:", imgError);
-                    // Material was saved successfully, just image failed
-                    setErrors(prev => ({ ...prev, general: 'Material salvo, mas houve erro ao enviar a foto. Tente editar o material e enviar a foto novamente.' }));
+                    const errorMsg = imgError?.code === 'storage/unauthorized'
+                        ? 'Sem permissão para enviar fotos. Verifique as regras do Firebase Storage.'
+                        : imgError?.code === 'storage/canceled'
+                            ? 'Upload cancelado.'
+                            : `Erro ao enviar foto: ${imgError?.message || imgError}. O material foi salvo sem foto.`;
+                    setErrors(prev => ({ ...prev, general: errorMsg }));
                     setLoading(false);
-                    return; // Don't close dialog so user sees the warning
+                    return;
                 }
             }
 
@@ -407,7 +440,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                                     bgcolor: 'action.hover',
                                 },
                             }}
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={handleGalleryClick}
                         >
                             {currentImage ? (
                                 <Box
@@ -435,11 +468,20 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                             <Button
                                 variant="outlined"
                                 size="small"
-                                startIcon={<PhotoCameraIcon />}
-                                onClick={() => fileInputRef.current?.click()}
+                                startIcon={<CameraAltIcon />}
+                                onClick={handleCameraClick}
                                 sx={{ textTransform: 'none', fontSize: '0.8rem' }}
                             >
-                                {currentImage ? 'Trocar' : 'Adicionar'}
+                                Tirar Foto
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<CollectionsIcon />}
+                                onClick={handleGalleryClick}
+                                sx={{ textTransform: 'none', fontSize: '0.8rem' }}
+                            >
+                                Galeria
                             </Button>
                             {currentImage && (
                                 <Button
@@ -454,7 +496,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                                 </Button>
                             )}
                             <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
-                                Foto do celular ou qualquer imagem. Comprimida automaticamente.
+                                Comprimida automaticamente.
                             </Typography>
                         </Box>
                     </Box>
@@ -470,10 +512,20 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                             sx={{ mt: 1, borderRadius: 1 }}
                         />
                     )}
+                    {/* Input para galeria/arquivos */}
                     <input
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleImageSelect}
+                    />
+                    {/* Input para câmera (abre direto) */}
+                    <input
+                        ref={cameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
                         style={{ display: 'none' }}
                         onChange={handleImageSelect}
                     />
