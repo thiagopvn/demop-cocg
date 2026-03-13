@@ -159,6 +159,8 @@ export default function LoginScreen() {
         setError("Usuário não encontrado");
       } else if (message.includes("incorreta")) {
         setError("Senha incorreta");
+      } else if (message.includes("desativada") || message.includes("Conta desativada")) {
+        setError("Conta desativada. Entre em contato com o administrador.");
       } else {
         setError("Erro ao fazer login. Tente novamente.");
       }
