@@ -19,6 +19,11 @@ import {
   CircularProgress,
   Chip,
   Box,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -29,6 +34,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import HistoryIcon from "@mui/icons-material/History";
 import BlockIcon from "@mui/icons-material/Block";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import {
   query,
   doc,
@@ -69,8 +75,20 @@ export default function Usuario() {
   const [historicoTarget, setHistoricoTarget] = useState(null);
   const [toggleActiveDialogOpen, setToggleActiveDialogOpen] = useState(false);
   const [userToToggle, setUserToToggle] = useState(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [menuUser, setMenuUser] = useState(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  const handleMenuOpen = (event, user) => {
+    setMenuAnchorEl(event.currentTarget);
+    setMenuUser(user);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setMenuUser(null);
+  };
 
   // Carregar dados do usuario logado
   useEffect(() => {
@@ -639,152 +657,34 @@ export default function Usuario() {
                         {user.role}
                       </TableCell>
                       <TableCell sx={{ textAlign: "center" }}>
-                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <Tooltip title="Ver informações completas">
-                            <IconButton
-                              onMouseEnter={(e) => handlePopoverOpen(e, user.id)}
-                              onMouseLeave={() => handlePopoverClose(user.id)}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyToClipboard(user);
-                              }}
-                              sx={{
-                                backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(33, 150, 243, 0.2)',
-                                  transform: 'scale(1.05)',
-                                },
-                                transition: 'all 0.2s ease-in-out',
-                              }}
-                            >
-                              <InfoIcon sx={{ color: '#2196f3' }} />
-                            </IconButton>
-                          </Tooltip>
-                          
-                          <Tooltip title="Editar usuário">
-                            <IconButton
-                              onClick={() => handleOpenEditDialog(user)}
-                              sx={{
-                                backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                                  transform: 'scale(1.05)',
-                                },
-                                transition: 'all 0.2s ease-in-out',
-                              }}
-                            >
-                              <EditIcon sx={{ color: '#4caf50' }} />
-                            </IconButton>
-                          </Tooltip>
-
-                          {(userRole === "admin" || userRole === "admingeral") && (
-                          <Tooltip title="Resetar senha">
-                            <IconButton
-                              onClick={() => handleResetPassword(user.id)}
-                              sx={{
-                                backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(255, 152, 0, 0.2)',
-                                  transform: 'scale(1.05)',
-                                },
-                                transition: 'all 0.2s ease-in-out',
-                              }}
-                            >
-                              <LockResetIcon sx={{ color: '#ff9800' }} />
-                            </IconButton>
-                          </Tooltip>
-                          )}
-
-                          {(userRole === "admin" || userRole === "admingeral") && (
-                          <Tooltip title={user.ativo === false ? "Ativar usuário" : "Desativar usuário"}>
-                            <IconButton
-                              onClick={() => handleToggleActive(user)}
-                              sx={{
-                                backgroundColor: user.ativo === false ? 'rgba(76, 175, 80, 0.1)' : 'rgba(158, 158, 158, 0.1)',
-                                '&:hover': {
-                                  backgroundColor: user.ativo === false ? 'rgba(76, 175, 80, 0.2)' : 'rgba(158, 158, 158, 0.2)',
-                                  transform: 'scale(1.05)',
-                                },
-                                transition: 'all 0.2s ease-in-out',
-                              }}
-                            >
-                              {user.ativo === false ? <CheckCircleIcon sx={{ color: '#4caf50' }} /> : <BlockIcon sx={{ color: '#9e9e9e' }} />}
-                            </IconButton>
-                          </Tooltip>
-                          )}
-
-                          <Tooltip title="Histórico de alterações">
-                            <IconButton
-                              onClick={() => handleOpenHistorico(user)}
-                              sx={{
-                                backgroundColor: 'rgba(156, 39, 176, 0.1)',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(156, 39, 176, 0.2)',
-                                  transform: 'scale(1.05)',
-                                },
-                                transition: 'all 0.2s ease-in-out',
-                              }}
-                            >
-                              <HistoryIcon sx={{ color: '#9c27b0' }} />
-                            </IconButton>
-                          </Tooltip>
-
-                          <Tooltip title="Excluir usuário">
-                            <IconButton
-                              onClick={() => handleDelete(user.id)}
-                              sx={{
-                                backgroundColor: 'rgba(244, 67, 54, 0.1)',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(244, 67, 54, 0.2)',
-                                  transform: 'scale(1.05)',
-                                },
-                                transition: 'all 0.2s ease-in-out',
-                              }}
-                            >
-                              <DeleteIcon sx={{ color: '#f44336' }} />
-                            </IconButton>
-                          </Tooltip>
-                        </div>
-                        
-                        <Popover
-                          id="mouse-over-popover"
-                          sx={{
-                            pointerEvents: "none",
-                          }}
-                          open={Boolean(anchorEls[user.id])}
-                          anchorEl={anchorEls[user.id]}
-                          anchorOrigin={{
-                            vertical: "bottom",
-                            horizontal: "left",
-                          }}
-                          transformOrigin={{
-                            vertical: "top",
-                            horizontal: "left",
-                          }}
-                          onClose={() => handlePopoverClose(user.id)}
-                          disableRestoreFocus
-                        >
-                          <Typography component="div" sx={{ 
-                            p: 2, 
-                            minWidth: 300,
-                            '& > div': {
-                              marginBottom: '8px',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              backgroundColor: '#f5f5f5',
-                              fontWeight: 500,
-                            }
-                          }}>
-                            <div><strong>Username:</strong> {user.username}</div>
-                            <div><strong>Nome:</strong> {user.full_name}</div>
-                            <div><strong>Email:</strong> {user.email}</div>
-                            <div><strong>Privilégios:</strong> {user.role}</div>
-                            <div><strong>RG:</strong> {user.rg}</div>
-                            <div><strong>Telefone:</strong> {user.telefone}</div>
-                            <div><strong>OBM:</strong> {user.OBM}</div>
-                            <div><strong>Criado em:</strong> {user.created_at?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}</div>
-                          </Typography>
-                        </Popover>
+                        <Tooltip title="Editar usuário">
+                          <IconButton
+                            onClick={() => handleOpenEditDialog(user)}
+                            size="small"
+                            sx={{
+                              backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                              '&:hover': {
+                                backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                              },
+                              mr: 0.5,
+                            }}
+                          >
+                            <EditIcon sx={{ color: '#4caf50', fontSize: 20 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Mais ações">
+                          <IconButton
+                            onClick={(e) => handleMenuOpen(e, user)}
+                            size="small"
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                              },
+                            }}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))
@@ -796,6 +696,124 @@ export default function Usuario() {
           </div>
         </div>
 
+
+        {/* Menu de ações do usuário */}
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleMenuClose}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          slotProps={{
+            paper: {
+              sx: {
+                borderRadius: '12px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                minWidth: 200,
+              }
+            }
+          }}
+        >
+          <MenuItem
+            onClick={(e) => {
+              handlePopoverOpen(e, menuUser?.id);
+              handleCopyToClipboard(menuUser);
+              handleMenuClose();
+            }}
+          >
+            <ListItemIcon><InfoIcon sx={{ color: '#2196f3' }} /></ListItemIcon>
+            <ListItemText>Ver informações</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              handleOpenHistorico(menuUser);
+              handleMenuClose();
+            }}
+          >
+            <ListItemIcon><HistoryIcon sx={{ color: '#9c27b0' }} /></ListItemIcon>
+            <ListItemText>Histórico</ListItemText>
+          </MenuItem>
+          {(userRole === "admin" || userRole === "admingeral") && (
+            <MenuItem
+              onClick={() => {
+                handleResetPassword(menuUser?.id);
+                handleMenuClose();
+              }}
+            >
+              <ListItemIcon><LockResetIcon sx={{ color: '#ff9800' }} /></ListItemIcon>
+              <ListItemText>Resetar senha</ListItemText>
+            </MenuItem>
+          )}
+          {(userRole === "admin" || userRole === "admingeral") && (
+            <MenuItem
+              onClick={() => {
+                handleToggleActive(menuUser);
+                handleMenuClose();
+              }}
+            >
+              <ListItemIcon>
+                {menuUser?.ativo === false
+                  ? <CheckCircleIcon sx={{ color: '#4caf50' }} />
+                  : <BlockIcon sx={{ color: '#9e9e9e' }} />
+                }
+              </ListItemIcon>
+              <ListItemText>{menuUser?.ativo === false ? 'Ativar usuário' : 'Desativar usuário'}</ListItemText>
+            </MenuItem>
+          )}
+          {(userRole === "admin" || userRole === "admingeral") && [
+            <Divider key="divider" />,
+            <MenuItem
+              key="delete"
+              onClick={() => {
+                handleDelete(menuUser?.id);
+                handleMenuClose();
+              }}
+              sx={{ color: '#f44336' }}
+            >
+              <ListItemIcon><DeleteIcon sx={{ color: '#f44336' }} /></ListItemIcon>
+              <ListItemText>Excluir usuário</ListItemText>
+            </MenuItem>
+          ]}
+        </Menu>
+
+        {/* Popover de informações do usuário */}
+        {Object.keys(anchorEls).map((uid) => {
+          const user = allUsers.find(u => u.id === uid);
+          if (!user || !anchorEls[uid]) return null;
+          return (
+            <Popover
+              key={uid}
+              sx={{ pointerEvents: "none" }}
+              open={Boolean(anchorEls[uid])}
+              anchorEl={anchorEls[uid]}
+              anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+              transformOrigin={{ vertical: "top", horizontal: "left" }}
+              onClose={() => handlePopoverClose(uid)}
+              disableRestoreFocus
+            >
+              <Typography component="div" sx={{
+                p: 2,
+                minWidth: 300,
+                '& > div': {
+                  marginBottom: '8px',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  backgroundColor: '#f5f5f5',
+                  fontWeight: 500,
+                }
+              }}>
+                <div><strong>Username:</strong> {user.username}</div>
+                <div><strong>Nome:</strong> {user.full_name}</div>
+                <div><strong>Email:</strong> {user.email}</div>
+                <div><strong>Privilégios:</strong> {user.role}</div>
+                <div><strong>RG:</strong> {user.rg}</div>
+                <div><strong>Telefone:</strong> {user.telefone}</div>
+                <div><strong>OBM:</strong> {user.OBM}</div>
+                <div><strong>Criado em:</strong> {user.created_at?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}</div>
+              </Typography>
+            </Popover>
+          );
+        })}
 
         <UsuarioDialog
           open={dialogOpen}
