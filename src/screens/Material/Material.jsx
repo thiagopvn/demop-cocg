@@ -63,13 +63,15 @@ import {
     CheckBoxOutlineBlank,
     FactCheck,
     FilterList,
-    ClearAll
+    ClearAll,
+    History
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import MaterialDialog from '../../dialogs/MaterialDialog';
 import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
+import HistoricoDialog from '../../dialogs/HistoricoDialog';
 import { deleteDoc, doc, collection, query, where, getDocs, orderBy, onSnapshot, addDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
@@ -227,6 +229,8 @@ const Material = () => {
     const [selectedViatura, setSelectedViatura] = useState(null);
     const [alocarQuantidade, setAlocarQuantidade] = useState(1);
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+    const [historicoOpen, setHistoricoOpen] = useState(false);
+    const [historicoTarget, setHistoricoTarget] = useState(null);
 
     // Ordenação por coluna (clique no cabeçalho)
     const [sortField, setSortField] = useState('description');
@@ -1491,6 +1495,20 @@ const Material = () => {
                                                             <Edit fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
+                                                    <Tooltip title="Histórico">
+                                                        <IconButton
+                                                            onClick={() => { setHistoricoTarget({ id: material.id, name: material.description }); setHistoricoOpen(true); }}
+                                                            size="small"
+                                                            sx={{
+                                                                color: '#9c27b0',
+                                                                '&:hover': {
+                                                                    backgroundColor: alpha('#9c27b0', 0.1),
+                                                                },
+                                                            }}
+                                                        >
+                                                            <History fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                     <Tooltip title="Excluir Material">
                                                         <IconButton
                                                             onClick={() => handleDeleteMaterial(material.id)}
@@ -2150,6 +2168,13 @@ const Material = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <HistoricoDialog
+                open={historicoOpen}
+                onClose={() => { setHistoricoOpen(false); setHistoricoTarget(null); }}
+                targetId={historicoTarget?.id}
+                targetName={historicoTarget?.name}
+            />
         </MenuContext>
     );
 };

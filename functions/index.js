@@ -58,6 +58,11 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
   const userData = userDoc.data();
   const userId = userDoc.id;
 
+  // Block inactive users
+  if (userData.ativo === false) {
+    throw new HttpsError("permission-denied", "Conta desativada. Entre em contato com o administrador.");
+  }
+
   // Read password from user_secrets
   const secretDoc = await db.collection("user_secrets").doc(userId).get();
   const storedPassword = secretDoc.exists ? secretDoc.data().password : null;
@@ -234,6 +239,7 @@ exports.createUserAccount = onCall({ region: "southamerica-east1" }, async (requ
     full_name,
     rg,
     updated_at: new Date(),
+    must_change_password: true,
   });
 
   return { userId: userRef.id, message: "Usuário criado com sucesso." };

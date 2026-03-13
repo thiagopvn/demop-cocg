@@ -26,6 +26,9 @@ import EditIcon from "@mui/icons-material/Edit";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import PersonIcon from "@mui/icons-material/Person";
+import HistoryIcon from "@mui/icons-material/History";
+import BlockIcon from "@mui/icons-material/Block";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import {
   query,
   doc,
@@ -40,6 +43,7 @@ import { callCreateUserAccount, callDeleteUserAccount, callResetUserPassword } f
 import { logAudit } from '../../firebase/auditLog';
 import LockResetIcon from "@mui/icons-material/LockReset";
 import UsuarioDialog from "../../dialogs/UsuarioDialog";
+import HistoricoDialog from "../../dialogs/HistoricoDialog";
 import { verifyToken } from "../../firebase/token";
 import AddIcon from "@mui/icons-material/Add";
 import MenuContext from "../../contexts/MenuContext";
@@ -61,6 +65,10 @@ export default function Usuario() {
   const [userToResetId, setUserToResetId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [historicoOpen, setHistoricoOpen] = useState(false);
+  const [historicoTarget, setHistoricoTarget] = useState(null);
+  const [toggleActiveDialogOpen, setToggleActiveDialogOpen] = useState(false);
+  const [userToToggle, setUserToToggle] = useState(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -351,6 +359,40 @@ export default function Usuario() {
     setUserToResetId(null);
   };
 
+  // Histórico de alterações
+  const handleOpenHistorico = (user) => {
+    setHistoricoTarget({ id: user.id, name: user.full_name || user.username });
+    setHistoricoOpen(true);
+  };
+
+  // Ativar/Desativar usuário
+  const handleToggleActive = (user) => {
+    setUserToToggle(user);
+    setToggleActiveDialogOpen(true);
+  };
+
+  const confirmToggleActive = async () => {
+    if (!userToToggle) return;
+    try {
+      const userDocRef = doc(db, "users", userToToggle.id);
+      const newStatus = userToToggle.ativo === false ? true : false;
+      await updateDoc(userDocRef, { ativo: newStatus });
+      logAudit({
+        action: newStatus ? 'user_activate' : 'user_deactivate',
+        userId,
+        userName,
+        targetCollection: 'users',
+        targetId: userToToggle.id,
+        targetName: userToToggle.full_name || userToToggle.username,
+      });
+    } catch (error) {
+      console.error("Erro ao alterar status do usuário:", error);
+      alert("Erro ao alterar status do usuário.");
+    }
+    setToggleActiveDialogOpen(false);
+    setUserToToggle(null);
+  };
+
   return (
     <PrivateRoute>
       <MenuContext>
@@ -584,9 +626,14 @@ export default function Usuario() {
                   </TableRow>
                 ) : (
                   users.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow key={user.id} sx={{ opacity: user.ativo === false ? 0.5 : 1 }}>
                       <TableCell sx={{ textAlign: "center" }}>
-                        {user.username}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                          {user.username}
+                          {user.ativo === false && (
+                            <Chip label="Inativo" size="small" color="error" variant="outlined" sx={{ fontSize: '0.7rem', height: 20 }} />
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell sx={{ textAlign: "center" }}>
                         {user.role}
@@ -648,8 +695,42 @@ export default function Usuario() {
                           </Tooltip>
                           )}
 
+                          {(userRole === "admin" || userRole === "admingeral") && (
+                          <Tooltip title={user.ativo === false ? "Ativar usuário" : "Desativar usuário"}>
+                            <IconButton
+                              onClick={() => handleToggleActive(user)}
+                              sx={{
+                                backgroundColor: user.ativo === false ? 'rgba(76, 175, 80, 0.1)' : 'rgba(158, 158, 158, 0.1)',
+                                '&:hover': {
+                                  backgroundColor: user.ativo === false ? 'rgba(76, 175, 80, 0.2)' : 'rgba(158, 158, 158, 0.2)',
+                                  transform: 'scale(1.05)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              {user.ativo === false ? <CheckCircleIcon sx={{ color: '#4caf50' }} /> : <BlockIcon sx={{ color: '#9e9e9e' }} />}
+                            </IconButton>
+                          </Tooltip>
+                          )}
+
+                          <Tooltip title="Histórico de alterações">
+                            <IconButton
+                              onClick={() => handleOpenHistorico(user)}
+                              sx={{
+                                backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(156, 39, 176, 0.2)',
+                                  transform: 'scale(1.05)',
+                                },
+                                transition: 'all 0.2s ease-in-out',
+                              }}
+                            >
+                              <HistoryIcon sx={{ color: '#9c27b0' }} />
+                            </IconButton>
+                          </Tooltip>
+
                           <Tooltip title="Excluir usuário">
-                            <IconButton 
+                            <IconButton
                               onClick={() => handleDelete(user.id)}
                               sx={{
                                 backgroundColor: 'rgba(244, 67, 54, 0.1)',
@@ -778,6 +859,37 @@ export default function Usuario() {
             </Button>
           </DialogActions>
         </Dialog>
+        <Dialog
+          open={toggleActiveDialogOpen}
+          onClose={() => { setToggleActiveDialogOpen(false); setUserToToggle(null); }}
+        >
+          <DialogTitle>
+            {userToToggle?.ativo === false ? "Ativar Usuário?" : "Desativar Usuário?"}
+          </DialogTitle>
+          <DialogContent>
+            <Typography>
+              {userToToggle?.ativo === false
+                ? `Deseja reativar o acesso de "${userToToggle?.full_name || userToToggle?.username}"? O usuário poderá fazer login novamente.`
+                : `Deseja desativar o acesso de "${userToToggle?.full_name || userToToggle?.username}"? O usuário não poderá mais fazer login, mas seus dados serão mantidos.`
+              }
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setToggleActiveDialogOpen(false); setUserToToggle(null); }} color="primary">
+              Cancelar
+            </Button>
+            <Button onClick={confirmToggleActive} color={userToToggle?.ativo === false ? "success" : "warning"}>
+              {userToToggle?.ativo === false ? "Ativar" : "Desativar"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <HistoricoDialog
+          open={historicoOpen}
+          onClose={() => { setHistoricoOpen(false); setHistoricoTarget(null); }}
+          targetId={historicoTarget?.id}
+          targetName={historicoTarget?.name}
+        />
       </MenuContext>
     </PrivateRoute>
   );
