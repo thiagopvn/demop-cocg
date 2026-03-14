@@ -68,6 +68,7 @@ import { collection, query, orderBy, onSnapshot, where, Timestamp, addDoc, updat
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
 import { ACTION_LABELS, ACTION_COLORS, logAudit } from '../../firebase/auditLog';
+import { reconcileTaskProgress } from '../../firebase/taskProgress';
 import { useDebounce } from '../../hooks/useDebounce';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
@@ -221,6 +222,12 @@ export default function Atividades() {
         };
         fetchUserData();
     }, []);
+
+    // Reconciliar progresso das tarefas ativas ao abrir a tela
+    useEffect(() => {
+        if (userRole !== 'admingeral') return;
+        reconcileTaskProgress();
+    }, [userRole]);
 
     // Real-time tasks listener
     useEffect(() => {
