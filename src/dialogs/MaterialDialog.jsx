@@ -343,6 +343,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     targetName: description,
                     details: { categoria: data.categoria, estoque_total: data.estoque_total, estoque_atual: data.estoque_atual },
                 });
+                incrementTaskProgress(loggedUserId, loggedUserName);
             }
 
             // Upload image separately (non-blocking for material save)
