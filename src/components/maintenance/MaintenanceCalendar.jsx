@@ -53,7 +53,6 @@ import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getMaintenanceTypeLabel, MAINTENANCE_TYPE_DAYS } from '../../data/maintenanceTemplates';
-import MigrateMaintenancesDialog from '../../dialogs/MigrateMaintenancesDialog';
 
 // Calcular a previsão da próxima manutenção baseado na periodicidade
 const calcNextDueDate = (fromDate, recurrenceType, customDays) => {
@@ -109,9 +108,6 @@ const MaintenanceCalendar = () => {
         type: '',
         status: ''
     });
-
-    // Estado para o dialog de migração
-    const [openMigrateDialog, setOpenMigrateDialog] = useState(false);
 
     // Estado para o dialog de conclusão
     const [openCompleteDialog, setOpenCompleteDialog] = useState(false);
@@ -668,19 +664,6 @@ const MaintenanceCalendar = () => {
                                     </IconButton>
                                 </Tooltip>
                             )}
-                            {(currentUser.role === 'admin' || currentUser.role === 'editor') && (
-                                <Tooltip title="Migrar cronograma rebalanceado">
-                                    <Button
-                                        variant="outlined"
-                                        color="warning"
-                                        size="small"
-                                        onClick={() => setOpenMigrateDialog(true)}
-                                        sx={{ minWidth: 'auto', whiteSpace: 'nowrap' }}
-                                    >
-                                        Migrar
-                                    </Button>
-                                </Tooltip>
-                            )}
                         </Box>
                     </Grid>
                 </Grid>
@@ -1116,14 +1099,6 @@ const MaintenanceCalendar = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* Dialog de Migração */}
-            <MigrateMaintenancesDialog
-                open={openMigrateDialog}
-                onClose={(changed) => {
-                    setOpenMigrateDialog(false);
-                    if (changed) fetchMaintenances();
-                }}
-            />
         </Box>
     );
 };
