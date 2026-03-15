@@ -668,7 +668,7 @@ const MaintenanceCalendar = () => {
                                     </IconButton>
                                 </Tooltip>
                             )}
-                            {currentUser.role === 'admin' && (
+                            {(currentUser.role === 'admin' || currentUser.role === 'editor') && (
                                 <Tooltip title="Migrar cronograma rebalanceado">
                                     <Button
                                         variant="outlined"
