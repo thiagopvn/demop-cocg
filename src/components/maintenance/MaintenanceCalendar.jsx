@@ -23,6 +23,7 @@ import {
     Alert,
     LinearProgress,
     TableSortLabel,
+    TablePagination,
     InputAdornment,
     Checkbox,
     FormControlLabel,
@@ -80,16 +81,18 @@ const MaintenanceCalendar = () => {
     const [maintenances, setMaintenances] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState({ userId: '', userName: '', role: '' });
+    const [searchTerm, setSearchTerm] = useState('');
     const [filter, setFilter] = useState({
         status: 'todos',
         type: 'todos',
         period: 'todos',
         priority: 'todos',
-        search: ''
     });
-    const debouncedSearch = useDebounce(filter.search, 300);
+    const debouncedSearch = useDebounce(searchTerm, 300);
     const [sortField, setSortField] = useState('dueDate');
     const [sortDirection, setSortDirection] = useState('asc');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(25);
     const [selectedMaintenance, setSelectedMaintenance] = useState(null);
     const [openEditDialog, setOpenEditDialog] = useState(false);
     const [editData, setEditData] = useState({
@@ -163,12 +166,19 @@ const MaintenanceCalendar = () => {
     };
 
     const handleClearFilters = () => {
-        setFilter({ status: 'todos', type: 'todos', period: 'todos', priority: 'todos', search: '' });
+        setSearchTerm('');
+        setFilter({ status: 'todos', type: 'todos', period: 'todos', priority: 'todos' });
         setSortField('dueDate');
         setSortDirection('asc');
+        setPage(0);
     };
 
-    const hasActiveFilters = filter.status !== 'todos' || filter.type !== 'todos' || filter.period !== 'todos' || filter.priority !== 'todos' || filter.search;
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(0);
+    }, [debouncedSearch, filter.status, filter.type, filter.priority, filter.period]);
+
+    const hasActiveFilters = filter.status !== 'todos' || filter.type !== 'todos' || filter.period !== 'todos' || filter.priority !== 'todos' || searchTerm;
 
     const filteredMaintenances = useMemo(() => {
         let filtered = [...maintenances];
@@ -530,17 +540,17 @@ const MaintenanceCalendar = () => {
                     fullWidth
                     size="small"
                     placeholder="Buscar por material ou descrição da manutenção..."
-                    value={filter.search}
-                    onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                     InputProps={{
                         startAdornment: (
                             <InputAdornment position="start">
                                 <Search color="action" fontSize="small" />
                             </InputAdornment>
                         ),
-                        endAdornment: filter.search ? (
+                        endAdornment: searchTerm ? (
                             <InputAdornment position="end">
-                                <IconButton size="small" onClick={() => setFilter({ ...filter, search: '' })}>
+                                <IconButton size="small" onClick={() => setSearchTerm('')}>
                                     <Cancel fontSize="small" />
                                 </IconButton>
                             </InputAdornment>
@@ -715,7 +725,9 @@ const MaintenanceCalendar = () => {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredMaintenances.map((maintenance) => {
+                            filteredMaintenances
+                            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                            .map((maintenance) => {
                                 const nextForecast = getNextForecast(maintenance);
                                 // lastCompletedAt = conclusão da manutenção anterior (para recorrentes)
                                 // completedAt = conclusão desta manutenção (se concluída)
@@ -884,6 +896,19 @@ const MaintenanceCalendar = () => {
                         )}
                     </TableBody>
                 </Table>
+                <TablePagination
+                    rowsPerPageOptions={[10, 25, 50, 100]}
+                    component="div"
+                    count={filteredMaintenances.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={(e, newPage) => setPage(newPage)}
+                    onRowsPerPageChange={(e) => {
+                        setRowsPerPage(parseInt(e.target.value, 10));
+                        setPage(0);
+                    }}
+                    labelRowsPerPage="Por página:"
+                />
             </TableContainer>
 
             {/* Dialog de Conclusão */}
