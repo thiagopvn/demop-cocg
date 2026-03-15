@@ -516,7 +516,7 @@ export const createNextRecurrentMaintenance = async (completedMaintenance) => {
             }
         }
 
-        // Criar nova manutenção
+        // Criar nova manutenção com referência à conclusão anterior
         const newMaintenance = {
             materialId: completedMaintenance.materialId,
             materialDescription: completedMaintenance.materialDescription,
@@ -537,6 +537,8 @@ export const createNextRecurrentMaintenance = async (completedMaintenance) => {
             reminderDays: completedMaintenance.reminderDays,
             parentMaintenanceId: completedMaintenance.id || completedMaintenance.parentMaintenanceId,
             recurrenceCount: (completedMaintenance.recurrenceCount || 0) + 1,
+            lastCompletedAt: Timestamp.fromDate(completedAt),
+            lastCompletionNotes: completedMaintenance.completionNotes || '',
             createdAt: Timestamp.now(),
             createdBy: 'Sistema - Recorrência Automática'
         };
