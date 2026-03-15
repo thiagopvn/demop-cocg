@@ -23,7 +23,10 @@ import {
     Alert,
     LinearProgress,
     TableSortLabel,
-    InputAdornment
+    InputAdornment,
+    Checkbox,
+    FormControlLabel,
+    alpha
 } from '@mui/material';
 import {
     Edit,
@@ -76,7 +79,7 @@ const MaintenanceCalendar = () => {
     const [maintenances, setMaintenances] = useState([]);
     const [filteredMaintenances, setFilteredMaintenances] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [currentUser, setCurrentUser] = useState({ userId: '', userName: '' });
+    const [currentUser, setCurrentUser] = useState({ userId: '', userName: '', role: '' });
     const [filter, setFilter] = useState({
         status: 'todos',
         type: 'todos',
@@ -100,6 +103,7 @@ const MaintenanceCalendar = () => {
     const [openCompleteDialog, setOpenCompleteDialog] = useState(false);
     const [completionData, setCompletionData] = useState({
         completionNotes: '',
+        confirmedAsPlanned: false,
         maintenanceId: null,
         maintenance: null
     });
@@ -111,7 +115,7 @@ const MaintenanceCalendar = () => {
                 const token = localStorage.getItem('token');
                 const user = await verifyToken(token);
                 if (user) {
-                    setCurrentUser({ userId: user.userId || '', userName: user.username || '' });
+                    setCurrentUser({ userId: user.userId || '', userName: user.username || '', role: user.role || '' });
                 }
             } catch (e) {
                 console.error('Erro ao carregar usuário:', e);
@@ -282,6 +286,7 @@ const MaintenanceCalendar = () => {
         const maintenance = maintenances.find(m => m.id === maintenanceId);
         setCompletionData({
             completionNotes: '',
+            confirmedAsPlanned: false,
             maintenanceId,
             maintenance
         });
@@ -290,7 +295,10 @@ const MaintenanceCalendar = () => {
 
     // Confirmar conclusão com notas - salva data/hora exata
     const handleConfirmComplete = async () => {
-        const { maintenanceId, maintenance, completionNotes } = completionData;
+        const { maintenanceId, maintenance, completionNotes, confirmedAsPlanned } = completionData;
+        const finalNotes = confirmedAsPlanned
+            ? `[CONFORME PREVISTO] ${completionNotes || ''}`.trim()
+            : completionNotes;
         try {
             const now = Timestamp.now();
             const nowDate = now.toDate();
@@ -299,19 +307,19 @@ const MaintenanceCalendar = () => {
                 status: 'concluida',
                 updatedAt: now,
                 completedAt: now,
-                completionNotes: completionNotes || '',
+                completionNotes: finalNotes || '',
                 completedBy: currentUser.userName || ''
             });
 
             // Adicionar ao histórico
-            await addToHistory(maintenance, completionNotes, now);
+            await addToHistory(maintenance, finalNotes, now);
 
             // Criar próxima manutenção se for recorrente
             if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
                 const completedMaintenance = {
                     ...maintenance,
                     completedAt: nowDate,
-                    completionNotes
+                    completionNotes: finalNotes
                 };
                 const nextMaintenance = await createNextRecurrentMaintenance(completedMaintenance);
                 if (nextMaintenance) {
@@ -344,14 +352,14 @@ const MaintenanceCalendar = () => {
                 details: {
                     tipo: maintenance?.type,
                     descricao: maintenance?.description || '',
-                    o_que_foi_feito: completionNotes,
+                    o_que_foi_feito: finalNotes,
                     recorrente: maintenance?.isRecurrent ? maintenance?.recurrenceType : 'não',
                     concluido_em: nowDate.toLocaleString('pt-BR')
                 }
             });
 
             setOpenCompleteDialog(false);
-            setCompletionData({ completionNotes: '', maintenanceId: null, maintenance: null });
+            setCompletionData({ completionNotes: '', confirmedAsPlanned: false, maintenanceId: null, maintenance: null });
             fetchMaintenances();
         } catch (error) {
             console.error('Erro ao concluir manutenção:', error);
@@ -860,15 +868,17 @@ const MaintenanceCalendar = () => {
                                                         <Edit />
                                                     </IconButton>
                                                 </Tooltip>
-                                                <Tooltip title="Excluir">
-                                                    <IconButton
-                                                        size="small"
-                                                        color="error"
-                                                        onClick={() => handleDelete(maintenance.id)}
-                                                    >
-                                                        <Delete />
-                                                    </IconButton>
-                                                </Tooltip>
+                                                {currentUser.role === 'admingeral' && (
+                                                    <Tooltip title="Excluir">
+                                                        <IconButton
+                                                            size="small"
+                                                            color="error"
+                                                            onClick={() => handleDelete(maintenance.id)}
+                                                        >
+                                                            <Delete />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
                                             </Box>
                                         </TableCell>
                                     </TableRow>
@@ -880,56 +890,96 @@ const MaintenanceCalendar = () => {
             </TableContainer>
 
             {/* Dialog de Conclusão */}
-            <Dialog open={openCompleteDialog} onClose={() => setOpenCompleteDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CheckCircle color="success" />
-                        Concluir Manutenção
+            <Dialog open={openCompleteDialog} onClose={() => setOpenCompleteDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+                <Box sx={{ bgcolor: 'success.main', color: 'white', px: 3, py: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CheckCircle sx={{ fontSize: 28 }} />
+                        <Box>
+                            <Typography variant="h6" fontWeight={700}>Concluir Manutenção</Typography>
+                            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                {new Date().toLocaleString('pt-BR')}
+                            </Typography>
+                        </Box>
                     </Box>
-                </DialogTitle>
-                <DialogContent>
+                </Box>
+                <DialogContent sx={{ px: 3, py: 2 }}>
                     {completionData.maintenance && (
-                        <Box sx={{ mb: 2, mt: 1 }}>
-                            <Alert severity="info" sx={{ mb: 2 }}>
-                                <Typography variant="body2">
-                                    <strong>Material:</strong> {completionData.maintenance.materialDescription}
+                        <>
+                            <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200', mb: 2.5 }}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Material</Typography>
+                                <Typography variant="body1" fontWeight={600} gutterBottom>
+                                    {completionData.maintenance.materialDescription}
                                 </Typography>
-                                <Typography variant="body2">
-                                    <strong>Tipo:</strong> {completionData.maintenance.type}
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 1.5 }}>Manutenção prevista</Typography>
+                                <Typography variant="body2" sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                    {completionData.maintenance.description || 'N/A'}
                                 </Typography>
-                                <Typography variant="body2">
-                                    <strong>Descrição prevista:</strong> {completionData.maintenance.description || 'N/A'}
-                                </Typography>
-                                <Typography variant="body2" sx={{ mt: 0.5 }}>
-                                    <strong>Data/hora atual:</strong> {new Date().toLocaleString('pt-BR')}
-                                </Typography>
-                                {completionData.maintenance.isRecurrent && (
-                                    <Typography variant="body2" sx={{ mt: 1, color: 'secondary.main', fontWeight: 600 }}>
-                                        Recorrente ({completionData.maintenance.recurrenceType}) - Uma nova manutenção será criada automaticamente
+                                <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+                                    <Chip label={completionData.maintenance.type?.charAt(0).toUpperCase() + completionData.maintenance.type?.slice(1)} size="small" color="primary" variant="outlined" />
+                                    <Chip label={completionData.maintenance.priority === 'alta' ? 'Alta' : completionData.maintenance.priority === 'critica' ? 'Crítica' : completionData.maintenance.priority === 'media' ? 'Média' : 'Baixa'} size="small" color={completionData.maintenance.priority === 'alta' ? 'warning' : completionData.maintenance.priority === 'critica' ? 'error' : 'default'} />
+                                    {completionData.maintenance.isRecurrent && (
+                                        <Chip icon={<Repeat sx={{ fontSize: 14 }} />} label={`Recorrente (${completionData.maintenance.recurrenceType})`} size="small" color="secondary" variant="outlined" />
+                                    )}
+                                </Box>
+                            </Box>
+
+                            {/* Checkbox obrigatório */}
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={completionData.confirmedAsPlanned}
+                                        onChange={(e) => setCompletionData(prev => ({ ...prev, confirmedAsPlanned: e.target.checked }))}
+                                        color="success"
+                                        sx={{ '& .MuiSvgIcon-root': { fontSize: 28 } }}
+                                    />
+                                }
+                                label={
+                                    <Typography variant="body1" fontWeight={600}>
+                                        Manutenção realizada conforme o previsto
                                     </Typography>
-                                )}
-                            </Alert>
+                                }
+                                sx={{
+                                    mb: 2,
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    border: '2px solid',
+                                    borderColor: completionData.confirmedAsPlanned ? 'success.main' : 'grey.300',
+                                    bgcolor: completionData.confirmedAsPlanned ? (theme) => alpha(theme.palette.success.main, 0.06) : 'transparent',
+                                    transition: 'all 0.2s ease',
+                                    width: '100%',
+                                    mx: 0,
+                                }}
+                            />
+
+                            {/* Observações opcionais */}
                             <TextField
                                 fullWidth
                                 multiline
-                                rows={4}
-                                label="O que foi realizado? *"
-                                placeholder="Descreva os procedimentos executados, peças trocadas, observações..."
+                                rows={3}
+                                label="Observações (opcional)"
+                                placeholder="Peças trocadas, desvios do procedimento, problemas encontrados..."
                                 value={completionData.completionNotes}
                                 onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
                                 helperText="Este registro ficará no histórico de manutenções do equipamento"
                             />
-                        </Box>
+
+                            {completionData.maintenance.isRecurrent && (
+                                <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                                    Uma nova manutenção será criada automaticamente para a próxima data programada.
+                                </Alert>
+                            )}
+                        </>
                     )}
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenCompleteDialog(false)}>Cancelar</Button>
+                <DialogActions sx={{ px: 3, py: 2 }}>
+                    <Button onClick={() => setOpenCompleteDialog(false)} sx={{ textTransform: 'none' }}>Cancelar</Button>
                     <Button
                         onClick={handleConfirmComplete}
                         variant="contained"
                         color="success"
                         startIcon={<CheckCircle />}
-                        disabled={!completionData.completionNotes.trim()}
+                        disabled={!completionData.confirmedAsPlanned}
+                        sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 3 }}
                     >
                         Confirmar Conclusão
                     </Button>
