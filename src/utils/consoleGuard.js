@@ -3,7 +3,7 @@
  * Importar ANTES de qualquer outro modulo (em main.jsx).
  */
 
-if (import.meta.env.PROD) {
+if (false && import.meta.env.PROD) {
   const noop = () => {};
 
   // 1. Desabilitar TODOS os metodos do console
