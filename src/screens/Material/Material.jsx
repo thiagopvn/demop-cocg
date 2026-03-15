@@ -498,10 +498,35 @@ const Material = () => {
     };
 
     const handleDeleteMaterial = async (materialId) => {
-        if (window.confirm('Tem certeza que deseja excluir este material?')) {
+        if (window.confirm('Tem certeza que deseja excluir este material? Ele será desalocado de todas as viaturas automaticamente.')) {
             try {
                 const mat = materials.find(m => m.id === materialId);
+
+                // Desalocar material de todas as viaturas
+                const vmQuery = query(
+                    collection(db, 'viatura_materiais'),
+                    where('material_id', '==', materialId),
+                    where('status', '==', 'alocado')
+                );
+                const vmSnapshot = await getDocs(vmQuery);
+                for (const vmDoc of vmSnapshot.docs) {
+                    await deleteDoc(doc(db, 'viatura_materiais', vmDoc.id));
+                }
+
+                // Excluir manutenções pendentes do material
+                const maintQuery = query(
+                    collection(db, 'manutencoes'),
+                    where('materialId', '==', materialId),
+                    where('status', 'in', ['pendente', 'em_andamento'])
+                );
+                const maintSnapshot = await getDocs(maintQuery);
+                for (const maintDoc of maintSnapshot.docs) {
+                    await deleteDoc(doc(db, 'manutencoes', maintDoc.id));
+                }
+
+                // Excluir o material
                 await deleteDoc(doc(db, 'materials', materialId));
+
                 logAudit({
                     action: 'material_delete',
                     userId: loggedUserId,
@@ -509,10 +534,20 @@ const Material = () => {
                     targetCollection: 'materials',
                     targetId: materialId,
                     targetName: mat?.description || materialId,
+                    details: {
+                        viaturas_desalocadas: vmSnapshot.size,
+                        manutencoes_removidas: maintSnapshot.size,
+                    }
+                });
+
+                setSnackbar({
+                    open: true,
+                    message: `Material excluído${vmSnapshot.size > 0 ? ` e desalocado de ${vmSnapshot.size} viatura(s)` : ''}`,
+                    severity: 'success'
                 });
             } catch (error) {
                 console.error('Erro ao excluir material:', error);
-                alert('Erro ao excluir material');
+                setSnackbar({ open: true, message: 'Erro ao excluir material', severity: 'error' });
             }
         }
     };
