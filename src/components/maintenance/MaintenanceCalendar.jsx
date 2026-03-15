@@ -378,6 +378,7 @@ const MaintenanceCalendar = () => {
         const icons = {
             diaria: <Build fontSize="small" />,
             semanal: <Build fontSize="small" />,
+            mensal: <CalendarMonth fontSize="small" />,
             trimestral: <CalendarMonth fontSize="small" />,
             semestral: <CalendarMonth fontSize="small" />,
             anual: <CalendarMonth fontSize="small" />,
@@ -462,6 +463,7 @@ const MaintenanceCalendar = () => {
                             <MenuItem value="todos">Todos</MenuItem>
                             <MenuItem value="diaria">Diária</MenuItem>
                             <MenuItem value="semanal">Semanal</MenuItem>
+                            <MenuItem value="mensal">Mensal</MenuItem>
                             <MenuItem value="trimestral">Trimestral</MenuItem>
                             <MenuItem value="semestral">Semestral</MenuItem>
                             <MenuItem value="anual">Anual</MenuItem>
@@ -776,6 +778,7 @@ const MaintenanceCalendar = () => {
                             >
                                 <MenuItem value="diaria">Diária</MenuItem>
                                 <MenuItem value="semanal">Semanal</MenuItem>
+                                <MenuItem value="mensal">Mensal</MenuItem>
                                 <MenuItem value="trimestral">Trimestral</MenuItem>
                                 <MenuItem value="semestral">Semestral</MenuItem>
                                 <MenuItem value="anual">Anual</MenuItem>

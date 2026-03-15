@@ -31,6 +31,9 @@ import { CategoriaContext } from '../contexts/CategoriaContext';
 import { logAudit } from '../firebase/auditLog';
 import { findSimilarMaterials } from '../utils/materialSimilarity';
 import { incrementTaskProgress } from '../firebase/taskProgress';
+import { findBestTemplate } from '../utils/maintenanceTemplateMatcher';
+import { applySelectedMaintenances } from '../utils/seedMaintenances';
+import MaintenanceSuggestionDialog from './MaintenanceSuggestionDialog';
 
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB (antes da compressão)
 const MAX_DIMENSION = 1200; // px
@@ -113,6 +116,12 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
+
+    // Maintenance suggestion states
+    const [suggestionDialogOpen, setSuggestionDialogOpen] = useState(false);
+    const [matchedTemplate, setMatchedTemplate] = useState(null);
+    const [pendingMaterial, setPendingMaterial] = useState(null);
+    const [suggestionLoading, setSuggestionLoading] = useState(false);
 
     const isEditing = material != null;
 
@@ -373,6 +382,23 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                 }
             }
 
+            // Após criar (não editar), verificar se existe template de manutenção
+            if (!isEditing && savedDocId) {
+                const template = findBestTemplate(description);
+                if (template && template.brandMatch) {
+                    const selectedCategoria = categorias.find(c => c.id === categoriaId);
+                    setPendingMaterial({
+                        id: savedDocId,
+                        description,
+                        categoria: selectedCategoria?.description || selectedCategoria?.name || '',
+                    });
+                    setMatchedTemplate(template);
+                    setSuggestionDialogOpen(true);
+                    setLoading(false);
+                    return; // Não fecha o dialog principal ainda
+                }
+            }
+
             onClose();
         } catch (error) {
             console.error("Erro ao salvar material:", error);
@@ -382,9 +408,33 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         }
     };
 
+    const handleSuggestionConfirm = async (selectedIndices) => {
+        if (!pendingMaterial || !matchedTemplate) return;
+        setSuggestionLoading(true);
+        try {
+            await applySelectedMaintenances(pendingMaterial, matchedTemplate, selectedIndices);
+        } catch (error) {
+            console.error('Erro ao aplicar manutenções:', error);
+        } finally {
+            setSuggestionLoading(false);
+            setSuggestionDialogOpen(false);
+            setMatchedTemplate(null);
+            setPendingMaterial(null);
+            onClose();
+        }
+    };
+
+    const handleSuggestionClose = () => {
+        setSuggestionDialogOpen(false);
+        setMatchedTemplate(null);
+        setPendingMaterial(null);
+        onClose();
+    };
+
     const currentImage = imagePreview || (!removeImage ? existingImageUrl : null);
 
     return (
+    <>
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>
                 {isEditing ? 'Editar Material' : 'Adicionar Novo Material'}
@@ -653,6 +703,17 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                 </Button>
             </DialogActions>
         </Dialog>
+
+        {/* Dialog de sugestão de manutenções do manual */}
+        <MaintenanceSuggestionDialog
+            open={suggestionDialogOpen}
+            onClose={handleSuggestionClose}
+            onConfirm={handleSuggestionConfirm}
+            template={matchedTemplate}
+            materialDescription={pendingMaterial?.description || description}
+            loading={suggestionLoading}
+        />
+    </>
     );
 };
 
