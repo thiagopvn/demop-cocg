@@ -11,6 +11,33 @@
 
 const MAINTENANCE_TEMPLATES = [
     {
+        id: 'ventilador_eletrico',
+        keywords: ['ventilador eletrico', 'ventilador elétrico'],
+        brand: null,
+        label: 'Ventilador Elétrico',
+        maintenances: [
+            { type: 'semanal', description: 'INSPEÇÃO VISUAL GERAL (CARCAÇA - CABOS - FIXAÇÕES)', priority: 'media', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'semanal', description: 'VERIFICAR RUÍDOS E VIBRAÇÕES ANORMAIS DURANTE FUNCIONAMENTO', priority: 'media', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'semanal', description: 'VERIFICAR TEMPERATURA DO MOTOR DURANTE OPERAÇÃO', priority: 'media', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'mensal', description: 'LIMPAR PÁS E HÉLICE COM PANO ÚMIDO', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'LIMPAR CARCAÇA E GRADE DE PROTEÇÃO', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'VERIFICAR FIXAÇÃO DOS PARAFUSOS E SUPORTES', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'VERIFICAR ESTADO DOS CABOS ELÉTRICOS E CONEXÕES', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'LUBRIFICAR ROLAMENTOS (CONFORME MANUAL DO FABRICANTE)', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'VERIFICAR ALINHAMENTO E BALANCEAMENTO DO EIXO', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'LIMPAR INTERIOR DA CARCAÇA DO MOTOR', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'VERIFICAR E APERTAR CONEXÕES ELÉTRICAS NO PAINEL E TOMADA', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'semestral', description: 'APERTAR PORCAS E PARAFUSOS DA HÉLICE', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'semestral', description: 'VERIFICAR DESGASTE DOS ROLAMENTOS (FOLGA E RUÍDO)', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'semestral', description: 'MEDIR AMPERAGEM DO MOTOR (VERIFICAR CONSUMO ELÉTRICO)', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'semestral', description: 'VERIFICAR ISOLAMENTO ELÉTRICO DO MOTOR', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'anual', description: 'VERIFICAÇÃO ELÉTRICA COMPLETA (ENROLAMENTO - CAPACITOR - ATERRAMENTO)', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+            { type: 'anual', description: 'SUBSTITUIR ROLAMENTOS SE NECESSÁRIO', priority: 'alta', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'anual', description: 'REVISÃO GERAL DOS CONTATOS E PROTEÇÕES ELÉTRICAS', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'anual', description: 'VERIFICAR E TESTAR CHAVE DE PARTIDA E PROTEÇÃO TÉRMICA', priority: 'alta', estimatedDuration: 1, reminderDays: 14 },
+        ]
+    },
+    {
         id: 'ventilador_caf',
         keywords: ['ventilador a combustao', 'ventilador a combustão', 'power blower', 'caf', 'cone air flow'],
         excludeKeywords: ['eletrico', 'elétrico', 'acoplamento', 'adaptador', 'traqueia', 'exaustor', 'mangueira'],
