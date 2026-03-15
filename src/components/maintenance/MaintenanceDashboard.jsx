@@ -52,6 +52,7 @@ import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 import UpcomingMaintenances from './UpcomingMaintenances';
 import NotificationSettings from './NotificationSettings';
+import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
 
 const MaintenanceDashboard = () => {
     const theme = useTheme();
@@ -320,7 +321,7 @@ const MaintenanceDashboard = () => {
             typeCount[type] = (typeCount[type] || 0) + 1;
         });
         const byType = Object.entries(typeCount).map(([name, value]) => ({
-            name: name.charAt(0).toUpperCase() + name.slice(1),
+            name: getMaintenanceTypeLabel(name),
             value
         }));
 
@@ -524,7 +525,7 @@ const MaintenanceDashboard = () => {
                                             {item.description}
                                         </Typography>
                                         <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-                                            <Chip label={item.type?.charAt(0).toUpperCase() + item.type?.slice(1)} size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                            <Chip label={getMaintenanceTypeLabel(item.type, item.customRecurrenceDays)} size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
                                             <Chip
                                                 icon={<AccessTime sx={{ fontSize: 12 }} />}
                                                 label={item.dueDate.toLocaleDateString('pt-BR')}
@@ -592,7 +593,7 @@ const MaintenanceDashboard = () => {
                                             {item.description}
                                         </Typography>
                                         <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-                                            <Chip label={item.type?.charAt(0).toUpperCase() + item.type?.slice(1)} size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                            <Chip label={getMaintenanceTypeLabel(item.type, item.customRecurrenceDays)} size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
                                             {item.priority === 'alta' || item.priority === 'critica' ? (
                                                 <Chip label={item.priority === 'alta' ? 'Alta' : 'Crítica'} size="small" color={item.priority === 'critica' ? 'error' : 'warning'} sx={{ height: 20, fontSize: '0.65rem' }} />
                                             ) : null}
@@ -898,9 +899,9 @@ const MaintenanceDashboard = () => {
                                     {completionData.maintenance.description || 'N/A'}
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
-                                    <Chip label={completionData.maintenance.type?.charAt(0).toUpperCase() + completionData.maintenance.type?.slice(1)} size="small" color="primary" variant="outlined" />
+                                    <Chip label={getMaintenanceTypeLabel(completionData.maintenance.type, completionData.maintenance.customRecurrenceDays)} size="small" color="primary" variant="outlined" />
                                     {completionData.maintenance.isRecurrent && (
-                                        <Chip icon={<Repeat sx={{ fontSize: 14 }} />} label={`Recorrente (${completionData.maintenance.recurrenceType})`} size="small" color="secondary" variant="outlined" />
+                                        <Chip icon={<Repeat sx={{ fontSize: 14 }} />} label={`Recorrente (${getMaintenanceTypeLabel(completionData.maintenance.recurrenceType, completionData.maintenance.customRecurrenceDays)})`} size="small" color="secondary" variant="outlined" />
                                     )}
                                 </Box>
                             </Box>

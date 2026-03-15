@@ -426,6 +426,23 @@ export const MAINTENANCE_TYPE_LABELS = {
     trimestral: 'Trimestral',
     semestral: 'Semestral',
     anual: 'Anual',
+    cada_90_dias: 'A cada 90 dias',
+    cada_120_dias: 'A cada 120 dias',
+    cada_180_dias: 'A cada 180 dias',
+    cada_365_dias: 'A cada 365 dias',
+    corretiva: 'Corretiva',
+    reparo: 'Reparo',
+    customizado: 'Personalizado',
+};
+
+/**
+ * Retorna o label de exibição para um tipo de manutenção.
+ * Suporta tipos fixos e customizados com dias personalizados.
+ */
+export const getMaintenanceTypeLabel = (type, customRecurrenceDays) => {
+    if (MAINTENANCE_TYPE_LABELS[type]) return MAINTENANCE_TYPE_LABELS[type];
+    if (type === 'customizado' && customRecurrenceDays) return `A cada ${customRecurrenceDays} dias`;
+    return type ? type.charAt(0).toUpperCase() + type.slice(1) : 'N/A';
 };
 
 /**
@@ -438,6 +455,12 @@ export const MAINTENANCE_TYPE_COLORS = {
     trimestral: '#009688',
     semestral: '#ff9800',
     anual: '#795548',
+    cada_90_dias: '#00897b',
+    cada_120_dias: '#5c6bc0',
+    cada_180_dias: '#2196f3',
+    cada_365_dias: '#8d6e63',
+    corretiva: '#f44336',
+    reparo: '#ff5722',
 };
 
 /**
@@ -450,6 +473,22 @@ export const MAINTENANCE_TYPE_ORDER = {
     trimestral: 4,
     semestral: 5,
     anual: 6,
+    cada_90_dias: 3.5,
+    cada_120_dias: 4.5,
+    cada_180_dias: 5.5,
+    cada_365_dias: 6.5,
+    corretiva: 7,
+    reparo: 8,
+};
+
+/**
+ * Mapeamento de tipo → intervalo em dias (para tipos com dias fixos)
+ */
+export const MAINTENANCE_TYPE_DAYS = {
+    cada_90_dias: 90,
+    cada_120_dias: 120,
+    cada_180_dias: 180,
+    cada_365_dias: 365,
 };
 
 export default MAINTENANCE_TEMPLATES;

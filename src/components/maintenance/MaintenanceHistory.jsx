@@ -40,6 +40,7 @@ import {
 import { collection, query, orderBy, getDocs, deleteDoc, doc, where, Timestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { useDebounce } from '../../hooks/useDebounce';
+import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
 
 const MaintenanceHistory = ({ materialIdFilter = '' }) => {
     const [history, setHistory] = useState([]);
@@ -214,6 +215,10 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
             trimestral: <CalendarMonth fontSize="small" />,
             semestral: <CalendarMonth fontSize="small" />,
             anual: <CalendarMonth fontSize="small" />,
+            cada_90_dias: <CalendarMonth fontSize="small" />,
+            cada_120_dias: <CalendarMonth fontSize="small" />,
+            cada_180_dias: <CalendarMonth fontSize="small" />,
+            cada_365_dias: <CalendarMonth fontSize="small" />,
             corretiva: <Warning fontSize="small" color="error" />,
             reparo: <Warning fontSize="small" color="error" />
         };
@@ -330,6 +335,10 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                             size="small"
                         >
                             <MenuItem value="todos">Todos</MenuItem>
+                            <MenuItem value="cada_90_dias">A cada 90 dias</MenuItem>
+                            <MenuItem value="cada_120_dias">A cada 120 dias</MenuItem>
+                            <MenuItem value="cada_180_dias">A cada 180 dias</MenuItem>
+                            <MenuItem value="cada_365_dias">A cada 365 dias</MenuItem>
                             <MenuItem value="diaria">Diária</MenuItem>
                             <MenuItem value="semanal">Semanal</MenuItem>
                             <MenuItem value="mensal">Mensal</MenuItem>
@@ -414,7 +423,7 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 {getTypeIcon(record.type)}
                                                 <Typography variant="body2">
-                                                    {record.type.charAt(0).toUpperCase() + record.type.slice(1)}
+                                                    {getMaintenanceTypeLabel(record.type, record.customRecurrenceDays)}
                                                 </Typography>
                                             </Box>
                                         </TableCell>

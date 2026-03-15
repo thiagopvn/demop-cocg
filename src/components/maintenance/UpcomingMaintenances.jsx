@@ -37,6 +37,7 @@ import {
     requestNotificationPermission,
     isNotificationSupported
 } from '../../services/maintenanceNotificationService';
+import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
 
 const UpcomingMaintenances = ({ onComplete }) => {
     const navigate = useNavigate();
@@ -169,7 +170,7 @@ const UpcomingMaintenances = ({ onComplete }) => {
                 secondary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                         <Chip
-                            label={item.type}
+                            label={getMaintenanceTypeLabel(item.type, item.customRecurrenceDays)}
                             size="small"
                             sx={{ height: 18, fontSize: '0.65rem' }}
                         />

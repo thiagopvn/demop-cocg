@@ -28,6 +28,7 @@ import { addDoc, updateDoc, doc, Timestamp, collection } from 'firebase/firestor
 import db from '../firebase/db';
 import { verifyToken } from '../firebase/token';
 import { logAudit } from '../firebase/auditLog';
+import { getMaintenanceTypeLabel } from '../data/maintenanceTemplates';
 
 const MaintenanceDialog = ({ open, onClose, material }) => {
     const [formData, setFormData] = useState({
@@ -241,7 +242,11 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                     mensal: 'mensal',
                     trimestral: 'trimestral',
                     semestral: 'semestral',
-                    anual: 'anual'
+                    anual: 'anual',
+                    cada_90_dias: 'cada_90_dias',
+                    cada_120_dias: 'cada_120_dias',
+                    cada_180_dias: 'cada_180_dias',
+                    cada_365_dias: 'cada_365_dias',
                 };
                 if (periodicTypes[value]) {
                     updated.isRecurrent = true;
@@ -277,6 +282,10 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
             case 'trimestral':
             case 'semestral':
             case 'anual':
+            case 'cada_90_dias':
+            case 'cada_120_dias':
+            case 'cada_180_dias':
+            case 'cada_365_dias':
                 return 'info';
             default:
                 return 'primary';
@@ -322,6 +331,10 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                                 onChange={(e) => handleInputChange('maintenanceType', e.target.value)}
                                 startAdornment={getMaintenanceTypeIcon()}
                             >
+                                <MenuItem value="cada_90_dias">A cada 90 dias</MenuItem>
+                                <MenuItem value="cada_120_dias">A cada 120 dias</MenuItem>
+                                <MenuItem value="cada_180_dias">A cada 180 dias</MenuItem>
+                                <MenuItem value="cada_365_dias">A cada 365 dias</MenuItem>
                                 <MenuItem value="diaria">Diária</MenuItem>
                                 <MenuItem value="semanal">Semanal</MenuItem>
                                 <MenuItem value="mensal">Mensal</MenuItem>
@@ -498,6 +511,10 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                                                         label="Frequência"
                                                         onChange={(e) => handleInputChange('recurrenceType', e.target.value)}
                                                     >
+                                                        <MenuItem value="cada_90_dias">A cada 90 dias</MenuItem>
+                                                        <MenuItem value="cada_120_dias">A cada 120 dias</MenuItem>
+                                                        <MenuItem value="cada_180_dias">A cada 180 dias</MenuItem>
+                                                        <MenuItem value="cada_365_dias">A cada 365 dias</MenuItem>
                                                         <MenuItem value="diaria">Diária</MenuItem>
                                                         <MenuItem value="semanal">Semanal</MenuItem>
                                                         <MenuItem value="quinzenal">Quinzenal</MenuItem>
@@ -570,8 +587,8 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                         <Typography variant="subtitle2" gutterBottom>
                             Resumo da Manutenção:
                         </Typography>
-                        <Chip 
-                            label={`Tipo: ${formData.maintenanceType.charAt(0).toUpperCase() + formData.maintenanceType.slice(1)}`}
+                        <Chip
+                            label={`Tipo: ${getMaintenanceTypeLabel(formData.maintenanceType, formData.customRecurrenceDays)}`}
                             color={getMaintenanceTypeColor()}
                             size="small"
                             sx={{ mr: 1, mb: 1 }}
