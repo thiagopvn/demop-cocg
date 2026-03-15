@@ -438,6 +438,11 @@ const MaintenanceDashboard = () => {
                 </Tooltip>
             </Box>
 
+            {/* === Próximas Manutenções (topo, bem visível) === */}
+            <Box sx={{ mb: 3 }}>
+                <UpcomingMaintenances onComplete={handleOpenComplete} />
+            </Box>
+
             {/* === CARD DESTAQUE: Manutenções do dia e atrasadas === */}
             {(todayItems.length > 0 || overdueItems.length > 0) && (
                 <Paper
@@ -707,14 +712,8 @@ const MaintenanceDashboard = () => {
                 </Grid>
             </Box>
 
-            {/* Seção de Próximas Manutenções e Gráficos */}
+            {/* Gráficos */}
             <Grid container spacing={3} sx={{ mt: 2 }}>
-                {/* Próximas Manutenções */}
-                <Grid item xs={12} md={6}>
-                    <UpcomingMaintenances />
-                </Grid>
-
-                {/* Gráficos */}
                 <Grid item xs={12} md={6}>
                     <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
