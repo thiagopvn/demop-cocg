@@ -22,7 +22,8 @@ import {
     LinearProgress,
     TablePagination,
     InputAdornment,
-    Tooltip
+    Tooltip,
+    IconButton
 } from '@mui/material';
 import {
     Search,
@@ -33,9 +34,10 @@ import {
     CalendarMonth,
     Build,
     Warning,
-    CheckCircle
+    CheckCircle,
+    Delete
 } from '@mui/icons-material';
-import { collection, query, orderBy, getDocs, where, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, deleteDoc, doc, where, Timestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 
 const MaintenanceHistory = ({ materialIdFilter = '' }) => {
@@ -162,6 +164,16 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
     const handleViewDetails = (record) => {
         setSelectedRecord(record);
         setOpenDetailDialog(true);
+    };
+
+    const handleDeleteRecord = async (recordId) => {
+        if (!window.confirm('Tem certeza que deseja excluir este registro do histórico?')) return;
+        try {
+            await deleteDoc(doc(db, 'historico_manutencoes', recordId));
+            fetchHistory();
+        } catch (error) {
+            console.error('Erro ao excluir registro:', error);
+        }
     };
 
     const handleExportData = () => {
@@ -433,15 +445,26 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                                             </Tooltip>
                                         </TableCell>
                                         <TableCell align="center">
-                                            <Tooltip title="Ver detalhes">
-                                                <Button
-                                                    size="small"
-                                                    startIcon={<Visibility />}
-                                                    onClick={() => handleViewDetails(record)}
-                                                >
-                                                    Detalhes
-                                                </Button>
-                                            </Tooltip>
+                                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                                                <Tooltip title="Ver detalhes">
+                                                    <Button
+                                                        size="small"
+                                                        startIcon={<Visibility />}
+                                                        onClick={() => handleViewDetails(record)}
+                                                    >
+                                                        Detalhes
+                                                    </Button>
+                                                </Tooltip>
+                                                <Tooltip title="Excluir registro">
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        onClick={() => handleDeleteRecord(record.id)}
+                                                    >
+                                                        <Delete />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
                                 ))
