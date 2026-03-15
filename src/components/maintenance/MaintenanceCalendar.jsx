@@ -44,6 +44,29 @@ import { verifyToken } from '../../firebase/token';
 import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 
+// Calcular a previsão da próxima manutenção baseado na periodicidade
+const calcNextDueDate = (fromDate, recurrenceType, customDays) => {
+    if (!fromDate || !recurrenceType) return null;
+    const d = fromDate instanceof Date ? new Date(fromDate) : fromDate?.toDate ? new Date(fromDate.toDate()) : null;
+    if (!d) return null;
+    switch (recurrenceType) {
+        case 'diaria': d.setDate(d.getDate() + 1); break;
+        case 'semanal': d.setDate(d.getDate() + 7); break;
+        case 'quinzenal': d.setDate(d.getDate() + 15); break;
+        case 'mensal': d.setMonth(d.getMonth() + 1); break;
+        case 'bimestral': d.setMonth(d.getMonth() + 2); break;
+        case 'trimestral': d.setMonth(d.getMonth() + 3); break;
+        case 'semestral': d.setMonth(d.getMonth() + 6); break;
+        case 'anual': d.setFullYear(d.getFullYear() + 1); break;
+        case 'customizado':
+            if (customDays) d.setDate(d.getDate() + customDays);
+            else return null;
+            break;
+        default: return null;
+    }
+    return d;
+};
+
 const MaintenanceCalendar = () => {
     const navigate = useNavigate();
     const [maintenances, setMaintenances] = useState([]);
@@ -98,11 +121,17 @@ const MaintenanceCalendar = () => {
             setLoading(true);
             const q = query(collection(db, 'manutencoes'), orderBy('dueDate', 'asc'));
             const snapshot = await getDocs(q);
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                dueDate: doc.data().dueDate?.toDate() || new Date()
-            }));
+            const data = snapshot.docs.map(d => {
+                const raw = d.data();
+                return {
+                    id: d.id,
+                    ...raw,
+                    dueDate: raw.dueDate?.toDate() || new Date(),
+                    completedAt: raw.completedAt?.toDate() || null,
+                    lastCompletedAt: raw.lastCompletedAt?.toDate() || null,
+                    createdAt: raw.createdAt?.toDate() || null
+                };
+            });
             setMaintenances(data);
         } catch (error) {
             console.error('Erro ao buscar manutenções:', error);
@@ -161,7 +190,7 @@ const MaintenanceCalendar = () => {
         setFilteredMaintenances(filtered);
     };
 
-    // Abrir dialog de conclusão ao invés de concluir direto
+    // Abrir dialog de conclusão
     const handleOpenCompleteDialog = (maintenanceId) => {
         const maintenance = maintenances.find(m => m.id === maintenanceId);
         setCompletionData({
@@ -172,32 +201,34 @@ const MaintenanceCalendar = () => {
         setOpenCompleteDialog(true);
     };
 
-    // Confirmar conclusão com notas
+    // Confirmar conclusão com notas - salva data/hora exata
     const handleConfirmComplete = async () => {
         const { maintenanceId, maintenance, completionNotes } = completionData;
         try {
             const now = Timestamp.now();
+            const nowDate = now.toDate();
             const docRef = doc(db, 'manutencoes', maintenanceId);
             await updateDoc(docRef, {
                 status: 'concluida',
                 updatedAt: now,
                 completedAt: now,
-                completionNotes: completionNotes || ''
+                completionNotes: completionNotes || '',
+                completedBy: currentUser.userName || ''
             });
 
             // Adicionar ao histórico
-            await addToHistory(maintenance, completionNotes);
+            await addToHistory(maintenance, completionNotes, now);
 
             // Criar próxima manutenção se for recorrente
             if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
                 const completedMaintenance = {
                     ...maintenance,
-                    completedAt: now.toDate(),
+                    completedAt: nowDate,
                     completionNotes
                 };
                 const nextMaintenance = await createNextRecurrentMaintenance(completedMaintenance);
                 if (nextMaintenance) {
-                    console.log('Próxima manutenção recorrente criada:', nextMaintenance.id);
+                    console.log('Próxima manutenção recorrente criada:', nextMaintenance.id, 'para', nextMaintenance.dueDate?.toDate?.());
                 }
             }
 
@@ -215,7 +246,7 @@ const MaintenanceCalendar = () => {
                 }
             }
 
-            // Registrar no audit log para aparecer em Atividades
+            // Registrar no audit log
             logAudit({
                 action: 'manutencao_complete',
                 userId: currentUser.userId,
@@ -227,7 +258,8 @@ const MaintenanceCalendar = () => {
                     tipo: maintenance?.type,
                     descricao: maintenance?.description || '',
                     o_que_foi_feito: completionNotes,
-                    recorrente: maintenance?.isRecurrent ? maintenance?.recurrenceType : 'não'
+                    recorrente: maintenance?.isRecurrent ? maintenance?.recurrenceType : 'não',
+                    concluido_em: nowDate.toLocaleString('pt-BR')
                 }
             });
 
@@ -240,7 +272,6 @@ const MaintenanceCalendar = () => {
     };
 
     const handleStatusChange = async (maintenanceId, newStatus) => {
-        // Para conclusão, abrir dialog
         if (newStatus === 'concluida') {
             handleOpenCompleteDialog(maintenanceId);
             return;
@@ -258,7 +289,7 @@ const MaintenanceCalendar = () => {
         }
     };
 
-    const addToHistory = async (maintenance, completionNotes = '') => {
+    const addToHistory = async (maintenance, completionNotes = '', nowTimestamp) => {
         try {
             const historyDoc = {
                 materialId: maintenance.materialId,
@@ -276,9 +307,12 @@ const MaintenanceCalendar = () => {
                 recurrenceType: maintenance.recurrenceType || null,
                 recurrenceCount: maintenance.recurrenceCount || 0,
                 responsibleName: maintenance.responsibleName || '',
-                createdAt: maintenance.createdAt || Timestamp.now(),
+                completedBy: currentUser.userName || '',
+                createdAt: maintenance.createdAt instanceof Date
+                    ? Timestamp.fromDate(maintenance.createdAt)
+                    : (maintenance.createdAt || Timestamp.now()),
                 createdBy: maintenance.createdBy || '',
-                completedAt: Timestamp.now(),
+                completedAt: nowTimestamp || Timestamp.now(),
                 completionNotes: completionNotes || '',
                 originalId: maintenance.id
             };
@@ -290,7 +324,6 @@ const MaintenanceCalendar = () => {
 
     const handleDelete = async (maintenanceId) => {
         if (!window.confirm('Tem certeza que deseja excluir esta manutenção?')) return;
-
         try {
             await deleteDoc(doc(db, 'manutencoes', maintenanceId));
             fetchMaintenances();
@@ -354,12 +387,35 @@ const MaintenanceCalendar = () => {
         return icons[type] || <Build fontSize="small" />;
     };
 
+    const formatDateTime = (date) => {
+        if (!date) return '-';
+        const d = date instanceof Date ? date : (date?.toDate ? date.toDate() : new Date(date));
+        return d.toLocaleString('pt-BR', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    };
+
     const formatDate = (date) => {
+        if (!date) return '-';
         return new Date(date).toLocaleDateString('pt-BR');
     };
 
     const isOverdue = (dueDate, status) => {
         return status === 'pendente' && new Date(dueDate) < new Date();
+    };
+
+    // Para manutenções concluídas: previsão da próxima = dueDate + periodicidade
+    // Para manutenções pendentes/em_andamento que são recorrentes: previsão = dueDate atual
+    const getNextForecast = (m) => {
+        if (!m.isRecurrent || !m.recurrenceType) return null;
+        if (m.status === 'concluida') {
+            // Calcular a partir da data de conclusão
+            const base = m.completedAt || m.dueDate;
+            return calcNextDueDate(base, m.recurrenceType, m.customRecurrenceDays);
+        }
+        // Para pendentes, a própria dueDate é a previsão atual
+        return null;
     };
 
     if (loading) {
@@ -443,136 +499,196 @@ const MaintenanceCalendar = () => {
             </Paper>
 
             {/* Tabela de Manutenções */}
-            <TableContainer component={Paper}>
-                <Table>
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+                <Table size="small">
                     <TableHead>
-                        <TableRow>
-                            <TableCell>Tipo</TableCell>
-                            <TableCell>Material</TableCell>
-                            <TableCell>Data Prevista</TableCell>
-                            <TableCell>Responsável</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Descrição</TableCell>
-                            <TableCell align="center">Ações</TableCell>
+                        <TableRow sx={{ bgcolor: 'primary.main' }}>
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Tipo</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Material</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Status</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Data Prevista</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Última Conclusão</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Próxima Previsão</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Descrição</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 600 }} align="center">Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {filteredMaintenances.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} align="center">
+                                <TableCell colSpan={8} align="center">
                                     <Typography variant="body2" color="textSecondary">
                                         Nenhuma manutenção encontrada
                                     </Typography>
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredMaintenances.map((maintenance) => (
-                                <TableRow
-                                    key={maintenance.id}
-                                    sx={{
-                                        backgroundColor: isOverdue(maintenance.dueDate, maintenance.status)
-                                            ? 'error.light'
-                                            : 'inherit',
-                                        opacity: maintenance.status === 'concluida' ? 0.7 : 1
-                                    }}
-                                >
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            {getTypeIcon(maintenance.type)}
-                                            <Typography variant="body2">
-                                                {maintenance.type.charAt(0).toUpperCase() + maintenance.type.slice(1)}
+                            filteredMaintenances.map((maintenance) => {
+                                const nextForecast = getNextForecast(maintenance);
+                                // lastCompletedAt = conclusão da manutenção anterior (para recorrentes)
+                                // completedAt = conclusão desta manutenção (se concluída)
+                                const lastCompletion = maintenance.status === 'concluida'
+                                    ? maintenance.completedAt
+                                    : maintenance.lastCompletedAt;
+
+                                // Próxima previsão:
+                                // - Se concluída e recorrente: calcular a partir da conclusão
+                                // - Se pendente/em_andamento: a própria dueDate é a previsão
+                                let nextPreview = null;
+                                if (maintenance.isRecurrent && maintenance.recurrenceType) {
+                                    if (maintenance.status === 'concluida' && maintenance.completedAt) {
+                                        nextPreview = calcNextDueDate(maintenance.completedAt, maintenance.recurrenceType, maintenance.customRecurrenceDays);
+                                    } else {
+                                        nextPreview = maintenance.dueDate;
+                                    }
+                                }
+
+                                return (
+                                    <TableRow
+                                        key={maintenance.id}
+                                        sx={{
+                                            backgroundColor: isOverdue(maintenance.dueDate, maintenance.status)
+                                                ? 'error.light'
+                                                : 'inherit',
+                                            opacity: maintenance.status === 'concluida' ? 0.7 : 1
+                                        }}
+                                    >
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                {getTypeIcon(maintenance.type)}
+                                                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                                    {maintenance.type.charAt(0).toUpperCase() + maintenance.type.slice(1)}
+                                                </Typography>
+                                                {maintenance.isRecurrent && (
+                                                    <Tooltip title={`Recorrente: ${maintenance.recurrenceType || 'Sim'}`}>
+                                                        <Repeat fontSize="small" color="secondary" />
+                                                    </Tooltip>
+                                                )}
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                                {maintenance.materialDescription}
                                             </Typography>
-                                            {maintenance.isRecurrent && (
-                                                <Tooltip title={`Recorrente: ${maintenance.recurrenceType || 'Sim'}`}>
-                                                    <Repeat fontSize="small" color="secondary" />
-                                                </Tooltip>
+                                        </TableCell>
+                                        <TableCell>
+                                            {getStatusChip(maintenance.status)}
+                                            {isOverdue(maintenance.dueDate, maintenance.status) && (
+                                                <Chip label="Atrasada" color="error" size="small" sx={{ ml: 0.5 }} />
                                             )}
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>{maintenance.materialDescription}</TableCell>
-                                    <TableCell>
-                                        {formatDate(maintenance.dueDate)}
-                                        {isOverdue(maintenance.dueDate, maintenance.status) && (
-                                            <Chip
-                                                label="Atrasada"
-                                                color="error"
-                                                size="small"
-                                                sx={{ ml: 1 }}
-                                            />
-                                        )}
-                                    </TableCell>
-                                    <TableCell>{maintenance.responsibleName || '-'}</TableCell>
-                                    <TableCell>{getStatusChip(maintenance.status)}</TableCell>
-                                    <TableCell>
-                                        <Tooltip title={maintenance.description || 'Sem descrição'}>
-                                            <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                                                {maintenance.description || '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                                {formatDate(maintenance.dueDate)}
                                             </Typography>
-                                        </Tooltip>
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        {maintenance.status === 'pendente' && (
-                                            <>
-                                                <Tooltip title="Concluir manutenção">
-                                                    <IconButton
+                                        </TableCell>
+                                        <TableCell>
+                                            {lastCompletion ? (
+                                                <Tooltip title={`Concluída em ${formatDateTime(lastCompletion)}`}>
+                                                    <Chip
+                                                        label={formatDateTime(lastCompletion)}
                                                         size="small"
                                                         color="success"
-                                                        onClick={() => handleStatusChange(maintenance.id, 'concluida')}
-                                                    >
-                                                        <CheckCircle />
-                                                    </IconButton>
+                                                        variant="outlined"
+                                                        sx={{ fontSize: '0.7rem', height: 24 }}
+                                                    />
                                                 </Tooltip>
-                                                <Tooltip title="Iniciar">
-                                                    <IconButton
+                                            ) : (
+                                                <Typography variant="body2" color="text.disabled" sx={{ fontSize: '0.75rem' }}>
+                                                    -
+                                                </Typography>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {nextPreview ? (
+                                                <Tooltip title={`Próxima: ${formatDateTime(nextPreview)} (${maintenance.recurrenceType})`}>
+                                                    <Chip
+                                                        label={formatDate(nextPreview)}
                                                         size="small"
                                                         color="info"
-                                                        onClick={() => handleStatusChange(maintenance.id, 'em_andamento')}
+                                                        variant="outlined"
+                                                        sx={{ fontSize: '0.7rem', height: 24 }}
+                                                    />
+                                                </Tooltip>
+                                            ) : (
+                                                <Typography variant="body2" color="text.disabled" sx={{ fontSize: '0.75rem' }}>
+                                                    {maintenance.isRecurrent ? '-' : 'Não recorrente'}
+                                                </Typography>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Tooltip title={maintenance.description || 'Sem descrição'}>
+                                                <Typography variant="body2" noWrap sx={{ maxWidth: 150, fontSize: '0.8rem' }}>
+                                                    {maintenance.description || '-'}
+                                                </Typography>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap' }}>
+                                                {maintenance.status === 'pendente' && (
+                                                    <>
+                                                        <Tooltip title="Concluir manutenção">
+                                                            <IconButton
+                                                                size="small"
+                                                                color="success"
+                                                                onClick={() => handleStatusChange(maintenance.id, 'concluida')}
+                                                            >
+                                                                <CheckCircle />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        <Tooltip title="Iniciar">
+                                                            <IconButton
+                                                                size="small"
+                                                                color="info"
+                                                                onClick={() => handleStatusChange(maintenance.id, 'em_andamento')}
+                                                            >
+                                                                <Build />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </>
+                                                )}
+                                                {maintenance.status === 'em_andamento' && (
+                                                    <Tooltip title="Concluir manutenção">
+                                                        <IconButton
+                                                            size="small"
+                                                            color="success"
+                                                            onClick={() => handleStatusChange(maintenance.id, 'concluida')}
+                                                        >
+                                                            <CheckCircle />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                                <Tooltip title="Histórico do material">
+                                                    <IconButton
+                                                        size="small"
+                                                        color="primary"
+                                                        onClick={() => handleViewHistory(maintenance)}
                                                     >
-                                                        <Build />
+                                                        <History />
                                                     </IconButton>
                                                 </Tooltip>
-                                            </>
-                                        )}
-                                        {maintenance.status === 'em_andamento' && (
-                                            <Tooltip title="Concluir manutenção">
-                                                <IconButton
-                                                    size="small"
-                                                    color="success"
-                                                    onClick={() => handleStatusChange(maintenance.id, 'concluida')}
-                                                >
-                                                    <CheckCircle />
-                                                </IconButton>
-                                            </Tooltip>
-                                        )}
-                                        <Tooltip title="Histórico do material">
-                                            <IconButton
-                                                size="small"
-                                                color="primary"
-                                                onClick={() => handleViewHistory(maintenance)}
-                                            >
-                                                <History />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Editar">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleEditOpen(maintenance)}
-                                            >
-                                                <Edit />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Excluir">
-                                            <IconButton
-                                                size="small"
-                                                color="error"
-                                                onClick={() => handleDelete(maintenance.id)}
-                                            >
-                                                <Delete />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))
+                                                <Tooltip title="Editar">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleEditOpen(maintenance)}
+                                                    >
+                                                        <Edit />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Excluir">
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        onClick={() => handleDelete(maintenance.id)}
+                                                    >
+                                                        <Delete />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })
                         )}
                     </TableBody>
                 </Table>
@@ -598,6 +714,9 @@ const MaintenanceCalendar = () => {
                                 </Typography>
                                 <Typography variant="body2">
                                     <strong>Descrição prevista:</strong> {completionData.maintenance.description || 'N/A'}
+                                </Typography>
+                                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                                    <strong>Data/hora atual:</strong> {new Date().toLocaleString('pt-BR')}
                                 </Typography>
                                 {completionData.maintenance.isRecurrent && (
                                     <Typography variant="body2" sx={{ mt: 1, color: 'secondary.main', fontWeight: 600 }}>
@@ -656,6 +775,7 @@ const MaintenanceCalendar = () => {
                                 onChange={(e) => setEditData({ ...editData, type: e.target.value })}
                             >
                                 <MenuItem value="diaria">Diária</MenuItem>
+                                <MenuItem value="semanal">Semanal</MenuItem>
                                 <MenuItem value="trimestral">Trimestral</MenuItem>
                                 <MenuItem value="semestral">Semestral</MenuItem>
                                 <MenuItem value="anual">Anual</MenuItem>
