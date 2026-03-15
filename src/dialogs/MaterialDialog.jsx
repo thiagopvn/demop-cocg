@@ -17,13 +17,17 @@ import {
     Box,
     Typography,
     Chip,
-    LinearProgress
+    LinearProgress,
+    alpha,
+    Collapse
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import CollectionsIcon from '@mui/icons-material/Collections';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import BuildIcon from '@mui/icons-material/Build';
 import { addDoc, updateDoc, doc, serverTimestamp, collection } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import db, { storage } from '../firebase/db';
@@ -31,7 +35,8 @@ import { CategoriaContext } from '../contexts/CategoriaContext';
 import { logAudit } from '../firebase/auditLog';
 import { findSimilarMaterials } from '../utils/materialSimilarity';
 import { incrementTaskProgress } from '../firebase/taskProgress';
-import { findBestTemplate } from '../utils/maintenanceTemplateMatcher';
+import { findBestTemplate, findMatchingTemplates } from '../utils/maintenanceTemplateMatcher';
+import { MAINTENANCE_TYPE_LABELS } from '../data/maintenanceTemplates';
 import { applySelectedMaintenances } from '../utils/seedMaintenances';
 import MaintenanceSuggestionDialog from './MaintenanceSuggestionDialog';
 
@@ -122,6 +127,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const [matchedTemplate, setMatchedTemplate] = useState(null);
     const [pendingMaterial, setPendingMaterial] = useState(null);
     const [suggestionLoading, setSuggestionLoading] = useState(false);
+    const [liveTemplateMatch, setLiveTemplateMatch] = useState(null);
 
     const isEditing = material != null;
 
@@ -166,6 +172,19 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
         return () => clearTimeout(timer);
     }, [description, materials, material, open, isEditing]);
+
+    // Detecção em tempo real de template de manutenção
+    useEffect(() => {
+        if (!open || isEditing || !description || description.length < 3) {
+            setLiveTemplateMatch(null);
+            return;
+        }
+        const timer = setTimeout(() => {
+            const template = findBestTemplate(description);
+            setLiveTemplateMatch(template || null);
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [description, open, isEditing]);
 
     const handleImageSelect = async (e) => {
         const file = e.target.files?.[0];
@@ -385,7 +404,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             // Após criar (não editar), verificar se existe template de manutenção
             if (!isEditing && savedDocId) {
                 const template = findBestTemplate(description);
-                if (template && template.brandMatch) {
+                if (template) {
                     const selectedCategoria = categorias.find(c => c.id === categoriaId);
                     setPendingMaterial({
                         id: savedDocId,
@@ -649,6 +668,54 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                         </Box>
                     </Alert>
                 )}
+
+                {/* Preview de template de manutenção detectado */}
+                <Collapse in={!isEditing && !!liveTemplateMatch}>
+                    {liveTemplateMatch && (
+                        <Alert
+                            severity="success"
+                            icon={<AutoFixHighIcon fontSize="small" />}
+                            sx={{
+                                mb: 2,
+                                borderRadius: 2.5,
+                                border: '1px solid',
+                                borderColor: (theme) => alpha(theme.palette.success.main, 0.3),
+                                bgcolor: (theme) => alpha(theme.palette.success.main, 0.04),
+                                '& .MuiAlert-icon': { alignItems: 'flex-start', pt: 0.5 },
+                            }}
+                        >
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                <BuildIcon sx={{ fontSize: 14, mr: 0.5, verticalAlign: 'middle' }} />
+                                Plano de manutenção disponível
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.5, mb: 1 }}>
+                                Este material foi identificado como <strong>{liveTemplateMatch.label}</strong>.
+                                Ao criar, você poderá agendar automaticamente as manutenções preventivas do manual.
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                <Chip
+                                    label={`${liveTemplateMatch.maintenances.length} manutenções`}
+                                    size="small"
+                                    color="success"
+                                    sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
+                                />
+                                {(() => {
+                                    const types = [...new Set(liveTemplateMatch.maintenances.map(m => m.type))];
+                                    return types.map(t => (
+                                        <Chip
+                                            key={t}
+                                            label={MAINTENANCE_TYPE_LABELS[t] || t}
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ height: 20, fontSize: '0.65rem' }}
+                                        />
+                                    ));
+                                })()}
+                            </Box>
+                        </Alert>
+                    )}
+                </Collapse>
+
                 <FormControl fullWidth margin="dense" sx={{ mb: 2 }} error={!!errors.categoriaId}>
                     <InputLabel>Categoria</InputLabel>
                     <Select
