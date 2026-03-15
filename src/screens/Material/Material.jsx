@@ -840,7 +840,7 @@ const Material = () => {
                             </Button>
                         )}
                         {isAdmin && (
-                            <Tooltip title="Importar manutenções preventivas dos manuais dos fabricantes">
+                            <Tooltip title="Criar manutenções preventivas para materiais motomecanizados que ainda não possuem">
                                 <Button
                                     variant="outlined"
                                     color="secondary"
@@ -850,15 +850,16 @@ const Material = () => {
                                         borderRadius: 2,
                                         textTransform: 'none',
                                         fontWeight: 600,
-                                        px: 3,
+                                        px: 2,
                                         py: 1.5,
+                                        fontSize: '0.8rem',
                                         '&:hover': {
                                             boxShadow: 2,
                                             transform: 'translateY(-2px)',
                                         },
                                     }}
                                 >
-                                    Importar Manutenções
+                                    Criar Manutenções Motomecanizados
                                 </Button>
                             </Tooltip>
                         )}

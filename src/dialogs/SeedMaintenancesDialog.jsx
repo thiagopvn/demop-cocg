@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Dialog,
-    DialogTitle,
     DialogContent,
     DialogActions,
     Button,
@@ -13,6 +12,7 @@ import {
     Divider,
     IconButton,
     Collapse,
+    Checkbox,
     useTheme,
     alpha,
 } from '@mui/material';
@@ -26,38 +26,95 @@ import {
     ExpandLess,
     Inventory,
     AutoFixHigh,
-    Sync,
+    Build,
+    CheckBoxOutlineBlank,
+    CheckBox,
 } from '@mui/icons-material';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import db from '../firebase/db';
 import { seedAllMaintenances } from '../utils/seedMaintenances';
 import { findBestTemplate } from '../utils/maintenanceTemplateMatcher';
 
-/**
- * Dialog para importar/semear manutenções em lote para todos os materiais existentes.
- * Uso exclusivo de administradores.
- */
 const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
     const theme = useTheme();
-    const [phase, setPhase] = useState('preview'); // preview | running | done
+    const [phase, setPhase] = useState('loading'); // loading | preview | running | done
     const [progress, setProgress] = useState({ current: 0, total: 0, message: '' });
     const [result, setResult] = useState(null);
     const [showDetails, setShowDetails] = useState(false);
+    const [previewData, setPreviewData] = useState({ needsMaintenance: [], alreadyHas: [], noTemplate: [] });
+    const [selectedIds, setSelectedIds] = useState(new Set());
 
-    // Preview: materiais que têm templates
-    const preview = materials.map(m => ({
-        id: m.id,
-        description: m.description,
-        template: findBestTemplate(m.description),
-    }));
+    // Ao abrir, analisar quais materiais realmente precisam de manutenção
+    useEffect(() => {
+        if (open) {
+            analyzeMateria();
+        } else {
+            setPhase('loading');
+            setResult(null);
+            setShowDetails(false);
+        }
+    }, [open]);
 
-    const matchedMaterials = preview.filter(p => p.template);
-    const unmatchedMaterials = preview.filter(p => !p.template);
+    const analyzeMateria = async () => {
+        setPhase('loading');
+        const needsMaintenance = [];
+        const alreadyHas = [];
+        const noTemplate = [];
+
+        for (const m of materials) {
+            const template = findBestTemplate(m.description);
+            if (!template) {
+                noTemplate.push(m);
+                continue;
+            }
+
+            // Verificar se já tem manutenções
+            try {
+                const snap = await getDocs(query(
+                    collection(db, 'manutencoes'),
+                    where('materialId', '==', m.id)
+                ));
+                if (snap.size > 0) {
+                    alreadyHas.push({ ...m, template, existingCount: snap.size });
+                } else {
+                    needsMaintenance.push({ ...m, template });
+                }
+            } catch {
+                needsMaintenance.push({ ...m, template });
+            }
+        }
+
+        setPreviewData({ needsMaintenance, alreadyHas, noTemplate });
+        setSelectedIds(new Set(needsMaintenance.map(m => m.id)));
+        setPhase('preview');
+    };
+
+    const handleToggle = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleSelectAll = () => {
+        if (selectedIds.size === previewData.needsMaintenance.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(previewData.needsMaintenance.map(m => m.id)));
+        }
+    };
 
     const handleStart = async () => {
+        const selectedMaterials = previewData.needsMaintenance.filter(m => selectedIds.has(m.id));
+        if (selectedMaterials.length === 0) return;
+
         setPhase('running');
-        setProgress({ current: 0, total: matchedMaterials.length, message: 'Iniciando...' });
+        setProgress({ current: 0, total: selectedMaterials.length, message: 'Iniciando...' });
 
         try {
-            const seedResult = await seedAllMaintenances(materials, (info) => {
+            const seedResult = await seedAllMaintenances(selectedMaterials, (info) => {
                 setProgress({
                     current: info.current,
                     total: info.total,
@@ -65,14 +122,9 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                         ? `Analisando: ${info.material}`
                         : info.phase === 'applying'
                             ? `Aplicando: ${info.template} → ${info.material}`
-                            : info.detail?.type === 'created'
-                                ? `Criada: ${info.detail.maintenance.description}`
-                                : info.detail?.type === 'skip'
-                                    ? `Pulada (já existe): ${info.detail.maintenance.description}`
-                                    : `Processando...`,
+                            : `Processando...`,
                 });
             });
-
             setResult(seedResult);
             setPhase('done');
         } catch (error) {
@@ -83,16 +135,15 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
 
     const handleClose = () => {
         if (phase === 'running') return;
-        setPhase('preview');
-        setProgress({ current: 0, total: 0, message: '' });
-        setResult(null);
-        setShowDetails(false);
         onClose(phase === 'done' && result?.created > 0);
     };
 
     const progressPercent = progress.total > 0
-        ? Math.round((progress.current / progress.total) * 100)
-        : 0;
+        ? Math.round((progress.current / progress.total) * 100) : 0;
+
+    const totalNewMaintenances = previewData.needsMaintenance
+        .filter(m => selectedIds.has(m.id))
+        .reduce((sum, m) => sum + (m.template?.maintenances?.length || 0), 0);
 
     return (
         <Dialog
@@ -100,7 +151,7 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
             onClose={phase === 'running' ? undefined : handleClose}
             fullWidth
             maxWidth="md"
-            PaperProps={{ sx: { borderRadius: 3 } }}
+            PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
         >
             {/* Header */}
             <Box
@@ -109,6 +160,7 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                     color: 'white',
                     px: 3,
                     py: 2.5,
+                    position: 'relative',
                 }}
             >
                 <IconButton
@@ -119,124 +171,106 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                     <Close />
                 </IconButton>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box
-                        sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 2,
-                            bgcolor: 'rgba(255,255,255,0.15)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Sync sx={{ fontSize: 26 }} />
+                    <Box sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Build sx={{ fontSize: 26 }} />
                     </Box>
                     <Box>
                         <Typography variant="h6" fontWeight={700}>
-                            Importar Manutenções do Manual
+                            Criar Manutenções para Motomecanizados
                         </Typography>
                         <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                            Aplicar plano preventivo a todos os materiais identificados
+                            Plano preventivo baseado nos manuais dos fabricantes
                         </Typography>
                     </Box>
                 </Box>
             </Box>
 
             <DialogContent sx={{ px: 3, py: 2 }}>
+                {/* === LOADING === */}
+                {phase === 'loading' && (
+                    <Box sx={{ py: 4, textAlign: 'center' }}>
+                        <LinearProgress sx={{ mb: 2 }} />
+                        <Typography color="text.secondary">Analisando materiais cadastrados...</Typography>
+                    </Box>
+                )}
+
                 {/* === PREVIEW === */}
                 {phase === 'preview' && (
                     <>
-                        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
-                            <Typography variant="body2">
-                                Esta operação analisa todos os materiais cadastrados e aplica automaticamente as manutenções
-                                preventivas previstas nos manuais dos fabricantes. Manutenções já existentes não serão duplicadas.
-                            </Typography>
-                        </Alert>
+                        {previewData.needsMaintenance.length === 0 ? (
+                            <Alert severity="success" sx={{ borderRadius: 2 }}>
+                                <Typography variant="body2" fontWeight={600}>
+                                    Todos os materiais motomecanizados já possuem manutenções programadas!
+                                </Typography>
+                                {previewData.alreadyHas.length > 0 && (
+                                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                                        {previewData.alreadyHas.length} material(is) com manutenções ativas.
+                                    </Typography>
+                                )}
+                            </Alert>
+                        ) : (
+                            <>
+                                <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+                                    <Typography variant="body2">
+                                        Os materiais abaixo foram identificados como motomecanizados e <strong>ainda não possuem
+                                        manutenções programadas</strong>. Selecione os que deseja incluir no plano preventivo.
+                                    </Typography>
+                                </Alert>
 
-                        {/* Resumo */}
-                        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                            <Box
-                                sx={{
-                                    flex: 1,
-                                    minWidth: 140,
-                                    p: 2,
-                                    borderRadius: 2,
-                                    bgcolor: alpha(theme.palette.success.main, 0.08),
-                                    border: '1px solid',
-                                    borderColor: alpha(theme.palette.success.main, 0.2),
-                                    textAlign: 'center',
-                                }}
-                            >
-                                <Typography variant="h4" fontWeight={700} color="success.main">
-                                    {matchedMaterials.length}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Materiais identificados
-                                </Typography>
-                            </Box>
-                            <Box
-                                sx={{
-                                    flex: 1,
-                                    minWidth: 140,
-                                    p: 2,
-                                    borderRadius: 2,
-                                    bgcolor: alpha(theme.palette.grey[500], 0.08),
-                                    border: '1px solid',
-                                    borderColor: alpha(theme.palette.grey[500], 0.2),
-                                    textAlign: 'center',
-                                }}
-                            >
-                                <Typography variant="h4" fontWeight={700} color="text.secondary">
-                                    {unmatchedMaterials.length}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Sem template
-                                </Typography>
-                            </Box>
-                            <Box
-                                sx={{
-                                    flex: 1,
-                                    minWidth: 140,
-                                    p: 2,
-                                    borderRadius: 2,
-                                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                                    border: '1px solid',
-                                    borderColor: alpha(theme.palette.primary.main, 0.2),
-                                    textAlign: 'center',
-                                }}
-                            >
-                                <Typography variant="h4" fontWeight={700} color="primary.main">
-                                    {matchedMaterials.reduce((sum, m) => sum + (m.template?.maintenances?.length || 0), 0)}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Manutenções previstas
-                                </Typography>
-                            </Box>
-                        </Box>
+                                {/* Resumo */}
+                                <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                                    <Box sx={{ flex: 1, minWidth: 120, p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.08), border: '1px solid', borderColor: alpha(theme.palette.success.main, 0.2), textAlign: 'center' }}>
+                                        <Typography variant="h4" fontWeight={700} color="success.main">{selectedIds.size}</Typography>
+                                        <Typography variant="caption" color="text.secondary">Selecionados</Typography>
+                                    </Box>
+                                    <Box sx={{ flex: 1, minWidth: 120, p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.08), border: '1px solid', borderColor: alpha(theme.palette.primary.main, 0.2), textAlign: 'center' }}>
+                                        <Typography variant="h4" fontWeight={700} color="primary.main">{totalNewMaintenances}</Typography>
+                                        <Typography variant="caption" color="text.secondary">Manutenções a criar</Typography>
+                                    </Box>
+                                    <Box sx={{ flex: 1, minWidth: 120, p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.grey[500], 0.08), border: '1px solid', borderColor: alpha(theme.palette.grey[500], 0.2), textAlign: 'center' }}>
+                                        <Typography variant="h4" fontWeight={700} color="text.secondary">{previewData.alreadyHas.length}</Typography>
+                                        <Typography variant="caption" color="text.secondary">Já com manutenção</Typography>
+                                    </Box>
+                                </Box>
 
-                        {/* Lista de matches */}
-                        {matchedMaterials.length > 0 && (
-                            <Box sx={{ mb: 2 }}>
-                                <Typography variant="subtitle2" gutterBottom fontWeight={600} color="success.main">
-                                    Materiais que receberão manutenções:
-                                </Typography>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, maxHeight: 200, overflowY: 'auto' }}>
-                                    {matchedMaterials.map(m => (
+                                {/* Selecionar todos */}
+                                <Box
+                                    sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, cursor: 'pointer', userSelect: 'none' }}
+                                    onClick={handleSelectAll}
+                                >
+                                    <Checkbox
+                                        checked={selectedIds.size === previewData.needsMaintenance.length}
+                                        indeterminate={selectedIds.size > 0 && selectedIds.size < previewData.needsMaintenance.length}
+                                        size="small"
+                                        color="success"
+                                    />
+                                    <Typography variant="body2" fontWeight={600}>
+                                        Selecionar todos ({previewData.needsMaintenance.length})
+                                    </Typography>
+                                </Box>
+
+                                {/* Lista de materiais sem manutenção */}
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, maxHeight: 300, overflowY: 'auto', mb: 1 }}>
+                                    {previewData.needsMaintenance.map(m => (
                                         <Box
                                             key={m.id}
+                                            onClick={() => handleToggle(m.id)}
                                             sx={{
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: 1,
                                                 p: 1,
                                                 borderRadius: 1.5,
-                                                bgcolor: 'grey.50',
+                                                cursor: 'pointer',
+                                                bgcolor: selectedIds.has(m.id) ? alpha(theme.palette.success.main, 0.06) : 'grey.50',
                                                 border: '1px solid',
-                                                borderColor: 'grey.200',
+                                                borderColor: selectedIds.has(m.id) ? alpha(theme.palette.success.main, 0.3) : 'grey.200',
+                                                transition: 'all 0.15s ease',
+                                                '&:hover': { borderColor: 'success.main' },
                                             }}
                                         >
-                                            <AutoFixHigh sx={{ fontSize: 16, color: 'success.main' }} />
+                                            <Checkbox checked={selectedIds.has(m.id)} size="small" color="success" sx={{ p: 0.5 }} />
+                                            <AutoFixHigh sx={{ fontSize: 16, color: selectedIds.has(m.id) ? 'success.main' : 'text.disabled' }} />
                                             <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }} noWrap>
                                                 {m.description}
                                             </Typography>
@@ -245,23 +279,50 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                                                 size="small"
                                                 color="primary"
                                                 variant="outlined"
-                                                sx={{ height: 22, fontSize: '0.7rem' }}
+                                                sx={{ height: 22, fontSize: '0.65rem' }}
                                             />
                                             <Chip
                                                 label={`${m.template.maintenances.length}`}
                                                 size="small"
+                                                color="success"
                                                 sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, minWidth: 28 }}
                                             />
                                         </Box>
                                     ))}
                                 </Box>
-                            </Box>
+                            </>
                         )}
 
-                        {matchedMaterials.length === 0 && (
-                            <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                                Nenhum material cadastrado corresponde aos templates de manutenção disponíveis.
-                            </Alert>
+                        {/* Materiais que já têm manutenção (colapsável) */}
+                        {previewData.alreadyHas.length > 0 && (
+                            <Box sx={{ mt: 1 }}>
+                                <Button
+                                    fullWidth
+                                    size="small"
+                                    onClick={() => setShowDetails(!showDetails)}
+                                    endIcon={showDetails ? <ExpandLess /> : <ExpandMore />}
+                                    sx={{ justifyContent: 'space-between', textTransform: 'none', color: 'text.secondary' }}
+                                >
+                                    {previewData.alreadyHas.length} material(is) já com manutenção programada
+                                </Button>
+                                <Collapse in={showDetails}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, maxHeight: 150, overflowY: 'auto', mt: 0.5 }}>
+                                        {previewData.alreadyHas.map(m => (
+                                            <Box
+                                                key={m.id}
+                                                sx={{
+                                                    display: 'flex', alignItems: 'center', gap: 1, p: 0.8, borderRadius: 1.5,
+                                                    bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200',
+                                                }}
+                                            >
+                                                <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                                                <Typography variant="caption" sx={{ flex: 1 }} noWrap>{m.description}</Typography>
+                                                <Chip label={`${m.existingCount} ativas`} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />
+                                            </Box>
+                                        ))}
+                                    </Box>
+                                </Collapse>
+                            </Box>
                         )}
                     </>
                 )}
@@ -270,23 +331,15 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                 {phase === 'running' && (
                     <Box sx={{ py: 3 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                            <Sync sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } }, color: 'primary.main' }} />
+                            <Build sx={{ animation: 'spin 1s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } }, color: 'primary.main' }} />
                             <Typography variant="subtitle1" fontWeight={600}>
-                                Importando manutenções...
+                                Criando manutenções...
                             </Typography>
                         </Box>
-                        <LinearProgress
-                            variant="determinate"
-                            value={progressPercent}
-                            sx={{ mb: 1, height: 8, borderRadius: 4 }}
-                        />
+                        <LinearProgress variant="determinate" value={progressPercent} sx={{ mb: 1, height: 8, borderRadius: 4 }} />
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Typography variant="caption" color="text.secondary">
-                                {progress.message}
-                            </Typography>
-                            <Typography variant="caption" fontWeight={600}>
-                                {progressPercent}%
-                            </Typography>
+                            <Typography variant="caption" color="text.secondary">{progress.message}</Typography>
+                            <Typography variant="caption" fontWeight={600}>{progressPercent}%</Typography>
                         </Box>
                     </Box>
                 )}
@@ -295,22 +348,18 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                 {phase === 'done' && result && (
                     <>
                         {result.error ? (
-                            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-                                Erro durante a importação: {result.error}
-                            </Alert>
+                            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>Erro: {result.error}</Alert>
                         ) : (
                             <>
-                                <Alert
-                                    severity="success"
-                                    icon={<CheckCircle />}
-                                    sx={{ mb: 2, borderRadius: 2 }}
-                                >
+                                <Alert severity="success" icon={<CheckCircle />} sx={{ mb: 2, borderRadius: 2 }}>
                                     <Typography variant="body2" fontWeight={600}>
-                                        Importação concluída!
+                                        {result.created > 0
+                                            ? `${result.created} manutenções criadas com sucesso para ${result.matched} material(is)!`
+                                            : 'Nenhuma manutenção nova necessária - tudo já estava programado.'
+                                        }
                                     </Typography>
                                 </Alert>
 
-                                {/* Resumo de resultados */}
                                 <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                                     <Box sx={{ flex: 1, minWidth: 100, p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.08), textAlign: 'center' }}>
                                         <CheckCircle sx={{ color: 'success.main', fontSize: 28 }} />
@@ -327,61 +376,19 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                                         <Typography variant="h5" fontWeight={700} color="warning.main">{result.matched}</Typography>
                                         <Typography variant="caption">Materiais</Typography>
                                     </Box>
-                                    {result.errors > 0 && (
-                                        <Box sx={{ flex: 1, minWidth: 100, p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.error.main, 0.08), textAlign: 'center' }}>
-                                            <ErrorIcon sx={{ color: 'error.main', fontSize: 28 }} />
-                                            <Typography variant="h5" fontWeight={700} color="error.main">{result.errors}</Typography>
-                                            <Typography variant="caption">Erros</Typography>
-                                        </Box>
-                                    )}
                                 </Box>
 
-                                {/* Detalhes */}
-                                <Button
-                                    fullWidth
-                                    onClick={() => setShowDetails(!showDetails)}
-                                    endIcon={showDetails ? <ExpandLess /> : <ExpandMore />}
-                                    sx={{ justifyContent: 'space-between', mb: 1, textTransform: 'none', color: 'text.secondary' }}
-                                >
-                                    Ver detalhes por material
-                                </Button>
-                                <Collapse in={showDetails}>
-                                    <Box sx={{ maxHeight: 250, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                        {result.details.map((d, i) => (
-                                            <Box
-                                                key={i}
-                                                sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 1,
-                                                    p: 1,
-                                                    borderRadius: 1.5,
-                                                    bgcolor: d.status === 'aplicado' ? alpha(theme.palette.success.main, 0.04) : 'grey.50',
-                                                    border: '1px solid',
-                                                    borderColor: d.status === 'aplicado' ? alpha(theme.palette.success.main, 0.15) : 'grey.200',
-                                                }}
-                                            >
-                                                {d.status === 'aplicado' ? (
-                                                    <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
-                                                ) : (
-                                                    <SkipNext sx={{ fontSize: 16, color: 'text.disabled' }} />
-                                                )}
-                                                <Typography variant="body2" sx={{ flex: 1 }} noWrap>
-                                                    {d.material}
-                                                </Typography>
-                                                {d.template && (
-                                                    <Chip label={`+${d.created}`} size="small" color="success" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }} />
-                                                )}
-                                                {d.skipped > 0 && (
-                                                    <Chip label={`${d.skipped} exist.`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
-                                                )}
-                                                {!d.template && (
-                                                    <Chip label="sem template" size="small" variant="outlined" color="default" sx={{ height: 20, fontSize: '0.65rem' }} />
-                                                )}
+                                {result.details && result.details.length > 0 && (
+                                    <Box sx={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        {result.details.filter(d => d.status === 'aplicado').map((d, i) => (
+                                            <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 0.8, borderRadius: 1.5, bgcolor: alpha(theme.palette.success.main, 0.04), border: '1px solid', borderColor: alpha(theme.palette.success.main, 0.15) }}>
+                                                <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                                                <Typography variant="caption" sx={{ flex: 1 }} noWrap>{d.material}</Typography>
+                                                <Chip label={`+${d.created}`} size="small" color="success" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700 }} />
                                             </Box>
                                         ))}
                                     </Box>
-                                </Collapse>
+                                )}
                             </>
                         )}
                     </>
@@ -399,20 +406,16 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                             onClick={handleStart}
                             variant="contained"
                             color="secondary"
-                            disabled={matchedMaterials.length === 0}
+                            disabled={selectedIds.size === 0}
                             startIcon={<PlayArrow />}
                             sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: 2 }}
                         >
-                            Iniciar Importação ({matchedMaterials.length} materiais)
+                            Criar Manutenções ({selectedIds.size} materiais)
                         </Button>
                     </>
                 )}
                 {phase === 'done' && (
-                    <Button
-                        onClick={handleClose}
-                        variant="contained"
-                        sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: 2 }}
-                    >
+                    <Button onClick={handleClose} variant="contained" sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: 2 }}>
                         Fechar
                     </Button>
                 )}
