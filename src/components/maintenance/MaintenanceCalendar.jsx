@@ -511,7 +511,7 @@ const MaintenanceCalendar = () => {
                             <TableCell sx={{ color: 'white', fontWeight: 600 }}>Data Prevista</TableCell>
                             <TableCell sx={{ color: 'white', fontWeight: 600 }}>Última Conclusão</TableCell>
                             <TableCell sx={{ color: 'white', fontWeight: 600 }}>Próxima Previsão</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Descrição</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 600, minWidth: 250 }}>Descrição</TableCell>
                             <TableCell sx={{ color: 'white', fontWeight: 600 }} align="center">Ações</TableCell>
                         </TableRow>
                     </TableHead>
@@ -618,12 +618,10 @@ const MaintenanceCalendar = () => {
                                                 </Typography>
                                             )}
                                         </TableCell>
-                                        <TableCell>
-                                            <Tooltip title={maintenance.description || 'Sem descrição'}>
-                                                <Typography variant="body2" noWrap sx={{ maxWidth: 150, fontSize: '0.8rem' }}>
-                                                    {maintenance.description || '-'}
-                                                </Typography>
-                                            </Tooltip>
+                                        <TableCell sx={{ minWidth: 250, maxWidth: 400 }}>
+                                            <Typography variant="body2" sx={{ fontSize: '0.8rem', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                                {maintenance.description || '-'}
+                                            </Typography>
                                         </TableCell>
                                         <TableCell align="center">
                                             <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap' }}>
