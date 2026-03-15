@@ -23,6 +23,12 @@ import {
   useMediaQuery,
   useTheme,
   Collapse,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import {
   Inventory,
@@ -64,6 +70,8 @@ import {
   doc,
   onSnapshot,
   serverTimestamp,
+  Timestamp,
+  addDoc,
 } from "firebase/firestore";
 import {
   BarChart,
@@ -88,6 +96,8 @@ import { verifyToken } from "../../firebase/token";
 import { logAudit } from "../../firebase/auditLog";
 import CautelaStrip from "../../components/CautelaStrip";
 import DevolucaoReceiptStrip from "../../components/DevolucaoReceiptStrip";
+import UpcomingMaintenances from "../../components/maintenance/UpcomingMaintenances";
+import { createNextRecurrentMaintenance } from "../../services/maintenanceNotificationService";
 
 // ==================== TASK TYPE CONFIG ====================
 
@@ -513,6 +523,15 @@ export default function Home() {
   const [dateFilter, setDateFilter] = useState("all");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+
+  // Maintenance completion dialog state
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [completionData, setCompletionData] = useState({
+    completionNotes: '',
+    confirmedAsPlanned: false,
+    maintenanceId: null,
+    maintenance: null,
+  });
 
   // ==================== DATE FILTER LOGIC ====================
 
@@ -1321,6 +1340,61 @@ export default function Home() {
             </Box>
           </Container>
 
+          {/* Dialog de conclusão de manutenção */}
+          <Dialog
+            open={completeDialogOpen}
+            onClose={() => setCompleteDialogOpen(false)}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+          >
+            <Box sx={{ bgcolor: 'success.main', color: 'white', px: 3, py: 2 }}>
+              <Typography variant="h6" fontWeight={700}>
+                Concluir Manutencao
+              </Typography>
+              {completionData.maintenance && (
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  {completionData.maintenance.materialDescription} - {completionData.maintenance.type}
+                </Typography>
+              )}
+            </Box>
+            <DialogContent sx={{ pt: 3 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={completionData.confirmedAsPlanned}
+                    onChange={(e) => setCompletionData(prev => ({ ...prev, confirmedAsPlanned: e.target.checked }))}
+                    color="success"
+                  />
+                }
+                label="Realizada conforme previsto"
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="O que foi realizado?"
+                placeholder="Descreva o que foi feito nesta manutencao..."
+                value={completionData.completionNotes}
+                onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
+              />
+            </DialogContent>
+            <DialogActions sx={{ p: 2.5 }}>
+              <Button onClick={() => setCompleteDialogOpen(false)} variant="outlined">
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmCompleteMaintenance}
+                variant="contained"
+                color="success"
+                startIcon={<CheckCircle />}
+              >
+                Concluir
+              </Button>
+            </DialogActions>
+          </Dialog>
+
           <Snackbar
             open={snackbarOpen}
             autoHideDuration={4000}
@@ -1353,6 +1427,81 @@ export default function Home() {
       : dateFilter === "custom"
       ? "Periodo Selecionado"
       : "Todo o Periodo";
+
+  // ==================== MAINTENANCE COMPLETION ====================
+
+  const handleOpenCompleteMaintenance = (maintenance) => {
+    setCompletionData({
+      completionNotes: '',
+      confirmedAsPlanned: false,
+      maintenanceId: maintenance.id,
+      maintenance,
+    });
+    setCompleteDialogOpen(true);
+  };
+
+  const handleConfirmCompleteMaintenance = async () => {
+    const { maintenanceId, maintenance, completionNotes, confirmedAsPlanned } = completionData;
+    const finalNotes = confirmedAsPlanned
+      ? `[CONFORME PREVISTO] ${completionNotes || ''}`.trim()
+      : completionNotes;
+    try {
+      const now = Timestamp.now();
+      const nowDate = now.toDate();
+      await updateDoc(doc(db, 'manutencoes', maintenanceId), {
+        status: 'concluida',
+        updatedAt: now,
+        completedAt: now,
+        completionNotes: finalNotes || '',
+        completedBy: userName || '',
+      });
+
+      await addDoc(collection(db, 'historico_manutencoes'), {
+        materialId: maintenance.materialId,
+        materialDescription: maintenance.materialDescription,
+        materialCategory: maintenance.materialCategory,
+        type: maintenance.type,
+        dueDate: maintenance.dueDate instanceof Date ? Timestamp.fromDate(maintenance.dueDate) : maintenance.dueDate,
+        description: maintenance.description || '',
+        priority: maintenance.priority || 'media',
+        estimatedDuration: maintenance.estimatedDuration || null,
+        requiredParts: maintenance.requiredParts || [],
+        isRecurrent: maintenance.isRecurrent || false,
+        recurrenceType: maintenance.recurrenceType || null,
+        recurrenceCount: maintenance.recurrenceCount || 0,
+        responsibleName: '',
+        completedBy: userName || '',
+        createdAt: maintenance.createdAt instanceof Date ? Timestamp.fromDate(maintenance.createdAt) : (maintenance.createdAt || Timestamp.now()),
+        createdBy: maintenance.createdBy || '',
+        completedAt: now,
+        completionNotes: finalNotes || '',
+        originalId: maintenance.id,
+      });
+
+      if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
+        await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
+      }
+
+      if (maintenance?.materialId) {
+        try {
+          await updateDoc(doc(db, 'materials', maintenance.materialId), {
+            maintenance_status: 'operante',
+            last_maintenance_update: now,
+            last_maintenance_date: now,
+          });
+        } catch (_) {}
+      }
+
+      setCompleteDialogOpen(false);
+      setCompletionData({ completionNotes: '', confirmedAsPlanned: false, maintenanceId: null, maintenance: null });
+      setSnackbarMessage('Manutencao concluida com sucesso!');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Erro ao concluir manutencao:', error);
+      setSnackbarMessage('Erro ao concluir manutencao');
+      setSnackbarOpen(true);
+    }
+  };
 
   return (
     <PrivateRoute>
@@ -1694,6 +1843,13 @@ export default function Home() {
                       estoque zerado
                     </Alert>
                   )}
+                </Box>
+              )}
+
+              {/* ====== MANUTENÇÕES PREVISTAS (destaque) ====== */}
+              {(userRole === 'editor' || userRole === 'admin' || userRole === 'admingeral') && (
+                <Box sx={{ mb: 3 }}>
+                  <UpcomingMaintenances onComplete={handleOpenCompleteMaintenance} />
                 </Box>
               )}
 
