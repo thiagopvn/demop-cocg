@@ -21,7 +21,9 @@ import {
     DialogContent,
     DialogActions,
     Alert,
-    LinearProgress
+    LinearProgress,
+    TableSortLabel,
+    InputAdornment
 } from '@mui/material';
 import {
     Edit,
@@ -35,7 +37,9 @@ import {
     Build,
     Warning,
     Repeat,
-    History
+    History,
+    Search,
+    ClearAll
 } from '@mui/icons-material';
 import { collection, query, getDocs, updateDoc, deleteDoc, doc, addDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
@@ -76,8 +80,12 @@ const MaintenanceCalendar = () => {
     const [filter, setFilter] = useState({
         status: 'todos',
         type: 'todos',
-        period: 'todos'
+        period: 'todos',
+        priority: 'todos',
+        search: ''
     });
+    const [sortField, setSortField] = useState('dueDate');
+    const [sortDirection, setSortDirection] = useState('asc');
     const [selectedMaintenance, setSelectedMaintenance] = useState(null);
     const [openEditDialog, setOpenEditDialog] = useState(false);
     const [editData, setEditData] = useState({
@@ -114,7 +122,7 @@ const MaintenanceCalendar = () => {
 
     useEffect(() => {
         applyFilters();
-    }, [maintenances, filter]);
+    }, [maintenances, filter, sortField, sortDirection]);
 
     const fetchMaintenances = async () => {
         try {
@@ -140,8 +148,38 @@ const MaintenanceCalendar = () => {
         }
     };
 
+    const TYPE_ORDER = { diaria: 1, semanal: 2, mensal: 3, trimestral: 4, semestral: 5, anual: 6, corretiva: 7, reparo: 8 };
+    const STATUS_ORDER = { pendente: 1, em_andamento: 2, concluida: 3, cancelada: 4 };
+    const PRIORITY_ORDER = { critica: 1, alta: 2, media: 3, baixa: 4 };
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const handleClearFilters = () => {
+        setFilter({ status: 'todos', type: 'todos', period: 'todos', priority: 'todos', search: '' });
+        setSortField('dueDate');
+        setSortDirection('asc');
+    };
+
+    const hasActiveFilters = filter.status !== 'todos' || filter.type !== 'todos' || filter.period !== 'todos' || filter.priority !== 'todos' || filter.search;
+
     const applyFilters = () => {
         let filtered = [...maintenances];
+
+        // Busca por texto
+        if (filter.search) {
+            const terms = filter.search.toLowerCase().split(/\s+/).filter(Boolean);
+            filtered = filtered.filter(m => {
+                const text = `${m.materialDescription || ''} ${m.description || ''}`.toLowerCase();
+                return terms.every(t => text.includes(t));
+            });
+        }
 
         if (filter.status !== 'todos') {
             filtered = filtered.filter(m => m.status === filter.status);
@@ -149,6 +187,10 @@ const MaintenanceCalendar = () => {
 
         if (filter.type !== 'todos') {
             filtered = filtered.filter(m => m.type === filter.type);
+        }
+
+        if (filter.priority !== 'todos') {
+            filtered = filtered.filter(m => m.priority === filter.priority);
         }
 
         const today = new Date();
@@ -183,9 +225,54 @@ const MaintenanceCalendar = () => {
                 );
                 break;
             }
+            case 'trimestre': {
+                const qtrFromNow = new Date(today);
+                qtrFromNow.setMonth(qtrFromNow.getMonth() + 3);
+                filtered = filtered.filter(m =>
+                    new Date(m.dueDate) >= today && new Date(m.dueDate) <= qtrFromNow
+                );
+                break;
+            }
             default:
                 break;
         }
+
+        // Ordenação
+        filtered.sort((a, b) => {
+            let cmp = 0;
+            switch (sortField) {
+                case 'type':
+                    cmp = (TYPE_ORDER[a.type] || 99) - (TYPE_ORDER[b.type] || 99);
+                    break;
+                case 'materialDescription':
+                    cmp = (a.materialDescription || '').localeCompare(b.materialDescription || '', 'pt-BR');
+                    break;
+                case 'status':
+                    cmp = (STATUS_ORDER[a.status] || 99) - (STATUS_ORDER[b.status] || 99);
+                    break;
+                case 'dueDate':
+                    cmp = new Date(a.dueDate) - new Date(b.dueDate);
+                    break;
+                case 'lastCompletedAt': {
+                    const aDate = a.lastCompletedAt || a.completedAt;
+                    const bDate = b.lastCompletedAt || b.completedAt;
+                    if (!aDate && !bDate) cmp = 0;
+                    else if (!aDate) cmp = 1;
+                    else if (!bDate) cmp = -1;
+                    else cmp = new Date(aDate) - new Date(bDate);
+                    break;
+                }
+                case 'priority':
+                    cmp = (PRIORITY_ORDER[a.priority] || 99) - (PRIORITY_ORDER[b.priority] || 99);
+                    break;
+                case 'description':
+                    cmp = (a.description || '').localeCompare(b.description || '', 'pt-BR');
+                    break;
+                default:
+                    cmp = new Date(a.dueDate) - new Date(b.dueDate);
+            }
+            return sortDirection === 'asc' ? cmp : -cmp;
+        });
 
         setFilteredMaintenances(filtered);
     };
@@ -432,10 +519,36 @@ const MaintenanceCalendar = () => {
 
     return (
         <Box>
+            {/* Busca */}
+            <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
+                <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Buscar por material ou descrição da manutenção..."
+                    value={filter.search}
+                    onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <Search color="action" fontSize="small" />
+                            </InputAdornment>
+                        ),
+                        endAdornment: filter.search ? (
+                            <InputAdornment position="end">
+                                <IconButton size="small" onClick={() => setFilter({ ...filter, search: '' })}>
+                                    <Cancel fontSize="small" />
+                                </IconButton>
+                            </InputAdornment>
+                        ) : null,
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+            </Paper>
+
             {/* Filtros */}
             <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={6} sm={2.4}>
                         <TextField
                             select
                             fullWidth
@@ -451,7 +564,7 @@ const MaintenanceCalendar = () => {
                             <MenuItem value="cancelada">Cancelada</MenuItem>
                         </TextField>
                     </Grid>
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={6} sm={2.4}>
                         <TextField
                             select
                             fullWidth
@@ -471,7 +584,23 @@ const MaintenanceCalendar = () => {
                             <MenuItem value="reparo">Reparo</MenuItem>
                         </TextField>
                     </Grid>
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={6} sm={2.4}>
+                        <TextField
+                            select
+                            fullWidth
+                            label="Prioridade"
+                            value={filter.priority}
+                            onChange={(e) => setFilter({ ...filter, priority: e.target.value })}
+                            size="small"
+                        >
+                            <MenuItem value="todos">Todas</MenuItem>
+                            <MenuItem value="baixa">Baixa</MenuItem>
+                            <MenuItem value="media">Média</MenuItem>
+                            <MenuItem value="alta">Alta</MenuItem>
+                            <MenuItem value="critica">Crítica</MenuItem>
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={6} sm={2.4}>
                         <TextField
                             select
                             fullWidth
@@ -485,19 +614,45 @@ const MaintenanceCalendar = () => {
                             <MenuItem value="hoje">Hoje</MenuItem>
                             <MenuItem value="semana">Esta Semana</MenuItem>
                             <MenuItem value="mes">Este Mês</MenuItem>
+                            <MenuItem value="trimestre">Este Trimestre</MenuItem>
                         </TextField>
                     </Grid>
-                    <Grid item xs={12} sm={3}>
-                        <Button
-                            fullWidth
-                            variant="outlined"
-                            startIcon={<Refresh />}
-                            onClick={fetchMaintenances}
-                        >
-                            Atualizar
-                        </Button>
+                    <Grid item xs={12} sm={2.4}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button
+                                fullWidth
+                                variant="outlined"
+                                startIcon={<Refresh />}
+                                onClick={fetchMaintenances}
+                                size="small"
+                            >
+                                Atualizar
+                            </Button>
+                            {hasActiveFilters && (
+                                <Tooltip title="Limpar todos os filtros">
+                                    <IconButton size="small" onClick={handleClearFilters} color="secondary">
+                                        <ClearAll />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                        </Box>
                     </Grid>
                 </Grid>
+                {/* Contador de resultados */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5 }}>
+                    <Chip
+                        label={`${filteredMaintenances.length} de ${maintenances.length}`}
+                        size="small"
+                        color={hasActiveFilters ? 'primary' : 'default'}
+                        variant={hasActiveFilters ? 'filled' : 'outlined'}
+                        sx={{ fontSize: '0.75rem', height: 24 }}
+                    />
+                    {hasActiveFilters && (
+                        <Typography variant="caption" color="text.secondary">
+                            filtros ativos
+                        </Typography>
+                    )}
+                </Box>
             </Paper>
 
             {/* Tabela de Manutenções */}
@@ -505,13 +660,43 @@ const MaintenanceCalendar = () => {
                 <Table size="small">
                     <TableHead>
                         <TableRow sx={{ bgcolor: 'primary.main' }}>
-                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Tipo</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Material</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Status</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Data Prevista</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Última Conclusão</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Próxima Previsão</TableCell>
-                            <TableCell sx={{ color: 'white', fontWeight: 600, minWidth: 250 }}>Descrição</TableCell>
+                            {[
+                                { id: 'type', label: 'Tipo' },
+                                { id: 'materialDescription', label: 'Material' },
+                                { id: 'status', label: 'Status' },
+                                { id: 'dueDate', label: 'Data Prevista' },
+                                { id: 'lastCompletedAt', label: 'Última Conclusão' },
+                                { id: 'priority', label: 'Prioridade' },
+                            ].map((col) => (
+                                <TableCell key={col.id} sx={{ color: 'white', fontWeight: 600 }}>
+                                    <TableSortLabel
+                                        active={sortField === col.id}
+                                        direction={sortField === col.id ? sortDirection : 'asc'}
+                                        onClick={() => handleSort(col.id)}
+                                        sx={{
+                                            color: 'white !important',
+                                            '&.Mui-active': { color: 'white !important' },
+                                            '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' },
+                                        }}
+                                    >
+                                        {col.label}
+                                    </TableSortLabel>
+                                </TableCell>
+                            ))}
+                            <TableCell sx={{ color: 'white', fontWeight: 600, minWidth: 250 }}>
+                                <TableSortLabel
+                                    active={sortField === 'description'}
+                                    direction={sortField === 'description' ? sortDirection : 'asc'}
+                                    onClick={() => handleSort('description')}
+                                    sx={{
+                                        color: 'white !important',
+                                        '&.Mui-active': { color: 'white !important' },
+                                        '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' },
+                                    }}
+                                >
+                                    Descrição
+                                </TableSortLabel>
+                            </TableCell>
                             <TableCell sx={{ color: 'white', fontWeight: 600 }} align="center">Ações</TableCell>
                         </TableRow>
                     </TableHead>
@@ -602,21 +787,21 @@ const MaintenanceCalendar = () => {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            {nextPreview ? (
-                                                <Tooltip title={`Próxima: ${formatDateTime(nextPreview)} (${maintenance.recurrenceType})`}>
-                                                    <Chip
-                                                        label={formatDate(nextPreview)}
-                                                        size="small"
-                                                        color="info"
-                                                        variant="outlined"
-                                                        sx={{ fontSize: '0.7rem', height: 24 }}
-                                                    />
-                                                </Tooltip>
-                                            ) : (
-                                                <Typography variant="body2" color="text.disabled" sx={{ fontSize: '0.75rem' }}>
-                                                    {maintenance.isRecurrent ? '-' : 'Não recorrente'}
-                                                </Typography>
-                                            )}
+                                            <Chip
+                                                label={
+                                                    maintenance.priority === 'critica' ? 'Crítica' :
+                                                    maintenance.priority === 'alta' ? 'Alta' :
+                                                    maintenance.priority === 'media' ? 'Média' : 'Baixa'
+                                                }
+                                                size="small"
+                                                color={
+                                                    maintenance.priority === 'critica' ? 'error' :
+                                                    maintenance.priority === 'alta' ? 'warning' :
+                                                    maintenance.priority === 'media' ? 'default' : 'success'
+                                                }
+                                                variant={maintenance.priority === 'critica' || maintenance.priority === 'alta' ? 'filled' : 'outlined'}
+                                                sx={{ fontSize: '0.7rem', height: 24 }}
+                                            />
                                         </TableCell>
                                         <TableCell sx={{ minWidth: 250, maxWidth: 400 }}>
                                             <Typography variant="body2" sx={{ fontSize: '0.8rem', whiteSpace: 'normal', wordBreak: 'break-word' }}>
