@@ -1478,8 +1478,15 @@ export default function Home() {
         originalId: maintenance.id,
       });
 
+      let nextDateMsg = '';
       if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
-        await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
+        const nextMaint = await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
+        if (nextMaint) {
+          const nextDate = nextMaint.dueDate?.toDate?.() || nextMaint.dueDate;
+          if (nextDate) {
+            nextDateMsg = ` | Próxima agendada para ${nextDate.toLocaleDateString('pt-BR')}`;
+          }
+        }
       }
 
       if (maintenance?.materialId) {
@@ -1494,7 +1501,7 @@ export default function Home() {
 
       setCompleteDialogOpen(false);
       setCompletionData({ completionNotes: '', confirmedAsPlanned: false, maintenanceId: null, maintenance: null });
-      setSnackbarMessage('Manutencao concluida com sucesso!');
+      setSnackbarMessage(`Manutenção concluída com sucesso!${nextDateMsg}`);
       setSnackbarOpen(true);
     } catch (error) {
       console.error('Erro ao concluir manutencao:', error);

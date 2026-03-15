@@ -25,7 +25,8 @@ import {
     Checkbox,
     FormControlLabel,
     alpha,
-    useTheme
+    useTheme,
+    Snackbar
 } from '@mui/material';
 import {
     Build,
@@ -68,6 +69,7 @@ const MaintenanceDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '' });
     const [chartData, setChartData] = useState({
         byType: [],
         byPriority: [],
@@ -188,8 +190,15 @@ const MaintenanceDashboard = () => {
             });
 
             // Recorrência
+            let nextDateMsg = '';
             if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
-                await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
+                const nextMaint = await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
+                if (nextMaint) {
+                    const nextDate = nextMaint.dueDate?.toDate?.() || nextMaint.dueDate;
+                    if (nextDate) {
+                        nextDateMsg = ` | Próxima agendada para ${nextDate.toLocaleDateString('pt-BR')}`;
+                    }
+                }
             }
 
             // Material operante
@@ -221,6 +230,7 @@ const MaintenanceDashboard = () => {
 
             setCompleteDialogOpen(false);
             setCompletionData({ completionNotes: '', confirmedAsPlanned: false, maintenanceId: null, maintenance: null });
+            setSnackbar({ open: true, message: `Manutenção concluída com sucesso!${nextDateMsg}` });
             fetchTodayMaintenances();
             fetchStats();
         } catch (error) {
@@ -963,6 +973,14 @@ const MaintenanceDashboard = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar({ open: false, message: '' })}
+                message={snackbar.message}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            />
         </Box>
     );
 };

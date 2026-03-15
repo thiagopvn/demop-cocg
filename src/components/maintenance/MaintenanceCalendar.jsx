@@ -27,7 +27,8 @@ import {
     InputAdornment,
     Checkbox,
     FormControlLabel,
-    alpha
+    alpha,
+    Snackbar
 } from '@mui/material';
 import {
     Edit,
@@ -87,6 +88,7 @@ const MaintenanceCalendar = () => {
     const [maintenances, setMaintenances] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState({ userId: '', userName: '', role: '' });
+    const [snackbar, setSnackbar] = useState({ open: false, message: '' });
     const [searchTerm, setSearchTerm] = useState('');
     const [filter, setFilter] = useState({
         status: 'todos',
@@ -328,6 +330,7 @@ const MaintenanceCalendar = () => {
             await addToHistory(maintenance, finalNotes, now);
 
             // Criar próxima manutenção se for recorrente
+            let nextDateMsg = '';
             if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
                 const completedMaintenance = {
                     ...maintenance,
@@ -336,7 +339,10 @@ const MaintenanceCalendar = () => {
                 };
                 const nextMaintenance = await createNextRecurrentMaintenance(completedMaintenance);
                 if (nextMaintenance) {
-                    console.log('Próxima manutenção recorrente criada:', nextMaintenance.id, 'para', nextMaintenance.dueDate?.toDate?.());
+                    const nextDate = nextMaintenance.dueDate?.toDate?.() || nextMaintenance.dueDate;
+                    if (nextDate) {
+                        nextDateMsg = ` | Próxima agendada para ${nextDate.toLocaleDateString('pt-BR')}`;
+                    }
                 }
             }
 
@@ -373,6 +379,7 @@ const MaintenanceCalendar = () => {
 
             setOpenCompleteDialog(false);
             setCompletionData({ completionNotes: '', confirmedAsPlanned: false, maintenanceId: null, maintenance: null });
+            setSnackbar({ open: true, message: `Manutenção concluída com sucesso!${nextDateMsg}` });
             fetchMaintenances();
         } catch (error) {
             console.error('Erro ao concluir manutenção:', error);
@@ -1099,6 +1106,13 @@ const MaintenanceCalendar = () => {
                 </DialogActions>
             </Dialog>
 
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar({ open: false, message: '' })}
+                message={snackbar.message}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            />
         </Box>
     );
 };
