@@ -64,7 +64,8 @@ import {
     FactCheck,
     FilterList,
     ClearAll,
-    History
+    History,
+    Sync
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -80,6 +81,7 @@ import { useTheme } from '@mui/material/styles';
 import { logAudit } from '../../firebase/auditLog';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { findDuplicateGroups } from '../../utils/materialSimilarity';
+import SeedMaintenancesDialog from '../../dialogs/SeedMaintenancesDialog';
 
 // Limite de itens por página
 const ITEMS_PER_PAGE = 50;
@@ -239,6 +241,7 @@ const Material = () => {
     const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
     const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false);
     const [showUncheckedDialog, setShowUncheckedDialog] = useState(false);
+    const [showSeedDialog, setShowSeedDialog] = useState(false);
 
     // Filter states
     const [filterCategoria, setFilterCategoria] = useState('');
@@ -835,6 +838,29 @@ const Material = () => {
                             >
                                 {conferenceMode ? 'Sair Conferência' : 'Modo Conferência'}
                             </Button>
+                        )}
+                        {isAdmin && (
+                            <Tooltip title="Importar manutenções preventivas dos manuais dos fabricantes">
+                                <Button
+                                    variant="outlined"
+                                    color="secondary"
+                                    startIcon={<Sync />}
+                                    onClick={() => setShowSeedDialog(true)}
+                                    sx={{
+                                        borderRadius: 2,
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        px: 3,
+                                        py: 1.5,
+                                        '&:hover': {
+                                            boxShadow: 2,
+                                            transform: 'translateY(-2px)',
+                                        },
+                                    }}
+                                >
+                                    Importar Manutenções
+                                </Button>
+                            </Tooltip>
                         )}
                         <Button
                             variant="contained"
@@ -1625,6 +1651,17 @@ const Material = () => {
                 open={openMaintenanceDialog}
                 onClose={handleCloseMaintenanceDialog}
                 material={selectedMaterialForMaintenance}
+            />
+
+            <SeedMaintenancesDialog
+                open={showSeedDialog}
+                onClose={(changed) => {
+                    setShowSeedDialog(false);
+                    if (changed) {
+                        setSnackbar({ open: true, message: 'Manutenções importadas com sucesso!', severity: 'success' });
+                    }
+                }}
+                materials={materials}
             />
 
             <Popover
