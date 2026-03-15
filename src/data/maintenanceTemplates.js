@@ -321,6 +321,99 @@ const MAINTENANCE_TEMPLATES = [
             { type: 'anual', description: 'SUBSTITUIR CORREIA DENTADA (1000H OU 5 ANOS)', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
         ]
     },
+    {
+        id: 'furadeira',
+        keywords: ['furadeira'],
+        excludeKeywords: ['broca', 'ponta', 'mandril avulso'],
+        brand: null,
+        label: 'Furadeira',
+        maintenances: [
+            { type: 'semanal', description: 'LIMPEZA EXTERNA DA CARCAÇA E ABERTURAS DE VENTILAÇÃO COM PANO SECO OU AR COMPRIMIDO', priority: 'media', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'mensal', description: 'INSPEÇÃO VISUAL DO CABO DE ALIMENTAÇÃO - VERIFICAR CORTES E RACHADURAS', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'LUBRIFICAÇÃO DO MANDRIL E MECANISMO DE AJUSTE COM LUBRIFICANTE DE SILICONE', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'VERIFICAR E APERTAR PARAFUSOS E FIXAÇÕES EXTERNAS', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'INSPEÇÃO DAS ESCOVAS DE CARVÃO - VERIFICAR DESGASTE E SUBSTITUIR SE NECESSÁRIO', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'semestral', description: 'LUBRIFICAÇÃO DAS ENGRENAGENS E ROLAMENTOS INTERNOS COM GRAXA RECOMENDADA', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'semestral', description: 'SUBSTITUIÇÃO DAS ESCOVAS DE CARVÃO (USO PROFISSIONAL E CONTÍNUO)', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'anual', description: 'REVISÃO GERAL - DESMONTAGEM - LIMPEZA DE BOBINAS - INDUZIDO - BUCHAS E SISTEMA ELÉTRICO', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+        ]
+    },
+    {
+        id: 'retifica',
+        keywords: ['retifica', 'retífica', 'dremel'],
+        excludeKeywords: ['disco da', 'ponta de', 'acessorio'],
+        brand: null,
+        label: 'Mini Retífica',
+        maintenances: [
+            { type: 'semanal', description: 'LIMPEZA DA CARCAÇA E RETIRADA DE POEIRA DAS ABERTURAS COM PINCEL OU AR COMPRIMIDO', priority: 'media', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'mensal', description: 'INSPEÇÃO VISUAL DO CABO E VERIFICAÇÃO DO REGULADOR DE VELOCIDADE', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'LIMPEZA DOS CONTATOS COM LIMPA-CONTATO - PREVENIR OSCILAÇÃO DE VELOCIDADE', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'INSPEÇÃO E SUBSTITUIÇÃO DAS ESCOVAS DE CARVÃO SE NECESSÁRIO', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'semestral', description: 'LUBRIFICAÇÃO DO ROLAMENTO COM GRAXA - PREVENÇÃO', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'semestral', description: 'LIMPEZA DOS POLOS DO MOTOR E VERIFICAÇÃO DO EIXO E MANDRIL', priority: 'media', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'anual', description: 'REVISÃO GERAL - DESMONTAGEM - LIMPEZA DE TODOS OS COMPONENTES INTERNOS E VERIFICAÇÃO DO SISTEMA ELÉTRICO', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+        ]
+    },
+    {
+        id: 'desencarcerador_hidraulico_holmatro',
+        keywords: ['desencarcerador'],
+        excludeKeywords: ['adaptador', 'carregador', 'corrente', 'gancho', 'mangueira', 'suporte', 'pinça'],
+        brand: 'holmatro',
+        label: 'Desencarcerador Hidráulico Holmatro',
+        maintenances: [
+            { type: 'semanal', description: 'VERIFICAÇÃO DAS CONDIÇÕES GERAIS DA FERRAMENTA - VAZAMENTOS E DANOS', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'semanal', description: 'LIMPEZA E SECAGEM DA FERRAMENTA COM PANO MACIO - APLICAR WD40 NAS PARTES METÁLICAS', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'semanal', description: 'VERIFICAÇÃO E LIMPEZA DOS ACOPLADORES E TAMPAS ANTI-PÓ - VERIFICAR VAZAMENTO DE ÓLEO', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'mensal', description: 'LUBRIFICAÇÃO DAS LÂMINAS - ARTICULAÇÕES E BRAÇADEIRAS COM ÓLEO TEFLON', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'VERIFICAÇÃO DA LEGIBILIDADE DO RÓTULO DE IDENTIFICAÇÃO E SEGURANÇA', priority: 'media', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'INSPEÇÃO DAS MANGUEIRAS HIDRÁULICAS - VERIFICAR DESGASTE - BOLHAS - VAZAMENTOS E ACESSÓRIOS', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'VERIFICAÇÃO E AJUSTE DO TORQUE DOS PARAFUSOS PRINCIPAIS - 100 NM', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'semestral', description: 'TROCA DO FLUIDO HIDRÁULICO E ÓLEO DO MOTOR - VERIFICAÇÃO DE VÁLVULAS', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+            { type: 'semestral', description: 'TESTE DE DESEMPENHO DA BOMBA HIDRÁULICA - VERIFICAÇÃO DE TODAS AS VÁLVULAS', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+            { type: 'anual', description: 'INSPEÇÃO E MANUTENÇÃO COMPLETA POR TÉCNICO AUTORIZADO HOLMATRO - SUBSTITUIÇÃO DE O-RINGS E RETENTORES', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+            { type: 'anual', description: 'TESTE OPERACIONAL COMPLETO - VERIFICAÇÃO DE PRESSÃO E DESEMPENHO', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+        ]
+    },
+    {
+        id: 'desencarcerador_eletrico_holmatro',
+        keywords: ['desencarcerador'],
+        excludeKeywords: ['adaptador', 'carregador', 'corrente', 'gancho', 'mangueira', 'suporte', 'pinça'],
+        brand: 'holmatro',
+        label: 'Desencarcerador Elétrico Holmatro',
+        maintenances: [
+            { type: 'semanal', description: 'VERIFICAÇÃO DAS CONDIÇÕES GERAIS DA FERRAMENTA - VAZAMENTOS - DANOS E LED INDICADOR', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'semanal', description: 'VERIFICAÇÃO DO NÍVEL DE CARGA DA BATERIA - MANTER CARREGADA', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'semanal', description: 'LIMPEZA DA FERRAMENTA COM PANO MACIO - APLICAR WD40 NAS LÂMINAS PARA PREVENIR CORROSÃO', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'mensal', description: 'LUBRIFICAÇÃO DOS PONTOS DE ARTICULAÇÃO E LÂMINAS COM ÓLEO TEFLON', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'VERIFICAÇÃO DOS CONECTORES DA BATERIA - LIMPAR CORROSÃO - VERIFICAR DANOS', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'VERIFICAÇÃO DOS ACOPLADORES E TAMPAS ANTI-PÓ - LIMPEZA COM PANO MACIO', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'LUBRIFICAR PONTOS PIVOTANTES DOS BRAÇOS ESPALHADORES E LÂMINAS DO CORTADOR', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'anual', description: 'INSPEÇÃO E MANUTENÇÃO COMPLETA POR TÉCNICO AUTORIZADO HOLMATRO - SISTEMA HIDRÁULICO FECHADO', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+            { type: 'anual', description: 'TESTE OPERACIONAL COMPLETO E VERIFICAÇÃO DO CICLO DE CARGA DA BATERIA', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+        ]
+    },
+    {
+        id: 'desencarcerador_hidraulico_lukas',
+        keywords: ['desencarcerador', 'cilindro expansor', 'cortador hidraulico', 'ferramenta de corte hidraulic', 'ferramenta de separacao hidraulic'],
+        excludeKeywords: ['adaptador', 'carregador', 'corrente', 'gancho', 'mangueira', 'suporte', 'pinça'],
+        brand: 'lukas',
+        label: 'Desencarcerador Hidráulico Lukas',
+        maintenances: [
+            { type: 'semanal', description: 'INSPEÇÃO VISUAL APÓS USO - VERIFICAR CONDIÇÕES GERAIS E VAZAMENTOS DE ÓLEO', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'semanal', description: 'VERIFICAR NÍVEL DO FLUIDO HIDRÁULICO NO RESERVATÓRIO', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'semanal', description: 'FECHAR OS BRAÇOS DEIXANDO 10 A 15 MM DE DISTÂNCIA APÓS USO - ALIVIAR PRESSÃO HIDRÁULICA', priority: 'alta', estimatedDuration: 1, reminderDays: 3 },
+            { type: 'mensal', description: 'LIMPEZA DE TODAS AS PEÇAS E ACOPLADORES COM PANO MACIO - REMOVER SUJEIRA DOS CONECTORES', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'VERIFICAÇÃO DAS MANGUEIRAS HIDRÁULICAS - VERIFICAR DOBRAS - BOLHAS - ARAME INTERNO VISÍVEL E VAZAMENTOS', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'mensal', description: 'TESTE DE FUNCIONAMENTO - LIGAR O EQUIPAMENTO E VERIFICAR OPERAÇÃO CORRETA DE TODAS AS FERRAMENTAS', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'LUBRIFICAÇÃO DE TODAS AS PARTES MÓVEIS - ARTICULAÇÕES E BRAÇOS COM GRAXA RECOMENDADA', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'trimestral', description: 'VERIFICAÇÃO E LIMPEZA DO ELEMENTO FILTRANTE DO FILTRO DE AR - A CADA 50 HORAS OU AMBIENTE POEIRENTO', priority: 'alta', estimatedDuration: 1, reminderDays: 7 },
+            { type: 'semestral', description: 'TROCA DO ÓLEO DO MOTOR A CADA 100 HORAS DE OPERAÇÃO', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+            { type: 'semestral', description: 'SUBSTITUIÇÃO DA VELA DE IGNIÇÃO E AJUSTE DO GAP DO ELETRODO A CADA 100 HORAS', priority: 'alta', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'anual', description: 'SUBSTITUIÇÃO DO FILTRO DE AR E VELA DE IGNIÇÃO A CADA 200 HORAS', priority: 'alta', estimatedDuration: 1, reminderDays: 14 },
+            { type: 'anual', description: 'LIMPEZA E AJUSTE DO CARBURADOR - FOLGA DAS VÁLVULAS - SEDE E CABEÇA DO CILINDRO A CADA 300 HORAS - CONCESSIONÁRIA', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+            { type: 'anual', description: 'INSPEÇÃO GERAL DO MOTOR - VERIFICAR PARTIDA - LINHA DE COMBUSTÍVEL E DANOS A CADA 1000 HORAS OU 2 ANOS', priority: 'alta', estimatedDuration: 2, reminderDays: 14 },
+        ]
+    },
 ];
 
 /**
