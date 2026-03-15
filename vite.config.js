@@ -7,7 +7,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: undefined,
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-mui': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          'vendor-firebase': ['firebase/app', 'firebase/firestore', 'firebase/auth'],
+          'vendor-charts': ['recharts'],
+        },
       }
     }
   },

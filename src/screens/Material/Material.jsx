@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, memo, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
     Box,
     Typography,
@@ -70,9 +70,9 @@ import {
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
 import { useDebounce } from '../../hooks/useDebounce';
-import MaterialDialog from '../../dialogs/MaterialDialog';
-import MaintenanceDialog from '../../dialogs/MaintenanceDialog';
-import HistoricoDialog from '../../dialogs/HistoricoDialog';
+const MaterialDialog = lazy(() => import('../../dialogs/MaterialDialog'));
+const MaintenanceDialog = lazy(() => import('../../dialogs/MaintenanceDialog'));
+const HistoricoDialog = lazy(() => import('../../dialogs/HistoricoDialog'));
 import { deleteDoc, doc, collection, query, where, getDocs, orderBy, onSnapshot, addDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
@@ -81,7 +81,7 @@ import { useTheme } from '@mui/material/styles';
 import { logAudit } from '../../firebase/auditLog';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { findDuplicateGroups } from '../../utils/materialSimilarity';
-import SeedMaintenancesDialog from '../../dialogs/SeedMaintenancesDialog';
+const SeedMaintenancesDialog = lazy(() => import('../../dialogs/SeedMaintenancesDialog'));
 
 // Limite de itens por página
 const ITEMS_PER_PAGE = 50;
@@ -354,31 +354,35 @@ const Material = () => {
         return () => unsubscribe();
     }, []);
 
-    // Função para verificar se material tem manutenção pendente
-    const getMaintenanceInfo = (materialId) => {
-        const maintenances = materialMaintenances[materialId] || [];
-        if (maintenances.length === 0) return null;
-
+    // Pré-computar info de manutenção para todos os materiais (evita recalcular por row)
+    const maintenanceInfoMap = useMemo(() => {
+        const map = {};
         const now = new Date();
         now.setHours(0, 0, 0, 0);
 
-        const overdue = maintenances.filter(m => {
-            const dueDate = m.dueDate?.toDate ? m.dueDate.toDate() : new Date(m.dueDate);
-            return dueDate < now;
-        });
+        for (const [materialId, maintenances] of Object.entries(materialMaintenances)) {
+            if (maintenances.length === 0) continue;
+            let overdueCount = 0;
+            let upcomingCount = 0;
+            for (const m of maintenances) {
+                const dueDate = m.dueDate?.toDate ? m.dueDate.toDate() : new Date(m.dueDate);
+                if (dueDate < now) overdueCount++;
+                else upcomingCount++;
+            }
+            map[materialId] = {
+                total: maintenances.length,
+                overdue: overdueCount,
+                upcoming: upcomingCount,
+                nextMaintenance: maintenances[0]
+            };
+        }
+        return map;
+    }, [materialMaintenances]);
 
-        const upcoming = maintenances.filter(m => {
-            const dueDate = m.dueDate?.toDate ? m.dueDate.toDate() : new Date(m.dueDate);
-            return dueDate >= now;
-        });
-
-        return {
-            total: maintenances.length,
-            overdue: overdue.length,
-            upcoming: upcoming.length,
-            nextMaintenance: maintenances[0]
-        };
-    };
+    // Função para verificar se material tem manutenção pendente
+    const getMaintenanceInfo = useCallback((materialId) => {
+        return maintenanceInfoMap[materialId] || null;
+    }, [maintenanceInfoMap]);
 
     const handleViaturaPopoverOpen = (event, materialId) => {
         setViaturaPopover({ anchorEl: event.currentTarget, materialId });
@@ -526,31 +530,10 @@ const Material = () => {
         }
     };
 
-    const getMaintenanceStatusColor = (status) => {
-        switch (status) {
-            case 'operante':
-                return 'success';
-            case 'em_manutencao':
-                return 'warning';
-            case 'inoperante':
-                return 'error';
-            default:
-                return 'default';
-        }
-    };
-
-    const getMaintenanceStatusLabel = (status) => {
-        switch (status) {
-            case 'operante':
-                return 'Operante';
-            case 'em_manutencao':
-                return 'Em Manutenção';
-            case 'inoperante':
-                return 'Inoperante';
-            default:
-                return 'Desconhecido';
-        }
-    };
+    const MAINTENANCE_STATUS_COLORS = { operante: 'success', em_manutencao: 'warning', inoperante: 'error' };
+    const MAINTENANCE_STATUS_LABELS = { operante: 'Operante', em_manutencao: 'Em Manutenção', inoperante: 'Inoperante' };
+    const getMaintenanceStatusColor = (status) => MAINTENANCE_STATUS_COLORS[status] || 'default';
+    const getMaintenanceStatusLabel = (status) => MAINTENANCE_STATUS_LABELS[status] || 'Desconhecido';
 
     const debouncedSearchTerm = useDebounce(searchTerm, 250);
 
@@ -618,23 +601,27 @@ const Material = () => {
         }
 
         const dir = sortDirection === 'asc' ? 1 : -1;
-        result.sort((a, b) => {
-            switch (sortField) {
-                case 'description':
-                    return dir * (a.description || '').localeCompare(b.description || '', 'pt-BR');
-                case 'categoria':
-                    return dir * (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR');
-                case 'estoque':
-                    return dir * ((a.estoque_atual || 0) - (b.estoque_atual || 0));
-                case 'conferencia': {
-                    const dateA = a.ultima_conferencia?.toDate?.() || a.ultima_movimentacao?.toDate?.() || new Date(0);
-                    const dateB = b.ultima_conferencia?.toDate?.() || b.ultima_movimentacao?.toDate?.() || new Date(0);
-                    return dir * (dateA - dateB);
-                }
-                default:
-                    return 0;
+        // Pre-compute conference dates for sort to avoid calling .toDate() per comparison
+        if (sortField === 'conferencia') {
+            const dateCache = new Map();
+            for (const m of result) {
+                dateCache.set(m.id, m.ultima_conferencia?.toDate?.() || m.ultima_movimentacao?.toDate?.() || new Date(0));
             }
-        });
+            result.sort((a, b) => dir * (dateCache.get(a.id) - dateCache.get(b.id)));
+        } else {
+            result.sort((a, b) => {
+                switch (sortField) {
+                    case 'description':
+                        return dir * (a.description || '').localeCompare(b.description || '', 'pt-BR');
+                    case 'categoria':
+                        return dir * (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR');
+                    case 'estoque':
+                        return dir * ((a.estoque_atual || 0) - (b.estoque_atual || 0));
+                    default:
+                        return 0;
+                }
+            });
+        }
 
         return result;
     }, [materials, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque]);
@@ -724,50 +711,54 @@ const Material = () => {
         setConferenceMode(false);
     }, []);
 
-    // Statistics
-    const stats = useMemo(() => {
-        const totalMaterials = materials.length;
-        const filteredCount = allFilteredMaterials.length;
-        const lowStock = materials.filter(m => (m.estoque_atual || 0) === 0 && (m.estoque_total || 0) > 0).length;
-
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        const semConferencia = materials.filter(m => {
-            const confDate = m.ultima_conferencia?.toDate?.() || m.ultima_movimentacao?.toDate?.();
-            return !confDate || confDate < sixMonthsAgo;
-        }).length;
-
-        return {
-            total: totalMaterials,
-            filtered: filteredCount,
-            lowStock,
-            semConferencia,
-            showing: filteredMaterials.length,
-            totalFiltered: filteredCount
-        };
-    }, [materials, allFilteredMaterials, filteredMaterials]);
-
     const isAdmin = userRole === 'admin' || userRole === 'admingeral';
     const isAdminGeral = userRole === 'admingeral';
+
+    // Pré-computar datas de conferência uma vez para reutilizar em stats e uncheckedMaterials
+    const materialConferenceDates = useMemo(() => {
+        return materials.map(m => ({
+            id: m.id,
+            material: m,
+            confDate: m.ultima_conferencia?.toDate?.() || m.ultima_movimentacao?.toDate?.() || null,
+        }));
+    }, [materials]);
+
+    // Statistics + uncheckedMaterials calculados juntos (single pass)
+    const { stats, uncheckedMaterials } = useMemo(() => {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        let lowStock = 0;
+        const unchecked = [];
+
+        for (const item of materialConferenceDates) {
+            const m = item.material;
+            if ((m.estoque_atual || 0) === 0 && (m.estoque_total || 0) > 0) lowStock++;
+            if (!item.confDate || item.confDate < sixMonthsAgo) {
+                if (isAdmin) unchecked.push(item);
+            }
+        }
+
+        // Sort unchecked by date ascending
+        unchecked.sort((a, b) => (a.confDate || new Date(0)) - (b.confDate || new Date(0)));
+
+        return {
+            stats: {
+                total: materials.length,
+                filtered: allFilteredMaterials.length,
+                lowStock,
+                semConferencia: unchecked.length,
+                showing: filteredMaterials.length,
+                totalFiltered: allFilteredMaterials.length,
+            },
+            uncheckedMaterials: unchecked.map(item => item.material),
+        };
+    }, [materialConferenceDates, materials, allFilteredMaterials, filteredMaterials, isAdmin]);
 
     const duplicateGroups = useMemo(() => {
         if (!isAdminGeral) return [];
         return findDuplicateGroups(materials);
     }, [materials, isAdminGeral]);
-
-    const uncheckedMaterials = useMemo(() => {
-        if (!isAdmin) return [];
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        return materials.filter(m => {
-            const confDate = m.ultima_conferencia?.toDate?.() || m.ultima_movimentacao?.toDate?.();
-            return !confDate || confDate < sixMonthsAgo;
-        }).sort((a, b) => {
-            const dateA = a.ultima_conferencia?.toDate?.() || a.ultima_movimentacao?.toDate?.() || new Date(0);
-            const dateB = b.ultima_conferencia?.toDate?.() || b.ultima_movimentacao?.toDate?.() || new Date(0);
-            return dateA - dateB;
-        });
-    }, [materials, isAdmin]);
 
     // Loading skeleton rows
     const renderLoadingSkeleton = () => (
@@ -1639,31 +1630,39 @@ const Material = () => {
                 )}
             </Box>
 
-            <MaterialDialog
-                open={openDialog}
-                onClose={handleCloseDialog}
-                material={selectedMaterial}
-                loggedUserName={loggedUserName}
-                loggedUserId={loggedUserId}
-                materials={materials}
-            />
+            <Suspense fallback={null}>
+                {openDialog && (
+                    <MaterialDialog
+                        open={openDialog}
+                        onClose={handleCloseDialog}
+                        material={selectedMaterial}
+                        loggedUserName={loggedUserName}
+                        loggedUserId={loggedUserId}
+                        materials={materials}
+                    />
+                )}
 
-            <MaintenanceDialog
-                open={openMaintenanceDialog}
-                onClose={handleCloseMaintenanceDialog}
-                material={selectedMaterialForMaintenance}
-            />
+                {openMaintenanceDialog && (
+                    <MaintenanceDialog
+                        open={openMaintenanceDialog}
+                        onClose={handleCloseMaintenanceDialog}
+                        material={selectedMaterialForMaintenance}
+                    />
+                )}
 
-            <SeedMaintenancesDialog
-                open={showSeedDialog}
-                onClose={(changed) => {
-                    setShowSeedDialog(false);
-                    if (changed) {
-                        setSnackbar({ open: true, message: 'Manutenções importadas com sucesso!', severity: 'success' });
-                    }
-                }}
-                materials={materials}
-            />
+                {showSeedDialog && (
+                    <SeedMaintenancesDialog
+                        open={showSeedDialog}
+                        onClose={(changed) => {
+                            setShowSeedDialog(false);
+                            if (changed) {
+                                setSnackbar({ open: true, message: 'Manutenções importadas com sucesso!', severity: 'success' });
+                            }
+                        }}
+                        materials={materials}
+                    />
+                )}
+            </Suspense>
 
             <Popover
                 open={Boolean(viaturaPopover.anchorEl)}
@@ -2207,12 +2206,16 @@ const Material = () => {
                 </DialogActions>
             </Dialog>
 
-            <HistoricoDialog
-                open={historicoOpen}
-                onClose={() => { setHistoricoOpen(false); setHistoricoTarget(null); }}
-                targetId={historicoTarget?.id}
-                targetName={historicoTarget?.name}
-            />
+            {historicoOpen && (
+                <Suspense fallback={null}>
+                    <HistoricoDialog
+                        open={historicoOpen}
+                        onClose={() => { setHistoricoOpen(false); setHistoricoTarget(null); }}
+                        targetId={historicoTarget?.id}
+                        targetName={historicoTarget?.name}
+                    />
+                </Suspense>
+            )}
         </MenuContext>
     );
 };

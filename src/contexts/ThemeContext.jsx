@@ -1,4 +1,4 @@
-import { createContext, useState, useContext } from 'react';
+import { createContext, useState, useContext, useMemo, useCallback } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from '../theme/theme';
@@ -10,12 +10,14 @@ export const useThemeContext = () => useContext(ThemeContext);
 export const ThemeProviderWrapper = ({ children }) => {
   const [mode, setMode] = useState('light');
 
-  const toggleMode = () => {
+  const toggleMode = useCallback(() => {
     setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
-  };
+  }, []);
+
+  const value = useMemo(() => ({ mode, toggleMode }), [mode, toggleMode]);
 
   return (
-    <ThemeContext.Provider value={{ mode, toggleMode }}>
+    <ThemeContext.Provider value={value}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}

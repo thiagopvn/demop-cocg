@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Typography,
@@ -50,6 +50,7 @@ import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
 import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
+import { useDebounce } from '../../hooks/useDebounce';
 
 // Calcular a previsão da próxima manutenção baseado na periodicidade
 const calcNextDueDate = (fromDate, recurrenceType, customDays) => {
@@ -77,7 +78,6 @@ const calcNextDueDate = (fromDate, recurrenceType, customDays) => {
 const MaintenanceCalendar = () => {
     const navigate = useNavigate();
     const [maintenances, setMaintenances] = useState([]);
-    const [filteredMaintenances, setFilteredMaintenances] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState({ userId: '', userName: '', role: '' });
     const [filter, setFilter] = useState({
@@ -87,6 +87,7 @@ const MaintenanceCalendar = () => {
         priority: 'todos',
         search: ''
     });
+    const debouncedSearch = useDebounce(filter.search, 300);
     const [sortField, setSortField] = useState('dueDate');
     const [sortDirection, setSortDirection] = useState('asc');
     const [selectedMaintenance, setSelectedMaintenance] = useState(null);
@@ -123,10 +124,6 @@ const MaintenanceCalendar = () => {
         };
         loadUser();
     }, []);
-
-    useEffect(() => {
-        applyFilters();
-    }, [maintenances, filter, sortField, sortDirection]);
 
     const fetchMaintenances = async () => {
         try {
@@ -173,12 +170,12 @@ const MaintenanceCalendar = () => {
 
     const hasActiveFilters = filter.status !== 'todos' || filter.type !== 'todos' || filter.period !== 'todos' || filter.priority !== 'todos' || filter.search;
 
-    const applyFilters = () => {
+    const filteredMaintenances = useMemo(() => {
         let filtered = [...maintenances];
 
-        // Busca por texto
-        if (filter.search) {
-            const terms = filter.search.toLowerCase().split(/\s+/).filter(Boolean);
+        // Busca por texto - usa debouncedSearch
+        if (debouncedSearch) {
+            const terms = debouncedSearch.toLowerCase().split(/\s+/).filter(Boolean);
             filtered = filtered.filter(m => {
                 const text = `${m.materialDescription || ''} ${m.description || ''}`.toLowerCase();
                 return terms.every(t => text.includes(t));
@@ -278,8 +275,8 @@ const MaintenanceCalendar = () => {
             return sortDirection === 'asc' ? cmp : -cmp;
         });
 
-        setFilteredMaintenances(filtered);
-    };
+        return filtered;
+    }, [maintenances, debouncedSearch, filter.status, filter.type, filter.priority, filter.period, sortField, sortDirection]);
 
     // Abrir dialog de conclusão
     const handleOpenCompleteDialog = (maintenanceId) => {
