@@ -28,7 +28,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import BuildIcon from '@mui/icons-material/Build';
-import { addDoc, updateDoc, doc, serverTimestamp, collection } from 'firebase/firestore';
+import { addDoc, updateDoc, doc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import db, { storage } from '../firebase/db';
 import { CategoriaContext } from '../contexts/CategoriaContext';
@@ -341,6 +341,27 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
                 const materialDoc = doc(db, 'materials', material.id);
                 await updateDoc(materialDoc, data);
+
+                // Sincronizar nome do material nas manutenções
+                if (description !== material.description) {
+                    try {
+                        const manutencoesQuery = query(
+                            collection(db, 'manutencoes'),
+                            where('materialId', '==', material.id)
+                        );
+                        const manutencoesSnap = await getDocs(manutencoesQuery);
+                        const updatePromises = manutencoesSnap.docs.map(d =>
+                            updateDoc(doc(db, 'manutencoes', d.id), {
+                                materialDescription: description,
+                                materialCategory: data.categoria,
+                            })
+                        );
+                        await Promise.all(updatePromises);
+                    } catch (syncError) {
+                        console.error('Erro ao sincronizar nome nas manutenções:', syncError);
+                    }
+                }
+
                 logAudit({
                     action: 'material_update',
                     userId: loggedUserId,
