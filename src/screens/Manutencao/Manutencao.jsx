@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Typography, Tabs, Tab, Paper } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
 import MaintenanceDashboard from '../../components/maintenance/MaintenanceDashboard';
@@ -8,7 +9,18 @@ import MaintenanceHistory from '../../components/maintenance/MaintenanceHistory'
 import TabPanel from '../../components/TabPanel';
 
 const Manutencao = () => {
-    const [tabValue, setTabValue] = useState(0);
+    const [searchParams] = useSearchParams();
+    const initialTab = parseInt(searchParams.get('tab')) || 0;
+    const materialId = searchParams.get('materialId') || '';
+
+    const [tabValue, setTabValue] = useState(initialTab);
+
+    useEffect(() => {
+        const tab = parseInt(searchParams.get('tab'));
+        if (!isNaN(tab) && tab >= 0 && tab <= 2) {
+            setTabValue(tab);
+        }
+    }, [searchParams]);
 
     const handleTabChange = (event, newValue) => {
         setTabValue(newValue);
@@ -36,7 +48,7 @@ const Manutencao = () => {
                         <MaintenanceCalendar />
                     </TabPanel>
                     <TabPanel value={tabValue} index={2}>
-                        <MaintenanceHistory />
+                        <MaintenanceHistory materialIdFilter={materialId} />
                     </TabPanel>
                 </Paper>
             </Box>

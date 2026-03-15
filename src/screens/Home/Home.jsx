@@ -1633,7 +1633,7 @@ export default function Home() {
                         <Button
                           color="error"
                           size="small"
-                          onClick={() => navigate("/manutencao")}
+                          onClick={() => navigate("/manutencao?tab=1")}
                           sx={{ fontWeight: 600 }}
                         >
                           Ver
@@ -1751,7 +1751,7 @@ export default function Home() {
                     value={stats.emReparo}
                     color="#f59e0b"
                     subtitle={`${stats.manutencoesPendentes.length} manut. pendentes`}
-                    onClick={() => navigate("/manutencao")}
+                    onClick={() => navigate("/manutencao?tab=1")}
                     badge={stats.manutencoesVencidas.length > 0 ? stats.manutencoesVencidas.length : 0}
                   />
                 </Grid>
@@ -2373,7 +2373,7 @@ export default function Home() {
                       cursor: "pointer",
                       "&:hover": { borderColor: "#ef4444" },
                     }}
-                    onClick={() => navigate("/manutencao")}
+                    onClick={() => navigate("/manutencao?tab=1")}
                   >
                     <SectionHeader
                       title="Manutencoes"
@@ -2396,12 +2396,19 @@ export default function Home() {
                             return (
                               <Box
                                 key={man.id}
+                                onClick={() => navigate("/manutencao?tab=1")}
                                 sx={{
                                   display: "flex",
                                   justifyContent: "space-between",
                                   alignItems: "center",
                                   p: 1,
                                   borderRadius: 1.5,
+                                  cursor: "pointer",
+                                  transition: "all 0.2s",
+                                  "&:hover": {
+                                    transform: "translateX(4px)",
+                                    boxShadow: 2,
+                                  },
                                   bgcolor: isOverdue
                                     ? alpha("#ef4444", 0.05)
                                     : isUrgent

@@ -38,7 +38,7 @@ import {
 import { collection, query, orderBy, getDocs, where, Timestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 
-const MaintenanceHistory = () => {
+const MaintenanceHistory = ({ materialIdFilter = '' }) => {
     const [history, setHistory] = useState([]);
     const [filteredHistory, setFilteredHistory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ const MaintenanceHistory = () => {
 
     useEffect(() => {
         fetchHistory();
-    }, []);
+    }, [materialIdFilter]);
 
     useEffect(() => {
         applyFilters();
@@ -64,10 +64,19 @@ const MaintenanceHistory = () => {
     const fetchHistory = async () => {
         try {
             setLoading(true);
-            const q = query(
-                collection(db, 'historico_manutencoes'),
-                orderBy('completedAt', 'desc')
-            );
+            let q;
+            if (materialIdFilter) {
+                q = query(
+                    collection(db, 'historico_manutencoes'),
+                    where('materialId', '==', materialIdFilter),
+                    orderBy('completedAt', 'desc')
+                );
+            } else {
+                q = query(
+                    collection(db, 'historico_manutencoes'),
+                    orderBy('completedAt', 'desc')
+                );
+            }
             const snapshot = await getDocs(q);
             const data = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -87,66 +96,67 @@ const MaintenanceHistory = () => {
     const applyFilters = () => {
         let filtered = [...history];
 
-        // Filtro por termo de busca
         if (searchTerm) {
             filtered = filtered.filter(record =>
                 record.materialDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 record.responsibleName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                record.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                record.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                record.completionNotes?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
 
-        // Filtro por tipo
         if (filter.type !== 'todos') {
             filtered = filtered.filter(record => record.type === filter.type);
         }
 
-        // Filtro por material específico
         if (filter.material) {
             filtered = filtered.filter(record =>
                 record.materialDescription?.toLowerCase().includes(filter.material.toLowerCase())
             );
         }
 
-        // Filtro por período
         const today = new Date();
         today.setHours(23, 59, 59, 999);
 
         switch (filter.period) {
-            case 'ultima_semana':
+            case 'ultima_semana': {
                 const weekAgo = new Date(today);
                 weekAgo.setDate(weekAgo.getDate() - 7);
                 filtered = filtered.filter(record =>
                     new Date(record.completedAt) >= weekAgo
                 );
                 break;
-            case 'ultimo_mes':
+            }
+            case 'ultimo_mes': {
                 const monthAgo = new Date(today);
                 monthAgo.setMonth(monthAgo.getMonth() - 1);
                 filtered = filtered.filter(record =>
                     new Date(record.completedAt) >= monthAgo
                 );
                 break;
-            case 'ultimo_trimestre':
+            }
+            case 'ultimo_trimestre': {
                 const quarterAgo = new Date(today);
                 quarterAgo.setMonth(quarterAgo.getMonth() - 3);
                 filtered = filtered.filter(record =>
                     new Date(record.completedAt) >= quarterAgo
                 );
                 break;
-            case 'ultimo_ano':
+            }
+            case 'ultimo_ano': {
                 const yearAgo = new Date(today);
                 yearAgo.setFullYear(yearAgo.getFullYear() - 1);
                 filtered = filtered.filter(record =>
                     new Date(record.completedAt) >= yearAgo
                 );
                 break;
+            }
             default:
                 break;
         }
 
         setFilteredHistory(filtered);
-        setPage(0); // Reset para primeira página quando aplicar filtros
+        setPage(0);
     };
 
     const handleViewDetails = (record) => {
@@ -155,7 +165,7 @@ const MaintenanceHistory = () => {
     };
 
     const handleExportData = () => {
-        // Implementação básica de exportação para CSV
+        if (filteredHistory.length === 0) return;
         const csvData = filteredHistory.map(record => ({
             'Material': record.materialDescription,
             'Tipo': record.type,
@@ -163,6 +173,7 @@ const MaintenanceHistory = () => {
             'Data Conclusão': formatDate(record.completedAt),
             'Responsável': record.responsibleName || '',
             'Descrição': record.description || '',
+            'O que foi feito': record.completionNotes || '',
             'Status Final': 'Concluída'
         }));
 
@@ -185,6 +196,7 @@ const MaintenanceHistory = () => {
     const getTypeIcon = (type) => {
         const icons = {
             diaria: <Build fontSize="small" />,
+            semanal: <Build fontSize="small" />,
             trimestral: <CalendarMonth fontSize="small" />,
             semestral: <CalendarMonth fontSize="small" />,
             anual: <CalendarMonth fontSize="small" />,
@@ -213,7 +225,7 @@ const MaintenanceHistory = () => {
     const getMaintenanceStats = () => {
         const stats = {
             total: filteredHistory.length,
-            preventiva: filteredHistory.filter(r => ['diaria', 'trimestral', 'semestral', 'anual'].includes(r.type)).length,
+            preventiva: filteredHistory.filter(r => ['diaria', 'semanal', 'trimestral', 'semestral', 'anual'].includes(r.type)).length,
             corretiva: filteredHistory.filter(r => ['corretiva', 'reparo'].includes(r.type)).length,
             avgDuration: 0
         };
@@ -243,6 +255,16 @@ const MaintenanceHistory = () => {
 
     return (
         <Box>
+            {/* Indicador de filtro por material */}
+            {materialIdFilter && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Exibindo histórico filtrado por material específico.
+                    {history.length > 0 && (
+                        <strong> Material: {history[0]?.materialDescription}</strong>
+                    )}
+                </Alert>
+            )}
+
             {/* Estatísticas Resumidas */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={3}>
@@ -277,7 +299,7 @@ const MaintenanceHistory = () => {
                     <Grid item xs={12} sm={4}>
                         <TextField
                             fullWidth
-                            placeholder="Buscar por material, responsável ou descrição..."
+                            placeholder="Buscar por material, responsável, descrição ou notas..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             InputProps={{
@@ -301,6 +323,7 @@ const MaintenanceHistory = () => {
                         >
                             <MenuItem value="todos">Todos</MenuItem>
                             <MenuItem value="diaria">Diária</MenuItem>
+                            <MenuItem value="semanal">Semanal</MenuItem>
                             <MenuItem value="trimestral">Trimestral</MenuItem>
                             <MenuItem value="semestral">Semestral</MenuItem>
                             <MenuItem value="anual">Anual</MenuItem>
@@ -360,7 +383,7 @@ const MaintenanceHistory = () => {
                             <TableCell>Data Prevista</TableCell>
                             <TableCell>Data Conclusão</TableCell>
                             <TableCell>Duração</TableCell>
-                            <TableCell>Responsável</TableCell>
+                            <TableCell>O que foi feito</TableCell>
                             <TableCell align="center">Ações</TableCell>
                         </TableRow>
                     </TableHead>
@@ -402,7 +425,13 @@ const MaintenanceHistory = () => {
                                                 color="info"
                                             />
                                         </TableCell>
-                                        <TableCell>{record.responsibleName || '-'}</TableCell>
+                                        <TableCell>
+                                            <Tooltip title={record.completionNotes || 'Sem registro'}>
+                                                <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                                                    {record.completionNotes || '-'}
+                                                </Typography>
+                                            </Tooltip>
+                                        </TableCell>
                                         <TableCell align="center">
                                             <Tooltip title="Ver detalhes">
                                                 <Button
@@ -452,6 +481,9 @@ const MaintenanceHistory = () => {
                                     <Typography variant="body2"><strong>Tipo:</strong> {selectedRecord.type}</Typography>
                                     <Typography variant="body2"><strong>Responsável:</strong> {selectedRecord.responsibleName || 'N/A'}</Typography>
                                     <Typography variant="body2"><strong>Duração:</strong> {calculateDuration(selectedRecord.createdAt, selectedRecord.completedAt)} dias</Typography>
+                                    {selectedRecord.isRecurrent && (
+                                        <Typography variant="body2"><strong>Recorrência:</strong> {selectedRecord.recurrenceType} (#{selectedRecord.recurrenceCount || 0})</Typography>
+                                    )}
                                 </Box>
                             </Grid>
                             <Grid item xs={12} md={6}>
@@ -463,10 +495,18 @@ const MaintenanceHistory = () => {
                                 </Box>
                             </Grid>
                             <Grid item xs={12}>
-                                <Typography variant="subtitle2" gutterBottom>Descrição</Typography>
+                                <Typography variant="subtitle2" gutterBottom>Descrição Prevista</Typography>
                                 <Paper elevation={1} sx={{ p: 2, backgroundColor: 'grey.50' }}>
                                     <Typography variant="body2">
                                         {selectedRecord.description || 'Nenhuma descrição fornecida.'}
+                                    </Typography>
+                                </Paper>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <Typography variant="subtitle2" gutterBottom>O que foi realizado</Typography>
+                                <Paper elevation={1} sx={{ p: 2, backgroundColor: 'success.light', border: '1px solid', borderColor: 'success.main' }}>
+                                    <Typography variant="body2">
+                                        {selectedRecord.completionNotes || 'Nenhuma nota de conclusão registrada.'}
                                     </Typography>
                                 </Paper>
                             </Grid>

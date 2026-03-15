@@ -26,6 +26,8 @@ import {
 import { CalendarMonth, Build, Warning, Repeat, Notifications, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { addDoc, updateDoc, doc, Timestamp, collection } from 'firebase/firestore';
 import db from '../firebase/db';
+import { verifyToken } from '../firebase/token';
+import { logAudit } from '../firebase/auditLog';
 
 const MaintenanceDialog = ({ open, onClose, material }) => {
     const [formData, setFormData] = useState({
@@ -154,7 +156,29 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 reminderDays: formData.reminderDays || 3
             };
 
-            await addDoc(collection(db, 'manutencoes'), maintenanceDoc);
+            const newDoc = await addDoc(collection(db, 'manutencoes'), maintenanceDoc);
+
+            // Registrar no audit log para aparecer em Atividades
+            try {
+                const token = localStorage.getItem('token');
+                const user = await verifyToken(token);
+                logAudit({
+                    action: 'manutencao_create',
+                    userId: user?.userId || 'sistema',
+                    userName: user?.username || 'Sistema',
+                    targetCollection: 'manutencoes',
+                    targetId: newDoc.id,
+                    targetName: material.description,
+                    details: {
+                        tipo: formData.maintenanceType,
+                        prioridade: formData.priority,
+                        recorrente: formData.isRecurrent ? formData.recurrenceType : 'não',
+                        data_prevista: formData.dueDate
+                    }
+                });
+            } catch (e) {
+                console.error('Erro ao registrar audit log:', e);
+            }
 
             // Atualizar status do material se necessário
             if (formData.markInoperant) {
@@ -207,7 +231,27 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
     };
 
     const handleInputChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => {
+            const updated = { ...prev, [field]: value };
+            // Auto-ativar recorrência quando tipo periódico é selecionado
+            if (field === 'maintenanceType') {
+                const periodicTypes = {
+                    diaria: 'diaria',
+                    semanal: 'semanal',
+                    trimestral: 'trimestral',
+                    semestral: 'semestral',
+                    anual: 'anual'
+                };
+                if (periodicTypes[value]) {
+                    updated.isRecurrent = true;
+                    updated.recurrenceType = periodicTypes[value];
+                } else {
+                    updated.isRecurrent = false;
+                    updated.recurrenceType = '';
+                }
+            }
+            return updated;
+        });
         if (error) setError(''); // Limpar erro quando usuário começar a digitar
     };
 
@@ -227,6 +271,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
             case 'reparo':
                 return 'error';
             case 'diaria':
+            case 'semanal':
                 return 'success';
             case 'trimestral':
             case 'semestral':
@@ -277,6 +322,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                                 startAdornment={getMaintenanceTypeIcon()}
                             >
                                 <MenuItem value="diaria">Diária</MenuItem>
+                                <MenuItem value="semanal">Semanal</MenuItem>
                                 <MenuItem value="trimestral">Trimestral</MenuItem>
                                 <MenuItem value="semestral">Semestral</MenuItem>
                                 <MenuItem value="anual">Anual</MenuItem>

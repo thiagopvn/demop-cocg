@@ -133,12 +133,16 @@ const UpcomingMaintenances = () => {
     const renderMaintenanceItem = (item, isOverdue = false) => (
         <ListItem
             key={item.id}
+            onClick={() => navigate('/manutencao?tab=1')}
             sx={{
                 bgcolor: isOverdue ? 'error.light' : 'transparent',
                 borderRadius: 1,
                 mb: 0.5,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
                 '&:hover': {
-                    bgcolor: isOverdue ? 'error.light' : 'action.hover'
+                    bgcolor: isOverdue ? 'error.light' : 'action.hover',
+                    transform: 'translateX(4px)'
                 }
             }}
         >
