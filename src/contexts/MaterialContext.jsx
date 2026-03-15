@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useMemo } from 'react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import db, { auth } from '../firebase/db';
@@ -46,8 +46,10 @@ export const MaterialProvider = ({ children }) => {
         };
     }, []);
 
+    const value = useMemo(() => ({ materials, loading }), [materials, loading]);
+
     return (
-        <MaterialContext.Provider value={{ materials, loading }}>
+        <MaterialContext.Provider value={value}>
             {children}
         </MaterialContext.Provider>
     );

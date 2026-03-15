@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { firebaseAuthSignOut } from '../firebase/authSync';
 import brasao from '../assets/brasao.png';
@@ -54,12 +54,12 @@ import {
   Snackbar,
   Alert
 } from '@mui/material';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, query, where, Timestamp, onSnapshot as firestoreOnSnapshot } from 'firebase/firestore';
 import db from '../firebase/db';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { verifyToken } from '../firebase/token';
-import { getPendingMaintenancesCount, checkAndNotifyMaintenances } from '../services/maintenanceNotificationService';
-import ChangePasswordDialog from '../dialogs/ChangePasswordDialog';
+import { checkAndNotifyMaintenances } from '../services/maintenanceNotificationService';
+const ChangePasswordDialog = lazy(() => import('../dialogs/ChangePasswordDialog'));
 
 function MenuContext({ children }) {
   const [active, setActive] = React.useState(0);
@@ -92,8 +92,9 @@ function MenuContext({ children }) {
   ];
 
   // Filtrar itens de menu baseado no papel do usuário
-  const menuItems = allMenuItems.filter(item =>
-    !userRole || item.roles.includes(userRole)
+  const menuItems = useMemo(() =>
+    allMenuItems.filter(item => !userRole || item.roles.includes(userRole)),
+    [userRole]
   );
 
   useEffect(() => {
@@ -116,25 +117,48 @@ function MenuContext({ children }) {
     fetchUserData();
   }, []);
 
-  // Buscar contagem de manutenções pendentes e verificar notificações
+  // Listener em tempo real para badge de manutenções pendentes (substitui polling)
   useEffect(() => {
-    const fetchMaintenanceBadge = async () => {
-      try {
-        const count = await getPendingMaintenancesCount();
-        setMaintenanceBadge(count);
-        // Verificar e enviar notificações
-        await checkAndNotifyMaintenances();
-      } catch (error) {
-        console.error("Erro ao buscar badge de manutenções:", error);
-      }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Listener para manutenções atrasadas (pendentes com dueDate < hoje)
+    const overdueQ = query(
+      collection(db, 'manutencoes'),
+      where('status', '==', 'pendente'),
+      where('dueDate', '<', Timestamp.fromDate(today))
+    );
+
+    // Listener para manutenções de hoje
+    const todayQ = query(
+      collection(db, 'manutencoes'),
+      where('status', 'in', ['pendente', 'em_andamento']),
+      where('dueDate', '>=', Timestamp.fromDate(today)),
+      where('dueDate', '<', Timestamp.fromDate(tomorrow))
+    );
+
+    let overdueCount = 0;
+    let todayCount = 0;
+
+    const unsubOverdue = firestoreOnSnapshot(overdueQ, (snapshot) => {
+      overdueCount = snapshot.size;
+      setMaintenanceBadge({ overdue: overdueCount, today: todayCount, total: overdueCount + todayCount });
+    }, () => {});
+
+    const unsubToday = firestoreOnSnapshot(todayQ, (snapshot) => {
+      todayCount = snapshot.size;
+      setMaintenanceBadge({ overdue: overdueCount, today: todayCount, total: overdueCount + todayCount });
+    }, () => {});
+
+    // Verificar notificações do browser uma vez ao montar
+    checkAndNotifyMaintenances().catch(() => {});
+
+    return () => {
+      unsubOverdue();
+      unsubToday();
     };
-
-    fetchMaintenanceBadge();
-
-    // Atualizar a cada 5 minutos
-    const interval = setInterval(fetchMaintenanceBadge, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -164,10 +188,10 @@ function MenuContext({ children }) {
     handleCloseDialog();
   };
 
-  const handleNavigation = (path) => {
+  const handleNavigation = useCallback((path) => {
     navigate(path);
     setMobileOpen(false);
-  };
+  }, [navigate]);
 
   const handleOpenCleanupDialog = () => {
     setCleanupDialogOpen(true);
@@ -860,15 +884,19 @@ function MenuContext({ children }) {
         </DialogActions>
       </Dialog>
 
-      <ChangePasswordDialog
-        open={changePasswordOpen}
-        onClose={(success) => {
-          setChangePasswordOpen(false);
-          if (success) {
-            setSnackbar({ open: true, message: 'Senha alterada com sucesso!', severity: 'success' });
-          }
-        }}
-      />
+      {changePasswordOpen && (
+        <Suspense fallback={null}>
+          <ChangePasswordDialog
+            open={changePasswordOpen}
+            onClose={(success) => {
+              setChangePasswordOpen(false);
+              if (success) {
+                setSnackbar({ open: true, message: 'Senha alterada com sucesso!', severity: 'success' });
+              }
+            }}
+          />
+        </Suspense>
+      )}
 
       <Snackbar
         open={snackbar.open}

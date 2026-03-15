@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import db, { auth } from "../firebase/db";
@@ -33,8 +33,10 @@ export const CategoriaProvider = ({ children }) => {
         return () => unsubAuth();
     }, [updateCategorias]);
 
+    const value = useMemo(() => ({ categorias, updateCategorias }), [categorias, updateCategorias]);
+
     return (
-        <CategoriaContext.Provider value={{ categorias, updateCategorias }}>
+        <CategoriaContext.Provider value={value}>
             {children}
         </CategoriaContext.Provider>
     );

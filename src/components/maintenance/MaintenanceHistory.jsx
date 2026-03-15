@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Typography,
@@ -39,10 +39,10 @@ import {
 } from '@mui/icons-material';
 import { collection, query, orderBy, getDocs, deleteDoc, doc, where, Timestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const MaintenanceHistory = ({ materialIdFilter = '' }) => {
     const [history, setHistory] = useState([]);
-    const [filteredHistory, setFilteredHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -55,13 +55,15 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
         material: ''
     });
 
+    const debouncedSearch = useDebounce(searchTerm, 300);
+
     useEffect(() => {
         fetchHistory();
     }, [materialIdFilter]);
 
     useEffect(() => {
-        applyFilters();
-    }, [history, filter, searchTerm]);
+        setPage(0);
+    }, [debouncedSearch, filter.type, filter.material, filter.period]);
 
     const fetchHistory = async () => {
         try {
@@ -95,15 +97,16 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
         }
     };
 
-    const applyFilters = () => {
+    const filteredHistory = useMemo(() => {
         let filtered = [...history];
 
-        if (searchTerm) {
+        if (debouncedSearch) {
+            const lower = debouncedSearch.toLowerCase();
             filtered = filtered.filter(record =>
-                record.materialDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                record.responsibleName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                record.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                record.completionNotes?.toLowerCase().includes(searchTerm.toLowerCase())
+                record.materialDescription?.toLowerCase().includes(lower) ||
+                record.responsibleName?.toLowerCase().includes(lower) ||
+                record.description?.toLowerCase().includes(lower) ||
+                record.completionNotes?.toLowerCase().includes(lower)
             );
         }
 
@@ -157,9 +160,8 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                 break;
         }
 
-        setFilteredHistory(filtered);
-        setPage(0);
-    };
+        return filtered;
+    }, [history, debouncedSearch, filter.type, filter.material, filter.period]);
 
     const handleViewDetails = (record) => {
         setSelectedRecord(record);
@@ -234,25 +236,19 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
         return diffDays;
     };
 
-    const getMaintenanceStats = () => {
-        const stats = {
-            total: filteredHistory.length,
-            preventiva: filteredHistory.filter(r => ['diaria', 'semanal', 'trimestral', 'semestral', 'anual'].includes(r.type)).length,
-            corretiva: filteredHistory.filter(r => ['corretiva', 'reparo'].includes(r.type)).length,
-            avgDuration: 0
-        };
-
-        if (stats.total > 0) {
+    const stats = useMemo(() => {
+        const total = filteredHistory.length;
+        const preventiva = filteredHistory.filter(r => ['diaria', 'semanal', 'trimestral', 'semestral', 'anual'].includes(r.type)).length;
+        const corretiva = filteredHistory.filter(r => ['corretiva', 'reparo'].includes(r.type)).length;
+        let avgDuration = 0;
+        if (total > 0) {
             const totalDuration = filteredHistory.reduce((acc, record) => {
                 return acc + calculateDuration(record.createdAt, record.completedAt);
             }, 0);
-            stats.avgDuration = Math.round(totalDuration / stats.total);
+            avgDuration = Math.round(totalDuration / total);
         }
-
-        return stats;
-    };
-
-    const stats = getMaintenanceStats();
+        return { total, preventiva, corretiva, avgDuration };
+    }, [filteredHistory]);
 
     if (loading) {
         return (

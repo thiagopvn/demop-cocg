@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
     Grid,
     Card,
@@ -44,7 +44,7 @@ import {
     AccessTime,
     PriorityHigh
 } from '@mui/icons-material';
-import { collection, query, where, getDocs, Timestamp, doc, updateDoc, addDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, doc, updateDoc, addDoc, orderBy, getDoc, onSnapshot } from 'firebase/firestore';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
@@ -88,7 +88,6 @@ const MaintenanceDashboard = () => {
     });
 
     useEffect(() => {
-        fetchStats();
         fetchTodayMaintenances();
         loadUser();
     }, []);
@@ -107,10 +106,11 @@ const MaintenanceDashboard = () => {
             const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
-            // Pendentes para hoje
+            // Pendentes até hoje (inclui atrasadas + hoje, exclui futuras)
             const todayQ = query(
                 collection(db, 'manutencoes'),
                 where('status', 'in', ['pendente', 'em_andamento']),
+                where('dueDate', '<=', Timestamp.fromDate(endOfDay)),
                 orderBy('dueDate', 'asc')
             );
             const snapshot = await getDocs(todayQ);
@@ -227,82 +227,83 @@ const MaintenanceDashboard = () => {
         }
     };
 
+    // Listener em tempo real no doc de agregação (mantido por Cloud Functions)
+    useEffect(() => {
+        const aggRef = doc(db, 'aggregations', 'maintenance_stats');
+        const unsub = onSnapshot(aggRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.stats) {
+                    setStats(data.stats);
+                }
+                if (data.chartData) {
+                    setChartData(data.chartData);
+                }
+                setLoading(false);
+                setError(null);
+            }
+        }, () => {
+            // Se doc não existe ainda, faz fallback para query direta
+            fetchStatsFallback();
+        });
+        return () => unsub();
+    }, []);
+
+    // Fallback: busca stats diretamente (caso Cloud Functions ainda não tenha gerado o doc)
     const fetchStats = async () => {
+        // Tenta ler do doc agregado primeiro
+        try {
+            const aggSnap = await getDoc(doc(db, 'aggregations', 'maintenance_stats'));
+            if (aggSnap.exists()) {
+                const data = aggSnap.data();
+                if (data.stats) setStats(data.stats);
+                if (data.chartData) setChartData(data.chartData);
+                setLoading(false);
+                return;
+            }
+        } catch (_) {
+            // fallback para query direta
+        }
+        await fetchStatsFallback();
+    };
+
+    const fetchStatsFallback = async () => {
         try {
             setLoading(true);
             setError(null);
 
-            // Materiais em manutenção
-            const inMaintenanceQuery = query(
-                collection(db, 'materials'),
-                where('maintenance_status', '==', 'em_manutencao')
-            );
-            const inMaintenanceSnapshot = await getDocs(inMaintenanceQuery);
+            const now = Timestamp.now();
 
-            // Tarefas atrasadas
-            const today = Timestamp.now();
-            const overdueQuery = query(
-                collection(db, 'manutencoes'),
-                where('dueDate', '<', today),
-                where('status', '==', 'pendente')
-            );
-            const overdueSnapshot = await getDocs(overdueQuery);
+            const [allMaintenancesSnapshot, inMaintenanceSnapshot, inoperantSnapshot] = await Promise.all([
+                getDocs(collection(db, 'manutencoes')),
+                getDocs(query(collection(db, 'materials'), where('maintenance_status', '==', 'em_manutencao'))),
+                getDocs(query(collection(db, 'materials'), where('maintenance_status', '==', 'inoperante')))
+            ]);
 
-            // Materiais inoperantes
-            const inoperantQuery = query(
-                collection(db, 'materials'),
-                where('maintenance_status', '==', 'inoperante')
-            );
-            const inoperantSnapshot = await getDocs(inoperantQuery);
+            const maintenanceData = allMaintenancesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-            // Manutenções agendadas (futuras)
-            const scheduledQuery = query(
-                collection(db, 'manutencoes'),
-                where('dueDate', '>=', today),
-                where('status', '==', 'pendente')
-            );
-            const scheduledSnapshot = await getDocs(scheduledQuery);
+            let overdue = 0, scheduled = 0, completed = 0, pending = 0, recurrent = 0;
 
-            // Manutenções concluídas
-            const completedQuery = query(
-                collection(db, 'manutencoes'),
-                where('status', '==', 'concluida')
-            );
-            const completedSnapshot = await getDocs(completedQuery);
+            maintenanceData.forEach(item => {
+                if (item.status === 'concluida') completed++;
+                else if (item.status === 'pendente') {
+                    pending++;
+                    if (item.dueDate && item.dueDate < now) overdue++;
+                    else if (item.dueDate && item.dueDate >= now) scheduled++;
+                }
+                if (item.isRecurrent && (item.status === 'pendente' || item.status === 'em_andamento')) recurrent++;
+            });
 
-            // Manutenções pendentes
-            const pendingQuery = query(
-                collection(db, 'manutencoes'),
-                where('status', '==', 'pendente')
-            );
-            const pendingSnapshot = await getDocs(pendingQuery);
-
-            // Manutenções recorrentes ativas
-            const recurrentQuery = query(
-                collection(db, 'manutencoes'),
-                where('isRecurrent', '==', true),
-                where('status', 'in', ['pendente', 'em_andamento'])
-            );
-            const recurrentSnapshot = await getDocs(recurrentQuery);
-
-            // Buscar dados para gráficos
-            const allMaintenances = await getDocs(collection(db, 'manutencoes'));
-            const maintenanceData = allMaintenances.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            // Processar dados para gráficos
             processChartData(maintenanceData);
 
             setStats({
                 inMaintenance: inMaintenanceSnapshot.size,
-                overdue: overdueSnapshot.size,
+                overdue,
                 inoperant: inoperantSnapshot.size,
-                scheduled: scheduledSnapshot.size,
-                completed: completedSnapshot.size,
-                pending: pendingSnapshot.size,
-                recurrent: recurrentSnapshot.size
+                scheduled,
+                completed,
+                pending,
+                recurrent
             });
         } catch (err) {
             console.error('Erro ao buscar estatísticas:', err);
@@ -313,7 +314,6 @@ const MaintenanceDashboard = () => {
     };
 
     const processChartData = (data) => {
-        // Por tipo
         const typeCount = {};
         data.forEach(item => {
             const type = item.type || 'outros';
@@ -324,7 +324,6 @@ const MaintenanceDashboard = () => {
             value
         }));
 
-        // Por prioridade
         const priorityCount = { baixa: 0, media: 0, alta: 0, critica: 0 };
         data.forEach(item => {
             const priority = item.priority || 'media';
@@ -337,7 +336,6 @@ const MaintenanceDashboard = () => {
             { name: 'Crítica', value: priorityCount.critica, color: '#f44336' }
         ].filter(item => item.value > 0);
 
-        // Por mês (últimos 6 meses)
         const monthCount = {};
         const now = new Date();
         for (let i = 5; i >= 0; i--) {
@@ -345,27 +343,20 @@ const MaintenanceDashboard = () => {
             const key = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
             monthCount[key] = { programadas: 0, concluidas: 0 };
         }
-
         data.forEach(item => {
             const dueDate = item.dueDate?.toDate?.() || new Date(item.dueDate);
             const key = dueDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
             if (monthCount[key]) {
                 monthCount[key].programadas++;
-                if (item.status === 'concluida') {
-                    monthCount[key].concluidas++;
-                }
+                if (item.status === 'concluida') monthCount[key].concluidas++;
             }
         });
-
-        const byMonth = Object.entries(monthCount).map(([name, values]) => ({
-            name,
-            ...values
-        }));
+        const byMonth = Object.entries(monthCount).map(([name, values]) => ({ name, ...values }));
 
         setChartData({ byType, byPriority, byMonth });
     };
 
-    const statCards = [
+    const statCards = useMemo(() => [
         {
             title: 'Em Manutenção',
             value: stats.inMaintenance,
@@ -408,7 +399,7 @@ const MaintenanceDashboard = () => {
             color: 'secondary.main',
             bgColor: 'secondary.light'
         }
-    ];
+    ], [stats]);
 
     const COLORS = ['#1e3a5f', '#ff6b35', '#4caf50', '#2196f3', '#9c27b0', '#ff9800'];
 
