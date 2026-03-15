@@ -461,11 +461,12 @@ export const createNextRecurrentMaintenance = async (completedMaintenance) => {
     }
 
     try {
-        const lastDueDate = completedMaintenance.dueDate instanceof Date
-            ? completedMaintenance.dueDate
-            : completedMaintenance.dueDate?.toDate?.() || new Date();
+        // Usar a data de conclusão como base para calcular a próxima manutenção
+        const completedAt = completedMaintenance.completedAt instanceof Date
+            ? completedMaintenance.completedAt
+            : completedMaintenance.completedAt?.toDate?.() || new Date();
 
-        const nextDueDate = new Date(lastDueDate);
+        const nextDueDate = new Date(completedAt);
 
         // Calcular próxima data baseado no tipo de recorrência
         switch (completedMaintenance.recurrenceType) {

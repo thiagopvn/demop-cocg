@@ -550,6 +550,11 @@ export default function Atividades() {
         if (log.details.estoque_total) parts.push(`Estoque total: ${log.details.estoque_total}`);
         if (log.details.estoque_atual !== undefined) parts.push(`Estoque atual: ${log.details.estoque_atual}`);
         if (log.details.role) parts.push(`Role: ${log.details.role}`);
+        if (log.details.prioridade) parts.push(`Prioridade: ${log.details.prioridade}`);
+        if (log.details.recorrente) parts.push(`Recorrente: ${log.details.recorrente}`);
+        if (log.details.data_prevista) parts.push(`Data prevista: ${log.details.data_prevista}`);
+        if (log.details.o_que_foi_feito) parts.push(`Realizado: ${log.details.o_que_foi_feito}`);
+        if (log.details.descricao) parts.push(`Descrição: ${log.details.descricao}`);
         return parts.length > 0 ? parts.join(' | ') : null;
     };
 
@@ -728,7 +733,12 @@ export default function Atividades() {
                                                         </Tooltip>
                                                     </TableCell>
                                                     <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
-                                                        <Tooltip title="Viaturas + Manutenções + Categorias + Usuários">
+                                                        <Tooltip title="Manutenções agendadas e concluídas">
+                                                            <span>Manut.</span>
+                                                        </Tooltip>
+                                                    </TableCell>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                                                        <Tooltip title="Viaturas + Categorias + Usuários">
                                                             <span>Outros</span>
                                                         </Tooltip>
                                                     </TableCell>
@@ -797,9 +807,15 @@ export default function Atividades() {
                                                             </Typography>
                                                         </StyledTableCell>
                                                         <StyledTableCell align="center">
-                                                            <Typography variant="body2" fontWeight={(stat.viaturas + stat.manutencoes + stat.categorias + stat.usuarios) > 0 ? 600 : 400}
-                                                                color={(stat.viaturas + stat.manutencoes + stat.categorias + stat.usuarios) > 0 ? '#9c27b0' : 'text.disabled'}>
-                                                                {stat.viaturas + stat.manutencoes + stat.categorias + stat.usuarios}
+                                                            <Typography variant="body2" fontWeight={stat.manutencoes > 0 ? 600 : 400}
+                                                                color={stat.manutencoes > 0 ? '#9c27b0' : 'text.disabled'}>
+                                                                {stat.manutencoes}
+                                                            </Typography>
+                                                        </StyledTableCell>
+                                                        <StyledTableCell align="center">
+                                                            <Typography variant="body2" fontWeight={(stat.viaturas + stat.categorias + stat.usuarios) > 0 ? 600 : 400}
+                                                                color={(stat.viaturas + stat.categorias + stat.usuarios) > 0 ? '#607d8b' : 'text.disabled'}>
+                                                                {stat.viaturas + stat.categorias + stat.usuarios}
                                                             </Typography>
                                                         </StyledTableCell>
                                                     </StyledTableRow>

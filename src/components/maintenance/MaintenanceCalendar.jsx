@@ -34,16 +34,22 @@ import {
     CalendarMonth,
     Build,
     Warning,
-    Repeat
+    Repeat,
+    History
 } from '@mui/icons-material';
-import { collection, query, getDocs, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, updateDoc, deleteDoc, doc, addDoc, Timestamp, orderBy } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 import db from '../../firebase/db';
+import { verifyToken } from '../../firebase/token';
+import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 
 const MaintenanceCalendar = () => {
+    const navigate = useNavigate();
     const [maintenances, setMaintenances] = useState([]);
     const [filteredMaintenances, setFilteredMaintenances] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [currentUser, setCurrentUser] = useState({ userId: '', userName: '' });
     const [filter, setFilter] = useState({
         status: 'todos',
         type: 'todos',
@@ -59,8 +65,28 @@ const MaintenanceCalendar = () => {
         status: ''
     });
 
+    // Estado para o dialog de conclusão
+    const [openCompleteDialog, setOpenCompleteDialog] = useState(false);
+    const [completionData, setCompletionData] = useState({
+        completionNotes: '',
+        maintenanceId: null,
+        maintenance: null
+    });
+
     useEffect(() => {
         fetchMaintenances();
+        const loadUser = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const user = await verifyToken(token);
+                if (user) {
+                    setCurrentUser({ userId: user.userId || '', userName: user.username || '' });
+                }
+            } catch (e) {
+                console.error('Erro ao carregar usuário:', e);
+            }
+        };
+        loadUser();
     }, []);
 
     useEffect(() => {
@@ -88,20 +114,17 @@ const MaintenanceCalendar = () => {
     const applyFilters = () => {
         let filtered = [...maintenances];
 
-        // Filtro por status
         if (filter.status !== 'todos') {
             filtered = filtered.filter(m => m.status === filter.status);
         }
 
-        // Filtro por tipo
         if (filter.type !== 'todos') {
             filtered = filtered.filter(m => m.type === filter.type);
         }
 
-        // Filtro por período
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         switch (filter.period) {
             case 'atrasadas':
                 filtered = filtered.filter(m =>
@@ -138,58 +161,128 @@ const MaintenanceCalendar = () => {
         setFilteredMaintenances(filtered);
     };
 
+    // Abrir dialog de conclusão ao invés de concluir direto
+    const handleOpenCompleteDialog = (maintenanceId) => {
+        const maintenance = maintenances.find(m => m.id === maintenanceId);
+        setCompletionData({
+            completionNotes: '',
+            maintenanceId,
+            maintenance
+        });
+        setOpenCompleteDialog(true);
+    };
+
+    // Confirmar conclusão com notas
+    const handleConfirmComplete = async () => {
+        const { maintenanceId, maintenance, completionNotes } = completionData;
+        try {
+            const now = Timestamp.now();
+            const docRef = doc(db, 'manutencoes', maintenanceId);
+            await updateDoc(docRef, {
+                status: 'concluida',
+                updatedAt: now,
+                completedAt: now,
+                completionNotes: completionNotes || ''
+            });
+
+            // Adicionar ao histórico
+            await addToHistory(maintenance, completionNotes);
+
+            // Criar próxima manutenção se for recorrente
+            if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
+                const completedMaintenance = {
+                    ...maintenance,
+                    completedAt: now.toDate(),
+                    completionNotes
+                };
+                const nextMaintenance = await createNextRecurrentMaintenance(completedMaintenance);
+                if (nextMaintenance) {
+                    console.log('Próxima manutenção recorrente criada:', nextMaintenance.id);
+                }
+            }
+
+            // Atualizar status do material para operante
+            if (maintenance?.materialId) {
+                try {
+                    const materialRef = doc(db, 'materials', maintenance.materialId);
+                    await updateDoc(materialRef, {
+                        maintenance_status: 'operante',
+                        last_maintenance_update: now,
+                        last_maintenance_date: now
+                    });
+                } catch {
+                    console.log('Material não encontrado ou já atualizado');
+                }
+            }
+
+            // Registrar no audit log para aparecer em Atividades
+            logAudit({
+                action: 'manutencao_complete',
+                userId: currentUser.userId,
+                userName: currentUser.userName,
+                targetCollection: 'manutencoes',
+                targetId: maintenanceId,
+                targetName: maintenance?.materialDescription || '',
+                details: {
+                    tipo: maintenance?.type,
+                    descricao: maintenance?.description || '',
+                    o_que_foi_feito: completionNotes,
+                    recorrente: maintenance?.isRecurrent ? maintenance?.recurrenceType : 'não'
+                }
+            });
+
+            setOpenCompleteDialog(false);
+            setCompletionData({ completionNotes: '', maintenanceId: null, maintenance: null });
+            fetchMaintenances();
+        } catch (error) {
+            console.error('Erro ao concluir manutenção:', error);
+        }
+    };
+
     const handleStatusChange = async (maintenanceId, newStatus) => {
+        // Para conclusão, abrir dialog
+        if (newStatus === 'concluida') {
+            handleOpenCompleteDialog(maintenanceId);
+            return;
+        }
+
         try {
             const docRef = doc(db, 'manutencoes', maintenanceId);
             await updateDoc(docRef, {
                 status: newStatus,
-                updatedAt: Timestamp.now(),
-                ...(newStatus === 'concluida' ? { completedAt: Timestamp.now() } : {})
+                updatedAt: Timestamp.now()
             });
-
-            // Se concluída, adicionar ao histórico e criar próxima se for recorrente
-            if (newStatus === 'concluida') {
-                const maintenance = maintenances.find(m => m.id === maintenanceId);
-                await addToHistory(maintenance);
-
-                // Criar próxima manutenção se for recorrente
-                if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
-                    const nextMaintenance = await createNextRecurrentMaintenance(maintenance);
-                    if (nextMaintenance) {
-                        console.log('Próxima manutenção recorrente criada:', nextMaintenance.id);
-                    }
-                }
-
-                // Atualizar status do material para operante se estava em manutenção
-                if (maintenance?.materialId) {
-                    try {
-                        const materialRef = doc(db, 'materials', maintenance.materialId);
-                        await updateDoc(materialRef, {
-                            maintenance_status: 'operante',
-                            last_maintenance_update: Timestamp.now(),
-                            last_maintenance_date: Timestamp.now()
-                        });
-                    } catch {
-                        console.log('Material não encontrado ou já atualizado');
-                    }
-                }
-            }
-
             fetchMaintenances();
         } catch (error) {
             console.error('Erro ao atualizar status:', error);
         }
     };
 
-    const addToHistory = async (maintenance) => {
+    const addToHistory = async (maintenance, completionNotes = '') => {
         try {
             const historyDoc = {
-                ...maintenance,
+                materialId: maintenance.materialId,
+                materialDescription: maintenance.materialDescription,
+                materialCategory: maintenance.materialCategory,
+                type: maintenance.type,
+                dueDate: maintenance.dueDate instanceof Date
+                    ? Timestamp.fromDate(maintenance.dueDate)
+                    : maintenance.dueDate,
+                description: maintenance.description || '',
+                priority: maintenance.priority || 'media',
+                estimatedDuration: maintenance.estimatedDuration || null,
+                requiredParts: maintenance.requiredParts || [],
+                isRecurrent: maintenance.isRecurrent || false,
+                recurrenceType: maintenance.recurrenceType || null,
+                recurrenceCount: maintenance.recurrenceCount || 0,
+                responsibleName: maintenance.responsibleName || '',
+                createdAt: maintenance.createdAt || Timestamp.now(),
+                createdBy: maintenance.createdBy || '',
                 completedAt: Timestamp.now(),
+                completionNotes: completionNotes || '',
                 originalId: maintenance.id
             };
-            delete historyDoc.id;
-            await collection(db, 'historico_manutencoes').add(historyDoc);
+            await addDoc(collection(db, 'historico_manutencoes'), historyDoc);
         } catch (error) {
             console.error('Erro ao adicionar ao histórico:', error);
         }
@@ -197,7 +290,7 @@ const MaintenanceCalendar = () => {
 
     const handleDelete = async (maintenanceId) => {
         if (!window.confirm('Tem certeza que deseja excluir esta manutenção?')) return;
-        
+
         try {
             await deleteDoc(doc(db, 'manutencoes', maintenanceId));
             fetchMaintenances();
@@ -233,6 +326,10 @@ const MaintenanceCalendar = () => {
         }
     };
 
+    const handleViewHistory = (maintenance) => {
+        navigate(`/manutencao?tab=2&materialId=${maintenance.materialId}`);
+    };
+
     const getStatusChip = (status) => {
         const statusConfig = {
             pendente: { label: 'Pendente', color: 'warning' },
@@ -247,6 +344,7 @@ const MaintenanceCalendar = () => {
     const getTypeIcon = (type) => {
         const icons = {
             diaria: <Build fontSize="small" />,
+            semanal: <Build fontSize="small" />,
             trimestral: <CalendarMonth fontSize="small" />,
             semestral: <CalendarMonth fontSize="small" />,
             anual: <CalendarMonth fontSize="small" />,
@@ -307,6 +405,7 @@ const MaintenanceCalendar = () => {
                         >
                             <MenuItem value="todos">Todos</MenuItem>
                             <MenuItem value="diaria">Diária</MenuItem>
+                            <MenuItem value="semanal">Semanal</MenuItem>
                             <MenuItem value="trimestral">Trimestral</MenuItem>
                             <MenuItem value="semestral">Semestral</MenuItem>
                             <MenuItem value="anual">Anual</MenuItem>
@@ -368,11 +467,11 @@ const MaintenanceCalendar = () => {
                             </TableRow>
                         ) : (
                             filteredMaintenances.map((maintenance) => (
-                                <TableRow 
+                                <TableRow
                                     key={maintenance.id}
-                                    sx={{ 
-                                        backgroundColor: isOverdue(maintenance.dueDate, maintenance.status) 
-                                            ? 'error.light' 
+                                    sx={{
+                                        backgroundColor: isOverdue(maintenance.dueDate, maintenance.status)
+                                            ? 'error.light'
                                             : 'inherit',
                                         opacity: maintenance.status === 'concluida' ? 0.7 : 1
                                     }}
@@ -394,10 +493,10 @@ const MaintenanceCalendar = () => {
                                     <TableCell>
                                         {formatDate(maintenance.dueDate)}
                                         {isOverdue(maintenance.dueDate, maintenance.status) && (
-                                            <Chip 
-                                                label="Atrasada" 
-                                                color="error" 
-                                                size="small" 
+                                            <Chip
+                                                label="Atrasada"
+                                                color="error"
+                                                size="small"
                                                 sx={{ ml: 1 }}
                                             />
                                         )}
@@ -414,7 +513,7 @@ const MaintenanceCalendar = () => {
                                     <TableCell align="center">
                                         {maintenance.status === 'pendente' && (
                                             <>
-                                                <Tooltip title="Marcar como concluída">
+                                                <Tooltip title="Concluir manutenção">
                                                     <IconButton
                                                         size="small"
                                                         color="success"
@@ -435,7 +534,7 @@ const MaintenanceCalendar = () => {
                                             </>
                                         )}
                                         {maintenance.status === 'em_andamento' && (
-                                            <Tooltip title="Concluir">
+                                            <Tooltip title="Concluir manutenção">
                                                 <IconButton
                                                     size="small"
                                                     color="success"
@@ -445,6 +544,15 @@ const MaintenanceCalendar = () => {
                                                 </IconButton>
                                             </Tooltip>
                                         )}
+                                        <Tooltip title="Histórico do material">
+                                            <IconButton
+                                                size="small"
+                                                color="primary"
+                                                onClick={() => handleViewHistory(maintenance)}
+                                            >
+                                                <History />
+                                            </IconButton>
+                                        </Tooltip>
                                         <Tooltip title="Editar">
                                             <IconButton
                                                 size="small"
@@ -469,6 +577,60 @@ const MaintenanceCalendar = () => {
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            {/* Dialog de Conclusão */}
+            <Dialog open={openCompleteDialog} onClose={() => setOpenCompleteDialog(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CheckCircle color="success" />
+                        Concluir Manutenção
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    {completionData.maintenance && (
+                        <Box sx={{ mb: 2, mt: 1 }}>
+                            <Alert severity="info" sx={{ mb: 2 }}>
+                                <Typography variant="body2">
+                                    <strong>Material:</strong> {completionData.maintenance.materialDescription}
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Tipo:</strong> {completionData.maintenance.type}
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Descrição prevista:</strong> {completionData.maintenance.description || 'N/A'}
+                                </Typography>
+                                {completionData.maintenance.isRecurrent && (
+                                    <Typography variant="body2" sx={{ mt: 1, color: 'secondary.main', fontWeight: 600 }}>
+                                        Recorrente ({completionData.maintenance.recurrenceType}) - Uma nova manutenção será criada automaticamente
+                                    </Typography>
+                                )}
+                            </Alert>
+                            <TextField
+                                fullWidth
+                                multiline
+                                rows={4}
+                                label="O que foi realizado? *"
+                                placeholder="Descreva os procedimentos executados, peças trocadas, observações..."
+                                value={completionData.completionNotes}
+                                onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
+                                helperText="Este registro ficará no histórico de manutenções do equipamento"
+                            />
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenCompleteDialog(false)}>Cancelar</Button>
+                    <Button
+                        onClick={handleConfirmComplete}
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckCircle />}
+                        disabled={!completionData.completionNotes.trim()}
+                    >
+                        Confirmar Conclusão
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Dialog de Edição */}
             <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
