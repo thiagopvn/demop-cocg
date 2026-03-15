@@ -494,6 +494,18 @@ export const createNextRecurrentMaintenance = async (completedMaintenance) => {
             case 'anual':
                 nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
                 break;
+            case 'cada_90_dias':
+                nextDueDate.setDate(nextDueDate.getDate() + 90);
+                break;
+            case 'cada_120_dias':
+                nextDueDate.setDate(nextDueDate.getDate() + 120);
+                break;
+            case 'cada_180_dias':
+                nextDueDate.setDate(nextDueDate.getDate() + 180);
+                break;
+            case 'cada_365_dias':
+                nextDueDate.setDate(nextDueDate.getDate() + 365);
+                break;
             case 'customizado':
                 if (completedMaintenance.customRecurrenceDays) {
                     nextDueDate.setDate(nextDueDate.getDate() + completedMaintenance.customRecurrenceDays);

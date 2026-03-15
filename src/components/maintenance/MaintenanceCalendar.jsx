@@ -52,12 +52,19 @@ import { verifyToken } from '../../firebase/token';
 import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 import { useDebounce } from '../../hooks/useDebounce';
+import { getMaintenanceTypeLabel, MAINTENANCE_TYPE_DAYS } from '../../data/maintenanceTemplates';
+import MigrateMaintenancesDialog from '../../dialogs/MigrateMaintenancesDialog';
 
 // Calcular a previsão da próxima manutenção baseado na periodicidade
 const calcNextDueDate = (fromDate, recurrenceType, customDays) => {
     if (!fromDate || !recurrenceType) return null;
     const d = fromDate instanceof Date ? new Date(fromDate) : fromDate?.toDate ? new Date(fromDate.toDate()) : null;
     if (!d) return null;
+    // Verificar se é um tipo de dias fixos
+    if (MAINTENANCE_TYPE_DAYS[recurrenceType]) {
+        d.setDate(d.getDate() + MAINTENANCE_TYPE_DAYS[recurrenceType]);
+        return d;
+    }
     switch (recurrenceType) {
         case 'diaria': d.setDate(d.getDate() + 1); break;
         case 'semanal': d.setDate(d.getDate() + 7); break;
@@ -102,6 +109,9 @@ const MaintenanceCalendar = () => {
         type: '',
         status: ''
     });
+
+    // Estado para o dialog de migração
+    const [openMigrateDialog, setOpenMigrateDialog] = useState(false);
 
     // Estado para o dialog de conclusão
     const [openCompleteDialog, setOpenCompleteDialog] = useState(false);
@@ -152,7 +162,7 @@ const MaintenanceCalendar = () => {
         }
     };
 
-    const TYPE_ORDER = { diaria: 1, semanal: 2, mensal: 3, trimestral: 4, semestral: 5, anual: 6, corretiva: 7, reparo: 8 };
+    const TYPE_ORDER = { diaria: 1, semanal: 2, mensal: 3, cada_90_dias: 3.5, trimestral: 4, cada_120_dias: 4.5, semestral: 5, cada_180_dias: 5.5, anual: 6, cada_365_dias: 6.5, corretiva: 7, reparo: 8 };
     const STATUS_ORDER = { pendente: 1, em_andamento: 2, concluida: 3, cancelada: 4 };
     const PRIORITY_ORDER = { critica: 1, alta: 2, media: 3, baixa: 4 };
 
@@ -484,6 +494,10 @@ const MaintenanceCalendar = () => {
             trimestral: <CalendarMonth fontSize="small" />,
             semestral: <CalendarMonth fontSize="small" />,
             anual: <CalendarMonth fontSize="small" />,
+            cada_90_dias: <CalendarMonth fontSize="small" />,
+            cada_120_dias: <CalendarMonth fontSize="small" />,
+            cada_180_dias: <CalendarMonth fontSize="small" />,
+            cada_365_dias: <CalendarMonth fontSize="small" />,
             corretiva: <Warning fontSize="small" color="error" />,
             reparo: <Warning fontSize="small" color="error" />
         };
@@ -589,6 +603,10 @@ const MaintenanceCalendar = () => {
                             size="small"
                         >
                             <MenuItem value="todos">Todos</MenuItem>
+                            <MenuItem value="cada_90_dias">A cada 90 dias</MenuItem>
+                            <MenuItem value="cada_120_dias">A cada 120 dias</MenuItem>
+                            <MenuItem value="cada_180_dias">A cada 180 dias</MenuItem>
+                            <MenuItem value="cada_365_dias">A cada 365 dias</MenuItem>
                             <MenuItem value="diaria">Diária</MenuItem>
                             <MenuItem value="semanal">Semanal</MenuItem>
                             <MenuItem value="mensal">Mensal</MenuItem>
@@ -648,6 +666,19 @@ const MaintenanceCalendar = () => {
                                     <IconButton size="small" onClick={handleClearFilters} color="secondary">
                                         <ClearAll />
                                     </IconButton>
+                                </Tooltip>
+                            )}
+                            {currentUser.role === 'admin' && (
+                                <Tooltip title="Migrar cronograma rebalanceado">
+                                    <Button
+                                        variant="outlined"
+                                        color="warning"
+                                        size="small"
+                                        onClick={() => setOpenMigrateDialog(true)}
+                                        sx={{ minWidth: 'auto', whiteSpace: 'nowrap' }}
+                                    >
+                                        Migrar
+                                    </Button>
                                 </Tooltip>
                             )}
                         </Box>
@@ -761,10 +792,10 @@ const MaintenanceCalendar = () => {
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                 {getTypeIcon(maintenance.type)}
                                                 <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                                                    {maintenance.type.charAt(0).toUpperCase() + maintenance.type.slice(1)}
+                                                    {getMaintenanceTypeLabel(maintenance.type, maintenance.customRecurrenceDays)}
                                                 </Typography>
                                                 {maintenance.isRecurrent && (
-                                                    <Tooltip title={`Recorrente: ${maintenance.recurrenceType || 'Sim'}`}>
+                                                    <Tooltip title={`Recorrente: ${getMaintenanceTypeLabel(maintenance.recurrenceType, maintenance.customRecurrenceDays)}`}>
                                                         <Repeat fontSize="small" color="secondary" />
                                                     </Tooltip>
                                                 )}
@@ -937,10 +968,10 @@ const MaintenanceCalendar = () => {
                                     {completionData.maintenance.description || 'N/A'}
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
-                                    <Chip label={completionData.maintenance.type?.charAt(0).toUpperCase() + completionData.maintenance.type?.slice(1)} size="small" color="primary" variant="outlined" />
+                                    <Chip label={getMaintenanceTypeLabel(completionData.maintenance.type, completionData.maintenance.customRecurrenceDays)} size="small" color="primary" variant="outlined" />
                                     <Chip label={completionData.maintenance.priority === 'alta' ? 'Alta' : completionData.maintenance.priority === 'critica' ? 'Crítica' : completionData.maintenance.priority === 'media' ? 'Média' : 'Baixa'} size="small" color={completionData.maintenance.priority === 'alta' ? 'warning' : completionData.maintenance.priority === 'critica' ? 'error' : 'default'} />
                                     {completionData.maintenance.isRecurrent && (
-                                        <Chip icon={<Repeat sx={{ fontSize: 14 }} />} label={`Recorrente (${completionData.maintenance.recurrenceType})`} size="small" color="secondary" variant="outlined" />
+                                        <Chip icon={<Repeat sx={{ fontSize: 14 }} />} label={`Recorrente (${getMaintenanceTypeLabel(completionData.maintenance.recurrenceType, completionData.maintenance.customRecurrenceDays)})`} size="small" color="secondary" variant="outlined" />
                                     )}
                                 </Box>
                             </Box>
@@ -1031,6 +1062,10 @@ const MaintenanceCalendar = () => {
                                 value={editData.type}
                                 onChange={(e) => setEditData({ ...editData, type: e.target.value })}
                             >
+                                <MenuItem value="cada_90_dias">A cada 90 dias</MenuItem>
+                                <MenuItem value="cada_120_dias">A cada 120 dias</MenuItem>
+                                <MenuItem value="cada_180_dias">A cada 180 dias</MenuItem>
+                                <MenuItem value="cada_365_dias">A cada 365 dias</MenuItem>
                                 <MenuItem value="diaria">Diária</MenuItem>
                                 <MenuItem value="semanal">Semanal</MenuItem>
                                 <MenuItem value="mensal">Mensal</MenuItem>
@@ -1080,6 +1115,15 @@ const MaintenanceCalendar = () => {
                     <Button onClick={handleEditSave} variant="contained">Salvar</Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Dialog de Migração */}
+            <MigrateMaintenancesDialog
+                open={openMigrateDialog}
+                onClose={(changed) => {
+                    setOpenMigrateDialog(false);
+                    if (changed) fetchMaintenances();
+                }}
+            />
         </Box>
     );
 };

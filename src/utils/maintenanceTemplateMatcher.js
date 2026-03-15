@@ -128,6 +128,10 @@ export function computeDueDate(type, equipmentIndex = 0, itemIndex = 0, baseDate
         trimestral: 12,
         semestral: 22,
         anual: 30,
+        cada_90_dias: 12,
+        cada_120_dias: 16,
+        cada_180_dias: 22,
+        cada_365_dias: 30,
     };
 
     const offset = (baseOffsets[type] || 1) + equipmentIndex + Math.floor(itemIndex / 3);
