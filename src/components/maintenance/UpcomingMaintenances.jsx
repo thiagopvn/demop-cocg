@@ -38,7 +38,7 @@ import {
     isNotificationSupported
 } from '../../services/maintenanceNotificationService';
 
-const UpcomingMaintenances = () => {
+const UpcomingMaintenances = ({ onComplete }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [summary, setSummary] = useState({
@@ -180,12 +180,34 @@ const UpcomingMaintenances = () => {
                 }
             />
             <ListItemSecondaryAction>
-                <Chip
-                    label={item.priority}
-                    color={getPriorityColor(item.priority)}
-                    size="small"
-                    sx={{ height: 20, fontSize: '0.65rem' }}
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Chip
+                        label={item.priority}
+                        color={getPriorityColor(item.priority)}
+                        size="small"
+                        sx={{ height: 20, fontSize: '0.65rem' }}
+                    />
+                    {onComplete && (item.status === 'pendente' || item.status === 'em_andamento') && (
+                        <Tooltip title="Concluir manutenção">
+                            <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onComplete(item);
+                                }}
+                                sx={{
+                                    bgcolor: 'success.main',
+                                    color: 'white',
+                                    width: 28,
+                                    height: 28,
+                                    '&:hover': { bgcolor: 'success.dark' },
+                                }}
+                            >
+                                <CheckCircle sx={{ fontSize: 16 }} />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Box>
             </ListItemSecondaryAction>
         </ListItem>
     );
