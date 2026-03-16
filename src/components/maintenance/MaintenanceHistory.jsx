@@ -28,7 +28,6 @@ import {
 import {
     Search,
     Visibility,
-    GetApp,
     FilterList,
     Refresh,
     CalendarMonth,
@@ -179,34 +178,7 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
         }
     };
 
-    const handleExportData = () => {
-        if (filteredHistory.length === 0) return;
-        const csvData = filteredHistory.map(record => ({
-            'Material': record.materialDescription,
-            'Tipo': record.type,
-            'Data Prevista': formatDate(record.dueDate),
-            'Data Conclusão': formatDate(record.completedAt),
-            'Responsável': record.responsibleName || '',
-            'Descrição': record.description || '',
-            'O que foi feito': record.completionNotes || '',
-            'Status Final': 'Concluída'
-        }));
 
-        const csvContent = [
-            Object.keys(csvData[0]).join(','),
-            ...csvData.map(row => Object.values(row).map(val => `"${val}"`).join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `historico_manutencoes_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
 
     const getTypeIcon = (type) => {
         const icons = {
@@ -374,18 +346,6 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                             size="small"
                         >
                             Atualizar
-                        </Button>
-                    </Grid>
-                    <Grid item xs={12} sm={1.5}>
-                        <Button
-                            fullWidth
-                            variant="contained"
-                            startIcon={<GetApp />}
-                            onClick={handleExportData}
-                            size="small"
-                            disabled={filteredHistory.length === 0}
-                        >
-                            Exportar
                         </Button>
                     </Grid>
                 </Grid>
