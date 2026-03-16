@@ -1777,79 +1777,29 @@ export default function Home() {
               )}
 
               {/* ====== ALERTS ====== */}
-              {(stats.manutencoesVencidas.length > 0 ||
-                stats.pendentesAssinatura > 0 ||
-                stats.lowStockMaterials.length > 0) && (
+              {stats.manutencoesVencidas.length > 0 && (
                 <Box sx={{ mb: 3, display: "flex", flexDirection: "column", gap: 1 }}>
-                  {stats.manutencoesVencidas.length > 0 && (
-                    <Alert
-                      severity="error"
-                      variant="outlined"
-                      action={
-                        <Button
-                          color="error"
-                          size="small"
-                          onClick={() => navigate("/manutencao?tab=1")}
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Ver
-                        </Button>
-                      }
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <strong>{stats.manutencoesVencidas.length}</strong>{" "}
-                      {stats.manutencoesVencidas.length === 1
-                        ? "manutencao vencida"
-                        : "manutencoes vencidas"}{" "}
-                      requer(em) atencao imediata
-                    </Alert>
-                  )}
-                  {stats.pendentesAssinatura > 0 && (
-                    <Alert
-                      severity="warning"
-                      variant="outlined"
-                      action={
-                        <Button
-                          color="warning"
-                          size="small"
-                          onClick={() => navigate("/movimentacoes")}
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Ver
-                        </Button>
-                      }
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <strong>{stats.pendentesAssinatura}</strong>{" "}
-                      {stats.pendentesAssinatura === 1
-                        ? "cautela aguardando"
-                        : "cautelas aguardando"}{" "}
-                      assinatura
-                    </Alert>
-                  )}
-                  {stats.lowStockMaterials.length > 0 && (
-                    <Alert
-                      severity="info"
-                      variant="outlined"
-                      action={
-                        <Button
-                          color="info"
-                          size="small"
-                          onClick={() => navigate("/material")}
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Ver
-                        </Button>
-                      }
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <strong>{stats.lowStockMaterials.length}</strong>{" "}
-                      {stats.lowStockMaterials.length === 1
-                        ? "material com"
-                        : "materiais com"}{" "}
-                      estoque zerado
-                    </Alert>
-                  )}
+                  <Alert
+                    severity="error"
+                    variant="outlined"
+                    action={
+                      <Button
+                        color="error"
+                        size="small"
+                        onClick={() => navigate("/manutencao?tab=1")}
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Ver
+                      </Button>
+                    }
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <strong>{stats.manutencoesVencidas.length}</strong>{" "}
+                    {stats.manutencoesVencidas.length === 1
+                      ? "manutencao vencida"
+                      : "manutencoes vencidas"}{" "}
+                    requer(em) atencao imediata
+                  </Alert>
                 </Box>
               )}
 
