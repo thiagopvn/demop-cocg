@@ -9,7 +9,20 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, errorMessage: error?.message || String(error) };
+    const message = error?.message || String(error);
+    // Detecta erro de chunk/módulo dinâmico e recarrega automaticamente
+    const isChunkError = /Failed to fetch dynamically imported module|Loading chunk|Loading CSS chunk|dynamically imported module/i.test(message);
+    if (isChunkError) {
+      const reloadKey = 'chunk-reload';
+      const lastReload = sessionStorage.getItem(reloadKey);
+      const now = Date.now();
+      if (!lastReload || now - Number(lastReload) > 10000) {
+        sessionStorage.setItem(reloadKey, String(now));
+        window.location.reload();
+        return { hasError: false, errorMessage: '' };
+      }
+    }
+    return { hasError: true, errorMessage: message };
   }
 
   componentDidCatch(error, errorInfo) {

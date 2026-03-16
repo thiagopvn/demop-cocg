@@ -4,22 +4,42 @@ import { CircularProgress, Box } from '@mui/material';
 import './App.css';
 import PrivateRoute from './contexts/PrivateRoute';
 
-// Lazy-loaded screens
-const LoginScreen = lazy(() => import('./screens/LoginScreen/LoginScreen'));
-const FirstAccessScreen = lazy(() => import('./screens/FirstAccessScreen/FirstAccessScreen'));
-const Categoria = lazy(() => import('./screens/Categoria/Categoria'));
-const Movimentacoes = lazy(() => import('./screens/Movimentacoes/Movimentacoes'));
-const Material = lazy(() => import('./screens/Material/Material'));
-const Usuario = lazy(() => import('./screens/Usuario/Usuario'));
-const Viaturas = lazy(() => import('./screens/Viaturas/Viaturas'));
-const Home = lazy(() => import('./screens/Home/Home'));
-const Devolucoes = lazy(() => import('./screens/Devolucoes/Devolucoes'));
-const Rings = lazy(() => import('./screens/Rings/Rings'));
-const MainSearch = lazy(() => import('./screens/Search/MainSearch'));
-const Manutencao = lazy(() => import('./screens/Manutencao/Manutencao'));
-const ViaturaDetalhes = lazy(() => import('./screens/ViaturaDetalhes/ViaturaDetalhes'));
-const Atividades = lazy(() => import('./screens/Atividades/Atividades'));
-const Perfil = lazy(() => import('./screens/Perfil/Perfil'));
+// Retry dinâmico para lazy imports que falham após novo deploy
+function lazyRetry(importFn) {
+  return lazy(() =>
+    importFn().catch(() => {
+      // Tenta novamente com cache-bust
+      return importFn().catch(() => {
+        // Se falhar de novo, recarrega a página
+        const reloadKey = 'chunk-reload';
+        const lastReload = sessionStorage.getItem(reloadKey);
+        const now = Date.now();
+        if (!lastReload || now - Number(lastReload) > 10000) {
+          sessionStorage.setItem(reloadKey, String(now));
+          window.location.reload();
+        }
+        return { default: () => null };
+      });
+    })
+  );
+}
+
+// Lazy-loaded screens com retry automático
+const LoginScreen = lazyRetry(() => import('./screens/LoginScreen/LoginScreen'));
+const FirstAccessScreen = lazyRetry(() => import('./screens/FirstAccessScreen/FirstAccessScreen'));
+const Categoria = lazyRetry(() => import('./screens/Categoria/Categoria'));
+const Movimentacoes = lazyRetry(() => import('./screens/Movimentacoes/Movimentacoes'));
+const Material = lazyRetry(() => import('./screens/Material/Material'));
+const Usuario = lazyRetry(() => import('./screens/Usuario/Usuario'));
+const Viaturas = lazyRetry(() => import('./screens/Viaturas/Viaturas'));
+const Home = lazyRetry(() => import('./screens/Home/Home'));
+const Devolucoes = lazyRetry(() => import('./screens/Devolucoes/Devolucoes'));
+const Rings = lazyRetry(() => import('./screens/Rings/Rings'));
+const MainSearch = lazyRetry(() => import('./screens/Search/MainSearch'));
+const Manutencao = lazyRetry(() => import('./screens/Manutencao/Manutencao'));
+const ViaturaDetalhes = lazyRetry(() => import('./screens/ViaturaDetalhes/ViaturaDetalhes'));
+const Atividades = lazyRetry(() => import('./screens/Atividades/Atividades'));
+const Perfil = lazyRetry(() => import('./screens/Perfil/Perfil'));
 
 const SuspenseFallback = (
   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
