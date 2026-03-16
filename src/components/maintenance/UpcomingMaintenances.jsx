@@ -115,7 +115,7 @@ const UpcomingMaintenances = ({ onComplete }) => {
         const priorityConfig = getPriorityConfig(item.priority);
         const borderColor = isOverdue ? '#ef4444' : isToday ? '#f59e0b' : '#3b82f6';
         const iconColor = isOverdue ? '#ef4444' : isToday ? '#f59e0b' : '#1e3a5f';
-        const labelText = isOverdue ? 'MANUTENCAO ATRASADA' : isToday ? 'MANUTENCAO PARA HOJE' : 'MANUTENCAO PROXIMA';
+        const labelText = isOverdue ? 'MANUTENÇÃO ATRASADA' : isToday ? 'MANUTENÇÃO PARA HOJE' : 'PRÓXIMA MANUTENÇÃO';
         const shouldPulse = isOverdue;
 
         return (
