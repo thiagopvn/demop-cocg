@@ -13,9 +13,6 @@ import {
     alpha
 } from '@mui/material';
 import {
-    Warning,
-    Schedule,
-    Today,
     CalendarMonth,
     CheckCircle,
     Build,
@@ -27,7 +24,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import {
-    getMaintenanceSummary,
+    getTodayMaintenances,
     checkAndNotifyMaintenances,
     requestNotificationPermission,
     isNotificationSupported
@@ -37,15 +34,7 @@ import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
 const UpcomingMaintenances = ({ onComplete }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
-    const [summary, setSummary] = useState({
-        overdue: [],
-        today: [],
-        upcoming: [],
-        overdueCount: 0,
-        todayCount: 0,
-        upcomingCount: 0,
-        totalPending: 0
-    });
+    const [todayItems, setTodayItems] = useState([]);
     const [notificationStatus, setNotificationStatus] = useState('unknown');
 
     useEffect(() => {
@@ -56,8 +45,8 @@ const UpcomingMaintenances = ({ onComplete }) => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const data = await getMaintenanceSummary();
-            setSummary(data);
+            const data = await getTodayMaintenances();
+            setTodayItems(data);
             await checkAndNotifyMaintenances();
         } catch (error) {
             console.error('Erro ao carregar manutenções:', error);
@@ -301,26 +290,22 @@ const UpcomingMaintenances = ({ onComplete }) => {
         );
     }
 
-    if (summary.totalPending === 0) {
+    if (todayItems.length === 0) {
         return (
             <Alert severity="success" icon={<CheckCircle />} sx={{ borderRadius: 2 }}>
-                Nenhuma manutenção pendente!
+                Nenhuma manutenção para hoje!
             </Alert>
         );
     }
-
-    // Combinar atrasadas + hoje para exibir em destaque (max 10 cards)
-    const criticalItems = [...summary.overdue, ...summary.today];
-    const upcomingItems = summary.upcoming;
 
     return (
         <Box>
             {/* Header */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Build sx={{ color: criticalItems.length > 0 ? '#ef4444' : '#1e3a5f', fontSize: 28 }} />
+                    <Build sx={{ color: '#f59e0b', fontSize: 28 }} />
                     <Typography variant="h5" sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', sm: '1.4rem' } }}>
-                        Manutenções Pendentes ({criticalItems.length + upcomingItems.length})
+                        Manutenções de Hoje ({todayItems.length})
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -344,64 +329,8 @@ const UpcomingMaintenances = ({ onComplete }) => {
                 </Box>
             </Box>
 
-            {/* Resumo rápido em chips */}
-            {(summary.overdueCount > 0 || summary.todayCount > 0) && (
-                <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                    {summary.overdueCount > 0 && (
-                        <Chip
-                            icon={<Warning sx={{ fontSize: '16px !important' }} />}
-                            label={`${summary.overdueCount} ATRASADA${summary.overdueCount > 1 ? 'S' : ''}`}
-                            sx={{
-                                fontWeight: 800,
-                                fontSize: '0.75rem',
-                                bgcolor: alpha('#ef4444', 0.15),
-                                color: '#ef4444',
-                                border: `1px solid ${alpha('#ef4444', 0.3)}`,
-                                '& .MuiChip-icon': { color: '#ef4444' },
-                            }}
-                        />
-                    )}
-                    {summary.todayCount > 0 && (
-                        <Chip
-                            icon={<Today sx={{ fontSize: '16px !important' }} />}
-                            label={`${summary.todayCount} PARA HOJE`}
-                            sx={{
-                                fontWeight: 800,
-                                fontSize: '0.75rem',
-                                bgcolor: alpha('#f59e0b', 0.15),
-                                color: '#f59e0b',
-                                border: `1px solid ${alpha('#f59e0b', 0.3)}`,
-                                '& .MuiChip-icon': { color: '#f59e0b' },
-                            }}
-                        />
-                    )}
-                    {summary.upcomingCount > 0 && (
-                        <Chip
-                            icon={<Schedule sx={{ fontSize: '16px !important' }} />}
-                            label={`${summary.upcomingCount} PROXIMA${summary.upcomingCount > 1 ? 'S' : ''}`}
-                            sx={{
-                                fontWeight: 700,
-                                fontSize: '0.75rem',
-                                bgcolor: alpha('#3b82f6', 0.1),
-                                color: '#3b82f6',
-                                '& .MuiChip-icon': { color: '#3b82f6' },
-                            }}
-                        />
-                    )}
-                </Box>
-            )}
-
-            {/* Cards de manutenções atrasadas e de hoje - TODOS visíveis, sem collapse */}
-            {summary.overdue.map(item => renderMaintenanceCard(item, true, false))}
-            {summary.today.map(item => renderMaintenanceCard(item, false, true))}
-
-            {/* Próximas - também cards grandes mas com cor mais suave */}
-            {upcomingItems.slice(0, 5).map(item => renderMaintenanceCard(item, false, false))}
-            {upcomingItems.length > 5 && (
-                <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1, mb: 2 }}>
-                    + {upcomingItems.length - 5} manutenções nos próximos 7 dias
-                </Typography>
-            )}
+            {/* Cards de manutenções de hoje */}
+            {todayItems.map(item => renderMaintenanceCard(item, false, true))}
 
             {/* Botão ver cronograma completo */}
             <Button
