@@ -1077,6 +1077,88 @@ export default function Home() {
       }));
   }, [stats.byCategory]);
 
+  // ==================== MAINTENANCE COMPLETION ====================
+
+  const handleOpenCompleteMaintenance = (maintenance) => {
+    setCompletionData({
+      completionNotes: '',
+      confirmedAsPlanned: false,
+      maintenanceId: maintenance.id,
+      maintenance,
+    });
+    setCompleteDialogOpen(true);
+  };
+
+  const handleConfirmCompleteMaintenance = async () => {
+    const { maintenanceId, maintenance, completionNotes, confirmedAsPlanned } = completionData;
+    const finalNotes = confirmedAsPlanned
+      ? `[CONFORME PREVISTO] ${completionNotes || ''}`.trim()
+      : completionNotes;
+    try {
+      const now = Timestamp.now();
+      const nowDate = now.toDate();
+      await updateDoc(doc(db, 'manutencoes', maintenanceId), {
+        status: 'concluida',
+        updatedAt: now,
+        completedAt: now,
+        completionNotes: finalNotes || '',
+        completedBy: userName || '',
+      });
+
+      await addDoc(collection(db, 'historico_manutencoes'), {
+        materialId: maintenance.materialId,
+        materialDescription: maintenance.materialDescription,
+        materialCategory: maintenance.materialCategory,
+        type: maintenance.type,
+        dueDate: maintenance.dueDate instanceof Date ? Timestamp.fromDate(maintenance.dueDate) : maintenance.dueDate,
+        description: maintenance.description || '',
+        priority: maintenance.priority || 'media',
+        estimatedDuration: maintenance.estimatedDuration || null,
+        requiredParts: maintenance.requiredParts || [],
+        isRecurrent: maintenance.isRecurrent || false,
+        recurrenceType: maintenance.recurrenceType || null,
+        recurrenceCount: maintenance.recurrenceCount || 0,
+        responsibleName: '',
+        completedBy: userName || '',
+        createdAt: maintenance.createdAt instanceof Date ? Timestamp.fromDate(maintenance.createdAt) : (maintenance.createdAt || Timestamp.now()),
+        createdBy: maintenance.createdBy || '',
+        completedAt: now,
+        completionNotes: finalNotes || '',
+        originalId: maintenance.id,
+      });
+
+      let nextDateMsg = '';
+      if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
+        const nextMaint = await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
+        if (nextMaint) {
+          const nextDate = nextMaint.dueDate?.toDate?.() || nextMaint.dueDate;
+          if (nextDate) {
+            nextDateMsg = ` | Próxima agendada para ${nextDate.toLocaleDateString('pt-BR')}`;
+          }
+        }
+      }
+
+      if (maintenance?.materialId) {
+        try {
+          await updateDoc(doc(db, 'materials', maintenance.materialId), {
+            maintenance_status: 'operante',
+            last_maintenance_update: now,
+            last_maintenance_date: now,
+          });
+        } catch (_) {}
+      }
+
+      setCompleteDialogOpen(false);
+      setCompletionData({ completionNotes: '', confirmedAsPlanned: false, maintenanceId: null, maintenance: null });
+      setSnackbarMessage(`Manutenção concluída com sucesso!${nextDateMsg}`);
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Erro ao concluir manutencao:', error);
+      setSnackbarMessage('Erro ao concluir manutencao');
+      setSnackbarOpen(true);
+    }
+  };
+
   // ==================== LOADING ====================
 
   if (loading) {
@@ -1427,88 +1509,6 @@ export default function Home() {
       : dateFilter === "custom"
       ? "Periodo Selecionado"
       : "Todo o Periodo";
-
-  // ==================== MAINTENANCE COMPLETION ====================
-
-  const handleOpenCompleteMaintenance = (maintenance) => {
-    setCompletionData({
-      completionNotes: '',
-      confirmedAsPlanned: false,
-      maintenanceId: maintenance.id,
-      maintenance,
-    });
-    setCompleteDialogOpen(true);
-  };
-
-  const handleConfirmCompleteMaintenance = async () => {
-    const { maintenanceId, maintenance, completionNotes, confirmedAsPlanned } = completionData;
-    const finalNotes = confirmedAsPlanned
-      ? `[CONFORME PREVISTO] ${completionNotes || ''}`.trim()
-      : completionNotes;
-    try {
-      const now = Timestamp.now();
-      const nowDate = now.toDate();
-      await updateDoc(doc(db, 'manutencoes', maintenanceId), {
-        status: 'concluida',
-        updatedAt: now,
-        completedAt: now,
-        completionNotes: finalNotes || '',
-        completedBy: userName || '',
-      });
-
-      await addDoc(collection(db, 'historico_manutencoes'), {
-        materialId: maintenance.materialId,
-        materialDescription: maintenance.materialDescription,
-        materialCategory: maintenance.materialCategory,
-        type: maintenance.type,
-        dueDate: maintenance.dueDate instanceof Date ? Timestamp.fromDate(maintenance.dueDate) : maintenance.dueDate,
-        description: maintenance.description || '',
-        priority: maintenance.priority || 'media',
-        estimatedDuration: maintenance.estimatedDuration || null,
-        requiredParts: maintenance.requiredParts || [],
-        isRecurrent: maintenance.isRecurrent || false,
-        recurrenceType: maintenance.recurrenceType || null,
-        recurrenceCount: maintenance.recurrenceCount || 0,
-        responsibleName: '',
-        completedBy: userName || '',
-        createdAt: maintenance.createdAt instanceof Date ? Timestamp.fromDate(maintenance.createdAt) : (maintenance.createdAt || Timestamp.now()),
-        createdBy: maintenance.createdBy || '',
-        completedAt: now,
-        completionNotes: finalNotes || '',
-        originalId: maintenance.id,
-      });
-
-      let nextDateMsg = '';
-      if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
-        const nextMaint = await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
-        if (nextMaint) {
-          const nextDate = nextMaint.dueDate?.toDate?.() || nextMaint.dueDate;
-          if (nextDate) {
-            nextDateMsg = ` | Próxima agendada para ${nextDate.toLocaleDateString('pt-BR')}`;
-          }
-        }
-      }
-
-      if (maintenance?.materialId) {
-        try {
-          await updateDoc(doc(db, 'materials', maintenance.materialId), {
-            maintenance_status: 'operante',
-            last_maintenance_update: now,
-            last_maintenance_date: now,
-          });
-        } catch (_) {}
-      }
-
-      setCompleteDialogOpen(false);
-      setCompletionData({ completionNotes: '', confirmedAsPlanned: false, maintenanceId: null, maintenance: null });
-      setSnackbarMessage(`Manutenção concluída com sucesso!${nextDateMsg}`);
-      setSnackbarOpen(true);
-    } catch (error) {
-      console.error('Erro ao concluir manutencao:', error);
-      setSnackbarMessage('Erro ao concluir manutencao');
-      setSnackbarOpen(true);
-    }
-  };
 
   return (
     <PrivateRoute>
