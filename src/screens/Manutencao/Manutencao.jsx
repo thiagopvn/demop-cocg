@@ -6,6 +6,7 @@ import PrivateRoute from '../../contexts/PrivateRoute';
 import MaintenanceDashboard from '../../components/maintenance/MaintenanceDashboard';
 import MaintenanceCalendar from '../../components/maintenance/MaintenanceCalendar';
 import MaintenanceHistory from '../../components/maintenance/MaintenanceHistory';
+import MaintenanceCalendarView from '../../components/maintenance/MaintenanceCalendarView';
 import TabPanel from '../../components/TabPanel';
 
 const Manutencao = () => {
@@ -17,7 +18,7 @@ const Manutencao = () => {
 
     useEffect(() => {
         const tab = parseInt(searchParams.get('tab'));
-        if (!isNaN(tab) && tab >= 0 && tab <= 2) {
+        if (!isNaN(tab) && tab >= 0 && tab <= 3) {
             setTabValue(tab);
         }
     }, [searchParams]);
@@ -35,10 +36,11 @@ const Manutencao = () => {
                 </Typography>
                 <Paper elevation={3} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                     <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                        <Tabs value={tabValue} onChange={handleTabChange} aria-label="abas de manutenção">
+                        <Tabs value={tabValue} onChange={handleTabChange} aria-label="abas de manutenção" variant="scrollable" scrollButtons="auto">
                             <Tab label="Dashboard" />
                             <Tab label="Cronograma" />
                             <Tab label="Histórico" />
+                            <Tab label="Calendário" />
                         </Tabs>
                     </Box>
                     <TabPanel value={tabValue} index={0}>
@@ -49,6 +51,9 @@ const Manutencao = () => {
                     </TabPanel>
                     <TabPanel value={tabValue} index={2}>
                         <MaintenanceHistory materialIdFilter={materialId} />
+                    </TabPanel>
+                    <TabPanel value={tabValue} index={3}>
+                        <MaintenanceCalendarView />
                     </TabPanel>
                 </Paper>
             </Box>

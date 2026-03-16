@@ -70,3 +70,9 @@ export async function callMigrateExistingUsers() {
   const result = await fn();
   return result.data;
 }
+
+export async function callGetCalendarMaintenances(year, month) {
+  const fn = getCallable('getCalendarMaintenances');
+  const result = await fn({ year, month });
+  return result.data;
+}

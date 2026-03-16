@@ -650,3 +650,165 @@ exports.scheduledMaintenanceStatsUpdate = onSchedule(
     }
   }
 );
+
+// ============================================================
+// CALENDAR HELPERS
+// ============================================================
+function calcNextDate(fromDate, recurrenceType, customDays) {
+  if (!fromDate || !recurrenceType) return null;
+  const d = new Date(fromDate);
+  const fixedDays = { cada_90_dias: 90, cada_120_dias: 120, cada_180_dias: 180, cada_365_dias: 365 };
+  if (fixedDays[recurrenceType]) {
+    d.setDate(d.getDate() + fixedDays[recurrenceType]);
+    return d;
+  }
+  switch (recurrenceType) {
+    case "diaria": d.setDate(d.getDate() + 1); break;
+    case "semanal": d.setDate(d.getDate() + 7); break;
+    case "quinzenal": d.setDate(d.getDate() + 15); break;
+    case "mensal": d.setMonth(d.getMonth() + 1); break;
+    case "bimestral": d.setMonth(d.getMonth() + 2); break;
+    case "trimestral": d.setMonth(d.getMonth() + 3); break;
+    case "semestral": d.setMonth(d.getMonth() + 6); break;
+    case "anual": d.setFullYear(d.getFullYear() + 1); break;
+    case "customizado":
+      if (customDays) d.setDate(d.getDate() + customDays);
+      else return null;
+      break;
+    default: return null;
+  }
+  return d;
+}
+
+function getDayInterval(recurrenceType, customDays) {
+  const fixedDays = { cada_90_dias: 90, cada_120_dias: 120, cada_180_dias: 180, cada_365_dias: 365 };
+  if (fixedDays[recurrenceType]) return fixedDays[recurrenceType];
+  switch (recurrenceType) {
+    case "diaria": return 1;
+    case "semanal": return 7;
+    case "quinzenal": return 15;
+    case "customizado": return customDays || null;
+    default: return null;
+  }
+}
+
+function getMonthInterval(recurrenceType) {
+  switch (recurrenceType) {
+    case "mensal": return 1;
+    case "bimestral": return 2;
+    case "trimestral": return 3;
+    case "semestral": return 6;
+    case "anual": return 12;
+    default: return null;
+  }
+}
+
+// ============================================================
+// m) getCalendarMaintenances — callable
+//    Projects maintenance occurrences for a given month
+// ============================================================
+exports.getCalendarMaintenances = onCall({ region: "southamerica-east1" }, async (request) => {
+  const { year, month } = request.data || {};
+
+  if (!year || !month || month < 1 || month > 12) {
+    throw new HttpsError("invalid-argument", "year e month são obrigatórios (month: 1-12).");
+  }
+
+  const startOfMonth = new Date(year, month - 1, 1);
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+  const snap = await db.collection("manutencoes")
+    .where("status", "in", ["pendente", "em_andamento"])
+    .get();
+
+  const calendarDays = {};
+
+  for (const docSnap of snap.docs) {
+    const data = docSnap.data();
+    const id = docSnap.id;
+    const rawDue = data.dueDate;
+    const dueDate = rawDue && rawDue.toDate ? rawDue.toDate() : (rawDue ? new Date(rawDue) : null);
+    if (!dueDate || isNaN(dueDate.getTime())) continue;
+
+    const baseInfo = {
+      id,
+      materialId: data.materialId || "",
+      materialDescription: data.materialDescription || "",
+      materialCategory: data.materialCategory || "",
+      type: data.type || "",
+      description: data.description || "",
+      priority: data.priority || "media",
+      status: data.status || "pendente",
+      isRecurrent: data.isRecurrent || false,
+      recurrenceType: data.recurrenceType || null,
+      customRecurrenceDays: data.customRecurrenceDays || null,
+      estimatedDuration: data.estimatedDuration || null,
+    };
+
+    // Add actual maintenance if dueDate falls in this month
+    if (dueDate >= startOfMonth && dueDate <= endOfMonth) {
+      const day = String(dueDate.getDate());
+      if (!calendarDays[day]) calendarDays[day] = [];
+      calendarDays[day].push({
+        ...baseInfo,
+        dueDate: dueDate.toISOString(),
+        isProjected: false,
+      });
+    }
+
+    // Project future occurrences for recurrent maintenances
+    if (data.isRecurrent && data.recurrenceType) {
+      const rawEnd = data.recurrenceEndDate;
+      const recurrenceEndDate = rawEnd && rawEnd.toDate ? rawEnd.toDate() : null;
+      const maxDate = recurrenceEndDate && recurrenceEndDate < endOfMonth
+        ? recurrenceEndDate : endOfMonth;
+
+      let current = new Date(dueDate);
+
+      // Fast-forward for day-based recurrence
+      const dayInterval = getDayInterval(data.recurrenceType, data.customRecurrenceDays);
+      if (dayInterval && current < startOfMonth) {
+        const diffDays = Math.floor((startOfMonth.getTime() - current.getTime()) / 86400000);
+        const jumps = Math.max(0, Math.floor(diffDays / dayInterval) - 1);
+        if (jumps > 0) {
+          current = new Date(current.getTime() + jumps * dayInterval * 86400000);
+        }
+      }
+
+      // Fast-forward for month-based recurrence
+      const monthInterval = getMonthInterval(data.recurrenceType);
+      if (monthInterval && current < startOfMonth) {
+        const monthsDiff =
+          (startOfMonth.getFullYear() - current.getFullYear()) * 12 +
+          (startOfMonth.getMonth() - current.getMonth());
+        const jumps = Math.max(0, Math.floor(monthsDiff / monthInterval) - 1);
+        if (jumps > 0) {
+          const newCurrent = new Date(current);
+          newCurrent.setMonth(newCurrent.getMonth() + jumps * monthInterval);
+          current = newCurrent;
+        }
+      }
+
+      let safetyCounter = 0;
+      while (current <= maxDate && safetyCounter < 2000) {
+        const next = calcNextDate(current, data.recurrenceType, data.customRecurrenceDays);
+        if (!next || next.getTime() <= current.getTime()) break;
+        current = next;
+        safetyCounter++;
+        if (current > maxDate) break;
+        if (current >= startOfMonth && current.getTime() !== dueDate.getTime()) {
+          const day = String(current.getDate());
+          if (!calendarDays[day]) calendarDays[day] = [];
+          calendarDays[day].push({
+            ...baseInfo,
+            dueDate: current.toISOString(),
+            isProjected: true,
+            sourceDueDate: dueDate.toISOString(),
+          });
+        }
+      }
+    }
+  }
+
+  return { calendarDays, year, month };
+});
