@@ -42,6 +42,10 @@ export const conferenciasViaturasCollection = collection(db, 'conferencias_viatu
 export const userSecretsCollection = collection(db, 'user_secrets');
 // ------------------------------------
 
+// --- COLEÇÃO DE ALERTAS DE CONFERÊNCIA (chefe → admin) ---
+export const alertasConferenciaCollection = collection(db, 'alertas_conferencia');
+// ------------------------------------
+
 // --- COLEÇÃO DE TAREFAS/ORDENS DO DEMOP ---
 export const tarefasDemopCollection = collection(db, 'tarefas_demop');
 // ------------------------------------

@@ -1,0 +1,661 @@
+================================================================================
+       FLUXO COMPLETO DE MATERIAL DENTRO DA VIATURA - CONTROLE DE CAUTELA
+================================================================================
+
+Documento técnico explicando toda a lógica de gerenciamento de materiais
+dentro das viaturas, relações com o módulo /material, coleções Firestore,
+somatório e diminuição de estoque, entradas e saídas.
+
+================================================================================
+1. COLEÇÕES FIRESTORE ENVOLVIDAS
+================================================================================
+
+As seguintes coleções do Firebase Firestore participam do fluxo:
+
+a) materials
+   - Inventário geral de materiais/equipamentos
+   - Campos de estoque:
+     * estoque_total    → Quantidade total já registrada
+     * estoque_atual    → Quantidade DISPONÍVEL no almoxarifado (não alocada)
+     * estoque_viatura  → Quantidade alocada em viaturas
+   - Regra: estoque_atual + estoque_viatura = total de unidades em uso
+
+b) viaturas
+   - Cadastro de viaturas (veículos)
+   - Campos relevantes: prefixo, description, ultima_movimentacao,
+     ultima_conferencia, conferido_por, conferido_por_id
+
+c) viatura_materiais
+   - Tabela de junção que liga materiais às viaturas
+   - Cada documento representa uma alocação de um material em uma viatura
+   - Campos:
+     * viatura_id, viatura_prefixo, viatura_description
+     * material_id, material_description, categoria
+     * quantidade (quantas unidades desse material estão na viatura)
+     * status: 'alocado' ou 'desalocado'
+     * data_alocacao, alocado_por, alocado_por_nome
+     * ultima_conferencia, conferido_por, conferido_por_id
+     * ultima_atualizacao, atualizado_por, atualizado_por_nome
+     * desalocado_em, desalocado_por, desalocado_por_nome
+     * motivo_desalocacao
+
+d) movimentacoes
+   - Histórico de movimentações (cautelas, saídas, entradas)
+   - Quando o tipo é 'saída' com subtipo 'viatura', registra saída
+     de material do almoxarifado para uma viatura
+
+e) conferencias_viaturas
+   - Registros de conferência diária/periódica das viaturas
+   - Armazena snapshot de todos os itens conferidos com divergências
+
+Referência no código (src/firebase/db.js):
+   export const materialsCollection = collection(db, 'materials');
+   export const viaturasCollection = collection(db, 'viaturas');
+   export const viaturaMaterialCollection = collection(db, 'viatura_materiais');
+   export const movimentacoesCollection = collection(db, 'movimentacoes');
+
+
+================================================================================
+2. CAMPOS DE ESTOQUE NO MATERIAL
+================================================================================
+
+Cada documento na coleção "materials" possui três campos de controle:
+
+{
+  description: "Mangueira de incêndio 2.5pol",
+  categoria_id: "abc123",
+  categoria: "Combate a Incêndio",
+  estoque_total: 20,       // Total original registrado
+  estoque_atual: 14,       // Disponível no almoxarifado
+  estoque_viatura: 6,      // Distribuído em viaturas
+  ultima_movimentacao: Timestamp
+}
+
+REGRA FUNDAMENTAL:
+  Quando material SAI do almoxarifado para viatura:
+    estoque_atual  DIMINUI  (-quantidade)
+    estoque_viatura AUMENTA (+quantidade)
+
+  Quando material VOLTA da viatura para almoxarifado:
+    estoque_atual  AUMENTA  (+quantidade)
+    estoque_viatura DIMINUI (-quantidade)
+
+
+================================================================================
+3. FORMAS DE ALOCAR MATERIAL EM VIATURA (ENTRADA NA VIATURA)
+================================================================================
+
+Existem 3 formas de colocar material dentro de uma viatura:
+
+------------------------------------------------------------------------
+3.1  ALOCAÇÃO DIRETA pela tela ViaturaDetalhes
+------------------------------------------------------------------------
+Arquivo: src/screens/ViaturaDetalhes/ViaturaDetalhes.jsx
+Função:  handleAlocarMaterial (linhas ~247-317)
+
+Fluxo:
+  1. Usuário abre os detalhes de uma viatura
+  2. Seleciona um material no dropdown e digita a quantidade
+  3. Validação:
+     - quantidade > 0
+     - quantidade <= material.estoque_atual (não pode exceder estoque disponível)
+  4. Sistema verifica se já existe registro em viatura_materiais:
+
+     const q = query(
+       collection(db, 'viatura_materiais'),
+       where('viatura_id', '==', id),
+       where('material_id', '==', selectedMaterial.id),
+       where('status', '==', 'alocado')
+     );
+
+  5a. SE JÁ EXISTE → Atualiza a quantidade somando:
+
+     await updateDoc(existingDocRef, {
+       quantidade: existingData.quantidade + quantidade,
+       ultima_atualizacao: serverTimestamp(),
+       atualizado_por: userId,
+       atualizado_por_nome: userName
+     });
+
+  5b. SE NÃO EXISTE → Cria novo documento em viatura_materiais:
+
+     await addDoc(collection(db, 'viatura_materiais'), {
+       viatura_id: id,
+       viatura_prefixo: viatura.prefixo,
+       viatura_description: viatura.description,
+       material_id: selectedMaterial.id,
+       material_description: selectedMaterial.description,
+       categoria: selectedMaterial.categoria || '',
+       quantidade: quantidade,
+       data_alocacao: serverTimestamp(),
+       alocado_por: userId,
+       alocado_por_nome: userName,
+       status: 'alocado'
+     });
+
+  6. Atualiza o estoque do material (DIMINUI estoque_atual, AUMENTA estoque_viatura):
+
+     await updateDoc(doc(db, 'materials', selectedMaterial.id), {
+       estoque_atual: (materialData.estoque_atual || 0) - quantidade,
+       estoque_viatura: (materialData.estoque_viatura || 0) + quantidade,
+       ultima_movimentacao: serverTimestamp()
+     });
+
+  7. Atualiza timestamp da viatura:
+
+     await updateDoc(doc(db, 'viaturas', id), {
+       ultima_movimentacao: serverTimestamp()
+     });
+
+EXEMPLO PRÁTICO:
+  Material "Extintor CO2" tem estoque_atual=10, estoque_viatura=5
+  Usuário aloca 3 unidades na viatura ABT-01
+
+  ANTES:  estoque_atual=10, estoque_viatura=5
+  DEPOIS: estoque_atual=7,  estoque_viatura=8
+
+  viatura_materiais: { material_id: 'ext01', viatura_id: 'abt01',
+                       quantidade: 3, status: 'alocado' }
+
+
+------------------------------------------------------------------------
+3.2  SAÍDA VIA MOVIMENTAÇÕES (Saída > Viatura)
+------------------------------------------------------------------------
+Arquivo: src/screens/Movimentacoes/Movimentacoes.jsx (linhas ~394-432)
+
+Fluxo:
+  1. Na tela de Movimentações, usuário seleciona tipo "Saída"
+  2. Seleciona subtipo "Viatura"
+  3. Escolhe o material e a viatura de destino
+  4. Informa a quantidade
+
+  5. Atualiza estoque do material:
+
+     await updateDoc(materialRef, {
+       estoque_atual: newEstoqueAtual - qtd,
+       estoque_viatura: estoqueViatura + qtd
+     });
+
+  6. Cria registro na coleção movimentacoes:
+
+     await addDoc(movimentacoesCollection, {
+       material: materialSelected.id,
+       material_description: materialSelected.description,
+       viatura: saidaViaturaSelected.id,
+       viatura_description: saidaViaturaSelected.description,
+       type: 'saída',
+       subtype: 'viatura',
+       status: 'descartado',
+       quantity: qtd,
+       date: serverTimestamp(),
+       user_name: userName
+     });
+
+  7. Cria/atualiza registro em viatura_materiais (mesma lógica do 3.1):
+     - Se já existe com status='alocado' → soma quantidade
+     - Se não existe → cria novo documento
+
+
+------------------------------------------------------------------------
+3.3  ALOCAÇÃO DIRETA pela tela de Material
+------------------------------------------------------------------------
+Arquivo: src/screens/Material/Material.jsx (linhas ~415-470)
+
+Fluxo:
+  1. Na tela de materiais, usuário clica em "Alocar em Viatura"
+  2. Seleciona a viatura de destino e informa quantidade
+  3. Mesma lógica do item 3.1:
+     - Verifica existência em viatura_materiais
+     - Cria ou atualiza documento
+     - Diminui estoque_atual e aumenta estoque_viatura
+
+
+================================================================================
+4. FORMAS DE REMOVER MATERIAL DA VIATURA (SAÍDA DA VIATURA / DEVOLUÇÃO)
+================================================================================
+
+------------------------------------------------------------------------
+4.1  DESALOCAÇÃO COMPLETA (Devolver ao almoxarifado)
+------------------------------------------------------------------------
+Arquivo: src/screens/ViaturaDetalhes/ViaturaDetalhes.jsx
+Função:  handleDesalocarMaterial (linhas ~393-424)
+
+Fluxo:
+  1. Usuário seleciona material alocado e clica em "Desalocar"
+  2. Pode informar motivo da desalocação (opcional)
+  3. Confirma a operação
+
+  4. Atualiza viatura_materiais → muda status para 'desalocado':
+
+     await updateDoc(doc(db, 'viatura_materiais', materialToDesalocar.id), {
+       status: 'desalocado',
+       desalocado_em: serverTimestamp(),
+       desalocado_por: userId,
+       desalocado_por_nome: userName,
+       motivo_desalocacao: motivoDesalocacao || null
+     });
+
+  5. DEVOLVE ao estoque (AUMENTA estoque_atual, DIMINUI estoque_viatura):
+
+     await updateDoc(doc(db, 'materials', materialToDesalocar.material_id), {
+       estoque_atual: (materialData.estoque_atual || 0) + materialToDesalocar.quantidade,
+       estoque_viatura: Math.max(0, (materialData.estoque_viatura || 0) - materialToDesalocar.quantidade),
+       ultima_movimentacao: serverTimestamp()
+     });
+
+  6. Atualiza timestamp da viatura.
+
+EXEMPLO PRÁTICO:
+  Material "Extintor CO2" tem estoque_atual=7, estoque_viatura=8
+  Viatura ABT-01 tem 3 unidades alocadas
+  Usuário desaloca tudo (3 unidades)
+
+  ANTES:  estoque_atual=7,  estoque_viatura=8
+  DEPOIS: estoque_atual=10, estoque_viatura=5
+
+  viatura_materiais: { status: 'desalocado', desalocado_em: timestamp }
+
+  Nota: Math.max(0, ...) garante que estoque_viatura nunca fique negativo.
+
+
+------------------------------------------------------------------------
+4.2  EDIÇÃO DE QUANTIDADE (Ajuste parcial)
+------------------------------------------------------------------------
+Arquivo: src/screens/ViaturaDetalhes/ViaturaDetalhes.jsx
+Função:  handleEditQuantidade (linhas ~320-384)
+
+Fluxo:
+  1. Usuário edita a quantidade de um material já alocado
+  2. Calcula diferença entre nova e antiga quantidade:
+     diferenca = novaQuantidade - quantidadeAtual
+
+  3. Se diferença > 0 (AUMENTOU na viatura → tira do almoxarifado):
+     - Valida: diferenca <= estoque_atual
+     - estoque_atual -= diferenca
+     - estoque_viatura += diferenca
+
+  4. Se diferença < 0 (DIMINUIU na viatura → devolve ao almoxarifado):
+     - estoque_atual += |diferenca|
+     - estoque_viatura -= |diferenca|
+
+  5. Se nova quantidade = 0 → aciona fluxo de desalocação completa
+
+  6. Atualiza viatura_materiais com nova quantidade:
+
+     await updateDoc(doc(db, 'viatura_materiais', materialId), {
+       quantidade: novaQuantidade,
+       ultima_atualizacao: serverTimestamp(),
+       atualizado_por: userId,
+       atualizado_por_nome: userName
+     });
+
+EXEMPLO PRÁTICO:
+  Material "Corda 50m" na viatura: quantidade=5
+  estoque_atual=15, estoque_viatura=10
+  Usuário altera para quantidade=3 (devolveu 2)
+
+  diferença = 3 - 5 = -2
+  estoque_atual = 15 + 2 = 17
+  estoque_viatura = 10 - 2 = 8
+  viatura_materiais.quantidade = 3
+
+
+================================================================================
+5. CONFERÊNCIA DE VIATURA (VERIFICAÇÃO PERIÓDICA)
+================================================================================
+
+Arquivo: src/dialogs/ConferenciaViaturaDialog.jsx
+Função:  handleSalvarConferencia (linhas ~167-265)
+
+A conferência é o processo de verificar fisicamente se os materiais que
+constam no sistema realmente estão presentes na viatura.
+
+------------------------------------------------------------------------
+5.1  Abertura da Conferência
+------------------------------------------------------------------------
+  1. Sistema busca todos os materiais com status='alocado' para a viatura:
+
+     const q = query(
+       collection(db, 'viatura_materiais'),
+       where('viatura_id', '==', viatura.id),
+       where('status', '==', 'alocado')
+     );
+
+  2. Exibe lista com:
+     - Nome do material
+     - Quantidade esperada (conforme sistema)
+     - Campo para informar "Quantidade Encontrada"
+     - Checkbox de "Conferido"
+
+------------------------------------------------------------------------
+5.2  Preenchimento
+------------------------------------------------------------------------
+  3. O usuário marca cada material como "conferido"
+  4. Se a quantidade encontrada difere da esperada → marca como "divergência"
+
+------------------------------------------------------------------------
+5.3  Salvamento com Ajuste de Estoque
+------------------------------------------------------------------------
+  5. Para cada material onde a quantidade mudou:
+
+     const diferenca = novaQtd - mat.quantidade;  // esperada vs encontrada
+
+     // Se encontrou MAIS que o esperado (diferenca > 0):
+     //   → Precisa ter estoque_atual suficiente para "transferir" a diferença
+     //   → estoque_atual diminui, estoque_viatura aumenta
+
+     // Se encontrou MENOS que o esperado (diferenca < 0):
+     //   → Material "sumiu" da viatura, volta para estoque
+     //   → estoque_atual aumenta, estoque_viatura diminui
+
+     await updateDoc(materialRef, {
+       estoque_atual: Math.max(0, (materialData.estoque_atual || 0) - diferenca),
+       estoque_viatura: Math.max(0, (materialData.estoque_viatura || 0) + diferenca)
+     });
+
+  6. Atualiza viatura_materiais com nova quantidade:
+
+     await updateDoc(viaturaMaterialRef, {
+       quantidade: novaQtd,
+       ultima_conferencia: serverTimestamp(),
+       conferido_por: userName,
+       conferido_por_id: userId,
+       ultima_atualizacao: serverTimestamp()
+     });
+
+  7. Atualiza timestamps na viatura:
+
+     await updateDoc(doc(db, 'viaturas', viatura.id), {
+       ultima_conferencia: serverTimestamp(),
+       conferido_por: userName,
+       conferido_por_id: userId
+     });
+
+  8. Cria registro de auditoria em conferencias_viaturas:
+
+     await addDoc(collection(db, 'conferencias_viaturas'), {
+       viatura_id: viatura.id,
+       viatura_prefixo: viatura.prefixo,
+       viatura_description: viatura.description,
+       conferido_por: userName,
+       conferido_por_id: userId,
+       data_conferencia: serverTimestamp(),
+       total_materiais: totalDeMateriais,
+       total_conferidos: totalConferidos,
+       total_divergencias: totalDivergencias,
+       itens: [
+         {
+           material_id: 'm1',
+           material_description: 'Extintor CO2',
+           categoria: 'Combate a Incêndio',
+           quantidade_esperada: 3,
+           quantidade_encontrada: 2,
+           divergencia: true
+         },
+         // ... demais itens
+       ]
+     });
+
+EXEMPLO PRÁTICO:
+  Viatura ABT-01 tem no sistema:
+    - Extintor CO2: quantidade=3
+    - Mangueira 2.5pol: quantidade=5
+
+  Na conferência física:
+    - Extintor CO2: encontrados 2 (falta 1)
+    - Mangueira 2.5pol: encontrados 5 (ok)
+
+  Ajuste do Extintor CO2:
+    diferenca = 2 - 3 = -1
+    estoque_atual = estoque_atual - (-1) = estoque_atual + 1  (volta pro almox)
+    estoque_viatura = estoque_viatura - 1
+    viatura_materiais.quantidade = 2
+
+  O registro em conferencias_viaturas terá total_divergencias=1
+
+
+================================================================================
+6. RELAÇÃO ENTRE /MATERIAL E A VIATURA
+================================================================================
+
+O módulo de Material (/material) e o módulo de Viatura estão interligados
+através dos campos de estoque e da coleção viatura_materiais:
+
+  ┌─────────────────────┐         ┌──────────────────────┐
+  │    TELA MATERIAL    │         │   TELA VIATURA       │
+  │  /material          │         │   /viatura/:id       │
+  │                     │         │                      │
+  │ Lista todos os      │         │ Lista materiais      │
+  │ materiais com:      │         │ alocados nesta       │
+  │ - estoque_atual     │◄───────►│ viatura específica   │
+  │ - estoque_viatura   │         │                      │
+  │ - estoque_total     │         │ Permite:             │
+  │                     │         │ - Alocar             │
+  │ Permite:            │         │ - Desalocar          │
+  │ - Criar material    │         │ - Editar qtd         │
+  │ - Editar material   │         │ - Conferência        │
+  │ - Alocar em viatura │         │                      │
+  └─────────┬───────────┘         └──────────┬───────────┘
+            │                                │
+            │    ┌─────────────────────┐      │
+            └───►│ viatura_materiais   │◄─────┘
+                 │ (coleção de junção) │
+                 │                     │
+                 │ Cada doc representa │
+                 │ um material alocado │
+                 │ em uma viatura      │
+                 └─────────────────────┘
+
+Fluxo bidirecional:
+  - Da tela Material → pode alocar material em qualquer viatura
+  - Da tela Viatura  → pode alocar qualquer material disponível
+  - Ambos atualizam os MESMOS campos (estoque_atual, estoque_viatura)
+  - A coleção viatura_materiais é a "ponte" entre os dois
+
+Telas de consulta cruzada:
+  - ViaturaMaterial (src/screens/Search/ViaturaMaterial.jsx):
+    "Quais materiais estão nesta viatura?"
+    → Busca em viatura_materiais WHERE viatura_id = X AND status = 'alocado'
+
+  - MaterialViatura (src/screens/Search/MaterialViatura.jsx):
+    "Em quais viaturas está este material?"
+    → Busca em viatura_materiais WHERE material_id = X
+
+
+================================================================================
+7. SOMATÓRIO E DIMINUIÇÃO DE ESTOQUE - RESUMO
+================================================================================
+
+Toda operação de estoque segue a mesma fórmula base:
+
+  ┌──────────────────────────┬────────────────────┬─────────────────────┐
+  │ OPERAÇÃO                 │ estoque_atual       │ estoque_viatura     │
+  ├──────────────────────────┼────────────────────┼─────────────────────┤
+  │ Alocar em viatura        │ DIMINUI (-qtd)     │ AUMENTA (+qtd)      │
+  │ Desalocar de viatura     │ AUMENTA (+qtd)     │ DIMINUI (-qtd)      │
+  │ Editar qtd (aumentar)    │ DIMINUI (-dif)     │ AUMENTA (+dif)      │
+  │ Editar qtd (diminuir)    │ AUMENTA (+|dif|)   │ DIMINUI (-|dif|)    │
+  │ Conferência (mais)       │ DIMINUI (-dif)     │ AUMENTA (+dif)      │
+  │ Conferência (menos)      │ AUMENTA (+|dif|)   │ DIMINUI (-|dif|)    │
+  │ Saída > Viatura (movim.) │ DIMINUI (-qtd)     │ AUMENTA (+qtd)      │
+  └──────────────────────────┴────────────────────┴─────────────────────┘
+
+Proteção contra valores negativos:
+  - Math.max(0, ...) é usado em diminuições de estoque_viatura
+  - Validação de estoque_atual >= quantidade antes de alocar
+
+Fórmula padrão no código:
+
+  // SAÍDA (material vai para viatura)
+  await updateDoc(materialRef, {
+    estoque_atual: (materialData.estoque_atual || 0) - quantidade,
+    estoque_viatura: (materialData.estoque_viatura || 0) + quantidade,
+    ultima_movimentacao: serverTimestamp()
+  });
+
+  // ENTRADA (material volta da viatura)
+  await updateDoc(materialRef, {
+    estoque_atual: (materialData.estoque_atual || 0) + quantidade,
+    estoque_viatura: Math.max(0, (materialData.estoque_viatura || 0) - quantidade),
+    ultima_movimentacao: serverTimestamp()
+  });
+
+
+================================================================================
+8. CICLO DE VIDA COMPLETO DE UM MATERIAL
+================================================================================
+
+PASSO 1 - Criação do Material
+  Arquivo: src/dialogs/MaterialDialog.jsx
+  O material é criado com estoque inicial:
+    estoque_total = 20
+    estoque_atual = 20  (tudo disponível)
+    estoque_viatura = 0 (nada alocado)
+
+PASSO 2 - Alocação em Viatura(s)
+  Exemplo: 5 unidades para ABT-01, 3 para ABT-02
+    estoque_atual = 20 - 5 - 3 = 12
+    estoque_viatura = 0 + 5 + 3 = 8
+
+  viatura_materiais:
+    Doc1: { viatura: ABT-01, quantidade: 5, status: 'alocado' }
+    Doc2: { viatura: ABT-02, quantidade: 3, status: 'alocado' }
+
+PASSO 3 - Conferência na ABT-01
+  Esperado: 5 | Encontrado: 4 (faltou 1)
+    diferença = 4 - 5 = -1
+    estoque_atual = 12 + 1 = 13
+    estoque_viatura = 8 - 1 = 7
+
+  viatura_materiais Doc1: { quantidade: 4 }
+  conferencias_viaturas: { divergência no Extintor, esperado:5, encontrado:4 }
+
+PASSO 4 - Devolução parcial da ABT-02
+  Editam quantidade de 3 para 1 (devolvem 2)
+    diferença = 1 - 3 = -2
+    estoque_atual = 13 + 2 = 15
+    estoque_viatura = 7 - 2 = 5
+
+  viatura_materiais Doc2: { quantidade: 1 }
+
+PASSO 5 - Desalocação total da ABT-01
+  Devolvem todas as 4 unidades restantes
+    estoque_atual = 15 + 4 = 19
+    estoque_viatura = 5 - 4 = 1
+
+  viatura_materiais Doc1: { status: 'desalocado' }
+
+Estado final:
+  estoque_atual = 19 (19 disponíveis no almoxarifado)
+  estoque_viatura = 1 (1 unidade ainda na ABT-02)
+  Total em uso = 19 + 1 = 20 = estoque_total original ✓
+
+
+================================================================================
+9. TELAS DE CONSULTA E PESQUISA
+================================================================================
+
+------------------------------------------------------------------------
+9.1  ViaturaMaterial - "Materiais de uma Viatura"
+------------------------------------------------------------------------
+Arquivo: src/screens/Search/ViaturaMaterial.jsx
+
+Busca materiais de DUAS fontes:
+  a) viatura_materiais com status='alocado' → alocações diretas
+  b) movimentacoes com viatura_id e type in ('cautela','saída') → movimentações
+
+Exibe lista unificada com quantidade e origem.
+
+------------------------------------------------------------------------
+9.2  MaterialViatura - "Viaturas com um Material"
+------------------------------------------------------------------------
+Arquivo: src/screens/Search/MaterialViatura.jsx
+
+Busca viaturas que possuem determinado material:
+  a) viatura_materiais com material_id = X
+  b) movimentacoes com material = X
+
+Exibe em quais viaturas o material está distribuído.
+
+
+================================================================================
+10. MAPA DE ARQUIVOS E FUNÇÕES-CHAVE
+================================================================================
+
+  ┌────────────────────────────────────────┬────────────────────────────────────┐
+  │ OPERAÇÃO                               │ ARQUIVO / FUNÇÃO                  │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Alocar material em viatura             │ ViaturaDetalhes.jsx               │
+  │   (tela viatura)                       │   handleAlocarMaterial            │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Alocar material em viatura             │ Material.jsx                      │
+  │   (tela material)                      │   handleAlocarEmViatura           │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Desalocar material da viatura          │ ViaturaDetalhes.jsx               │
+  │                                        │   handleDesalocarMaterial         │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Editar quantidade na viatura           │ ViaturaDetalhes.jsx               │
+  │                                        │   handleEditQuantidade            │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Saída > Viatura (movimentação)         │ Movimentacoes.jsx                 │
+  │                                        │   (bloco saída/viatura ~L394-432) │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Conferência de viatura                 │ ConferenciaViaturaDialog.jsx      │
+  │                                        │   handleSalvarConferencia         │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Consulta: materiais na viatura         │ Search/ViaturaMaterial.jsx        │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Consulta: viaturas com material        │ Search/MaterialViatura.jsx        │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Criação de material                    │ MaterialDialog.jsx                │
+  │                                        │   handleSubmit                    │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Coleções Firestore                     │ src/firebase/db.js                │
+  ├────────────────────────────────────────┼────────────────────────────────────┤
+  │ Contexto de materiais (real-time)      │ contexts/MaterialContext.jsx      │
+  └────────────────────────────────────────┴────────────────────────────────────┘
+
+
+================================================================================
+11. REGRAS DE VALIDAÇÃO IMPORTANTES
+================================================================================
+
+  1. ALOCAÇÃO: Não pode alocar mais do que estoque_atual permite
+     if (quantidade > selectedMaterial.estoque_atual) → erro
+
+  2. CONFERÊNCIA: Se encontrou mais que o esperado, precisa ter estoque_atual
+     suficiente para cobrir a diferença
+     if (diferenca > estoqueDisponivel) → erro "Estoque insuficiente"
+
+  3. DESALOCAÇÃO: Sempre usa Math.max(0, ...) no estoque_viatura para
+     nunca ficar negativo
+
+  4. EDIÇÃO: Se nova quantidade = 0, aciona fluxo de desalocação completa
+     em vez de manter registro com quantidade zero
+
+  5. DUPLICIDADE: Antes de criar novo doc em viatura_materiais, sempre
+     verifica se já existe com status='alocado' para mesmo material+viatura
+     → Se existe, soma; se não, cria novo
+
+
+================================================================================
+12. AUDITORIA
+================================================================================
+
+Todas as operações são registradas via função logAudit() que grava:
+  - Usuário que fez a alteração (userId, userName)
+  - Timestamp da operação
+  - Coleção e ID do documento afetado
+  - Tipo da operação (create/update/delete)
+  - Detalhes específicos (quantidades, categorias, etc.)
+
+Adicionalmente, cada documento em viatura_materiais mantém rastreio:
+  - alocado_por / alocado_por_nome / data_alocacao
+  - atualizado_por / atualizado_por_nome / ultima_atualizacao
+  - desalocado_por / desalocado_por_nome / desalocado_em
+  - conferido_por / conferido_por_id / ultima_conferencia
+
+
+================================================================================
+FIM DO DOCUMENTO
+================================================================================

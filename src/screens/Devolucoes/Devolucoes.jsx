@@ -505,7 +505,7 @@ export default function Devolucoes() {
     <PrivateRoute>
       <MenuContext>
         <div className="root-protected">
-          {userRole === "admin" || userRole === "editor" || userRole === "admingeral" ? (
+          {userRole === "admin" || userRole === "admingeral" ? (
             <Box sx={{ width: "100%" }}>
 
               {/* ═══════════════════════ HERO HEADER ═══════════════════════ */}

@@ -495,9 +495,9 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                                     label="User"
                                 />
                                 <FormControlLabel
-                                    value="editor"
+                                    value="chefe"
                                     control={<Radio sx={{ color: '#1976d2' }} />}
-                                    label="Editor"
+                                    label="Chefe de Guarnição"
                                 />
                                 <FormControlLabel
                                     value="admin"

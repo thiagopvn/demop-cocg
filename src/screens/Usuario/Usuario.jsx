@@ -120,7 +120,7 @@ export default function Usuario() {
     setLoading(true);
 
     // Se for usuario comum, carrega apenas seus dados
-    if (userRole !== "admin" && userRole !== "editor" && userRole !== "admingeral") {
+    if (userRole !== "admin" && userRole !== "admingeral") {
       const userRef = doc(db, "users", userId);
       getDoc(userRef).then((userSnap) => {
         if (userSnap.exists()) {
@@ -131,7 +131,7 @@ export default function Usuario() {
       return;
     }
 
-    // Para admin/editor/admingeral, carrega todos com listener em tempo real
+    // Para admin/admingeral, carrega todos com listener em tempo real
     const usersCollection = collection(db, "users");
     const q = query(usersCollection, orderBy("full_name_lower"));
 
@@ -462,7 +462,7 @@ export default function Usuario() {
             </div>
 
             {/* Seção de Pesquisa com Filtro em Tempo Real */}
-            {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
+            {(userRole === "admin" || userRole === "admingeral") && (
               <div style={{
                 backgroundColor: '#ffffff',
                 padding: '20px',

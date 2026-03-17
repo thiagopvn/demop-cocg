@@ -40,6 +40,7 @@ const Manutencao = lazyRetry(() => import('./screens/Manutencao/Manutencao'));
 const ViaturaDetalhes = lazyRetry(() => import('./screens/ViaturaDetalhes/ViaturaDetalhes'));
 const Atividades = lazyRetry(() => import('./screens/Atividades/Atividades'));
 const Perfil = lazyRetry(() => import('./screens/Perfil/Perfil'));
+const ConferenciaChefe = lazyRetry(() => import('./screens/ConferenciaChefe/ConferenciaChefe'));
 
 const SuspenseFallback = (
   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
@@ -58,60 +59,67 @@ function App() {
 
           {/* Rota acessível a todos os usuários autenticados */}
           <Route path='/home' element={
-            <PrivateRoute allowedRoles={['user', 'editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['user', 'chefe', 'admin', 'admingeral']}>
               <Home />
             </PrivateRoute>
           } />
 
           <Route path='/perfil' element={
-            <PrivateRoute allowedRoles={['user', 'editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['user', 'chefe', 'admin', 'admingeral']}>
               <Perfil />
             </PrivateRoute>
           } />
 
-          {/* Rotas restritas a editor e admin */}
+          {/* Rota exclusiva do Chefe de Guarnição + admins */}
+          <Route path='/conferencia-chefe' element={
+            <PrivateRoute allowedRoles={['chefe', 'admin', 'admingeral']}>
+              <ConferenciaChefe />
+            </PrivateRoute>
+          } />
+
+          {/* Rotas restritas a admin */}
           <Route path='/categoria' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <Categoria />
             </PrivateRoute>
           } />
           <Route path='/movimentacoes' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <Movimentacoes />
             </PrivateRoute>
           } />
           <Route path='/material' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <Material />
             </PrivateRoute>
           } />
           <Route path='/viaturas' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <Viaturas />
             </PrivateRoute>
           } />
           <Route path='/viatura/:id' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <ViaturaDetalhes />
             </PrivateRoute>
           } />
           <Route path='/devolucoes' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <Devolucoes />
             </PrivateRoute>
           } />
           <Route path='/aneis' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <Rings />
             </PrivateRoute>
           } />
           <Route path='/search' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <MainSearch />
             </PrivateRoute>
           } />
           <Route path='/manutencao' element={
-            <PrivateRoute allowedRoles={['editor', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['admin', 'admingeral']}>
               <Manutencao />
             </PrivateRoute>
           } />

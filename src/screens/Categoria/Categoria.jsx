@@ -104,7 +104,7 @@ export default function Categoria() {
     }
 
     const handleOpenSaveDialog = () => {
-        if (userRole === 'admin' || userRole === 'editor' || userRole === 'admingeral') {
+        if (userRole === 'admin' || userRole === 'admingeral') {
             setDialogSaveOpen(true);
         } else {
             alert("Você não tem permissão para adicionar categorias.");
@@ -186,7 +186,7 @@ export default function Categoria() {
     };
 
     const handleOpenEditDialog = async (data) => {
-        if (userRole !== 'admin' && userRole !== 'editor' && userRole !== 'admingeral') {
+        if (userRole !== 'admin' && userRole !== 'admingeral') {
             alert("Você não tem permissão para editar categorias.");
             return;
         }
@@ -296,7 +296,7 @@ export default function Categoria() {
                                                     <div>Criado em: {JSON.stringify(categoria.created_at.toDate())}</div>
                                                 </Typography>
                                             </Popover>
-                                            {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
+                                            {(userRole === "admin" || userRole === "admingeral") && (
                                                 <>
                                                     <IconButton onClick={() => handleDelete(categoria)}>
                                                         <DeleteIcon color="error" />
@@ -316,7 +316,7 @@ export default function Categoria() {
                     </div>
                 </div>
 
-                {userRole === 'admin' || userRole === 'editor' || userRole === 'admingeral' ? (
+                {userRole === 'admin' || userRole === 'admingeral' ? (
 
                     <Tooltip title="Adicionar Categoria" aria-label="add">
                         <Fab

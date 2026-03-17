@@ -198,7 +198,7 @@ export default function Viaturas() {
     };
 
     const handleOpenSaveDialog = () => {
-        if (userRole === "admin" || userRole === "editor" || userRole === "admingeral") {
+        if (userRole === "admin" || userRole === "admingeral") {
             setDialogSaveOpen(true);
         } else {
             alert("Voce nao tem permissao para adicionar viaturas.");
@@ -306,7 +306,7 @@ export default function Viaturas() {
     };
 
     const handleOpenEditDialog = async (data) => {
-        if (userRole !== "admin" && userRole !== "editor" && userRole !== "admingeral") {
+        if (userRole !== "admin" && userRole !== "admingeral") {
             alert("Voce nao tem permissao para editar viaturas.");
             return;
         }
@@ -402,7 +402,7 @@ export default function Viaturas() {
                             </Box>
                         </Box>
 
-                        {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
+                        {(userRole === "admin" || userRole === "admingeral") && (
                             <Button
                                 variant="contained"
                                 startIcon={<AddIcon />}
@@ -660,7 +660,7 @@ export default function Viaturas() {
                                                             </IconButton>
                                                         </Tooltip>
 
-                                                        {(userRole === "admin" || userRole === "editor" || userRole === "admingeral") && (
+                                                        {(userRole === "admin" || userRole === "admingeral") && (
                                                             <>
                                                                 <Tooltip title="Editar">
                                                                     <IconButton

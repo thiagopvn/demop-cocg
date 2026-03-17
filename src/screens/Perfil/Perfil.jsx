@@ -35,7 +35,7 @@ import ChangePasswordDialog from "../../dialogs/ChangePasswordDialog";
 const roleConfig = {
   admingeral: { label: "Admin Geral", color: "#d32f2f" },
   admin: { label: "Administrador", color: "#ed6c02" },
-  editor: { label: "Editor", color: "#2e7d32" },
+  chefe: { label: "Chefe de Guarnição", color: "#2e7d32" },
   user: { label: "Usuário", color: "#1976d2" },
 };
 
