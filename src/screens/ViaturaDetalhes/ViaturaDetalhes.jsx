@@ -50,6 +50,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
 import SortByAlphaIcon from "@mui/icons-material/SortByAlpha";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import FactCheckIcon from "@mui/icons-material/FactCheck";
 import {
     doc,
     getDoc,
@@ -68,6 +69,7 @@ import MaterialSearch from "../../components/MaterialSearch";
 import { useDebounce } from "../../hooks/useDebounce";
 import excelIcon from "../../assets/excel.svg";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
+import ConferenciaViaturaDialog from "../../dialogs/ConferenciaViaturaDialog";
 
 export default function ViaturaDetalhes() {
     const { id } = useParams();
@@ -98,6 +100,9 @@ export default function ViaturaDetalhes() {
 
     // Snackbar
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+    // Conferência
+    const [conferenciaDialogOpen, setConferenciaDialogOpen] = useState(false);
 
     // Ordenação por coluna
     const [sortField, setSortField] = useState('material_description');
@@ -514,13 +519,34 @@ export default function ViaturaDetalhes() {
                                         Ultima Mov.: {viatura?.ultima_movimentacao?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}
                                     </Typography>
                                 </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <FactCheckIcon fontSize="small" sx={{ color: '#ff6f00' }} />
+                                    <Typography variant="body2" color="text.secondary">
+                                        Conferência:{' '}
+                                        {(() => {
+                                            const confDate = viatura?.ultima_conferencia?.toDate?.();
+                                            if (!confDate) return 'Nunca conferido';
+                                            const today = new Date();
+                                            const isToday =
+                                                confDate.getDate() === today.getDate() &&
+                                                confDate.getMonth() === today.getMonth() &&
+                                                confDate.getFullYear() === today.getFullYear();
+                                            const dateStr = confDate.toLocaleDateString('pt-BR');
+                                            const timeStr = confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                                            const por = viatura?.conferido_por ? ` por ${viatura.conferido_por}` : '';
+                                            return isToday
+                                                ? `Hoje às ${timeStr}${por}`
+                                                : `${dateStr} às ${timeStr}${por}`;
+                                        })()}
+                                    </Typography>
+                                </Box>
                             </CardContent>
                         </Card>
                     </Box>
 
-                    {/* Botao Alocar Material (apenas Admin) */}
-                    {(userRole === "admin" || userRole === "admingeral") && (
-                        <Box sx={{ mb: 3 }}>
+                    {/* Botoes de Ação */}
+                    <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        {(userRole === "admin" || userRole === "admingeral") && (
                             <Button
                                 variant="contained"
                                 startIcon={<AddIcon />}
@@ -539,8 +565,28 @@ export default function ViaturaDetalhes() {
                             >
                                 Alocar Material
                             </Button>
-                        </Box>
-                    )}
+                        )}
+                        {materiaisAlocados.length > 0 && (
+                            <Button
+                                variant="contained"
+                                startIcon={<FactCheckIcon />}
+                                onClick={() => setConferenciaDialogOpen(true)}
+                                sx={{
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    px: 3,
+                                    py: 1.5,
+                                    background: 'linear-gradient(135deg, #ff6f00 0%, #e65100 100%)',
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, #e65100 0%, #bf360c 100%)',
+                                    }
+                                }}
+                            >
+                                Conferir Materiais
+                            </Button>
+                        )}
+                    </Box>
 
                     {/* Barra de busca e filtros */}
                     {materiaisAlocados.length > 0 && (
@@ -1228,6 +1274,23 @@ export default function ViaturaDetalhes() {
                         </Button>
                     </DialogActions>
                 </Dialog>
+
+                {/* Dialog Conferência */}
+                <ConferenciaViaturaDialog
+                    open={conferenciaDialogOpen}
+                    onClose={() => setConferenciaDialogOpen(false)}
+                    viatura={viatura}
+                    userId={userId}
+                    userName={userName}
+                    onSuccess={async () => {
+                        // Recarregar dados da viatura para atualizar header
+                        const viaturaDoc = await getDoc(doc(db, "viaturas", id));
+                        if (viaturaDoc.exists()) {
+                            setViatura({ id: viaturaDoc.id, ...viaturaDoc.data() });
+                        }
+                        setSnackbar({ open: true, message: "Conferência registrada com sucesso!", severity: "success" });
+                    }}
+                />
 
                 {/* Snackbar */}
                 <Snackbar
