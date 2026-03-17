@@ -77,18 +77,19 @@ function MenuContext({ children }) {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const allMenuItems = [
-    { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'editor', 'admin', 'admingeral'] },
+    { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'chefe', 'admin', 'admingeral'] },
     { icon: AssessmentOutlined, label: 'Atividades', path: '/atividades', id: 11, roles: ['admingeral'] },
-    { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['editor', 'admin', 'admingeral'] },
-    { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['editor', 'admin', 'admingeral'] },
-    { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['editor', 'admin', 'admingeral'] },
-    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['editor', 'admin', 'admingeral'] },
-    { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['editor', 'admin', 'admingeral'] },
-    { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['editor', 'admin', 'admingeral'] },
+    { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['admin', 'admingeral'] },
+    { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['admin', 'admingeral'] },
+    { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['admin', 'admingeral'] },
+    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['admin', 'admingeral'] },
+    { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['admin', 'admingeral'] },
+    { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['admin', 'admingeral'] },
     { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1, roles: ['admin', 'admingeral'] },
-    { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['editor', 'admin', 'admingeral'] },
-    { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['editor', 'admin', 'admingeral'] },
-    { icon: AccountCircle, label: 'Meu Perfil', path: '/perfil', id: 12, roles: ['user', 'editor', 'admin', 'admingeral'] },
+    { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['admin', 'admingeral'] },
+    { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['admin', 'admingeral'] },
+    { icon: LocalShippingOutlined, label: 'Conferência', path: '/conferencia-chefe', id: 13, roles: ['chefe', 'admin', 'admingeral'] },
+    { icon: AccountCircle, label: 'Meu Perfil', path: '/perfil', id: 12, roles: ['user', 'chefe', 'admin', 'admingeral'] },
   ];
 
   // Filtrar itens de menu baseado no papel do usuário
@@ -367,24 +368,24 @@ function MenuContext({ children }) {
                 label={
                   userRole === 'admingeral' ? 'Admin Geral' :
                   userRole === 'admin' ? 'Administrador' :
-                  userRole === 'editor' ? 'Editor' : 'Usuário'
+                  userRole === 'chefe' ? 'Chefe de Guarnição' : 'Usuário'
                 }
                 size="small"
                 sx={{
                   backgroundColor:
                     userRole === 'admingeral' ? 'rgba(211, 47, 47, 0.2)' :
                     userRole === 'admin' ? 'rgba(255, 107, 53, 0.2)' :
-                    userRole === 'editor' ? 'rgba(34, 197, 94, 0.2)' :
+                    userRole === 'chefe' ? 'rgba(34, 197, 94, 0.2)' :
                     'rgba(96, 165, 250, 0.2)',
                   color:
                     userRole === 'admingeral' ? '#d32f2f' :
                     userRole === 'admin' ? '#ff6b35' :
-                    userRole === 'editor' ? '#22c55e' :
+                    userRole === 'chefe' ? '#22c55e' :
                     '#60a5fa',
                   border: `1px solid ${
                     userRole === 'admingeral' ? '#d32f2f' :
                     userRole === 'admin' ? '#ff6b35' :
-                    userRole === 'editor' ? '#22c55e' :
+                    userRole === 'chefe' ? '#22c55e' :
                     '#60a5fa'
                   }`,
                   fontSize: '0.7rem',

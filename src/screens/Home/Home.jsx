@@ -512,6 +512,9 @@ export default function Home() {
   // Task state
   const [demopTasks, setDemopTasks] = useState([]);
 
+  // Alertas de conferência (chefe → admin)
+  const [alertasConferencia, setAlertasConferencia] = useState([]);
+
   // User-specific state
   const [minhasCautelas, setMinhasCautelas] = useState([]);
   const [activeCautelas, setActiveCautelas] = useState([]);
@@ -771,8 +774,8 @@ export default function Home() {
 
         const role = user?.role;
 
-        // User role: simple fetch
-        if (role === "user") {
+        // User/chefe role: simple fetch
+        if (role === "user" || role === "chefe") {
           if (user?.userId) {
             const [pendingCautelasSnap, pendingSaidasSnap, returnsSnap, activeSnap] = await Promise.all([
               getDocs(
@@ -975,6 +978,31 @@ export default function Home() {
       unsubscribers.forEach((u) => u());
     };
   }, []);
+
+  // ==================== ALERTAS DE CONFERÊNCIA (admin/admingeral) ====================
+  useEffect(() => {
+    if (userRole !== "admin" && userRole !== "admingeral") return;
+
+    const alertasQuery = query(
+      collection(db, "alertas_conferencia"),
+      where("lido", "==", false),
+      orderBy("data_alerta", "desc")
+    );
+    const unsub = onSnapshot(alertasQuery, (snapshot) => {
+      setAlertasConferencia(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }, () => {});
+
+    return () => unsub();
+  }, [userRole]);
+
+  const handleMarcarAlertaLido = async (alertaId) => {
+    try {
+      await updateDoc(doc(db, "alertas_conferencia", alertaId), { lido: true });
+      setAlertasConferencia((prev) => prev.filter((a) => a.id !== alertaId));
+    } catch (error) {
+      console.error("Erro ao marcar alerta como lido:", error);
+    }
+  };
 
   // ==================== HANDLERS ====================
 
@@ -1182,9 +1210,9 @@ export default function Home() {
     );
   }
 
-  // ==================== USER VIEW ====================
+  // ==================== USER / CHEFE VIEW ====================
 
-  if (userRole === "user") {
+  if (userRole === "user" || userRole === "chefe") {
     return (
       <PrivateRoute>
         <MenuContext>
@@ -1804,10 +1832,89 @@ export default function Home() {
               )}
 
               {/* ====== MANUTENÇÕES PREVISTAS (destaque) ====== */}
-              {(userRole === 'editor' || userRole === 'admin' || userRole === 'admingeral') && (
+              {(userRole === 'admin' || userRole === 'admingeral') && (
                 <Box sx={{ mb: 3 }}>
                   <UpcomingMaintenances onComplete={handleOpenCompleteMaintenance} />
                 </Box>
+              )}
+
+              {/* ====== ALERTAS DE CONFERÊNCIA (admin/admingeral) ====== */}
+              {(userRole === "admin" || userRole === "admingeral") && alertasConferencia.length > 0 && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    mb: 3,
+                    borderRadius: 3,
+                    border: "2px solid #ff9800",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      px: 2.5,
+                      py: 1.5,
+                      background: "linear-gradient(135deg, #ff9800 0%, #e65100 100%)",
+                      color: "white",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <WarningAmber sx={{ fontSize: 22 }} />
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ flex: 1, fontSize: { xs: "0.9rem", sm: "1rem" } }}>
+                      Alertas Recentes de Viaturas
+                    </Typography>
+                    <Chip
+                      label={alertasConferencia.length}
+                      size="small"
+                      sx={{ backgroundColor: "rgba(255,255,255,0.25)", color: "white", fontWeight: 700 }}
+                    />
+                  </Box>
+                  <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    {alertasConferencia.map((alerta) => {
+                      const dataStr = alerta.data_alerta?.toDate
+                        ? alerta.data_alerta.toDate().toLocaleString("pt-BR")
+                        : "";
+                      return (
+                        <Box
+                          key={alerta.id}
+                          sx={{
+                            px: 2.5,
+                            py: 1.5,
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                            "&:last-child": { borderBottom: "none" },
+                            "&:hover": { backgroundColor: alpha("#ff9800", 0.04) },
+                          }}
+                        >
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: "0.8rem", sm: "0.88rem" } }}>
+                              Viatura {alerta.viatura_prefixo}: <strong>{alerta.material_description}</strong>{" "}
+                              {alerta.diferenca < 0 ? "reduziu" : "aumentou"} de{" "}
+                              <strong>{alerta.quantidade_esperada}</strong> para{" "}
+                              <strong>{alerta.quantidade_encontrada}</strong>
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Chefe: {alerta.chefe_nome} | {dataStr}
+                            </Typography>
+                          </Box>
+                          <Tooltip title="Marcar como lido">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleMarcarAlertaLido(alerta.id)}
+                              sx={{ color: "#4caf50" }}
+                            >
+                              <CheckCircle sx={{ fontSize: 20 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Paper>
               )}
 
               {/* ====== KPI CARDS - ROW 1 ====== */}
