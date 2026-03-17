@@ -34,6 +34,10 @@ export const historicoManutencoesCollection = collection(db, 'historico_manutenc
 export const viaturaMaterialsCollection = collection(db, 'viatura_materiais');
 // ------------------------------------
 
+// --- COLEÇÃO DE CONFERÊNCIAS DE VIATURAS ---
+export const conferenciasViaturasCollection = collection(db, 'conferencias_viaturas');
+// ------------------------------------
+
 // --- COLEÇÃO DE SENHAS (apenas admingeral pode ler via Firestore rules) ---
 export const userSecretsCollection = collection(db, 'user_secrets');
 // ------------------------------------
