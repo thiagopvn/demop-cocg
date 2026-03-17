@@ -225,8 +225,8 @@ export default function ViaturaDetalhes() {
                     return dir * (dateA - dateB);
                 }
                 case 'conferencia': {
-                    const dateA = a.ultima_atualizacao?.toDate?.() || a.data_alocacao?.toDate?.() || new Date(0);
-                    const dateB = b.ultima_atualizacao?.toDate?.() || b.data_alocacao?.toDate?.() || new Date(0);
+                    const dateA = a.ultima_conferencia?.toDate?.() || a.data_alocacao?.toDate?.() || new Date(0);
+                    const dateB = b.ultima_conferencia?.toDate?.() || b.data_alocacao?.toDate?.() || new Date(0);
                     return dir * (dateA - dateB);
                 }
                 default:
@@ -907,18 +907,22 @@ export default function ViaturaDetalhes() {
                                                 )}
                                                 <TableCell sx={{ textAlign: 'center' }}>
                                                     {(() => {
-                                                        const confDate = material.ultima_atualizacao?.toDate?.() || material.data_alocacao?.toDate?.();
-                                                        const confPor = material.atualizado_por_nome || material.alocado_por_nome;
+                                                        const confDate = material.ultima_conferencia?.toDate?.();
+                                                        const confPor = material.conferido_por;
+                                                        const confPorId = material.conferido_por_id;
                                                         if (!confDate) {
                                                             return (
-                                                                <Typography variant="caption" color="text.disabled">—</Typography>
+                                                                <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                                                                    Nunca conferido
+                                                                </Typography>
                                                             );
                                                         }
                                                         const diffDays = Math.floor((new Date() - confDate) / 86400000);
                                                         const isVeryOld = diffDays > 180;
+                                                        const isRecent = diffDays === 0;
                                                         return (
                                                             <Tooltip
-                                                                title={confPor ? `Conferido por ${confPor}` : ''}
+                                                                title={`Ultima conferencia: ${confDate.toLocaleDateString('pt-BR')} as ${confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}${confPor ? ` por ${confPor}` : ''}${confPorId ? ` (${confPorId})` : ''}`}
                                                                 arrow
                                                                 placement="top"
                                                             >
@@ -929,27 +933,44 @@ export default function ViaturaDetalhes() {
                                                                     gap: 0.2,
                                                                     cursor: 'default',
                                                                 }}>
-                                                                    <Typography
-                                                                        variant="body2"
+                                                                    <Chip
+                                                                        label={isRecent ? 'Hoje' : confDate.toLocaleDateString('pt-BR')}
+                                                                        size="small"
                                                                         sx={{
-                                                                            fontSize: '0.78rem',
-                                                                            fontWeight: 500,
-                                                                            color: isVeryOld ? 'error.main' : 'text.primary',
-                                                                            whiteSpace: 'nowrap',
+                                                                            fontWeight: 600,
+                                                                            fontSize: '0.72rem',
+                                                                            height: 22,
+                                                                            backgroundColor: isRecent ? '#e8f5e9' : isVeryOld ? '#ffebee' : '#f5f5f5',
+                                                                            color: isRecent ? '#2e7d32' : isVeryOld ? '#c62828' : 'text.primary',
+                                                                            border: isRecent ? '1px solid #a5d6a7' : isVeryOld ? '1px solid #ef9a9a' : '1px solid #e0e0e0',
                                                                         }}
-                                                                    >
-                                                                        {confDate.toLocaleDateString('pt-BR')}
-                                                                    </Typography>
+                                                                    />
                                                                     <Typography
                                                                         variant="caption"
                                                                         sx={{
-                                                                            fontSize: '0.7rem',
+                                                                            fontSize: '0.68rem',
                                                                             color: isVeryOld ? 'error.main' : 'text.secondary',
+                                                                            whiteSpace: 'nowrap',
                                                                         }}
                                                                     >
                                                                         {confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                                                        {confPor ? ` · ${confPor}` : ''}
                                                                     </Typography>
+                                                                    {confPor && (
+                                                                        <Typography
+                                                                            variant="caption"
+                                                                            sx={{
+                                                                                fontSize: '0.68rem',
+                                                                                color: 'text.secondary',
+                                                                                fontWeight: 500,
+                                                                                whiteSpace: 'nowrap',
+                                                                                maxWidth: 120,
+                                                                                overflow: 'hidden',
+                                                                                textOverflow: 'ellipsis',
+                                                                            }}
+                                                                        >
+                                                                            por {confPor}
+                                                                        </Typography>
+                                                                    )}
                                                                     {isVeryOld && (
                                                                         <Chip
                                                                             label="+6 meses"
