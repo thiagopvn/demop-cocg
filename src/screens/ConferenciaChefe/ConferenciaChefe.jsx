@@ -344,7 +344,7 @@ export default function ConferenciaChefe() {
 
   // ==================== RENDER ====================
   return (
-    <PrivateRoute>
+    <PrivateRoute allowedRoles={['chefe', 'admin', 'admingeral']}>
       <MenuContext>
         <Container maxWidth="md" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 1.5, sm: 2 } }}>
           <Fade in timeout={400}>

@@ -5,7 +5,7 @@ service cloud.firestore {
     function isAuth() { return request.auth != null; }
     function getRole() { return request.auth.token.role; }
     function isAdmin() { return isAuth() && (getRole() == 'admin' || getRole() == 'admingeral'); }
-    function isEditorOrAdmin() { return isAuth() && (getRole() == 'editor' || getRole() == 'admin' || getRole() == 'admingeral'); }
+    function isChefeOrAdmin() { return isAuth() && (getRole() == 'chefe' || getRole() == 'admin' || getRole() == 'admingeral'); }
     function isAdminGeral() { return isAuth() && getRole() == 'admingeral'; }
 
     // Block everything by default
@@ -28,36 +28,39 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Materials
+    // Materials: all auth read, admin full CRUD, chefe can update (stock adjustment during conferência)
     match /materials/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isEditorOrAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isChefeOrAdmin();
     }
 
-    // Categories
+    // Categories: all auth read, admin only write
     match /categorias/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isEditorOrAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Vehicles
+    // Vehicles: all auth read, admin full CRUD, chefe can update (ultima_conferencia timestamp)
     match /viaturas/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isEditorOrAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isChefeOrAdmin();
     }
 
-    // Vehicle materials (allocation records)
+    // Vehicle materials (allocation records): all auth read, admin full CRUD, chefe can update (conferência)
     match /viatura_materiais/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isEditorOrAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isChefeOrAdmin();
     }
 
     // Movements (cautela records)
     match /movimentacoes/{docId} {
       allow read: if isAuth();
-      allow create: if isEditorOrAdmin();
+      allow create: if isAdmin();
       allow delete: if isAdminGeral();
-      allow update: if isEditorOrAdmin()
+      allow update: if isAdmin()
         || (isAuth()
             && resource.data.user == request.auth.token.firestoreId
             && request.resource.data.diff(resource.data).affectedKeys()
@@ -70,19 +73,34 @@ service cloud.firestore {
     // Rings
     match /rings/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isEditorOrAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     // Maintenance
     match /manutencoes/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isEditorOrAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     // Maintenance history
     match /historico_manutencoes/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isEditorOrAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Vehicle conference history: all auth read, chefe+admin create, admin update/delete
+    match /conferencias_viaturas/{docId} {
+      allow read: if isAuth();
+      allow create: if isChefeOrAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // Conference alerts (chefe → admin): admin reads+updates, chefe+admin creates
+    match /alertas_conferencia/{docId} {
+      allow read: if isAdmin();
+      allow create: if isChefeOrAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdminGeral();
     }
 
     // Audit logs: any authenticated user can write, only admingeral can read
@@ -92,12 +110,12 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Tarefas DEMOP: all auth reads, admingeral full control, editor+ can only update progress/completion
+    // Tarefas DEMOP: all auth reads, admingeral full control, admin can update progress/completion
     match /tarefas_demop/{docId} {
       allow read: if isAuth();
       allow create, delete: if isAdminGeral();
       allow update: if isAdminGeral()
-        || (isEditorOrAdmin()
+        || (isAdmin()
             && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['progress', 'status', 'completedAt', 'completedBy', 'completedByName']));
     }

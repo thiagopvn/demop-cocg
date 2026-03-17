@@ -31,6 +31,14 @@
         { "fieldPath": "dueDate", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "alertas_conferencia",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lido", "order": "ASCENDING" },
+        { "fieldPath": "data_alerta", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
