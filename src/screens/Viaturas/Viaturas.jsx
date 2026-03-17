@@ -34,6 +34,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import InventoryIcon from "@mui/icons-material/Inventory";
+import FactCheckIcon from "@mui/icons-material/FactCheck";
 import {
     where,
     query,
@@ -47,6 +48,7 @@ import {
 } from "firebase/firestore";
 import db from "../../firebase/db";
 import ViaturaDialog from "../../dialogs/ViaturaDialog";
+import ConferenciaViaturaDialog from "../../dialogs/ConferenciaViaturaDialog";
 import { verifyToken } from "../../firebase/token";
 import { logAudit } from '../../firebase/auditLog';
 
@@ -65,6 +67,8 @@ export default function Viaturas() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [viaturaToDeleteId, setViaturaToDeleteId] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [conferenciaDialogOpen, setConferenciaDialogOpen] = useState(false);
+    const [viaturaParaConferencia, setViaturaParaConferencia] = useState(null);
 
     useEffect(() => {
         const fetchUserRole = async () => {
@@ -352,6 +356,11 @@ export default function Viaturas() {
         navigate(`/viatura/${viatura.id}`);
     };
 
+    const handleOpenConferencia = (viatura) => {
+        setViaturaParaConferencia(viatura);
+        setConferenciaDialogOpen(true);
+    };
+
     return (
         <PrivateRoute>
             <MenuContext>
@@ -491,6 +500,9 @@ export default function Viaturas() {
                                             Materiais
                                         </TableCell>
                                         <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center' }}>
+                                            Conferência
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center' }}>
                                             Acoes
                                         </TableCell>
                                     </TableRow>
@@ -498,7 +510,7 @@ export default function Viaturas() {
                                 <TableBody>
                                     {filteredViaturas.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={4} sx={{ textAlign: 'center', py: 4 }}>
+                                            <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
                                                 <DirectionsCarIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
                                                 <Typography color="text.secondary">
                                                     Nenhuma viatura encontrada
@@ -545,7 +557,75 @@ export default function Viaturas() {
                                                     />
                                                 </TableCell>
                                                 <TableCell sx={{ textAlign: 'center' }}>
+                                                    {(() => {
+                                                        const confDate = viatura.ultima_conferencia?.toDate?.();
+                                                        const confPor = viatura.conferido_por;
+                                                        if (!confDate) {
+                                                            return (
+                                                                <Typography variant="caption" color="text.disabled">
+                                                                    Nunca conferido
+                                                                </Typography>
+                                                            );
+                                                        }
+                                                        const today = new Date();
+                                                        const isToday =
+                                                            confDate.getDate() === today.getDate() &&
+                                                            confDate.getMonth() === today.getMonth() &&
+                                                            confDate.getFullYear() === today.getFullYear();
+                                                        const diffDays = Math.floor((today - confDate) / 86400000);
+                                                        return (
+                                                            <Tooltip
+                                                                title={confPor ? `Conferido por ${confPor}` : ''}
+                                                                arrow
+                                                                placement="top"
+                                                            >
+                                                                <Box sx={{
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.2,
+                                                                    cursor: 'default',
+                                                                }}>
+                                                                    <Chip
+                                                                        size="small"
+                                                                        label={isToday ? 'Hoje' : confDate.toLocaleDateString('pt-BR')}
+                                                                        color={isToday ? 'success' : diffDays > 1 ? 'warning' : 'default'}
+                                                                        variant={isToday ? 'filled' : 'outlined'}
+                                                                        sx={{ fontWeight: 600, fontSize: '0.75rem', height: 22 }}
+                                                                    />
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        sx={{
+                                                                            fontSize: '0.68rem',
+                                                                            color: 'text.secondary',
+                                                                        }}
+                                                                    >
+                                                                        {confDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                        {confPor ? ` · ${confPor}` : ''}
+                                                                    </Typography>
+                                                                </Box>
+                                                            </Tooltip>
+                                                        );
+                                                    })()}
+                                                </TableCell>
+                                                <TableCell sx={{ textAlign: 'center' }}>
                                                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                                                        <Tooltip title="Conferir materiais">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleOpenConferencia(viatura);
+                                                                }}
+                                                                sx={{
+                                                                    color: '#ff6f00',
+                                                                    '&:hover': { backgroundColor: alpha('#ff6f00', 0.1) }
+                                                                }}
+                                                            >
+                                                                <FactCheckIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+
                                                         <Tooltip title="Ver detalhes">
                                                             <IconButton
                                                                 size="small"
@@ -683,6 +763,18 @@ export default function Viaturas() {
                         editData={editData}
                     />
                 )}
+
+                <ConferenciaViaturaDialog
+                    open={conferenciaDialogOpen}
+                    onClose={() => {
+                        setConferenciaDialogOpen(false);
+                        setViaturaParaConferencia(null);
+                    }}
+                    viatura={viaturaParaConferencia}
+                    userId={loggedUserId}
+                    userName={loggedUserName}
+                    onSuccess={() => filter(critery)}
+                />
 
                 <Dialog
                     open={deleteDialogOpen}
