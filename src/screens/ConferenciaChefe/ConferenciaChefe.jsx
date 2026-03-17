@@ -83,6 +83,9 @@ export default function ConferenciaChefe() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [divergencias, setDivergencias] = useState([]);
 
+  // --- Imagem ampliada ---
+  const [imagemAberta, setImagemAberta] = useState(null);
+
   // --- Feedback ---
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
@@ -153,7 +156,7 @@ export default function ConferenciaChefe() {
             if (matDoc.exists()) {
               imageMap[matId] = matDoc.data().image_url || null;
             }
-          } catch (e) {
+          } catch {
             /* ignora erro de imagem */
           }
         })
@@ -947,6 +950,7 @@ export default function ConferenciaChefe() {
                                 >
                                   <Avatar
                                     src={imageUrl || undefined}
+                                    onClick={() => imageUrl && setImagemAberta(imageUrl)}
                                     sx={{
                                       width: { xs: 52, sm: 60 },
                                       height: { xs: 52, sm: 60 },
@@ -954,6 +958,7 @@ export default function ConferenciaChefe() {
                                       backgroundColor: imageUrl ? "transparent" : "#e3f2fd",
                                       border: "2px solid #e0e0e0",
                                       flexShrink: 0,
+                                      cursor: imageUrl ? "pointer" : "default",
                                     }}
                                     variant="rounded"
                                   >
@@ -1207,7 +1212,7 @@ export default function ConferenciaChefe() {
                                         }),
                                   }}
                                 >
-                                  {isConferido ? "Conferido - Clique para desfazer" : "Confirmar Item"}
+                                  {isConferido ? "Conferido - Clique para desfazer" : "Conferir"}
                                 </Button>
                               </Paper>
                             );
@@ -1474,6 +1479,42 @@ export default function ConferenciaChefe() {
                 {saving ? "Salvando..." : "Confirmar Alteracoes"}
               </Button>
             </DialogActions>
+          </Dialog>
+
+          {/* ==================== DIALOG IMAGEM AMPLIADA ==================== */}
+          <Dialog
+            open={!!imagemAberta}
+            onClose={() => setImagemAberta(null)}
+            maxWidth={false}
+            slotProps={{
+              paper: {
+                sx: {
+                  backgroundColor: "transparent",
+                  boxShadow: "none",
+                  overflow: "visible",
+                  m: 2,
+                },
+              },
+              backdrop: {
+                sx: { backgroundColor: "rgba(0,0,0,0.85)" },
+              },
+            }}
+            onClick={() => setImagemAberta(null)}
+          >
+            {imagemAberta && (
+              <Box
+                component="img"
+                src={imagemAberta}
+                alt="Material"
+                sx={{
+                  maxWidth: "90vw",
+                  maxHeight: "80vh",
+                  objectFit: "contain",
+                  borderRadius: 2,
+                  display: "block",
+                }}
+              />
+            )}
           </Dialog>
 
           {/* ==================== SNACKBAR ==================== */}
