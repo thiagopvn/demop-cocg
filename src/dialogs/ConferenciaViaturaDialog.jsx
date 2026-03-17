@@ -23,12 +23,12 @@ import {
     Checkbox,
     Paper,
     InputAdornment,
+    Avatar,
 } from "@mui/material";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import PersonIcon from "@mui/icons-material/Person";
 import SaveIcon from "@mui/icons-material/Save";
@@ -38,11 +38,10 @@ import {
     query,
     where,
     getDocs,
-    updateDoc,
-    addDoc,
     doc,
     getDoc,
     serverTimestamp,
+    writeBatch,
 } from "firebase/firestore";
 import db from "../firebase/db";
 
@@ -62,6 +61,7 @@ export default function ConferenciaViaturaDialog({
     const [conferidos, setConferidos] = useState(new Set());
     const [searchTerm, setSearchTerm] = useState("");
     const [divergencias, setDivergencias] = useState({});
+    const [materiaisImages, setMateriaisImages] = useState({});
 
     // Fetch materiais alocados na viatura
     useEffect(() => {
@@ -81,6 +81,24 @@ export default function ConferenciaViaturaDialog({
                     (a.material_description || "").localeCompare(b.material_description || "", "pt-BR")
                 );
                 setMateriais(items);
+
+                // Buscar imagens dos materiais na coleção materials
+                const imageMap = {};
+                const materialIds = [...new Set(items.map((m) => m.material_id))];
+                await Promise.all(
+                    materialIds.map(async (matId) => {
+                        try {
+                            const matDoc = await getDoc(doc(db, "materials", matId));
+                            if (matDoc.exists()) {
+                                imageMap[matId] = matDoc.data().image_url || null;
+                            }
+                        } catch {
+                            /* ignora erro de imagem */
+                        }
+                    })
+                );
+                setMateriaisImages(imageMap);
+
                 setConferidos(new Set());
                 setEditQuantidades({});
                 setEditingId(null);
@@ -169,7 +187,7 @@ export default function ConferenciaViaturaDialog({
         setSaving(true);
 
         try {
-            const now = new Date();
+            const batch = writeBatch(db);
             const materiaisConferidos = materiais.filter((m) => conferidos.has(m.id));
             const itensConferencia = [];
 
@@ -177,71 +195,85 @@ export default function ConferenciaViaturaDialog({
                 const novaQtd = editQuantidades[mat.id];
                 const qtdAlterada = novaQtd !== undefined && novaQtd !== mat.quantidade;
 
-                // Update viatura_materiais com timestamp de conferência
+                // Dados de conferência para viatura_materiais
                 const updateData = {
                     ultima_conferencia: serverTimestamp(),
                     conferido_por: userName,
                     conferido_por_id: userId,
+                    observacao_conferencia: "",
                 };
 
                 if (qtdAlterada) {
                     const diferenca = novaQtd - mat.quantidade;
-
-                    // Verificar estoque se está aumentando
-                    if (diferenca > 0) {
-                        const materialRef = doc(db, "materials", mat.material_id);
-                        const materialDoc = await getDoc(materialRef);
-                        if (materialDoc.exists()) {
-                            const estoqueDisp = materialDoc.data().estoque_atual || 0;
-                            if (diferenca > estoqueDisp) {
-                                alert(
-                                    `Estoque insuficiente para "${mat.material_description}". Disponivel: ${estoqueDisp}`
-                                );
-                                setSaving(false);
-                                return;
-                            }
-                        }
-                    }
-
                     updateData.quantidade = novaQtd;
-                    updateData.ultima_atualizacao = serverTimestamp();
-                    updateData.atualizado_por = userId;
-                    updateData.atualizado_por_nome = userName;
 
                     // Ajustar estoque do material
                     const materialRef = doc(db, "materials", mat.material_id);
                     const materialDoc = await getDoc(materialRef);
                     if (materialDoc.exists()) {
                         const materialData = materialDoc.data();
-                        await updateDoc(materialRef, {
-                            estoque_atual: Math.max(0, (materialData.estoque_atual || 0) - diferenca),
+                        const estoqueAtual = materialData.estoque_atual || 0;
+                        let novoEstoqueAtual = estoqueAtual - diferenca;
+                        let novoEstoqueTotal = materialData.estoque_total || 0;
+
+                        // Se estoque ficaria negativo, zera e aumenta estoque_total
+                        if (novoEstoqueAtual < 0) {
+                            const deficit = Math.abs(novoEstoqueAtual);
+                            novoEstoqueTotal += deficit;
+                            novoEstoqueAtual = 0;
+                        }
+
+                        batch.update(materialRef, {
+                            estoque_atual: novoEstoqueAtual,
                             estoque_viatura: Math.max(0, (materialData.estoque_viatura || 0) + diferenca),
+                            estoque_total: novoEstoqueTotal,
                             ultima_movimentacao: serverTimestamp(),
                         });
                     }
                 }
 
-                await updateDoc(doc(db, "viatura_materiais", mat.id), updateData);
+                // Atualizar item na coleção viatura_materiais
+                batch.update(doc(db, "viatura_materiais", mat.id), updateData);
 
+                const qtdEncontrada = qtdAlterada ? novaQtd : mat.quantidade;
                 itensConferencia.push({
                     material_id: mat.material_id,
                     material_description: mat.material_description,
                     categoria: mat.categoria || "",
                     quantidade_esperada: mat.quantidade,
-                    quantidade_encontrada: qtdAlterada ? novaQtd : mat.quantidade,
+                    quantidade_encontrada: qtdEncontrada,
                     divergencia: qtdAlterada,
                 });
+
+                // Se há divergência, criar alerta
+                if (qtdAlterada) {
+                    const alertaRef = doc(collection(db, "alertas_conferencia"));
+                    batch.set(alertaRef, {
+                        viatura_id: viatura.id,
+                        viatura_prefixo: viatura.prefixo,
+                        material_id: mat.material_id,
+                        material_description: mat.material_description,
+                        quantidade_esperada: mat.quantidade,
+                        quantidade_encontrada: novaQtd,
+                        diferenca: novaQtd - mat.quantidade,
+                        conferido_por: userName,
+                        conferido_por_id: userId,
+                        data_alerta: serverTimestamp(),
+                        status: "pendente",
+                    });
+                }
             }
 
             // Atualizar viatura com dados da conferência
-            await updateDoc(doc(db, "viaturas", viatura.id), {
+            batch.update(doc(db, "viaturas", viatura.id), {
                 ultima_conferencia: serverTimestamp(),
                 conferido_por: userName,
                 conferido_por_id: userId,
             });
 
             // Registrar histórico da conferência
-            await addDoc(collection(db, "conferencias_viaturas"), {
+            const conferenciaRef = doc(collection(db, "conferencias_viaturas"));
+            batch.set(conferenciaRef, {
                 viatura_id: viatura.id,
                 viatura_prefixo: viatura.prefixo,
                 viatura_description: viatura.description,
@@ -253,6 +285,8 @@ export default function ConferenciaViaturaDialog({
                 total_divergencias: Object.keys(divergencias).length,
                 itens: itensConferencia,
             });
+
+            await batch.commit();
 
             if (onSuccess) onSuccess();
             onClose();
@@ -529,9 +563,27 @@ export default function ConferenciaViaturaDialog({
                                                     />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Typography variant="body2" fontWeight={500}>
-                                                        {material.material_description}
-                                                    </Typography>
+                                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                        <Avatar
+                                                            src={materiaisImages[material.material_id] || undefined}
+                                                            variant="rounded"
+                                                            sx={{
+                                                                width: 36,
+                                                                height: 36,
+                                                                borderRadius: 1,
+                                                                backgroundColor: materiaisImages[material.material_id] ? "transparent" : "#e3f2fd",
+                                                                border: "1px solid #e0e0e0",
+                                                                flexShrink: 0,
+                                                            }}
+                                                        >
+                                                            {!materiaisImages[material.material_id] && (
+                                                                <InventoryIcon sx={{ fontSize: 18, color: "#1e3a5f" }} />
+                                                            )}
+                                                        </Avatar>
+                                                        <Typography variant="body2" fontWeight={500}>
+                                                            {material.material_description}
+                                                        </Typography>
+                                                    </Box>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Chip

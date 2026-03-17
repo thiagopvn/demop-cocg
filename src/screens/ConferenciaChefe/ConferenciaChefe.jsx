@@ -20,6 +20,9 @@ import {
   Divider,
   Container,
   alpha,
+  TextField,
+  InputAdornment,
+  Avatar,
 } from "@mui/material";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
@@ -30,22 +33,25 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import SaveIcon from "@mui/icons-material/Save";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
+import PendingActionsIcon from "@mui/icons-material/PendingActions";
 import {
   collection,
   query,
   where,
   getDocs,
-  updateDoc,
-  addDoc,
   doc,
   getDoc,
   serverTimestamp,
   onSnapshot,
+  writeBatch,
 } from "firebase/firestore";
 import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function ConferenciaChefe() {
   // --- Auth state ---
@@ -61,6 +67,16 @@ export default function ConferenciaChefe() {
   const [materiais, setMateriais] = useState([]);
   const [loadingMateriais, setLoadingMateriais] = useState(false);
   const [quantidadesEncontradas, setQuantidadesEncontradas] = useState({});
+
+  // --- Conferência: tracking por item ---
+  const [itensConferidos, setItensConferidos] = useState(new Set());
+  const [observacoes, setObservacoes] = useState({});
+  const [materiaisImages, setMateriaisImages] = useState({});
+
+  // --- Busca e filtro ---
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 300);
+  const [activeFilter, setActiveFilter] = useState("todos");
 
   // --- Finalização ---
   const [saving, setSaving] = useState(false);
@@ -126,6 +142,29 @@ export default function ConferenciaChefe() {
         qtdMap[mat.id] = mat.quantidade;
       });
       setQuantidadesEncontradas(qtdMap);
+
+      // Buscar imagens dos materiais na coleção materials
+      const imageMap = {};
+      const materialIds = [...new Set(items.map((m) => m.material_id))];
+      await Promise.all(
+        materialIds.map(async (matId) => {
+          try {
+            const matDoc = await getDoc(doc(db, "materials", matId));
+            if (matDoc.exists()) {
+              imageMap[matId] = matDoc.data().image_url || null;
+            }
+          } catch (e) {
+            /* ignora erro de imagem */
+          }
+        })
+      );
+      setMateriaisImages(imageMap);
+
+      // Resetar estado de conferência
+      setItensConferidos(new Set());
+      setObservacoes({});
+      setSearchTerm("");
+      setActiveFilter("todos");
     } catch (error) {
       console.error("Erro ao buscar materiais:", error);
       setSnackbar({ open: true, message: "Erro ao carregar materiais da viatura.", severity: "error" });
@@ -145,6 +184,11 @@ export default function ConferenciaChefe() {
     setMateriais([]);
     setQuantidadesEncontradas({});
     setDivergencias([]);
+    setItensConferidos(new Set());
+    setObservacoes({});
+    setMateriaisImages({});
+    setSearchTerm("");
+    setActiveFilter("todos");
   };
 
   // ==================== CONTROLES +/- ====================
@@ -161,6 +205,78 @@ export default function ConferenciaChefe() {
       [materialId]: Math.max(0, (prev[materialId] || 0) - 1),
     }));
   };
+
+  // ==================== CONFIRMAR ITEM ====================
+  const handleConfirmarItem = (materialId) => {
+    setItensConferidos((prev) => {
+      const next = new Set(prev);
+      if (next.has(materialId)) {
+        next.delete(materialId);
+      } else {
+        next.add(materialId);
+      }
+      return next;
+    });
+  };
+
+  // ==================== OBSERVAÇÃO ====================
+  const handleObservacao = (materialId, text) => {
+    setObservacoes((prev) => ({ ...prev, [materialId]: text }));
+  };
+
+  // ==================== FILTRAR E ORDENAR ====================
+  const materiaisFiltrados = useMemo(() => {
+    let result = [...materiais];
+
+    // Busca por texto
+    if (debouncedSearch.trim()) {
+      const terms = debouncedSearch.toLowerCase().trim().split(/\s+/);
+      result = result.filter((mat) => {
+        const text = `${mat.material_description || ""} ${mat.categoria || ""}`.toLowerCase();
+        return terms.every((t) => text.includes(t));
+      });
+    }
+
+    // Filtro por status
+    switch (activeFilter) {
+      case "pendentes":
+        result = result.filter((mat) => !itensConferidos.has(mat.id));
+        break;
+      case "conferidos":
+        result = result.filter((mat) => itensConferidos.has(mat.id));
+        break;
+      case "divergencia":
+        result = result.filter((mat) => {
+          const encontrada = quantidadesEncontradas[mat.id] ?? mat.quantidade;
+          return encontrada !== mat.quantidade;
+        });
+        break;
+      default:
+        break;
+    }
+
+    // Ordenação: não conferidos primeiro, conferidos por último
+    result.sort((a, b) => {
+      const aConf = itensConferidos.has(a.id) ? 1 : 0;
+      const bConf = itensConferidos.has(b.id) ? 1 : 0;
+      if (aConf !== bConf) return aConf - bConf;
+      return (a.material_description || "").localeCompare(b.material_description || "", "pt-BR");
+    });
+
+    return result;
+  }, [materiais, debouncedSearch, activeFilter, itensConferidos, quantidadesEncontradas]);
+
+  // ==================== CONTADORES ====================
+  const totalPendentes = materiais.length - itensConferidos.size;
+  const totalConferidos = itensConferidos.size;
+  const totalDivergenciasAtual = useMemo(() => {
+    let count = 0;
+    materiais.forEach((mat) => {
+      const encontrada = quantidadesEncontradas[mat.id] ?? mat.quantidade;
+      if (encontrada !== mat.quantidade) count++;
+    });
+    return count;
+  }, [materiais, quantidadesEncontradas]);
 
   // ==================== CALCULAR DIVERGÊNCIAS ====================
   const calcularDivergencias = useCallback(() => {
@@ -182,14 +298,23 @@ export default function ConferenciaChefe() {
 
   // ==================== FINALIZAR CONFERÊNCIA ====================
   const handleFinalizarClick = () => {
+    // Verificar se todos os itens foram conferidos
+    const naoConferidos = materiais.filter((m) => !itensConferidos.has(m.id));
+    if (naoConferidos.length > 0) {
+      setSnackbar({
+        open: true,
+        message: `Ainda ha ${naoConferidos.length} item(ns) nao conferido(s). Confirme todos antes de finalizar.`,
+        severity: "warning",
+      });
+      return;
+    }
+
     const divs = calcularDivergencias();
     setDivergencias(divs);
 
     if (divs.length > 0) {
-      // Há divergências — abre dialog de confirmação
       setConfirmDialogOpen(true);
     } else {
-      // Tudo confere — salva direto
       handleSalvarConferencia(false);
     }
   };
@@ -204,59 +329,74 @@ export default function ConferenciaChefe() {
     try {
       const divs = temDivergencias ? divergencias : [];
       const itensConferencia = [];
+      const batch = writeBatch(db);
+
+      // Ler todos os documentos de materiais necessários (para ajuste de estoque)
+      const materialReads = {};
+      for (const mat of materiais) {
+        const encontrada = quantidadesEncontradas[mat.id] ?? mat.quantidade;
+        if (encontrada !== mat.quantidade && !materialReads[mat.material_id]) {
+          const matDoc = await getDoc(doc(db, "materials", mat.material_id));
+          if (matDoc.exists()) {
+            materialReads[mat.material_id] = matDoc.data();
+          }
+        }
+      }
 
       // Processar cada material
       for (const mat of materiais) {
         const encontrada = quantidadesEncontradas[mat.id] ?? mat.quantidade;
         const qtdAlterada = encontrada !== mat.quantidade;
+        const obs = observacoes[mat.id] || "";
 
-        // Atualizar viatura_materiais
+        const vmRef = doc(db, "viatura_materiais", mat.id);
         const vmUpdateData = {
           ultima_conferencia: serverTimestamp(),
           conferido_por: userName,
           conferido_por_id: userId,
         };
 
+        if (obs) {
+          vmUpdateData.observacao_conferencia = obs;
+        }
+
         if (qtdAlterada) {
           const diferenca = encontrada - mat.quantidade;
-
-          // Verificar estoque se está aumentando na viatura
-          if (diferenca > 0) {
-            const materialRef = doc(db, "materials", mat.material_id);
-            const materialDoc = await getDoc(materialRef);
-            if (materialDoc.exists()) {
-              const estoqueDisp = materialDoc.data().estoque_atual || 0;
-              if (diferenca > estoqueDisp) {
-                setSnackbar({
-                  open: true,
-                  message: `Estoque insuficiente para "${mat.material_description}". Disponivel: ${estoqueDisp}`,
-                  severity: "error",
-                });
-                setSaving(false);
-                return;
-              }
-            }
-          }
 
           vmUpdateData.quantidade = encontrada;
           vmUpdateData.ultima_atualizacao = serverTimestamp();
           vmUpdateData.atualizado_por = userId;
           vmUpdateData.atualizado_por_nome = userName;
 
-          // Ajustar estoque do material (Seção 5 do fluxo)
+          // Ajustar estoque — SEM BLOQUEIO para material a mais
           const materialRef = doc(db, "materials", mat.material_id);
-          const materialDoc = await getDoc(materialRef);
-          if (materialDoc.exists()) {
-            const materialData = materialDoc.data();
-            await updateDoc(materialRef, {
-              estoque_atual: Math.max(0, (materialData.estoque_atual || 0) - diferenca),
-              estoque_viatura: Math.max(0, (materialData.estoque_viatura || 0) + diferenca),
+          const materialData = materialReads[mat.material_id];
+          if (materialData) {
+            const estoqueAtual = materialData.estoque_atual || 0;
+            const estoqueViatura = materialData.estoque_viatura || 0;
+            const estoqueTotal = materialData.estoque_total || 0;
+
+            let newEstoqueAtual = estoqueAtual - diferenca;
+            let newEstoqueViatura = estoqueViatura + diferenca;
+            let newEstoqueTotal = estoqueTotal;
+
+            // Se estoque_atual ficaria negativo, aumentar estoque_total para cobrir
+            if (newEstoqueAtual < 0) {
+              const deficit = Math.abs(newEstoqueAtual);
+              newEstoqueTotal += deficit;
+              newEstoqueAtual = 0;
+            }
+
+            batch.update(materialRef, {
+              estoque_atual: Math.max(0, newEstoqueAtual),
+              estoque_viatura: Math.max(0, newEstoqueViatura),
+              estoque_total: newEstoqueTotal,
               ultima_movimentacao: serverTimestamp(),
             });
           }
         }
 
-        await updateDoc(doc(db, "viatura_materiais", mat.id), vmUpdateData);
+        batch.update(vmRef, vmUpdateData);
 
         itensConferencia.push({
           material_id: mat.material_id,
@@ -265,19 +405,20 @@ export default function ConferenciaChefe() {
           quantidade_esperada: mat.quantidade,
           quantidade_encontrada: encontrada,
           divergencia: qtdAlterada,
+          observacao: obs,
         });
       }
 
       // Atualizar viatura com dados da conferência
-      await updateDoc(doc(db, "viaturas", selectedViatura.id), {
+      batch.update(doc(db, "viaturas", selectedViatura.id), {
         ultima_conferencia: serverTimestamp(),
         conferido_por: userName,
         conferido_por_id: userId,
       });
 
       // Registrar histórico em conferencias_viaturas
-      const totalDivergencias = divs.length;
-      await addDoc(collection(db, "conferencias_viaturas"), {
+      const confRef = doc(collection(db, "conferencias_viaturas"));
+      batch.set(confRef, {
         viatura_id: selectedViatura.id,
         viatura_prefixo: selectedViatura.prefixo,
         viatura_description: selectedViatura.description,
@@ -286,39 +427,42 @@ export default function ConferenciaChefe() {
         data_conferencia: serverTimestamp(),
         total_materiais: materiais.length,
         total_conferidos: materiais.length,
-        total_divergencias: totalDivergencias,
+        total_divergencias: divs.length,
         itens: itensConferencia,
       });
 
       // Se houver divergências, criar alertas para o admin
-      if (divs.length > 0) {
-        for (const div of divs) {
-          await addDoc(collection(db, "alertas_conferencia"), {
-            viatura_id: selectedViatura.id,
-            viatura_prefixo: selectedViatura.prefixo,
-            viatura_description: selectedViatura.description || "",
-            material_id: div.material_id,
-            material_description: div.material_description,
-            quantidade_esperada: div.quantidade_esperada,
-            quantidade_encontrada: div.quantidade_encontrada,
-            diferenca: div.diferenca,
-            chefe_id: userId,
-            chefe_nome: userName,
-            data_alerta: serverTimestamp(),
-            lido: false,
-          });
-        }
+      for (const div of divs) {
+        const alertRef = doc(collection(db, "alertas_conferencia"));
+        batch.set(alertRef, {
+          viatura_id: selectedViatura.id,
+          viatura_prefixo: selectedViatura.prefixo,
+          viatura_description: selectedViatura.description || "",
+          material_id: div.material_id,
+          material_description: div.material_description,
+          quantidade_esperada: div.quantidade_esperada,
+          quantidade_encontrada: div.quantidade_encontrada,
+          diferenca: div.diferenca,
+          chefe_id: userId,
+          chefe_nome: userName,
+          data_alerta: serverTimestamp(),
+          lido: false,
+          observacao: observacoes[div.id] || "",
+        });
       }
+
+      // Commit atômico de todas as operações
+      await batch.commit();
 
       setSnackbar({
         open: true,
-        message: totalDivergencias > 0
-          ? `Conferencia salva com ${totalDivergencias} divergencia(s) registrada(s).`
-          : "Conferencia salva com sucesso! Tudo confere.",
+        message:
+          divs.length > 0
+            ? `Conferencia salva com ${divs.length} divergencia(s) registrada(s).`
+            : "Conferencia salva com sucesso! Tudo confere.",
         severity: "success",
       });
 
-      // Voltar para seleção de viaturas
       handleVoltar();
     } catch (error) {
       console.error("Erro ao salvar conferencia:", error);
@@ -332,19 +476,9 @@ export default function ConferenciaChefe() {
     }
   };
 
-  // ==================== CONTADORES ====================
-  const totalDivergenciasAtual = useMemo(() => {
-    let count = 0;
-    materiais.forEach((mat) => {
-      const encontrada = quantidadesEncontradas[mat.id] ?? mat.quantidade;
-      if (encontrada !== mat.quantidade) count++;
-    });
-    return count;
-  }, [materiais, quantidadesEncontradas]);
-
   // ==================== RENDER ====================
   return (
-    <PrivateRoute allowedRoles={['chefe', 'admin', 'admingeral']}>
+    <PrivateRoute allowedRoles={["chefe", "admin", "admingeral"]}>
       <MenuContext>
         <Container maxWidth="md" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 1.5, sm: 2 } }}>
           <Fade in timeout={400}>
@@ -401,20 +535,14 @@ export default function ConferenciaChefe() {
                         <CircularProgress size={48} sx={{ color: "#1e3a5f" }} />
                       </Box>
                     ) : viaturas.length === 0 ? (
-                      <Alert
-                        severity="info"
-                        sx={{ borderRadius: 2, fontSize: "1rem", py: 2 }}
-                      >
+                      <Alert severity="info" sx={{ borderRadius: 2, fontSize: "1rem", py: 2 }}>
                         Nenhuma viatura cadastrada no sistema.
                       </Alert>
                     ) : (
                       <Box
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: {
-                            xs: "1fr",
-                            sm: "1fr 1fr",
-                          },
+                          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
                           gap: 2,
                         }}
                       >
@@ -433,10 +561,7 @@ export default function ConferenciaChefe() {
                               },
                             }}
                           >
-                            <CardActionArea
-                              onClick={() => handleSelectViatura(viatura)}
-                              sx={{ p: 0 }}
-                            >
+                            <CardActionArea onClick={() => handleSelectViatura(viatura)} sx={{ p: 0 }}>
                               <CardContent
                                 sx={{
                                   p: { xs: 2.5, sm: 3 },
@@ -457,9 +582,7 @@ export default function ConferenciaChefe() {
                                     flexShrink: 0,
                                   }}
                                 >
-                                  <DirectionsCarIcon
-                                    sx={{ fontSize: { xs: 28, sm: 32 }, color: "white" }}
-                                  />
+                                  <DirectionsCarIcon sx={{ fontSize: { xs: 28, sm: 32 }, color: "white" }} />
                                 </Box>
                                 <Box sx={{ flex: 1, minWidth: 0 }}>
                                   <Typography
@@ -559,27 +682,38 @@ export default function ConferenciaChefe() {
                         >
                           {selectedViatura.prefixo}
                         </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{ color: "text.secondary", fontSize: "0.95rem" }}
-                        >
+                        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.95rem" }}>
                           {selectedViatura.description}
                         </Typography>
                       </Box>
-                      {totalDivergenciasAtual > 0 && (
+                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                        {totalDivergenciasAtual > 0 && (
+                          <Chip
+                            icon={<WarningAmberIcon />}
+                            label={`${totalDivergenciasAtual} divergencia(s)`}
+                            sx={{
+                              backgroundColor: "#fff3e0",
+                              color: "#e65100",
+                              fontWeight: 700,
+                              fontSize: "0.9rem",
+                              height: 36,
+                              border: "1px solid #ffcc02",
+                            }}
+                          />
+                        )}
                         <Chip
-                          icon={<WarningAmberIcon />}
-                          label={`${totalDivergenciasAtual} divergencia(s)`}
+                          icon={<CheckCircleIcon />}
+                          label={`${totalConferidos}/${materiais.length}`}
                           sx={{
-                            backgroundColor: "#fff3e0",
-                            color: "#e65100",
+                            backgroundColor: totalPendentes === 0 ? "#e8f5e9" : "#f5f5f5",
+                            color: totalPendentes === 0 ? "#2e7d32" : "text.secondary",
                             fontWeight: 700,
                             fontSize: "0.9rem",
                             height: 36,
-                            border: "1px solid #ffcc02",
+                            border: totalPendentes === 0 ? "1px solid #a5d6a7" : "1px solid #e0e0e0",
                           }}
                         />
-                      )}
+                      </Box>
                     </Paper>
 
                     {/* Loading */}
@@ -598,64 +732,263 @@ export default function ConferenciaChefe() {
                         }}
                       >
                         <InventoryIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
-                        <Typography
-                          variant="h6"
-                          color="text.secondary"
-                          sx={{ fontSize: "1.15rem" }}
-                        >
+                        <Typography variant="h6" color="text.secondary" sx={{ fontSize: "1.15rem" }}>
                           Nenhum material alocado nesta viatura
                         </Typography>
                       </Paper>
                     ) : (
                       <>
-                        {/* Lista de materiais — cards grandes e touch-friendly */}
+                        {/* ===== BARRA DE PESQUISA ===== */}
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: { xs: 1.5, sm: 2 },
+                            mb: 2,
+                            borderRadius: 2.5,
+                            border: "1px solid #e0e0e0",
+                          }}
+                        >
+                          <TextField
+                            fullWidth
+                            variant="outlined"
+                            placeholder="Buscar material pelo nome..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            slotProps={{
+                              input: {
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <SearchIcon sx={{ color: "#1e3a5f", fontSize: 28 }} />
+                                  </InputAdornment>
+                                ),
+                                endAdornment: searchTerm && (
+                                  <InputAdornment position="end">
+                                    <IconButton onClick={() => setSearchTerm("")} size="small">
+                                      <ClearIcon />
+                                    </IconButton>
+                                  </InputAdornment>
+                                ),
+                              },
+                            }}
+                            sx={{
+                              mb: 1.5,
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: 2,
+                                fontSize: { xs: "1rem", sm: "1.1rem" },
+                                backgroundColor: "#fafafa",
+                              },
+                            }}
+                          />
+
+                          {/* ===== FILTROS INTELIGENTES ===== */}
+                          <Box
+                            sx={{
+                              display: "flex",
+                              gap: 1,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <Chip
+                              label={`Todos (${materiais.length})`}
+                              onClick={() => setActiveFilter("todos")}
+                              sx={{
+                                fontWeight: activeFilter === "todos" ? 700 : 500,
+                                fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                                height: { xs: 36, sm: 40 },
+                                backgroundColor: activeFilter === "todos" ? "#1e3a5f" : "#f5f5f5",
+                                color: activeFilter === "todos" ? "white" : "text.primary",
+                                border: activeFilter === "todos" ? "none" : "1px solid #e0e0e0",
+                                "&:hover": {
+                                  backgroundColor: activeFilter === "todos" ? "#162d4a" : "#eeeeee",
+                                },
+                              }}
+                            />
+                            <Chip
+                              icon={
+                                <PendingActionsIcon
+                                  sx={{
+                                    fontSize: 20,
+                                    color: activeFilter === "pendentes" ? "white !important" : "#e65100",
+                                  }}
+                                />
+                              }
+                              label={`Pendentes (${totalPendentes})`}
+                              onClick={() => setActiveFilter(activeFilter === "pendentes" ? "todos" : "pendentes")}
+                              sx={{
+                                fontWeight: activeFilter === "pendentes" ? 700 : 500,
+                                fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                                height: { xs: 36, sm: 40 },
+                                backgroundColor: activeFilter === "pendentes" ? "#e65100" : "#fff3e0",
+                                color: activeFilter === "pendentes" ? "white" : "#e65100",
+                                border: activeFilter === "pendentes" ? "none" : "1px solid #ffcc80",
+                                "&:hover": {
+                                  backgroundColor: activeFilter === "pendentes" ? "#bf360c" : "#ffe0b2",
+                                },
+                              }}
+                            />
+                            <Chip
+                              icon={
+                                <CheckCircleIcon
+                                  sx={{
+                                    fontSize: 20,
+                                    color: activeFilter === "conferidos" ? "white !important" : "#2e7d32",
+                                  }}
+                                />
+                              }
+                              label={`Conferidos (${totalConferidos})`}
+                              onClick={() => setActiveFilter(activeFilter === "conferidos" ? "todos" : "conferidos")}
+                              sx={{
+                                fontWeight: activeFilter === "conferidos" ? 700 : 500,
+                                fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                                height: { xs: 36, sm: 40 },
+                                backgroundColor: activeFilter === "conferidos" ? "#2e7d32" : "#e8f5e9",
+                                color: activeFilter === "conferidos" ? "white" : "#2e7d32",
+                                border: activeFilter === "conferidos" ? "none" : "1px solid #a5d6a7",
+                                "&:hover": {
+                                  backgroundColor: activeFilter === "conferidos" ? "#1b5e20" : "#c8e6c9",
+                                },
+                              }}
+                            />
+                            <Chip
+                              icon={
+                                <WarningAmberIcon
+                                  sx={{
+                                    fontSize: 20,
+                                    color: activeFilter === "divergencia" ? "white !important" : "#d32f2f",
+                                  }}
+                                />
+                              }
+                              label={`Divergencia (${totalDivergenciasAtual})`}
+                              onClick={() =>
+                                setActiveFilter(activeFilter === "divergencia" ? "todos" : "divergencia")
+                              }
+                              sx={{
+                                fontWeight: activeFilter === "divergencia" ? 700 : 500,
+                                fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                                height: { xs: 36, sm: 40 },
+                                backgroundColor: activeFilter === "divergencia" ? "#d32f2f" : "#ffebee",
+                                color: activeFilter === "divergencia" ? "white" : "#d32f2f",
+                                border: activeFilter === "divergencia" ? "none" : "1px solid #ef9a9a",
+                                "&:hover": {
+                                  backgroundColor: activeFilter === "divergencia" ? "#b71c1c" : "#ffcdd2",
+                                },
+                              }}
+                            />
+                          </Box>
+                        </Paper>
+
+                        {/* Mensagem quando filtro não retorna resultados */}
+                        {materiaisFiltrados.length === 0 && (
+                          <Paper
+                            elevation={0}
+                            sx={{
+                              p: 3,
+                              textAlign: "center",
+                              borderRadius: 2,
+                              border: "1px solid #e0e0e0",
+                              mb: 14,
+                            }}
+                          >
+                            <Typography variant="body1" color="text.secondary" sx={{ fontSize: "1.05rem" }}>
+                              Nenhum material encontrado com os filtros atuais.
+                            </Typography>
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setSearchTerm("");
+                                setActiveFilter("todos");
+                              }}
+                              sx={{ mt: 1, textTransform: "none" }}
+                            >
+                              Limpar filtros
+                            </Button>
+                          </Paper>
+                        )}
+
+                        {/* ===== LISTA DE MATERIAIS — cards grandes e touch-friendly ===== */}
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mb: 14 }}>
-                          {materiais.map((mat) => {
+                          {materiaisFiltrados.map((mat) => {
                             const esperada = mat.quantidade;
                             const encontrada = quantidadesEncontradas[mat.id] ?? esperada;
                             const temDivergencia = encontrada !== esperada;
+                            const isConferido = itensConferidos.has(mat.id);
+                            const imageUrl = materiaisImages[mat.material_id];
+                            const obs = observacoes[mat.id] || "";
 
                             return (
                               <Paper
                                 key={mat.id}
-                                elevation={temDivergencia ? 3 : 1}
+                                elevation={isConferido ? 0 : temDivergencia ? 3 : 1}
                                 sx={{
                                   p: { xs: 2, sm: 2.5 },
                                   borderRadius: 2.5,
-                                  border: temDivergencia
+                                  border: isConferido
+                                    ? "2px solid #4caf50"
+                                    : temDivergencia
                                     ? "2px solid #ff9800"
                                     : "1px solid #e0e0e0",
-                                  backgroundColor: temDivergencia
+                                  backgroundColor: isConferido
+                                    ? alpha("#4caf50", 0.06)
+                                    : temDivergencia
                                     ? "#fff8e1"
                                     : "#ffffff",
-                                  transition: "all 0.2s ease",
+                                  transition: "all 0.3s ease",
+                                  opacity: isConferido ? 0.85 : 1,
                                 }}
                               >
-                                {/* Nome do material e categoria */}
-                                <Typography
-                                  variant="h6"
-                                  fontWeight={700}
+                                {/* Linha: Avatar + Nome + Categoria */}
+                                <Box
                                   sx={{
-                                    fontSize: { xs: "1.05rem", sm: "1.15rem" },
-                                    color: "#1e3a5f",
-                                    mb: 0.5,
-                                    lineHeight: 1.3,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1.5,
+                                    mb: 1,
                                   }}
                                 >
-                                  {mat.material_description}
-                                </Typography>
-                                {mat.categoria && (
-                                  <Chip
-                                    label={mat.categoria}
-                                    size="small"
-                                    variant="outlined"
+                                  <Avatar
+                                    src={imageUrl || undefined}
                                     sx={{
-                                      mb: 1.5,
-                                      fontSize: "0.8rem",
-                                      height: 26,
+                                      width: { xs: 52, sm: 60 },
+                                      height: { xs: 52, sm: 60 },
+                                      borderRadius: 2,
+                                      backgroundColor: imageUrl ? "transparent" : "#e3f2fd",
+                                      border: "2px solid #e0e0e0",
+                                      flexShrink: 0,
                                     }}
-                                  />
-                                )}
+                                    variant="rounded"
+                                  >
+                                    {!imageUrl && (
+                                      <InventoryIcon sx={{ fontSize: 28, color: "#1e3a5f" }} />
+                                    )}
+                                  </Avatar>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography
+                                      variant="h6"
+                                      fontWeight={700}
+                                      sx={{
+                                        fontSize: { xs: "1.05rem", sm: "1.15rem" },
+                                        color: "#1e3a5f",
+                                        lineHeight: 1.3,
+                                      }}
+                                    >
+                                      {mat.material_description}
+                                    </Typography>
+                                    {mat.categoria && (
+                                      <Chip
+                                        label={mat.categoria}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{ fontSize: "0.8rem", height: 26, mt: 0.5 }}
+                                      />
+                                    )}
+                                  </Box>
+                                  {/* Badge de conferido */}
+                                  {isConferido && (
+                                    <CheckCircleIcon
+                                      sx={{ fontSize: 32, color: "#4caf50", flexShrink: 0 }}
+                                    />
+                                  )}
+                                </Box>
 
                                 <Divider sx={{ my: 1 }} />
 
@@ -722,7 +1055,7 @@ export default function ConferenciaChefe() {
                                       {/* Botão MENOS */}
                                       <IconButton
                                         onClick={() => handleDecrement(mat.id)}
-                                        disabled={encontrada <= 0}
+                                        disabled={encontrada <= 0 || isConferido}
                                         sx={{
                                           width: { xs: 48, sm: 56 },
                                           height: { xs: 48, sm: 56 },
@@ -730,9 +1063,7 @@ export default function ConferenciaChefe() {
                                           backgroundColor: "#ffebee",
                                           color: "#d32f2f",
                                           border: "2px solid #ef9a9a",
-                                          "&:hover": {
-                                            backgroundColor: "#ffcdd2",
-                                          },
+                                          "&:hover": { backgroundColor: "#ffcdd2" },
                                           "&.Mui-disabled": {
                                             backgroundColor: "#f5f5f5",
                                             color: "#bdbdbd",
@@ -773,6 +1104,7 @@ export default function ConferenciaChefe() {
                                       {/* Botão MAIS */}
                                       <IconButton
                                         onClick={() => handleIncrement(mat.id)}
+                                        disabled={isConferido}
                                         sx={{
                                           width: { xs: 48, sm: 56 },
                                           height: { xs: 48, sm: 56 },
@@ -780,8 +1112,11 @@ export default function ConferenciaChefe() {
                                           backgroundColor: "#e8f5e9",
                                           color: "#2e7d32",
                                           border: "2px solid #a5d6a7",
-                                          "&:hover": {
-                                            backgroundColor: "#c8e6c9",
+                                          "&:hover": { backgroundColor: "#c8e6c9" },
+                                          "&.Mui-disabled": {
+                                            backgroundColor: "#f5f5f5",
+                                            color: "#bdbdbd",
+                                            border: "2px solid #e0e0e0",
                                           },
                                         }}
                                       >
@@ -808,6 +1143,72 @@ export default function ConferenciaChefe() {
                                     {encontrada - esperada} unidade(s)
                                   </Alert>
                                 )}
+
+                                {/* ===== CAMPO DE OBSERVAÇÃO ===== */}
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  variant="outlined"
+                                  placeholder="Observacao (ex: Material danificado, Falta uma peca...)"
+                                  value={obs}
+                                  onChange={(e) => handleObservacao(mat.id, e.target.value)}
+                                  disabled={isConferido}
+                                  multiline
+                                  minRows={1}
+                                  maxRows={3}
+                                  sx={{
+                                    mt: 1.5,
+                                    "& .MuiOutlinedInput-root": {
+                                      borderRadius: 2,
+                                      fontSize: { xs: "0.9rem", sm: "0.95rem" },
+                                      backgroundColor: isConferido ? "#f5f5f5" : "#fafafa",
+                                    },
+                                  }}
+                                />
+
+                                {/* ===== BOTÃO CONFIRMAR ITEM ===== */}
+                                <Button
+                                  fullWidth
+                                  variant={isConferido ? "outlined" : "contained"}
+                                  size="large"
+                                  onClick={() => handleConfirmarItem(mat.id)}
+                                  startIcon={
+                                    isConferido ? (
+                                      <CheckCircleIcon sx={{ fontSize: 28 }} />
+                                    ) : (
+                                      <CheckCircleIcon sx={{ fontSize: 28 }} />
+                                    )
+                                  }
+                                  sx={{
+                                    mt: 1.5,
+                                    py: { xs: 1.3, sm: 1.5 },
+                                    borderRadius: 2.5,
+                                    fontSize: { xs: "1rem", sm: "1.1rem" },
+                                    fontWeight: 700,
+                                    textTransform: "none",
+                                    letterSpacing: "0.02em",
+                                    ...(isConferido
+                                      ? {
+                                          borderColor: "#4caf50",
+                                          color: "#4caf50",
+                                          backgroundColor: alpha("#4caf50", 0.04),
+                                          "&:hover": {
+                                            backgroundColor: alpha("#4caf50", 0.12),
+                                            borderColor: "#2e7d32",
+                                          },
+                                        }
+                                      : {
+                                          background: "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+                                          boxShadow: "0 4px 14px rgba(76,175,80,0.3)",
+                                          "&:hover": {
+                                            background: "linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)",
+                                            boxShadow: "0 6px 20px rgba(76,175,80,0.4)",
+                                          },
+                                        }),
+                                  }}
+                                >
+                                  {isConferido ? "Conferido - Clique para desfazer" : "Confirmar Item"}
+                                </Button>
                               </Paper>
                             );
                           })}
@@ -848,7 +1249,7 @@ export default function ConferenciaChefe() {
                                   color: "text.secondary",
                                 }}
                               >
-                                {materiais.length} material(is)
+                                {totalConferidos}/{materiais.length} conferido(s)
                                 {totalDivergenciasAtual > 0 && (
                                   <Chip
                                     size="small"
@@ -863,6 +1264,14 @@ export default function ConferenciaChefe() {
                                   />
                                 )}
                               </Typography>
+                              {totalPendentes > 0 && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: "#e65100", fontWeight: 500, fontSize: "0.8rem" }}
+                                >
+                                  Falta(m) {totalPendentes} item(ns)
+                                </Typography>
+                              )}
                             </Box>
 
                             {/* Botão Finalizar */}
@@ -887,12 +1296,22 @@ export default function ConferenciaChefe() {
                                 textTransform: "uppercase",
                                 letterSpacing: "0.05em",
                                 background:
-                                  "linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)",
-                                boxShadow: "0 6px 20px rgba(30,58,95,0.3)",
+                                  totalPendentes === 0
+                                    ? "linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)"
+                                    : "#9e9e9e",
+                                boxShadow:
+                                  totalPendentes === 0
+                                    ? "0 6px 20px rgba(30,58,95,0.3)"
+                                    : "none",
                                 "&:hover": {
                                   background:
-                                    "linear-gradient(135deg, #162d4a 0%, #1e3a5f 100%)",
-                                  boxShadow: "0 8px 28px rgba(30,58,95,0.4)",
+                                    totalPendentes === 0
+                                      ? "linear-gradient(135deg, #162d4a 0%, #1e3a5f 100%)"
+                                      : "#757575",
+                                  boxShadow:
+                                    totalPendentes === 0
+                                      ? "0 8px 28px rgba(30,58,95,0.4)"
+                                      : "none",
                                 },
                                 "&.Mui-disabled": {
                                   background: "#bdbdbd",
@@ -918,10 +1337,7 @@ export default function ConferenciaChefe() {
             maxWidth="sm"
             fullWidth
             PaperProps={{
-              sx: {
-                borderRadius: 3,
-                overflow: "hidden",
-              },
+              sx: { borderRadius: 3, overflow: "hidden" },
             }}
           >
             <DialogTitle
@@ -942,12 +1358,7 @@ export default function ConferenciaChefe() {
             <DialogContent sx={{ p: 3, pt: 3 }}>
               <Alert
                 severity="warning"
-                sx={{
-                  mb: 2.5,
-                  borderRadius: 2,
-                  fontSize: "1rem",
-                  fontWeight: 500,
-                }}
+                sx={{ mb: 2.5, borderRadius: 2, fontSize: "1rem", fontWeight: 500 }}
               >
                 Os itens abaixo possuem quantidades diferentes do registrado no sistema.
                 Confirme se deseja salvar essas alteracoes.
@@ -984,9 +1395,7 @@ export default function ConferenciaChefe() {
                           color: "#1565c0",
                         }}
                       />
-                      <Typography
-                        sx={{ fontSize: "1.2rem", fontWeight: 800, color: "#e65100" }}
-                      >
+                      <Typography sx={{ fontSize: "1.2rem", fontWeight: 800, color: "#e65100" }}>
                         →
                       </Typography>
                       <Chip
@@ -996,8 +1405,7 @@ export default function ConferenciaChefe() {
                           fontWeight: 700,
                           fontSize: "0.9rem",
                           height: 30,
-                          backgroundColor:
-                            div.diferenca < 0 ? "#ffebee" : "#e8f5e9",
+                          backgroundColor: div.diferenca < 0 ? "#ffebee" : "#e8f5e9",
                           color: div.diferenca < 0 ? "#c62828" : "#2e7d32",
                         }}
                       />
@@ -1008,23 +1416,25 @@ export default function ConferenciaChefe() {
                           fontWeight: 800,
                           fontSize: "0.9rem",
                           height: 30,
-                          backgroundColor:
-                            div.diferenca < 0 ? "#d32f2f" : "#2e7d32",
+                          backgroundColor: div.diferenca < 0 ? "#d32f2f" : "#2e7d32",
                           color: "white",
                         }}
                       />
                     </Box>
+                    {observacoes[div.id] && (
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 1, fontStyle: "italic", color: "text.secondary" }}
+                      >
+                        Obs: {observacoes[div.id]}
+                      </Typography>
+                    )}
                   </Paper>
                 ))}
               </Box>
             </DialogContent>
             <DialogActions
-              sx={{
-                px: 3,
-                py: 2.5,
-                borderTop: "1px solid #e0e0e0",
-                gap: 1.5,
-              }}
+              sx={{ px: 3, py: 2.5, borderTop: "1px solid #e0e0e0", gap: 1.5 }}
             >
               <Button
                 onClick={() => setConfirmDialogOpen(false)}
@@ -1046,11 +1456,7 @@ export default function ConferenciaChefe() {
                 variant="contained"
                 disabled={saving}
                 startIcon={
-                  saving ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : (
-                    <CheckCircleIcon />
-                  )
+                  saving ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />
                 }
                 sx={{
                   borderRadius: 2,
@@ -1059,11 +1465,9 @@ export default function ConferenciaChefe() {
                   py: 1.2,
                   px: 3,
                   textTransform: "none",
-                  background:
-                    "linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)",
+                  background: "linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)",
                   "&:hover": {
-                    background:
-                      "linear-gradient(135deg, #b71c1c 0%, #880e0e 100%)",
+                    background: "linear-gradient(135deg, #b71c1c 0%, #880e0e 100%)",
                   },
                 }}
               >
@@ -1083,12 +1487,7 @@ export default function ConferenciaChefe() {
               onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
               severity={snackbar.severity}
               variant="filled"
-              sx={{
-                width: "100%",
-                borderRadius: 2,
-                fontSize: "1rem",
-                fontWeight: 600,
-              }}
+              sx={{ width: "100%", borderRadius: 2, fontSize: "1rem", fontWeight: 600 }}
             >
               {snackbar.message}
             </Alert>
