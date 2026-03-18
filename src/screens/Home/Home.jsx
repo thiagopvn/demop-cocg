@@ -2795,6 +2795,61 @@ export default function Home() {
           </Fade>
         </Container>
 
+        {/* Dialog de conclusão de manutenção */}
+        <Dialog
+          open={completeDialogOpen}
+          onClose={() => setCompleteDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+        >
+          <Box sx={{ bgcolor: 'success.main', color: 'white', px: 3, py: 2 }}>
+            <Typography variant="h6" fontWeight={700}>
+              Concluir Manutencao
+            </Typography>
+            {completionData.maintenance && (
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                {completionData.maintenance.materialDescription} - {completionData.maintenance.type}
+              </Typography>
+            )}
+          </Box>
+          <DialogContent sx={{ pt: 3 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={completionData.confirmedAsPlanned}
+                  onChange={(e) => setCompletionData(prev => ({ ...prev, confirmedAsPlanned: e.target.checked }))}
+                  color="success"
+                />
+              }
+              label="Realizada conforme previsto"
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="O que foi realizado?"
+              placeholder="Descreva o que foi feito nesta manutencao..."
+              value={completionData.completionNotes}
+              onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2.5 }}>
+            <Button onClick={() => setCompleteDialogOpen(false)} variant="outlined">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmCompleteMaintenance}
+              variant="contained"
+              color="success"
+              startIcon={<CheckCircle />}
+            >
+              Concluir
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         <Snackbar
           open={snackbarOpen}
           autoHideDuration={4000}
