@@ -319,7 +319,7 @@ export default function LoginScreen() {
           
           <Box sx={{ position: 'relative' }}>
             <TextField
-              label="Usuário ou E-mail"
+              label="RG, Usuário ou E-mail"
               variant="outlined"
               fullWidth
               margin="normal"

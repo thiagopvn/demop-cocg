@@ -36,7 +36,7 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
     throw new HttpsError("invalid-argument", "Username e senha são obrigatórios.");
   }
 
-  // Search by username first, then by email
+  // Search by username, then email, then RG
   let snap = await db
     .collection("users")
     .where("username", "==", username)
@@ -47,6 +47,14 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
     snap = await db
       .collection("users")
       .where("email", "==", username)
+      .limit(1)
+      .get();
+  }
+
+  if (snap.empty) {
+    snap = await db
+      .collection("users")
+      .where("rg", "==", username)
       .limit(1)
       .get();
   }
