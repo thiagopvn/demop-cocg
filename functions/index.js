@@ -104,14 +104,13 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
         await auth.createUser(createData);
         authUid = userId;
       } catch (createErr) {
-        // If email conflict, retry without email
-        if (createErr.code === "auth/email-already-exists") {
-          console.warn(`Email conflict for user ${userId}, creating Auth user without email`);
+        // If email conflict or invalid email, retry without email
+        if (createErr.code === "auth/email-already-exists" || createErr.code === "auth/invalid-email") {
+          console.warn(`Email issue (${createErr.code}) for user ${userId}, creating Auth user without email`);
           try {
             await auth.createUser({ uid: userId, displayName: userData.full_name || userData.username });
             authUid = userId;
           } catch (retryErr) {
-            // If UID also conflicts, generate a new Auth user without fixed UID
             if (retryErr.code === "auth/uid-already-exists") {
               console.warn(`UID conflict for user ${userId}, using existing Auth user`);
               const existingUser = await auth.getUser(userId);
@@ -122,7 +121,6 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
             }
           }
         } else if (createErr.code === "auth/uid-already-exists") {
-          // UID exists but getUser failed before — try again
           console.warn(`UID already exists for ${userId}, fetching existing user`);
           const existingUser = await auth.getUser(userId);
           authUid = existingUser.uid;
