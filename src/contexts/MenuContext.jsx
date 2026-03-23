@@ -583,18 +583,18 @@ function MenuContext({ children }) {
           boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar src={brasao} sx={{ width: 36, height: 36 }} />
-          <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>
-            DEMOP
-          </Typography>
-        </Box>
         <IconButton
           onClick={() => setMobileOpen(!mobileOpen)}
           sx={{ color: '#fff' }}
         >
           {mobileOpen ? <Close /> : <Menu />}
         </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Avatar src={brasao} sx={{ width: 36, height: 36 }} />
+          <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>
+            DEMOP
+          </Typography>
+        </Box>
       </Box>
 
       {/* Desktop Drawer */}
