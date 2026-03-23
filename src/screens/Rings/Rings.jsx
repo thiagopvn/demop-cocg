@@ -16,6 +16,7 @@ import {
     Button,
     Typography,
     Popover,
+    Box,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -250,7 +251,7 @@ export default function Rings() {
     return (
         <PrivateRoute>
             <MenuContext>
-                <div className="root-protected" style={{ padding: '20px', minHeight: 'calc(100dvh - 200px)', display: 'flex', flexDirection: 'column' }}>
+                <div className="root-protected" style={{ minHeight: 'calc(100dvh - 200px)', display: 'flex', flexDirection: 'column' }}>
                     {userRole === "user" && (
                         <div style={{ 
                             backgroundColor: '#fff3e0', 
@@ -266,25 +267,27 @@ export default function Rings() {
                     )}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '100%' }}>
                         {/* Header Section with Title and Add Button */}
-                        <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center', 
+                        <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            gap: { xs: 1.5, sm: 0 },
                             marginBottom: '24px',
                             padding: '0 4px'
                         }}>
-                            <Typography 
-                                variant="h4" 
-                                component="h1" 
-                                sx={{ 
+                            <Typography
+                                variant="h4"
+                                component="h1"
+                                sx={{
                                     fontWeight: 600,
                                     color: '#1a237e',
-                                    fontSize: { xs: '1.75rem', sm: '2.125rem' }
+                                    fontSize: { xs: '1.15rem', sm: '1.5rem' }
                                 }}
                             >
                                 💍 Anéis
                             </Typography>
-                            
+
                             {(userRole === "admin" || userRole === "admingeral") && (
                                 <Button
                                     variant="contained"
@@ -295,25 +298,27 @@ export default function Rings() {
                                         borderRadius: '12px',
                                         textTransform: 'none',
                                         fontWeight: 600,
-                                        padding: '10px 24px',
+                                        padding: { xs: '8px 16px', sm: '10px 24px' },
+                                        fontSize: { xs: '0.85rem', sm: '0.875rem' },
                                         boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
                                         '&:hover': {
                                             backgroundColor: '#f57c00',
                                             boxShadow: '0 6px 16px rgba(255, 152, 0, 0.4)',
                                             transform: 'translateY(-1px)',
                                         },
-                                        transition: 'all 0.2s ease-in-out'
+                                        transition: 'all 0.2s ease-in-out',
+                                        width: { xs: '100%', sm: 'auto' },
                                     }}
                                 >
                                     Nova Retirada
                                 </Button>
                             )}
-                        </div>
+                        </Box>
 
                         {/* Seção de Pesquisa Moderna */}
-                        <div style={{
+                        <Box sx={{
                             backgroundColor: '#ffffff',
-                            padding: '20px',
+                            p: { xs: 1.5, sm: 3 },
                             borderRadius: '16px',
                             marginBottom: '20px',
                             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
@@ -370,7 +375,7 @@ export default function Rings() {
                                     },
                                 }}
                             />
-                        </div>
+                        </Box>
 
                         {/* Container da Tabela com ocupação total */}
                         <div style={{
@@ -383,19 +388,20 @@ export default function Rings() {
                             display: 'flex',
                             flexDirection: 'column'
                         }}>
-                            <div style={{ 
-                                padding: '20px 24px 16px', 
+                            <Box sx={{
+                                p: { xs: '12px 16px 12px', sm: '20px 24px 16px' },
                                 borderBottom: '1px solid #fff3e0',
                                 backgroundColor: '#fff8e1'
                             }}>
-                                <Typography variant="h6" sx={{ fontWeight: 600, color: '#e65100' }}>
+                                <Typography variant="h6" sx={{ fontWeight: 600, color: '#e65100', fontSize: { xs: '0.95rem', sm: '1.25rem' } }}>
                                     💍 Lista de Retiradas de Anéis
                                 </Typography>
-                            </div>
-                            <div style={{ flex: 1, overflow: 'auto' }}>
-                                <Table 
+                            </Box>
+                            <div style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', overflowX: 'auto' }}>
+                                <Table
                                     size="medium"
                                     sx={{
+                                        minWidth: 500,
                                         '& .MuiTableHead-root': {
                                             position: 'sticky',
                                             top: 0,
@@ -405,9 +411,9 @@ export default function Rings() {
                                                     backgroundColor: '#fff3e0',
                                                     borderBottom: '2px solid #ff9800',
                                                     fontWeight: 700,
-                                                    fontSize: '0.95rem',
+                                                    fontSize: { xs: '0.8rem', sm: '0.95rem' },
                                                     color: '#e65100',
-                                                    padding: '16px',
+                                                    padding: { xs: '10px 8px', sm: '16px' },
                                                 }
                                             }
                                         },
@@ -418,8 +424,8 @@ export default function Rings() {
                                                 },
                                                 '& .MuiTableCell-root': {
                                                     borderBottom: '1px solid #e0e0e0',
-                                                    padding: '16px',
-                                                    fontSize: '0.9rem'
+                                                    padding: { xs: '10px 8px', sm: '16px' },
+                                                    fontSize: { xs: '0.8rem', sm: '0.9rem' }
                                                 }
                                             }
                                         }
@@ -430,7 +436,7 @@ export default function Rings() {
                                     <TableCell sx={{ textAlign: "center" }}>
                                         🔢 Nº Ocorrência
                                     </TableCell>
-                                    <TableCell sx={{ textAlign: "center" }}>
+                                    <TableCell sx={{ textAlign: "center", display: { xs: 'none', sm: 'table-cell' } }}>
                                         👨‍✈️ Militar
                                     </TableCell>
                                     <TableCell sx={{ textAlign: "center" }}>
@@ -448,7 +454,7 @@ export default function Rings() {
                                 {filteredRings.map((ring) => (
                                     <TableRow key={ring.id}>
                                         <TableCell sx={{ textAlign: "center" }}>{ring.numero_ocorrencia}</TableCell>
-                                        <TableCell sx={{ textAlign: "center" }}>{ring.militar_nome}</TableCell>
+                                        <TableCell sx={{ textAlign: "center", display: { xs: 'none', sm: 'table-cell' } }}>{ring.militar_nome}</TableCell>
                                         <TableCell sx={{ textAlign: "center" }}>{ring.nome_solicitante}</TableCell>
                                         <TableCell sx={{ textAlign: "center" }}>
                                             <Button
@@ -471,7 +477,7 @@ export default function Rings() {
                                             </Button>
                                         </TableCell>
                                         <TableCell sx={{ textAlign: "center" }}>
-                                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', flexWrap: 'wrap' }}>
                                                 <Tooltip title="Ver informações completas">
                                                     <IconButton
                                                         aria-owns={

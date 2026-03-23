@@ -25,6 +25,8 @@ import {
     InputAdornment,
     Avatar,
 } from "@mui/material";
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import EditIcon from "@mui/icons-material/Edit";
@@ -53,6 +55,8 @@ export default function ConferenciaViaturaDialog({
     userName,
     onSuccess,
 }) {
+    const theme = useTheme();
+    const fullScreenDialog = useMediaQuery(theme.breakpoints.down('sm'));
     const [materiais, setMateriais] = useState([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -316,11 +320,12 @@ export default function ConferenciaViaturaDialog({
             onClose={handleClose}
             maxWidth="md"
             fullWidth
+            fullScreen={fullScreenDialog}
             PaperProps={{
                 sx: {
-                    borderRadius: 3,
+                    borderRadius: fullScreenDialog ? 0 : 3,
                     overflow: "hidden",
-                    maxHeight: "90vh",
+                    maxHeight: fullScreenDialog ? '100vh' : "90vh",
                 },
             }}
         >
@@ -357,7 +362,7 @@ export default function ConferenciaViaturaDialog({
                 )}
             </DialogTitle>
 
-            <DialogContent sx={{ p: 0 }}>
+            <DialogContent sx={{ p: 0, overflowX: 'auto' }}>
                 {loading ? (
                     <Box sx={{ display: "flex", justifyContent: "center", p: 6 }}>
                         <CircularProgress sx={{ color: "#ff6f00" }} />
@@ -763,17 +768,19 @@ export default function ConferenciaViaturaDialog({
 
             <DialogActions
                 sx={{
-                    px: 3,
+                    px: { xs: 2, sm: 3 },
                     py: 2,
                     borderTop: "1px solid",
                     borderColor: "divider",
                     gap: 1,
+                    flexDirection: { xs: 'column', sm: 'row' },
                 }}
             >
                 <Button
                     onClick={handleClose}
                     variant="outlined"
                     disabled={saving}
+                    fullWidth={fullScreenDialog}
                     sx={{ borderRadius: 2, textTransform: "none" }}
                 >
                     Cancelar
@@ -782,6 +789,7 @@ export default function ConferenciaViaturaDialog({
                     onClick={handleSalvarConferencia}
                     variant="contained"
                     disabled={saving || conferidos.size === 0}
+                    fullWidth={fullScreenDialog}
                     startIcon={
                         saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />
                     }

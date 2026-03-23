@@ -113,7 +113,7 @@ export default function ViaturaDialog({ onSubmit, onCancel, open, editData = nul
                 <CloseIcon />
             </IconButton>
 
-            <DialogContent sx={{ padding: '24px' }}>
+            <DialogContent sx={{ padding: { xs: '16px', sm: '24px' } }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Box>
                         <Typography

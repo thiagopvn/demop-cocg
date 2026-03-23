@@ -461,7 +461,7 @@ export default function ViaturaDetalhes() {
     return (
         <PrivateRoute>
             <MenuContext>
-                <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100dvh' }}>
+                <Box sx={{ p: { xs: 1.5, sm: 3 }, minHeight: '100dvh' }}>
                     {/* Header */}
                     <Box sx={{ mb: 3 }}>
                         <Button
@@ -475,11 +475,11 @@ export default function ViaturaDetalhes() {
                         <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
                             <Box sx={{
                                 background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-                                p: 3,
+                                p: { xs: 2, sm: 3 },
                                 color: 'white'
                             }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                                    <DirectionsCarIcon sx={{ fontSize: 48 }} />
+                                <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2, flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' } }}>
+                                    <DirectionsCarIcon sx={{ fontSize: { xs: 36, sm: 48 } }} />
                                     <Box sx={{ flex: 1 }}>
                                         <Chip
                                             label={viatura?.prefixo || 'N/A'}
@@ -487,26 +487,26 @@ export default function ViaturaDetalhes() {
                                                 backgroundColor: 'rgba(255,255,255,0.2)',
                                                 color: 'white',
                                                 fontWeight: 700,
-                                                fontSize: '1.2rem',
+                                                fontSize: { xs: '1rem', sm: '1.2rem' },
                                                 mb: 1
                                             }}
                                         />
-                                        <Typography variant="h5" fontWeight={600}>
+                                        <Typography variant="h5" fontWeight={600} sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>
                                             {viatura?.description}
                                         </Typography>
                                     </Box>
-                                    <Box sx={{ textAlign: 'right' }}>
+                                    <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
                                         <Typography variant="body2" sx={{ opacity: 0.8 }}>
                                             Materiais Alocados
                                         </Typography>
-                                        <Typography variant="h3" fontWeight={700}>
+                                        <Typography variant="h3" fontWeight={700} sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>
                                             {materiaisAlocados.length}
                                         </Typography>
                                     </Box>
                                 </Box>
                             </Box>
 
-                            <CardContent sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', p: 2 }}>
+                            <CardContent sx={{ display: 'flex', gap: { xs: 1.5, sm: 3 }, flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' }, p: { xs: 1.5, sm: 2 } }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <CalendarTodayIcon fontSize="small" color="action" />
                                     <Typography variant="body2" color="text.secondary">
@@ -545,7 +545,7 @@ export default function ViaturaDetalhes() {
                     </Box>
 
                     {/* Botoes de Ação */}
-                    <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' } }}>
                         {(userRole === "admin" || userRole === "admingeral") && (
                             <Button
                                 variant="contained"
@@ -555,8 +555,9 @@ export default function ViaturaDetalhes() {
                                     borderRadius: 2,
                                     textTransform: 'none',
                                     fontWeight: 600,
-                                    px: 3,
-                                    py: 1.5,
+                                    px: { xs: 2, sm: 3 },
+                                    py: { xs: 1, sm: 1.5 },
+                                    fontSize: { xs: '0.85rem', sm: '0.875rem' },
                                     background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
                                     '&:hover': {
                                         background: 'linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)',
@@ -575,8 +576,9 @@ export default function ViaturaDetalhes() {
                                     borderRadius: 2,
                                     textTransform: 'none',
                                     fontWeight: 600,
-                                    px: 3,
-                                    py: 1.5,
+                                    px: { xs: 2, sm: 3 },
+                                    py: { xs: 1, sm: 1.5 },
+                                    fontSize: { xs: '0.85rem', sm: '0.875rem' },
                                     background: 'linear-gradient(135deg, #ff6f00 0%, #e65100 100%)',
                                     '&:hover': {
                                         background: 'linear-gradient(135deg, #e65100 0%, #bf360c 100%)',
@@ -590,7 +592,7 @@ export default function ViaturaDetalhes() {
 
                     {/* Barra de busca e filtros */}
                     {materiaisAlocados.length > 0 && (
-                        <Card sx={{ mb: 3, borderRadius: 2, p: 2 }}>
+                        <Card sx={{ mb: 3, borderRadius: 2, p: { xs: 1.5, sm: 2 } }}>
                             <TextField
                                 ref={searchRef}
                                 size="small"
@@ -652,7 +654,7 @@ export default function ViaturaDetalhes() {
                             )}
 
                             {/* Ordenação rápida */}
-                            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                                 <Tooltip title="Ordenação rápida">
                                     <Button
                                         size="small"
@@ -703,7 +705,7 @@ export default function ViaturaDetalhes() {
 
                             {/* Info de resultados */}
                             {(debouncedSearch || activeFilter !== "todos") && (
-                                <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
+                                <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                     <Chip
                                         size="small"
                                         label={`${materiaisFiltrados.length} de ${materiaisAlocados.length} materiais`}
@@ -725,14 +727,16 @@ export default function ViaturaDetalhes() {
                     <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
                         <Box sx={{
                             background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
-                            p: 2,
+                            p: { xs: 1.5, sm: 2 },
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'space-between'
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 1
                         }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <InventoryIcon sx={{ color: 'white' }} />
-                                <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
+                                <Typography variant="h6" sx={{ color: 'white', fontWeight: 600, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                                     Materiais Alocados ({materiaisFiltrados.length})
                                 </Typography>
                             </Box>
@@ -777,8 +781,8 @@ export default function ViaturaDetalhes() {
                                 )}
                             </Box>
                         ) : (
-                            <Box sx={{ overflowX: 'auto' }}>
-                                <Table size="medium">
+                            <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                                <Table size="medium" sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                                             <TableCell sx={{ fontWeight: 700 }}>
@@ -808,7 +812,7 @@ export default function ViaturaDetalhes() {
                                                     Qtd
                                                 </TableSortLabel>
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>
+                                            <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }}>
                                                 <TableSortLabel
                                                     active={sortField === 'data_alocacao'}
                                                     direction={sortField === 'data_alocacao' ? sortDirection : 'asc'}
@@ -817,7 +821,7 @@ export default function ViaturaDetalhes() {
                                                     Data Alocação
                                                 </TableSortLabel>
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }}>Alocado Por</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }}>Alocado Por</TableCell>
                                             {(userRole === "admin" || userRole === "admingeral") && (
                                                 <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Ações</TableCell>
                                             )}
@@ -859,12 +863,12 @@ export default function ViaturaDetalhes() {
                                                         sx={{ fontWeight: 700 }}
                                                     />
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                     <Typography variant="body2">
                                                         {material.data_alocacao?.toDate?.()?.toLocaleDateString('pt-BR') || 'N/A'}
                                                     </Typography>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                         <PersonIcon fontSize="small" color="action" />
                                                         <Typography variant="body2">
@@ -1001,8 +1005,8 @@ export default function ViaturaDetalhes() {
                                 onClick={handleExportExcel}
                                 sx={{
                                     position: 'fixed',
-                                    bottom: 24,
-                                    right: 24,
+                                    bottom: { xs: 16, sm: 24 },
+                                    right: { xs: 16, sm: 24 },
                                     backgroundColor: '#4caf50',
                                     '&:hover': { backgroundColor: '#388e3c' }
                                 }}
@@ -1248,7 +1252,7 @@ export default function ViaturaDetalhes() {
                                     <Typography variant="body1" fontWeight={600}>
                                         {materialToDesalocar.material_description}
                                     </Typography>
-                                    <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                                    <Box sx={{ display: 'flex', gap: 2, mt: 1, flexWrap: 'wrap' }}>
                                         <Chip
                                             label={`Quantidade: ${materialToDesalocar.quantidade}`}
                                             size="small"

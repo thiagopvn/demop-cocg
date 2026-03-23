@@ -13,13 +13,15 @@ const WarningDialog = ({ open, onClose, action, role }) => {
     <Dialog
       open={open}
       onClose={onClose}
+      fullWidth
+      maxWidth="sm"
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
       <DialogTitle id="alert-dialog-title">
         {"Acesso Negado"}
       </DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
         <DialogContentText id="alert-dialog-description">
           {`Você não tem permissão para executar ${action} com os privilegios de ${role}.`}
         </DialogContentText>

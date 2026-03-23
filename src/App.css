@@ -69,7 +69,7 @@ body {
 /* Media queries para mobile */
 @media screen and (max-width: 767px) {
     .root-protected {
-        padding: 70px 16px 16px 16px;
+        padding: 70px 12px 16px 12px;
     }
 
     .search {
@@ -79,8 +79,15 @@ body {
 
     .table {
         padding: 0;
-        margin-top: 16px;
-        max-height: 350px;
+        margin-top: 12px;
+        max-height: none;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .root-protected {
+        padding: 68px 8px 12px 8px;
     }
 }
 

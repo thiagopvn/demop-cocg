@@ -125,7 +125,7 @@ export default function ChangePasswordDialog({ open, onClose, forced = false }) 
                 </IconButton>
             )}
 
-            <DialogContent sx={{ padding: '24px' }}>
+            <DialogContent sx={{ padding: { xs: '16px', sm: '24px' } }}>
                 {forced && (
                     <Alert severity="warning" sx={{ mb: 3, borderRadius: '12px' }}>
                         Sua senha foi resetada. Voce deve criar uma nova senha para continuar.

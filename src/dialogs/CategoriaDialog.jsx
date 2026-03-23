@@ -19,7 +19,7 @@ export default function CategoriaDialog({ onSubmit, onCancel, open, editData = n
     });
 
     return (
-        <Dialog open={open}>
+        <Dialog open={open} fullWidth maxWidth="sm">
             <DialogTitle>{editData ? "Editar Categoria" : "Nova Categoria"}</DialogTitle>
             <IconButton
                 aria-label="close"
@@ -34,7 +34,7 @@ export default function CategoriaDialog({ onSubmit, onCancel, open, editData = n
                 <CloseIcon />
             </IconButton>
 
-            <DialogContent>
+            <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
                 <TextField
                     autoFocus
                     margin="dense"

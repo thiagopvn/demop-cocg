@@ -188,7 +188,7 @@ export default function LoginScreen() {
           justifyContent: 'center',
           position: 'relative',
           overflow: 'hidden',
-          padding: '2rem',
+          padding: { xs: '0.75rem', sm: '2rem' },
           '&::before': {
             content: '""',
             position: 'absolute',
@@ -255,6 +255,11 @@ export default function LoginScreen() {
             '@media (max-width: 768px)': {
               padding: '3rem 2rem 2rem 2rem',
               marginTop: '2rem'
+            },
+            '@media (max-width: 400px)': {
+              padding: '2rem 1.25rem 1.5rem 1.25rem',
+              borderRadius: '24px',
+              marginTop: '1rem'
             }
           }}
         >
@@ -276,25 +281,26 @@ export default function LoginScreen() {
                 }} 
               />
             </Box>
-            <Typography 
-              variant="h4" 
-              sx={{ 
+            <Typography
+              variant="h4"
+              sx={{
                 fontWeight: 800,
                 background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f59e0b 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 mb: 1,
-                letterSpacing: '0.5px'
+                letterSpacing: '0.5px',
+                fontSize: { xs: '1.3rem', sm: '1.8rem', md: '2.125rem' }
               }}
             >
               Grupamento Operacional do Comando Geral
             </Typography>
-            <Typography 
-              variant="subtitle1" 
-              sx={{ 
+            <Typography
+              variant="subtitle1"
+              sx={{
                 color: 'rgba(241, 245, 249, 0.9)',
                 fontWeight: 400,
-                fontSize: '1.1rem'
+                fontSize: { xs: '0.9rem', sm: '1.1rem' }
               }}
             >
               DEMOP
@@ -401,8 +407,8 @@ export default function LoginScreen() {
               background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #f59e0b 100%)',
               backgroundSize: '200% 200%',
               color: '#ffffff',
-              py: 1.8,
-              fontSize: '1.2rem',
+              py: { xs: 1.2, sm: 1.8 },
+              fontSize: { xs: '1rem', sm: '1.2rem' },
               fontWeight: 700,
               letterSpacing: '0.8px',
               borderRadius: '16px',
@@ -487,7 +493,7 @@ export default function LoginScreen() {
             bottom: 8,
             left: '50%',
             transform: 'translateX(-50%)',
-            fontSize: '10px',
+            fontSize: { xs: '8px', sm: '10px' },
             color: '#000',
             zIndex: 1000,
             userSelect: 'none',

@@ -503,7 +503,7 @@ export default function ConferenciaChefe() {
                     <Typography
                       variant="h4"
                       fontWeight={800}
-                      sx={{ fontSize: { xs: "1.3rem", sm: "1.8rem" }, lineHeight: 1.2 }}
+                      sx={{ fontSize: { xs: "1.15rem", sm: "1.5rem" }, lineHeight: 1.2 }}
                     >
                       Conferencia de Viaturas
                     </Typography>
@@ -526,7 +526,7 @@ export default function ConferenciaChefe() {
                       fontWeight={700}
                       sx={{
                         mb: 2,
-                        fontSize: { xs: "1.2rem", sm: "1.4rem" },
+                        fontSize: { xs: "1.15rem", sm: "1.5rem" },
                         color: "#1e3a5f",
                       }}
                     >
@@ -564,7 +564,7 @@ export default function ConferenciaChefe() {
                               },
                             }}
                           >
-                            <CardActionArea onClick={() => handleSelectViatura(viatura)} sx={{ p: 0 }}>
+                            <CardActionArea onClick={() => handleSelectViatura(viatura)} sx={{ p: 0, minHeight: 44 }}>
                               <CardContent
                                 sx={{
                                   p: { xs: 2.5, sm: 3 },
@@ -654,6 +654,7 @@ export default function ConferenciaChefe() {
                         color: "#1e3a5f",
                         py: 1,
                         px: 2,
+                        minHeight: 44,
                         borderRadius: 2,
                         "&:hover": { backgroundColor: alpha("#1e3a5f", 0.08) },
                       }}
@@ -1187,6 +1188,7 @@ export default function ConferenciaChefe() {
                                   sx={{
                                     mt: 1.5,
                                     py: { xs: 1.3, sm: 1.5 },
+                                    minHeight: 44,
                                     borderRadius: 2.5,
                                     fontSize: { xs: "1rem", sm: "1.1rem" },
                                     fontWeight: 700,
@@ -1295,6 +1297,7 @@ export default function ConferenciaChefe() {
                               sx={{
                                 py: { xs: 1.5, sm: 1.8 },
                                 px: { xs: 3, sm: 4 },
+                                minHeight: 44,
                                 borderRadius: 3,
                                 fontSize: { xs: "1rem", sm: "1.1rem" },
                                 fontWeight: 800,
@@ -1447,10 +1450,11 @@ export default function ConferenciaChefe() {
                 disabled={saving}
                 sx={{
                   borderRadius: 2,
-                  fontSize: "1rem",
+                  fontSize: { xs: "0.9rem", sm: "1rem" },
                   fontWeight: 600,
                   py: 1.2,
-                  px: 3,
+                  px: { xs: 2, sm: 3 },
+                  minHeight: 44,
                   textTransform: "none",
                 }}
               >
@@ -1465,10 +1469,11 @@ export default function ConferenciaChefe() {
                 }
                 sx={{
                   borderRadius: 2,
-                  fontSize: "1rem",
+                  fontSize: { xs: "0.9rem", sm: "1rem" },
                   fontWeight: 700,
                   py: 1.2,
-                  px: 3,
+                  px: { xs: 2, sm: 3 },
+                  minHeight: 44,
                   textTransform: "none",
                   background: "linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%)",
                   "&:hover": {

@@ -1216,7 +1216,7 @@ export default function Home() {
     return (
       <PrivateRoute>
         <MenuContext>
-          <Container maxWidth="sm" sx={{ py: 2, px: 2 }}>
+          <Container maxWidth="sm" sx={{ py: { xs: 1.5, sm: 2 }, px: { xs: 1, sm: 2 } }}>
             <Paper
               elevation={0}
               sx={{
@@ -1227,7 +1227,7 @@ export default function Home() {
                 color: "white",
               }}
             >
-              <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+              <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5, fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>
                 Ola, {userName}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
@@ -1264,6 +1264,7 @@ export default function Home() {
                     variant="h4"
                     fontWeight={700}
                     color={minhasCautelas.length > 0 ? "#92400e" : "#166534"}
+                    sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
                   >
                     {minhasCautelas.length}
                   </Typography>
@@ -1291,7 +1292,7 @@ export default function Home() {
               <Paper
                 elevation={0}
                 sx={{
-                  p: 4,
+                  p: { xs: 2, sm: 4 },
                   mb: 2,
                   borderRadius: 3,
                   textAlign: "center",
@@ -1310,9 +1311,9 @@ export default function Home() {
             )}
 
             <Box sx={{ mt: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, flexWrap: "wrap" }}>
                 <Inventory sx={{ color: "#1e3a5f", fontSize: 24 }} />
-                <Typography variant="h6" fontWeight={600} sx={{ color: "#1e3a5f" }}>
+                <Typography variant="h6" fontWeight={600} sx={{ color: "#1e3a5f", fontSize: { xs: '0.9rem', sm: '1.25rem' } }}>
                   Materiais sob sua Responsabilidade
                 </Typography>
                 {activeCautelas.length > 0 && (
@@ -1406,7 +1407,7 @@ export default function Home() {
                 <Paper
                   elevation={0}
                   sx={{
-                    p: 3,
+                    p: { xs: 1.5, sm: 3 },
                     borderRadius: 3,
                     textAlign: "center",
                     border: "1px solid",
@@ -1423,7 +1424,7 @@ export default function Home() {
 
             {returnedCautelas.length > 0 && (
               <Box sx={{ mt: 3 }}>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: "#1e3a5f" }}>
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 2, color: "#1e3a5f", fontSize: { xs: '0.9rem', sm: '1.25rem' } }}>
                   Comprovantes de Devolucao
                 </Typography>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -1458,8 +1459,8 @@ export default function Home() {
             fullWidth
             PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
           >
-            <Box sx={{ bgcolor: 'success.main', color: 'white', px: 3, py: 2 }}>
-              <Typography variant="h6" fontWeight={700}>
+            <Box sx={{ bgcolor: 'success.main', color: 'white', px: { xs: 2, sm: 3 }, py: 2 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                 Concluir Manutencao
               </Typography>
               {completionData.maintenance && (
@@ -1490,8 +1491,8 @@ export default function Home() {
                 onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
               />
             </DialogContent>
-            <DialogActions sx={{ p: 2.5 }}>
-              <Button onClick={() => setCompleteDialogOpen(false)} variant="outlined">
+            <DialogActions sx={{ p: { xs: 1.5, sm: 2.5 }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+              <Button onClick={() => setCompleteDialogOpen(false)} variant="outlined" fullWidth={isMobile}>
                 Cancelar
               </Button>
               <Button
@@ -1499,6 +1500,7 @@ export default function Home() {
                 variant="contained"
                 color="success"
                 startIcon={<CheckCircle />}
+                fullWidth={isMobile}
               >
                 Concluir
               </Button>
@@ -1552,6 +1554,7 @@ export default function Home() {
                     justifyContent: "space-between",
                     alignItems: "center",
                     gap: 1,
+                    flexWrap: "wrap",
                   }}
                 >
                   <Typography
@@ -1567,7 +1570,7 @@ export default function Home() {
                   >
                     Deposito de Material Operacional do GOCG
                   </Typography>
-                  <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexShrink: 0 }}>
+                  <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
                     <Chip
                       icon={<Speed sx={{ fontSize: { xs: 12, sm: 16 } }} />}
                       label={`${stats.movHoje} hoje`}
@@ -1756,7 +1759,8 @@ export default function Home() {
                         <Box sx={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center',
+                          alignItems: { xs: 'stretch', sm: 'center' },
+                          flexDirection: { xs: 'column', sm: 'row' },
                           flexWrap: 'wrap',
                           gap: 1,
                           pt: 1,
@@ -1851,13 +1855,14 @@ export default function Home() {
                 >
                   <Box
                     sx={{
-                      px: 2.5,
+                      px: { xs: 1.5, sm: 2.5 },
                       py: 1.5,
                       background: "linear-gradient(135deg, #ff9800 0%, #e65100 100%)",
                       color: "white",
                       display: "flex",
                       alignItems: "center",
                       gap: 1,
+                      flexWrap: "wrap",
                     }}
                   >
                     <WarningAmber sx={{ fontSize: 22 }} />
@@ -1879,13 +1884,14 @@ export default function Home() {
                         <Box
                           key={alerta.id}
                           sx={{
-                            px: 2.5,
+                            px: { xs: 1.5, sm: 2.5 },
                             py: 1.5,
                             borderBottom: "1px solid",
                             borderColor: "divider",
                             display: "flex",
                             alignItems: "center",
                             gap: 1.5,
+                            flexWrap: "wrap",
                             "&:last-child": { borderBottom: "none" },
                             "&:hover": { backgroundColor: alpha("#ff9800", 0.04) },
                           }}
@@ -1919,7 +1925,7 @@ export default function Home() {
 
               {/* ====== KPI CARDS - ROW 1 ====== */}
               <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: { xs: 1.5, sm: 2 } }}>
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid item xs={6} sm={4} md={2}>
                   <StatCard
                     icon={Assignment}
                     title="Cautelados"
@@ -1930,7 +1936,7 @@ export default function Home() {
                     badge={stats.pendentesAssinatura > 0 ? stats.pendentesAssinatura : 0}
                   />
                 </Grid>
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid item xs={6} sm={4} md={2}>
                   <StatCard
                     icon={Inventory2}
                     title="Materiais"
@@ -1941,7 +1947,7 @@ export default function Home() {
                     progress={parseFloat(stats.disponibilidade)}
                   />
                 </Grid>
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid item xs={6} sm={4} md={2}>
                   <StatCard
                     icon={DirectionsCar}
                     title="Viaturas"
@@ -1951,7 +1957,7 @@ export default function Home() {
                     onClick={() => navigate("/viaturas")}
                   />
                 </Grid>
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid item xs={6} sm={4} md={2}>
                   <StatCard
                     icon={PeopleAlt}
                     title="Usuarios"
@@ -1964,7 +1970,7 @@ export default function Home() {
                     }
                   />
                 </Grid>
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid item xs={6} sm={4} md={2}>
                   <StatCard
                     icon={HandymanOutlined}
                     title="Em Reparo"
@@ -1975,7 +1981,7 @@ export default function Home() {
                     badge={stats.manutencoesVencidas.length > 0 ? stats.manutencoesVencidas.length : 0}
                   />
                 </Grid>
-                <Grid item xs={4} sm={4} md={2}>
+                <Grid item xs={6} sm={4} md={2}>
                   <StatCard
                     icon={DonutSmall}
                     title="Aneis"
@@ -2773,7 +2779,7 @@ export default function Home() {
                   {minhasCautelas.length === 0 && returnedCautelas.length === 0 && (
                     <Paper
                       sx={{
-                        p: 3,
+                        p: { xs: 1.5, sm: 3 },
                         borderRadius: 2,
                         border: "1px solid",
                         borderColor: "divider",
@@ -2803,8 +2809,8 @@ export default function Home() {
           fullWidth
           PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
         >
-          <Box sx={{ bgcolor: 'success.main', color: 'white', px: 3, py: 2 }}>
-            <Typography variant="h6" fontWeight={700}>
+          <Box sx={{ bgcolor: 'success.main', color: 'white', px: { xs: 2, sm: 3 }, py: 2 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
               Concluir Manutencao
             </Typography>
             {completionData.maintenance && (
@@ -2835,8 +2841,8 @@ export default function Home() {
               onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
             />
           </DialogContent>
-          <DialogActions sx={{ p: 2.5 }}>
-            <Button onClick={() => setCompleteDialogOpen(false)} variant="outlined">
+          <DialogActions sx={{ p: { xs: 1.5, sm: 2.5 }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+            <Button onClick={() => setCompleteDialogOpen(false)} variant="outlined" fullWidth={isMobile}>
               Cancelar
             </Button>
             <Button
@@ -2844,6 +2850,7 @@ export default function Home() {
               variant="contained"
               color="success"
               startIcon={<CheckCircle />}
+              fullWidth={isMobile}
             >
               Concluir
             </Button>

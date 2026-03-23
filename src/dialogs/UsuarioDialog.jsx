@@ -17,6 +17,8 @@ import {
     InputLabel,
     Alert,
 } from "@mui/material";
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
 import { verifyToken } from "../firebase/token";
@@ -91,6 +93,8 @@ const OBM = [
 ];
 
 export default function UsuarioDialog({ onSubmit, onCancel, open, editData = null }) {
+    const theme = useTheme();
+    const fullScreenDialog = useMediaQuery(theme.breakpoints.down('sm'));
     const [data, setData] = useState({
         id: editData?.id || "",
         username: editData?.username || "",
@@ -193,13 +197,14 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
     };
 
     return (
-        <Dialog 
-            open={open} 
-            maxWidth="sm" 
+        <Dialog
+            open={open}
+            maxWidth="sm"
             fullWidth
+            fullScreen={fullScreenDialog}
             PaperProps={{
                 sx: {
-                    borderRadius: '16px',
+                    borderRadius: fullScreenDialog ? 0 : '16px',
                     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
                     background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
                 }
@@ -214,7 +219,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                     background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
                     color: 'white',
                     margin: 0,
-                    borderRadius: '16px 16px 0 0',
+                    borderRadius: fullScreenDialog ? 0 : '16px 16px 0 0',
                 }}
             >
                 {editData ? "✏️ Editar Usuário" : "👤 Novo Usuário"}
@@ -236,7 +241,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                 <CloseIcon />
             </IconButton>
 
-            <DialogContent sx={{ padding: '24px' }}>
+            <DialogContent sx={{ padding: { xs: '16px', sm: '24px' } }}>
                 <div style={{ display: 'grid', gap: '20px' }}>
                     {errors.general && (
                         <Alert severity="error" onClose={() => setErrors(prev => { const { general, ...rest } = prev; return rest; })}>
@@ -309,7 +314,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         }}
                     />
                     {!editData && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: fullScreenDialog ? '1fr' : '1fr 1fr', gap: '16px' }}>
                         <TextField
                             fullWidth
                             label="Senha"
@@ -388,7 +393,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                     </div>
                     )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: fullScreenDialog ? '1fr' : '1fr 1fr', gap: '16px' }}>
                         <TextField
                             fullWidth
                             label="RG"

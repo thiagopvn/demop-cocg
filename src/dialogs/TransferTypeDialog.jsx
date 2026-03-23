@@ -205,7 +205,7 @@ export default function TransferTypeDialog({
         </Stepper>
       </Box>
 
-      <DialogContent sx={{ p: 3 }}>
+      <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
         {/* Info da movimentação atual */}
         {movimentacao && (
           <Card variant="outlined" sx={{ mb: 3, borderRadius: 2, backgroundColor: alpha('#f8fafc', 0.5) }}>
@@ -240,7 +240,7 @@ export default function TransferTypeDialog({
             <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
               Selecione o novo tipo:
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
               <Card
                 variant="outlined"
                 sx={{
@@ -289,7 +289,7 @@ export default function TransferTypeDialog({
             <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
               Tipo de saída:
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
               <Card
                 variant="outlined"
                 sx={{
@@ -491,7 +491,7 @@ export default function TransferTypeDialog({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2.5, gap: 1 }}>
+      <DialogActions sx={{ p: { xs: 2, sm: 2.5 }, gap: 1, flexWrap: 'wrap' }}>
         {step > 0 && (
           <Button
             onClick={() => setStep(step - 1)}

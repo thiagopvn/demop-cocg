@@ -66,14 +66,14 @@ const FirstAccessScreen = () => {
     };
 
     return (
-        <Container maxWidth="sm">
+        <Container maxWidth="sm" sx={{ px: { xs: 1, sm: 2 } }}>
             <Box sx={{
-                marginTop: 8,
+                marginTop: { xs: 3, sm: 8 },
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
             }}>
-                <Typography component="h1" variant="h5">
+                <Typography component="h1" variant="h5" sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' }, fontWeight: 700 }}>
                     Criar Conta de Administrador
                 </Typography>
                 <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
@@ -199,7 +199,7 @@ const FirstAccessScreen = () => {
                         type="submit"
                         fullWidth
                         variant="contained"
-                        sx={{ mt: 3, mb: 2 }}
+                        sx={{ mt: { xs: 2, sm: 3 }, mb: 2, py: { xs: 1.2, sm: 1.5 }, fontSize: { xs: '0.9rem', sm: '1rem' } }}
                     >
                         Criar Conta
                     </Button>

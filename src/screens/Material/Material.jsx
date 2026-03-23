@@ -79,6 +79,7 @@ import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { logAudit } from '../../firebase/auditLog';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { findDuplicateGroups } from '../../utils/materialSimilarity';
@@ -140,6 +141,11 @@ const StyledTableContainer = styled(Card)(({ theme }) => ({
     '&:hover': {
         boxShadow: theme.shadows[4],
     },
+    [theme.breakpoints.down('sm')]: {
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        borderRadius: theme.spacing(1),
+    },
 }));
 
 const StyledTableHead = styled(TableHead)(({ theme }) => ({
@@ -158,6 +164,10 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
     padding: theme.spacing(1.5, 2),
+    [theme.breakpoints.down('sm')]: {
+        padding: theme.spacing(1, 1),
+        fontSize: '0.8rem',
+    },
 }));
 
 const StatsContainer = styled(Box)(({ theme }) => ({
@@ -192,6 +202,7 @@ const Material = () => {
     const searchRef = useRef(null);
     const theme = useTheme();
     const navigate = useNavigate();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     // Dados do usuario logado
     const [loggedUserId, setLoggedUserId] = useState(null);
@@ -848,40 +859,43 @@ const Material = () => {
 
     return (
         <MenuContext>
-            <Box sx={{ p: 3 }}>
+            <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
                 <StyledHeader>
                     <Box>
-                        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: 'primary.main' }}>
+                        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: 'primary.main', fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>
                             Gestão de Materiais
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                             Gerencie o inventário completo de materiais e equipamentos
                         </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, alignItems: 'center', flexWrap: 'wrap' }}>
                         {isAdmin && (
                             <Button
                                 variant={conferenceMode ? 'contained' : 'outlined'}
-                                startIcon={<FactCheck />}
+                                startIcon={!isMobile ? <FactCheck /> : undefined}
                                 onClick={handleToggleConferenceMode}
                                 color={conferenceMode ? 'success' : 'primary'}
                                 sx={{
                                     borderRadius: 2,
                                     textTransform: 'none',
                                     fontWeight: 600,
-                                    px: 3,
-                                    py: 1.5,
+                                    px: { xs: 1.5, sm: 3 },
+                                    py: { xs: 1, sm: 1.5 },
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
                                     boxShadow: conferenceMode ? 3 : 0,
+                                    minWidth: { xs: 'auto', sm: 'auto' },
                                     '&:hover': {
                                         boxShadow: conferenceMode ? 5 : 2,
                                         transform: 'translateY(-2px)',
                                     },
                                 }}
                             >
-                                {conferenceMode ? 'Sair Conferência' : 'Modo Conferência'}
+                                {isMobile ? <FactCheck sx={{ mr: 0.5 }} /> : null}
+                                {isMobile ? (conferenceMode ? 'Sair' : 'Conferir') : (conferenceMode ? 'Sair Conferência' : 'Modo Conferência')}
                             </Button>
                         )}
-                        {isAdmin && (
+                        {isAdmin && !isMobile && (
                             <Tooltip title="Criar manutenções preventivas para materiais motomecanizados que ainda não possuem">
                                 <Button
                                     variant="outlined"
@@ -905,35 +919,54 @@ const Material = () => {
                                 </Button>
                             </Tooltip>
                         )}
+                        {isAdmin && isMobile && (
+                            <Tooltip title="Criar Manutenções Motomecanizados">
+                                <IconButton
+                                    color="secondary"
+                                    onClick={() => setShowSeedDialog(true)}
+                                    sx={{
+                                        border: `1px solid`,
+                                        borderColor: 'secondary.main',
+                                        borderRadius: 2,
+                                    }}
+                                    size="small"
+                                >
+                                    <Sync />
+                                </IconButton>
+                            </Tooltip>
+                        )}
                         <Button
                             variant="contained"
-                            startIcon={<Add />}
+                            startIcon={!isMobile ? <Add /> : undefined}
                             onClick={() => handleOpenDialog()}
                             sx={{
                                 borderRadius: 2,
                                 textTransform: 'none',
                                 fontWeight: 600,
-                                px: 3,
-                                py: 1.5,
+                                px: { xs: 1.5, sm: 3 },
+                                py: { xs: 1, sm: 1.5 },
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' },
                                 boxShadow: 2,
+                                minWidth: { xs: 'auto', sm: 'auto' },
                                 '&:hover': {
                                     boxShadow: 4,
                                     transform: 'translateY(-2px)',
                                 },
                             }}
                         >
-                            Novo Material
+                            {isMobile ? <Add sx={{ mr: 0.5 }} /> : null}
+                            {isMobile ? 'Novo' : 'Novo Material'}
                         </Button>
                     </Box>
                 </StyledHeader>
 
                 {/* Statistics Cards */}
                 <StatsContainer>
-                    <StatCard sx={{ flex: 1, minWidth: 200 }}>
+                    <StatCard sx={{ flex: 1, minWidth: { xs: 0, sm: 200 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box sx={{ 
-                                p: 1.5, 
-                                borderRadius: 2, 
+                            <Box sx={{
+                                p: 1.5,
+                                borderRadius: 2,
                                 backgroundColor: alpha(theme.palette.primary.main, 0.1),
                                 color: 'primary.main'
                             }}>
@@ -951,11 +984,11 @@ const Material = () => {
                     </StatCard>
                     
                     {stats.lowStock > 0 && (
-                        <StatCard sx={{ flex: 1, minWidth: 200 }}>
+                        <StatCard sx={{ flex: 1, minWidth: { xs: 0, sm: 200 } }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Box sx={{ 
-                                    p: 1.5, 
-                                    borderRadius: 2, 
+                                <Box sx={{
+                                    p: 1.5,
+                                    borderRadius: 2,
                                     backgroundColor: alpha(theme.palette.warning.main, 0.1),
                                     color: 'warning.main'
                                 }}>
@@ -976,7 +1009,7 @@ const Material = () => {
                     {isAdminGeral && duplicateGroups.length > 0 && (
                         <StatCard
                             sx={{
-                                flex: 1, minWidth: 200, cursor: 'pointer',
+                                flex: 1, minWidth: { xs: 0, sm: 200 }, cursor: 'pointer',
                                 background: `linear-gradient(135deg, ${alpha('#ff9800', 0.08)} 0%, ${alpha('#e65100', 0.03)} 100%)`,
                                 border: `1px solid ${alpha('#ff9800', 0.15)}`,
                                 '&:hover': {
@@ -1010,7 +1043,7 @@ const Material = () => {
                     {isAdminGeral && stats.semImagem > 0 && (
                         <StatCard
                             sx={{
-                                flex: 1, minWidth: 200, cursor: 'pointer',
+                                flex: 1, minWidth: { xs: 0, sm: 200 }, cursor: 'pointer',
                                 background: `linear-gradient(135deg, ${alpha('#7b1fa2', 0.08)} 0%, ${alpha('#4a148c', 0.03)} 100%)`,
                                 border: `1px solid ${alpha('#7b1fa2', 0.15)}`,
                                 ...(filterImagem === 'sem_imagem' && {
@@ -1048,7 +1081,7 @@ const Material = () => {
                     {isAdmin && stats.semConferencia > 0 && (
                         <StatCard
                             sx={{
-                                flex: 1, minWidth: 200, cursor: 'pointer',
+                                flex: 1, minWidth: { xs: 0, sm: 200 }, cursor: 'pointer',
                                 background: `linear-gradient(135deg, ${alpha('#ef5350', 0.08)} 0%, ${alpha('#c62828', 0.03)} 100%)`,
                                 border: `1px solid ${alpha('#ef5350', 0.15)}`,
                                 '&:hover': {
@@ -1283,7 +1316,7 @@ const Material = () => {
                 </StyledSearchContainer>
                 
                 <StyledTableContainer>
-                    <Table>
+                    <Table sx={{ minWidth: 700 }}>
                         <StyledTableHead>
                             <TableRow>
                                 {conferenceMode && (
@@ -1335,7 +1368,7 @@ const Material = () => {
                                         Estoque
                                     </TableSortLabel>
                                 </TableCell>
-                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
                                         <DirectionsCar fontSize="small" />
                                         Em Viatura
@@ -1344,7 +1377,7 @@ const Material = () => {
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
                                     Status
                                 </TableCell>
-                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
                                         <Build fontSize="small" />
                                         Manutenção
@@ -1353,7 +1386,7 @@ const Material = () => {
                                 <TableCell align="right" sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem' }}>
                                     Ações
                                 </TableCell>
-                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                     <TableSortLabel
                                         active={sortField === 'conferencia'}
                                         direction={sortField === 'conferencia' ? sortDirection : 'asc'}
@@ -1491,7 +1524,7 @@ const Material = () => {
                                                     </Typography>
                                                 </Box>
                                             </StyledTableCell>
-                                            <StyledTableCell align="center">
+                                            <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                 {(material.estoque_viatura || 0) > 0 ? (
                                                     <Chip
                                                         icon={<DirectionsCar sx={{ fontSize: '0.9rem !important' }} />}
@@ -1524,7 +1557,7 @@ const Material = () => {
                                                     sx={{ minWidth: 90 }}
                                                 />
                                             </StyledTableCell>
-                                            <StyledTableCell align="center">
+                                            <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                 {(() => {
                                                     const maintenanceInfo = getMaintenanceInfo(material.id);
                                                     return (
@@ -1588,7 +1621,7 @@ const Material = () => {
                                                 })()}
                                             </StyledTableCell>
                                             <StyledTableCell align="right">
-                                                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                <Box sx={{ display: 'flex', gap: { xs: 0, sm: 0.5 } }}>
                                                     <Tooltip title="Alocar em Viatura">
                                                         <IconButton
                                                             onClick={() => handleOpenAlocarDialog(material)}
@@ -1648,7 +1681,7 @@ const Material = () => {
                                                     </Tooltip>
                                                 </Box>
                                             </StyledTableCell>
-                                            <StyledTableCell align="center">
+                                            <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                 {(() => {
                                                     const confDate = material.ultima_conferencia?.toDate?.() || material.ultima_movimentacao?.toDate?.();
                                                     const confPor = material.conferido_por;
@@ -1845,7 +1878,8 @@ const Material = () => {
                 }}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{ sx: { borderRadius: 2 } }}
+                fullScreen={isMobile}
+                PaperProps={{ sx: { borderRadius: isMobile ? 0 : 2 } }}
             >
                 <DialogTitle sx={{
                     background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
@@ -2002,12 +2036,13 @@ const Material = () => {
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    p: 2,
+                    p: { xs: 1.5, sm: 2 },
                     zIndex: 1200,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 2,
+                    gap: { xs: 1, sm: 2 },
+                    flexWrap: 'wrap',
                     boxShadow: 6,
                     borderTop: `3px solid ${theme.palette.success.main}`,
                     backgroundColor: theme.palette.background.paper,
@@ -2029,10 +2064,11 @@ const Material = () => {
                             borderRadius: 2,
                             textTransform: 'none',
                             fontWeight: 600,
-                            px: 3,
+                            px: { xs: 2, sm: 3 },
+                            fontSize: { xs: '0.75rem', sm: '0.875rem' },
                         }}
                     >
-                        Conferir Selecionados
+                        {isMobile ? 'Conferir' : 'Conferir Selecionados'}
                     </Button>
                     <Button
                         variant="outlined"
@@ -2054,14 +2090,15 @@ const Material = () => {
                 open={Boolean(lightboxImage)}
                 onClose={() => setLightboxImage(null)}
                 maxWidth={false}
+                fullScreen={isMobile}
                 PaperProps={{
                     sx: {
-                        borderRadius: 3,
+                        borderRadius: isMobile ? 0 : 3,
                         overflow: 'hidden',
                         bgcolor: '#000',
-                        maxWidth: '92vw',
-                        maxHeight: '90vh',
-                        m: 1,
+                        maxWidth: isMobile ? '100vw' : '92vw',
+                        maxHeight: isMobile ? '100vh' : '90vh',
+                        m: isMobile ? 0 : 1,
                     },
                 }}
             >
@@ -2119,7 +2156,8 @@ const Material = () => {
                 onClose={() => setShowDuplicatesDialog(false)}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+                fullScreen={isMobile}
+                PaperProps={{ sx: { borderRadius: isMobile ? 0 : 3, overflow: 'hidden' } }}
             >
                 <DialogTitle sx={{
                     background: `linear-gradient(135deg, ${alpha('#ff9800', 0.08)} 0%, ${alpha('#e65100', 0.04)} 100%)`,
@@ -2234,7 +2272,8 @@ const Material = () => {
                 onClose={() => setShowUncheckedDialog(false)}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+                fullScreen={isMobile}
+                PaperProps={{ sx: { borderRadius: isMobile ? 0 : 3, overflow: 'hidden' } }}
             >
                 <DialogTitle sx={{
                     background: `linear-gradient(135deg, ${alpha('#ef5350', 0.08)} 0%, ${alpha('#c62828', 0.04)} 100%)`,

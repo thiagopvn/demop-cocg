@@ -21,6 +21,8 @@ import {
     alpha,
     Collapse
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import CollectionsIcon from '@mui/icons-material/Collections';
@@ -104,6 +106,8 @@ const compressImage = (file) => {
 };
 
 const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId, materials = [] }) => {
+    const theme = useTheme();
+    const fullScreenDialog = useMediaQuery(theme.breakpoints.down('sm'));
     const { categorias } = useContext(CategoriaContext);
     const [description, setDescription] = useState('');
     const [categoriaId, setCategoriaId] = useState('');
@@ -475,7 +479,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
     return (
     <>
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreenDialog}>
             <DialogTitle>
                 {isEditing ? 'Editar Material' : 'Adicionar Novo Material'}
                 <IconButton
@@ -491,7 +495,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     <CloseIcon />
                 </IconButton>
             </DialogTitle>
-            <DialogContent>
+            <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
                 {errors.general && (
                     <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrors(prev => { const { general, ...rest } = prev; return rest; })}>
                         {errors.general}
@@ -506,14 +510,15 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     <Box
                         sx={{
                             display: 'flex',
-                            alignItems: 'center',
+                            alignItems: { xs: 'stretch', sm: 'center' },
+                            flexDirection: { xs: 'column', sm: 'row' },
                             gap: 2,
                         }}
                     >
                         {/* Preview / Placeholder */}
                         <Box
                             sx={{
-                                width: 100,
+                                width: { xs: '100%', sm: 100 },
                                 height: 100,
                                 borderRadius: 2,
                                 border: '2px dashed',
@@ -782,11 +787,11 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     InputProps={{ inputProps: { min: 0, max: estoqueTotal } }}
                 />
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} disabled={loading}>
+            <DialogActions sx={{ p: { xs: 2, sm: 3 }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+                <Button onClick={onClose} disabled={loading} fullWidth={fullScreenDialog}>
                     Cancelar
                 </Button>
-                <Button onClick={handleSubmit} variant="contained" disabled={loading}>
+                <Button onClick={handleSubmit} variant="contained" disabled={loading} fullWidth={fullScreenDialog}>
                     {loading ? <CircularProgress size={24} /> : (isEditing ? 'Salvar' : 'Criar')}
                 </Button>
             </DialogActions>

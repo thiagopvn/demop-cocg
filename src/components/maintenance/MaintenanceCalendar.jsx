@@ -552,7 +552,7 @@ const MaintenanceCalendar = () => {
     return (
         <Box>
             {/* Busca */}
-            <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
+            <Paper elevation={2} sx={{ p: { xs: 1.5, sm: 2 }, mb: 2 }}>
                 <TextField
                     fullWidth
                     size="small"
@@ -578,8 +578,8 @@ const MaintenanceCalendar = () => {
             </Paper>
 
             {/* Filtros */}
-            <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-                <Grid container spacing={2} alignItems="center">
+            <Paper elevation={2} sx={{ p: { xs: 1.5, sm: 2 }, mb: 3 }}>
+                <Grid container spacing={1.5} alignItems="center">
                     <Grid item xs={6} sm={2.4}>
                         <TextField
                             select
@@ -693,7 +693,7 @@ const MaintenanceCalendar = () => {
 
             {/* Tabela de Manutenções */}
             <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
-                <Table size="small">
+                <Table size="small" sx={{ minWidth: 800 }}>
                     <TableHead>
                         <TableRow sx={{ bgcolor: 'primary.main' }}>
                             {[
@@ -934,21 +934,21 @@ const MaintenanceCalendar = () => {
 
             {/* Dialog de Conclusão */}
             <Dialog open={openCompleteDialog} onClose={() => setOpenCompleteDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
-                <Box sx={{ bgcolor: 'success.main', color: 'white', px: 3, py: 2 }}>
+                <Box sx={{ bgcolor: 'success.main', color: 'white', px: { xs: 2, sm: 3 }, py: { xs: 1.5, sm: 2 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CheckCircle sx={{ fontSize: 28 }} />
+                        <CheckCircle sx={{ fontSize: { xs: 22, sm: 28 } }} />
                         <Box>
-                            <Typography variant="h6" fontWeight={700}>Concluir Manutenção</Typography>
+                            <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>Concluir Manutenção</Typography>
                             <Typography variant="body2" sx={{ opacity: 0.9 }}>
                                 {new Date().toLocaleString('pt-BR')}
                             </Typography>
                         </Box>
                     </Box>
                 </Box>
-                <DialogContent sx={{ px: 3, py: 2 }}>
+                <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
                     {completionData.maintenance && (
                         <>
-                            <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200', mb: 2.5 }}>
+                            <Box sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200', mb: 2.5 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>Material</Typography>
                                 <Typography variant="body1" fontWeight={600} gutterBottom>
                                     {completionData.maintenance.materialDescription}

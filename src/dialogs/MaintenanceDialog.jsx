@@ -23,6 +23,8 @@ import {
     Divider,
     Slider
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import { CalendarMonth, Build, Warning, Repeat, Notifications, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { addDoc, updateDoc, doc, Timestamp, collection } from 'firebase/firestore';
 import db from '../firebase/db';
@@ -31,6 +33,8 @@ import { logAudit } from '../firebase/auditLog';
 import { getMaintenanceTypeLabel } from '../data/maintenanceTemplates';
 
 const MaintenanceDialog = ({ open, onClose, material }) => {
+    const theme = useTheme();
+    const fullScreenDialog = useMediaQuery(theme.breakpoints.down('sm'));
     const [formData, setFormData] = useState({
         maintenanceType: '',
         dueDate: '',
@@ -293,7 +297,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
     };
 
     return (
-        <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
+        <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md" fullScreen={fullScreenDialog}>
             <DialogTitle>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CalendarMonth color="primary" />
@@ -308,7 +312,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 )}
             </DialogTitle>
             
-            <DialogContent>
+            <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
                 {error && (
                     <Alert severity="error" sx={{ mb: 2 }}>
                         {error}
@@ -322,7 +326,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 )}
 
                 <Grid container spacing={3}>
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} sm={6}>
                         <FormControl fullWidth margin="normal">
                             <InputLabel>Tipo de Manutenção *</InputLabel>
                             <Select 
@@ -347,7 +351,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} sm={6}>
                         <TextField
                             margin="normal"
                             label="Data Prevista *"
@@ -360,7 +364,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                         />
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} sm={6}>
                         <FormControl fullWidth margin="normal">
                             <InputLabel>Prioridade</InputLabel>
                             <Select
@@ -376,7 +380,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                         </FormControl>
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} sm={6}>
                         <TextField
                             margin="normal"
                             label="Duração Estimada (dias)"
@@ -503,7 +507,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
 
                                     <Collapse in={formData.isRecurrent}>
                                         <Grid container spacing={2} sx={{ mt: 1 }}>
-                                            <Grid item xs={12} md={6}>
+                                            <Grid item xs={12} sm={6}>
                                                 <FormControl fullWidth size="small">
                                                     <InputLabel>Frequência</InputLabel>
                                                     <Select
@@ -529,7 +533,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                                             </Grid>
 
                                             {formData.recurrenceType === 'customizado' && (
-                                                <Grid item xs={12} md={6}>
+                                                <Grid item xs={12} sm={6}>
                                                     <TextField
                                                         fullWidth
                                                         size="small"
@@ -542,7 +546,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                                                 </Grid>
                                             )}
 
-                                            <Grid item xs={12} md={6}>
+                                            <Grid item xs={12} sm={6}>
                                                 <TextField
                                                     fullWidth
                                                     size="small"
@@ -610,15 +614,16 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 )}
             </DialogContent>
             
-            <DialogActions sx={{ p: 3 }}>
-                <Button onClick={handleClose} disabled={loading}>
+            <DialogActions sx={{ p: { xs: 2, sm: 3 }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+                <Button onClick={handleClose} disabled={loading} fullWidth={fullScreenDialog}>
                     Cancelar
                 </Button>
-                <Button 
-                    onClick={handleSubmit} 
+                <Button
+                    onClick={handleSubmit}
                     variant="contained"
                     disabled={loading || !formData.maintenanceType || !formData.dueDate}
                     startIcon={<CalendarMonth />}
+                    fullWidth={fullScreenDialog}
                 >
                     {loading ? 'Agendando...' : 'Agendar Manutenção'}
                 </Button>

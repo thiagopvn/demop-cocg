@@ -478,7 +478,7 @@ const MaintenanceDashboard = () => {
                                 ? `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`
                                 : `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.warning.dark || '#e65100'} 100%)`,
                             color: 'white',
-                            px: 3,
+                            px: { xs: 1.5, sm: 3 },
                             py: 2,
                             display: 'flex',
                             alignItems: 'center',
@@ -486,9 +486,9 @@ const MaintenanceDashboard = () => {
                         }}
                     >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <NotificationsActive sx={{ fontSize: 32, animation: 'ring 1.5s ease-in-out infinite', '@keyframes ring': { '0%, 100%': { transform: 'rotate(0)' }, '10%, 30%': { transform: 'rotate(8deg)' }, '20%, 40%': { transform: 'rotate(-8deg)' }, '50%': { transform: 'rotate(0)' } } }} />
+                            <NotificationsActive sx={{ fontSize: { xs: 24, sm: 32 }, animation: 'ring 1.5s ease-in-out infinite', '@keyframes ring': { '0%, 100%': { transform: 'rotate(0)' }, '10%, 30%': { transform: 'rotate(8deg)' }, '20%, 40%': { transform: 'rotate(-8deg)' }, '50%': { transform: 'rotate(0)' } } }} />
                             <Box>
-                                <Typography variant="h6" fontWeight={700}>
+                                <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: '0.95rem', sm: '1.25rem' } }}>
                                     {overdueItems.length > 0 ? 'Atenção! Manutenções Pendentes' : 'Manutenções Previstas para Hoje'}
                                 </Typography>
                                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
@@ -506,7 +506,7 @@ const MaintenanceDashboard = () => {
 
                     {/* Lista de manutenções atrasadas */}
                     {overdueItems.length > 0 && (
-                        <Box sx={{ px: 2, pt: 2, pb: todayItems.length > 0 ? 1 : 2 }}>
+                        <Box sx={{ px: { xs: 1, sm: 2 }, pt: 2, pb: todayItems.length > 0 ? 1 : 2 }}>
                             <Typography variant="subtitle2" color="error.main" fontWeight={700} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <PriorityHigh fontSize="small" /> ATRASADAS
                             </Typography>
@@ -573,7 +573,7 @@ const MaintenanceDashboard = () => {
 
                     {/* Lista de manutenções de hoje */}
                     {todayItems.length > 0 && (
-                        <Box sx={{ px: 2, pt: overdueItems.length > 0 ? 1 : 2, pb: 2 }}>
+                        <Box sx={{ px: { xs: 1, sm: 2 }, pt: overdueItems.length > 0 ? 1 : 2, pb: 2 }}>
                             {overdueItems.length > 0 && <Divider sx={{ mb: 1.5 }} />}
                             <Typography variant="subtitle2" color="warning.main" fontWeight={700} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <Today fontSize="small" /> PARA HOJE
@@ -726,10 +726,10 @@ const MaintenanceDashboard = () => {
             {/* Gráficos */}
             <Grid container spacing={3} sx={{ mt: 2 }}>
                 <Grid item xs={12} md={6}>
-                    <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
+                    <Paper elevation={2} sx={{ p: { xs: 1, sm: 2 }, height: '100%' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                             <TrendingUp color="primary" />
-                            <Typography variant="h6">
+                            <Typography variant="h6" sx={{ fontSize: { xs: '0.95rem', sm: '1.25rem' } }}>
                                 Distribuição por Tipo
                             </Typography>
                         </Box>
@@ -765,10 +765,10 @@ const MaintenanceDashboard = () => {
 
                 {/* Gráfico de barras - Manutenções por mês */}
                 <Grid item xs={12}>
-                    <Paper elevation={2} sx={{ p: 2 }}>
+                    <Paper elevation={2} sx={{ p: { xs: 1, sm: 2 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                             <CalendarMonth color="primary" />
-                            <Typography variant="h6">
+                            <Typography variant="h6" sx={{ fontSize: { xs: '0.95rem', sm: '1.25rem' } }}>
                                 Manutenções por Mês (Últimos 6 meses)
                             </Typography>
                         </Box>
@@ -796,10 +796,10 @@ const MaintenanceDashboard = () => {
 
                 {/* Gráfico de prioridades */}
                 <Grid item xs={12} md={6}>
-                    <Paper elevation={2} sx={{ p: 2 }}>
+                    <Paper elevation={2} sx={{ p: { xs: 1, sm: 2 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                             <Warning color="warning" />
-                            <Typography variant="h6">
+                            <Typography variant="h6" sx={{ fontSize: { xs: '0.95rem', sm: '1.25rem' } }}>
                                 Distribuição por Prioridade
                             </Typography>
                         </Box>
@@ -835,10 +835,10 @@ const MaintenanceDashboard = () => {
 
                 {/* Resumo Rápido */}
                 <Grid item xs={12} md={6}>
-                    <Paper elevation={2} sx={{ p: 2 }}>
+                    <Paper elevation={2} sx={{ p: { xs: 1, sm: 2 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                             <Engineering color="primary" />
-                            <Typography variant="h6">
+                            <Typography variant="h6" sx={{ fontSize: { xs: '0.95rem', sm: '1.25rem' } }}>
                                 Resumo Rápido
                             </Typography>
                         </Box>
@@ -885,7 +885,7 @@ const MaintenanceDashboard = () => {
 
             {/* Dialog de Conclusão de Manutenção */}
             <Dialog open={completeDialogOpen} onClose={() => setCompleteDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
-                <Box sx={{ bgcolor: 'success.main', color: 'white', px: 3, py: 2 }}>
+                <Box sx={{ bgcolor: 'success.main', color: 'white', px: { xs: 2, sm: 3 }, py: { xs: 1.5, sm: 2 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <CheckCircle sx={{ fontSize: 28 }} />
                         <Box>

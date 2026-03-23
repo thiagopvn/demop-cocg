@@ -12,10 +12,14 @@ import {
     Chip,
     Typography,
 } from "@mui/material";
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import CloseIcon from "@mui/icons-material/Close";
 import UserSearch from "../components/UserSearch"; // Certifique-se de que o caminho está correto
 
 export default function RingDialog({ onSubmit, onCancel, open, editData = null }) {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [data, setData] = useState({
         numero_ocorrencia: editData?.numero_ocorrencia || "",
         militar_nome: editData?.militar_nome || "", // Campo para o nome do militar
@@ -74,9 +78,9 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
     };
 
     return (
-        <Dialog 
-            open={open} 
-            maxWidth="md" 
+        <Dialog
+            open={open}
+            maxWidth="sm"
             fullWidth
             PaperProps={{
                 sx: {
@@ -117,7 +121,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                 <CloseIcon />
             </IconButton>
 
-            <DialogContent sx={{ padding: '24px' }}>
+            <DialogContent sx={{ padding: { xs: '16px', sm: '24px' } }}>
                 <div style={{ display: 'grid', gap: '20px' }}>
                     {/* Primeira linha - Número da ocorrência */}
                     <TextField
@@ -215,7 +219,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                                     }
                                 }}
                             />
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
                                 <TextField
                                     fullWidth
                                     label="📞 Telefone"
@@ -258,7 +262,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                     </Box>
 
                     {/* Detalhes da Ocorrência */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
                         <TextField
                             fullWidth
                             label="📅 Data do Ocorrido"
