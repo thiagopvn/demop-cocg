@@ -100,19 +100,59 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
       if (userData.email && userData.email.includes("@") && userData.email.includes(".")) {
         createData.email = userData.email;
       }
-      await auth.createUser(createData);
-      authUid = userId;
+      try {
+        await auth.createUser(createData);
+        authUid = userId;
+      } catch (createErr) {
+        // If email conflict, retry without email
+        if (createErr.code === "auth/email-already-exists") {
+          console.warn(`Email conflict for user ${userId}, creating Auth user without email`);
+          try {
+            await auth.createUser({ uid: userId, displayName: userData.full_name || userData.username });
+            authUid = userId;
+          } catch (retryErr) {
+            // If UID also conflicts, generate a new Auth user without fixed UID
+            if (retryErr.code === "auth/uid-already-exists") {
+              console.warn(`UID conflict for user ${userId}, using existing Auth user`);
+              const existingUser = await auth.getUser(userId);
+              authUid = existingUser.uid;
+            } else {
+              console.error(`Failed to create Auth user for ${userId}:`, retryErr);
+              throw new HttpsError("internal", "Erro ao configurar autenticação. Tente novamente.");
+            }
+          }
+        } else if (createErr.code === "auth/uid-already-exists") {
+          // UID exists but getUser failed before — try again
+          console.warn(`UID already exists for ${userId}, fetching existing user`);
+          const existingUser = await auth.getUser(userId);
+          authUid = existingUser.uid;
+        } else {
+          console.error(`Failed to create Auth user for ${userId}:`, createErr);
+          throw new HttpsError("internal", "Erro ao configurar autenticação. Tente novamente.");
+        }
+      }
     }
   }
 
   // Always update custom claims on login
-  await auth.setCustomUserClaims(authUid, { role, firestoreId: userId });
+  try {
+    await auth.setCustomUserClaims(authUid, { role, firestoreId: userId });
+  } catch (claimsErr) {
+    console.error(`Failed to set claims for ${authUid}:`, claimsErr);
+    throw new HttpsError("internal", "Erro ao configurar permissões. Tente novamente.");
+  }
 
   // Generate a Firebase Custom Token
-  const customToken = await auth.createCustomToken(authUid, {
-    role,
-    firestoreId: userId,
-  });
+  let customToken;
+  try {
+    customToken = await auth.createCustomToken(authUid, {
+      role,
+      firestoreId: userId,
+    });
+  } catch (tokenErr) {
+    console.error(`Failed to create custom token for ${authUid}:`, tokenErr);
+    throw new HttpsError("internal", "Erro ao gerar token de autenticação. Tente novamente.");
+  }
 
   const mustChangePassword = secretDoc.exists && secretDoc.data().must_change_password === true;
 
