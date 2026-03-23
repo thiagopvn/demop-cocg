@@ -118,8 +118,11 @@ function MenuContext({ children }) {
     fetchUserData();
   }, []);
 
-  // Listener em tempo real para badge de manutenções pendentes (substitui polling)
+  // Listener em tempo real para badge de manutenções pendentes (apenas admin)
   useEffect(() => {
+    // Badge de manutenção só é relevante para admin/admingeral
+    if (!userRole || userRole === 'user' || userRole === 'chefe') return;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -160,7 +163,7 @@ function MenuContext({ children }) {
       unsubOverdue();
       unsubToday();
     };
-  }, []);
+  }, [userRole]);
 
   useEffect(() => {
     const path = location.pathname;
