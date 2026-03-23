@@ -667,7 +667,7 @@ function MenuContext({ children }) {
         )}
 
         {/* Page Content */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: { xs: 2, sm: 3, md: 4 } }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: { xs: 1, sm: 2, md: 4 }, pb: { xs: 'calc(12px + env(safe-area-inset-bottom, 0px))', sm: 3, md: 4 } }}>
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</Box>
         </Box>
 

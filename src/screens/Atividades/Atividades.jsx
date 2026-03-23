@@ -101,7 +101,10 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 }));
 
 const StatCard = styled(Card)(({ theme }) => ({
-    padding: theme.spacing(2.5),
+    padding: theme.spacing(2),
+    [theme.breakpoints.up('sm')]: {
+        padding: theme.spacing(2.5),
+    },
     borderRadius: theme.spacing(1.5),
     border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
     transition: 'all 0.3s ease-in-out',
@@ -561,10 +564,10 @@ export default function Atividades() {
     return (
         <PrivateRoute allowedRoles={['admingeral']}>
             <MenuContext>
-                <Box sx={{ p: 3 }}>
+                <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
                     {/* Header */}
                     <Box sx={{ mb: 3 }}>
-                        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: 'primary.main' }}>
+                        <Typography variant="h4" gutterBottom sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' }, fontWeight: 700, color: 'primary.main' }}>
                             Atividade dos Militares
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -573,8 +576,8 @@ export default function Atividades() {
                     </Box>
 
                     {/* Stats Cards */}
-                    <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-                        <StatCard sx={{ flex: 1, minWidth: 180, background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)` }}>
+                    <Box sx={{ display: 'flex', gap: { xs: 1.5, sm: 2 }, mb: 3, flexWrap: 'wrap' }}>
+                        <StatCard sx={{ flex: 1, minWidth: { xs: '45%', sm: 180 }, background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)` }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: alpha(theme.palette.primary.main, 0.12), color: 'primary.main' }}>
                                     <Assessment />
@@ -585,7 +588,7 @@ export default function Atividades() {
                                 </Box>
                             </Box>
                         </StatCard>
-                        <StatCard sx={{ flex: 1, minWidth: 180, background: `linear-gradient(135deg, ${alpha('#4caf50', 0.08)} 0%, ${alpha('#4caf50', 0.02)} 100%)` }}>
+                        <StatCard sx={{ flex: 1, minWidth: { xs: '45%', sm: 180 }, background: `linear-gradient(135deg, ${alpha('#4caf50', 0.08)} 0%, ${alpha('#4caf50', 0.02)} 100%)` }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: alpha('#4caf50', 0.12), color: '#4caf50' }}>
                                     <Person />
@@ -596,7 +599,7 @@ export default function Atividades() {
                                 </Box>
                             </Box>
                         </StatCard>
-                        <StatCard sx={{ flex: 1, minWidth: 180, background: `linear-gradient(135deg, ${alpha('#ff9800', 0.08)} 0%, ${alpha('#ff9800', 0.02)} 100%)` }}>
+                        <StatCard sx={{ flex: 1, minWidth: { xs: '45%', sm: 180 }, background: `linear-gradient(135deg, ${alpha('#ff9800', 0.08)} 0%, ${alpha('#ff9800', 0.02)} 100%)` }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: alpha('#ff9800', 0.12), color: '#ff9800' }}>
                                     <TrendingUp />
@@ -607,7 +610,7 @@ export default function Atividades() {
                                 </Box>
                             </Box>
                         </StatCard>
-                        <StatCard sx={{ flex: 1, minWidth: 180, background: `linear-gradient(135deg, ${alpha('#2196f3', 0.08)} 0%, ${alpha('#2196f3', 0.02)} 100%)` }}>
+                        <StatCard sx={{ flex: 1, minWidth: { xs: '45%', sm: 180 }, background: `linear-gradient(135deg, ${alpha('#2196f3', 0.08)} 0%, ${alpha('#2196f3', 0.02)} 100%)` }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: alpha('#2196f3', 0.12), color: '#2196f3' }}>
                                     <Inventory />
@@ -625,11 +628,15 @@ export default function Atividades() {
                         <Tabs
                             value={tabValue}
                             onChange={(_, v) => setTabValue(v)}
+                            variant="scrollable"
+                            scrollButtons="auto"
                             sx={{
                                 '& .MuiTab-root': {
                                     textTransform: 'none',
                                     fontWeight: 600,
-                                    fontSize: '0.9rem',
+                                    fontSize: { xs: '0.78rem', sm: '0.9rem' },
+                                    minWidth: { xs: 'auto', sm: 160 },
+                                    px: { xs: 1.5, sm: 2 },
                                 },
                             }}
                         >
@@ -663,8 +670,8 @@ export default function Atividades() {
                     {/* Tab 0: Resumo por Militar */}
                     {tabValue === 0 && (
                         <Box>
-                            <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                                <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <Box sx={{ mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, flexWrap: 'wrap', alignItems: { xs: 'stretch', sm: 'center' } }}>
+                                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
                                     <InputLabel>Periodo</InputLabel>
                                     <Select
                                         value={filterPeriod}
@@ -696,8 +703,8 @@ export default function Atividades() {
                                 </Paper>
                             ) : (
                                 <StyledTableContainer>
-                                    <Box sx={{ overflowX: 'auto' }}>
-                                        <Table>
+                                    <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                                        <Table sx={{ minWidth: 650 }}>
                                             <StyledTableHead>
                                                 <TableRow>
                                                     <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem' }}>Militar</TableCell>
@@ -707,37 +714,37 @@ export default function Atividades() {
                                                             <span>Conferencias</span>
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Materiais criados">
                                                             <span>Criados</span>
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Materiais excluidos">
                                                             <span>Excluidos</span>
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Materiais alocados em viaturas">
                                                             <span>Alocacoes</span>
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Cautelas e movimentacoes">
                                                             <span>Moviment.</span>
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Devoluções registradas">
                                                             <span>Devol.</span>
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Manutenções agendadas e concluídas">
                                                             <span>Manut.</span>
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Viaturas + Categorias + Usuários">
                                                             <span>Outros</span>
                                                         </Tooltip>
@@ -776,43 +783,43 @@ export default function Atividades() {
                                                                 {stat.materiais_conferidos}
                                                             </Typography>
                                                         </StyledTableCell>
-                                                        <StyledTableCell align="center">
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             <Typography variant="body2" fontWeight={stat.materiais_criados > 0 ? 600 : 400}
                                                                 color={stat.materiais_criados > 0 ? '#4caf50' : 'text.disabled'}>
                                                                 {stat.materiais_criados}
                                                             </Typography>
                                                         </StyledTableCell>
-                                                        <StyledTableCell align="center">
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             <Typography variant="body2" fontWeight={stat.materiais_excluidos > 0 ? 600 : 400}
                                                                 color={stat.materiais_excluidos > 0 ? '#f44336' : 'text.disabled'}>
                                                                 {stat.materiais_excluidos}
                                                             </Typography>
                                                         </StyledTableCell>
-                                                        <StyledTableCell align="center">
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             <Typography variant="body2" fontWeight={stat.materiais_alocados > 0 ? 600 : 400}
                                                                 color={stat.materiais_alocados > 0 ? '#00bcd4' : 'text.disabled'}>
                                                                 {stat.materiais_alocados}
                                                             </Typography>
                                                         </StyledTableCell>
-                                                        <StyledTableCell align="center">
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             <Typography variant="body2" fontWeight={stat.movimentacoes > 0 ? 600 : 400}
                                                                 color={stat.movimentacoes > 0 ? '#ff9800' : 'text.disabled'}>
                                                                 {stat.movimentacoes}
                                                             </Typography>
                                                         </StyledTableCell>
-                                                        <StyledTableCell align="center">
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             <Typography variant="body2" fontWeight={stat.devolucoes > 0 ? 600 : 400}
                                                                 color={stat.devolucoes > 0 ? '#8bc34a' : 'text.disabled'}>
                                                                 {stat.devolucoes}
                                                             </Typography>
                                                         </StyledTableCell>
-                                                        <StyledTableCell align="center">
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             <Typography variant="body2" fontWeight={stat.manutencoes > 0 ? 600 : 400}
                                                                 color={stat.manutencoes > 0 ? '#9c27b0' : 'text.disabled'}>
                                                                 {stat.manutencoes}
                                                             </Typography>
                                                         </StyledTableCell>
-                                                        <StyledTableCell align="center">
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             <Typography variant="body2" fontWeight={(stat.viaturas + stat.categorias + stat.usuarios) > 0 ? 600 : 400}
                                                                 color={(stat.viaturas + stat.categorias + stat.usuarios) > 0 ? '#607d8b' : 'text.disabled'}>
                                                                 {stat.viaturas + stat.categorias + stat.usuarios}
@@ -832,13 +839,13 @@ export default function Atividades() {
                     {tabValue === 1 && (
                         <Box>
                             {/* Filtros */}
-                            <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <Box sx={{ mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, flexWrap: 'wrap', alignItems: { xs: 'stretch', sm: 'center' } }}>
                                 <TextField
                                     size="small"
                                     placeholder="Pesquisar..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    sx={{ minWidth: 220 }}
+                                    sx={{ minWidth: { xs: '100%', sm: 220 } }}
                                     slotProps={{
                                         input: {
                                             startAdornment: (
@@ -856,7 +863,7 @@ export default function Atividades() {
                                         },
                                     }}
                                 />
-                                <FormControl size="small" sx={{ minWidth: 150 }}>
+                                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
                                     <InputLabel>Militar</InputLabel>
                                     <Select
                                         value={filterUser}
@@ -869,7 +876,7 @@ export default function Atividades() {
                                         ))}
                                     </Select>
                                 </FormControl>
-                                <FormControl size="small" sx={{ minWidth: 180 }}>
+                                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
                                     <InputLabel>Tipo de acao</InputLabel>
                                     <Select
                                         value={filterAction}
@@ -882,7 +889,7 @@ export default function Atividades() {
                                         ))}
                                     </Select>
                                 </FormControl>
-                                <FormControl size="small" sx={{ minWidth: 150 }}>
+                                <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
                                     <InputLabel>Periodo</InputLabel>
                                     <Select
                                         value={filterPeriod}
@@ -920,8 +927,8 @@ export default function Atividades() {
                                 </Paper>
                             ) : (
                                 <StyledTableContainer>
-                                    <Box sx={{ overflowX: 'auto' }}>
-                                        <Table>
+                                    <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                                        <Table sx={{ minWidth: 650 }}>
                                             <StyledTableHead>
                                                 <TableRow>
                                                     <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem' }}>
@@ -954,7 +961,7 @@ export default function Atividades() {
                                                             Acao
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <TableSortLabel
                                                             active={sortField === 'targetName'}
                                                             direction={sortField === 'targetName' ? sortDirection : 'asc'}
@@ -964,7 +971,7 @@ export default function Atividades() {
                                                             Item Afetado
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         Detalhes
                                                     </TableCell>
                                                 </TableRow>
@@ -1008,12 +1015,12 @@ export default function Atividades() {
                                                                 }}
                                                             />
                                                         </StyledTableCell>
-                                                        <StyledTableCell>
+                                                        <StyledTableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             <Typography variant="body2" sx={{ fontSize: '0.85rem', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                 {log.targetName || '-'}
                                                             </Typography>
                                                         </StyledTableCell>
-                                                        <StyledTableCell>
+                                                        <StyledTableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                             {(() => {
                                                                 const text = renderDetailsText(log);
                                                                 return text ? (
@@ -1046,8 +1053,8 @@ export default function Atividades() {
                         <Box>
                             {/* Active Tasks */}
                             <Box sx={{ mb: 4 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                                    <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', mb: 2, gap: { xs: 1.5, sm: 0 }, flexWrap: 'wrap' }}>
+                                    <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                                         <Flag sx={{ color: '#ff6b35' }} />
                                         Missoes Ativas
                                         {activeTasks.length > 0 && (
@@ -1062,7 +1069,8 @@ export default function Atividades() {
                                             bgcolor: '#ff6b35',
                                             fontWeight: 700,
                                             borderRadius: 2,
-                                            px: 3,
+                                            px: { xs: 2, sm: 3 },
+                                            fontSize: { xs: '0.8rem', sm: '0.875rem' },
                                             '&:hover': { bgcolor: '#e55a2b' },
                                         }}
                                     >
@@ -1091,7 +1099,7 @@ export default function Atividades() {
                                                 <Paper
                                                     key={task.id}
                                                     sx={{
-                                                        p: 3,
+                                                        p: { xs: 2, sm: 3 },
                                                         borderRadius: 3,
                                                         border: '2px solid',
                                                         borderColor: alpha(priorityInfo.color, 0.4),
@@ -1106,16 +1114,16 @@ export default function Atividades() {
                                                         },
                                                     }}
                                                 >
-                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, sm: 2 }, mb: 2, flexWrap: 'wrap' }}>
                                                         <Avatar sx={{
                                                             bgcolor: alpha(typeInfo.color, 0.15),
                                                             color: typeInfo.color,
-                                                            width: 48, height: 48,
+                                                            width: { xs: 40, sm: 48 }, height: { xs: 40, sm: 48 },
                                                         }}>
                                                             <IconComp />
                                                         </Avatar>
                                                         <Box sx={{ flex: 1 }}>
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
                                                                 <Chip
                                                                     label={typeInfo.label}
                                                                     size="small"
@@ -1182,8 +1190,8 @@ export default function Atividades() {
                                                     )}
 
                                                     {/* Footer */}
-                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexWrap: 'wrap', gap: 1 }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, flexWrap: 'wrap' }}>
                                                             <Chip
                                                                 icon={<AccessTime sx={{ fontSize: '14px !important' }} />}
                                                                 label={timeRemaining?.text || ''}
@@ -1221,14 +1229,15 @@ export default function Atividades() {
                                                 <Paper
                                                     key={task.id}
                                                     sx={{
-                                                        p: 2,
+                                                        p: { xs: 1.5, sm: 2 },
                                                         borderRadius: 2,
                                                         border: '1px solid',
                                                         borderColor: alpha('#22c55e', 0.2),
                                                         bgcolor: alpha('#22c55e', 0.03),
                                                         display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 2,
+                                                        alignItems: { xs: 'flex-start', sm: 'center' },
+                                                        flexWrap: 'wrap',
+                                                        gap: { xs: 1, sm: 2 },
                                                     }}
                                                 >
                                                     <CheckCircle sx={{ color: '#22c55e' }} />
@@ -1263,14 +1272,15 @@ export default function Atividades() {
                                             <Paper
                                                 key={task.id}
                                                 sx={{
-                                                    p: 2,
+                                                    p: { xs: 1.5, sm: 2 },
                                                     borderRadius: 2,
                                                     border: '1px solid',
                                                     borderColor: 'divider',
                                                     opacity: 0.6,
                                                     display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 2,
+                                                    alignItems: { xs: 'flex-start', sm: 'center' },
+                                                    flexWrap: 'wrap',
+                                                    gap: { xs: 1, sm: 2 },
                                                 }}
                                             >
                                                 <Cancel sx={{ color: 'text.disabled' }} />
@@ -1366,7 +1376,7 @@ export default function Atividades() {
                                 />
                             )}
 
-                            <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
                                 <FormControl fullWidth>
                                     <InputLabel>Prioridade</InputLabel>
                                     <Select

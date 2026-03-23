@@ -502,12 +502,12 @@ export default function Cautelados() {
       {/* Header with Stats */}
       <Fade in timeout={400}>
         <HeaderCard elevation={0}>
-          <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, mb: 2, flexWrap: 'wrap' }}>
               <Box
                 sx={{
-                  width: 48,
-                  height: 48,
+                  width: { xs: 40, sm: 48 },
+                  height: { xs: 40, sm: 48 },
                   borderRadius: 2,
                   backgroundColor: 'rgba(255,255,255,0.2)',
                   display: 'flex',
@@ -515,13 +515,13 @@ export default function Cautelados() {
                   justifyContent: 'center',
                 }}
               >
-                <AssignmentIcon sx={{ color: 'white', fontSize: 28 }} />
+                <AssignmentIcon sx={{ color: 'white', fontSize: { xs: 24, sm: 28 } }} />
               </Box>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h5" sx={{ color: 'white', fontWeight: 700 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="h5" sx={{ color: 'white', fontWeight: 700, fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>
                   Todas as Cautelas
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', display: { xs: 'none', sm: 'block' } }}>
                   Historico completo de movimentacoes de cautela
                 </Typography>
               </Box>
@@ -557,7 +557,7 @@ export default function Cautelados() {
       {/* Filters */}
       <Fade in timeout={600}>
         <FilterCard elevation={2}>
-          <CardContent sx={{ p: 3 }}>
+          <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={12} md={4}>
                 <TextField
@@ -640,8 +640,8 @@ export default function Cautelados() {
             )}
             sx={{
               position: 'fixed',
-              bottom: 80,
-              right: 24,
+              bottom: { xs: 70, sm: 80 },
+              right: { xs: 16, sm: 24 },
               background: 'linear-gradient(45deg, #4caf50 30%, #81c784 90%)',
               boxShadow: 3,
               '&:hover': {

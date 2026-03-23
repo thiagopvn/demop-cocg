@@ -534,8 +534,8 @@ export default function Movimentacao() {
                             <Card
                                 elevation={0}
                                 sx={{
-                                    mb: 3,
-                                    borderRadius: 4,
+                                    mb: { xs: 2, sm: 3 },
+                                    borderRadius: { xs: 3, sm: 4 },
                                     background: currentOption
                                         ? currentOption.gradient
                                         : 'linear-gradient(135deg, #1e3a5f 0%, #0f2942 100%)',
@@ -543,17 +543,18 @@ export default function Movimentacao() {
                                     position: 'relative',
                                 }}
                             >
-                                <CardContent sx={{ p: { xs: 3, sm: 4 }, position: 'relative', zIndex: 1 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                                <CardContent sx={{ p: { xs: 2, sm: 4 }, position: 'relative', zIndex: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, mb: 1 }}>
                                         <Box sx={{
-                                            width: 56,
-                                            height: 56,
-                                            borderRadius: 3,
+                                            width: { xs: 44, sm: 56 },
+                                            height: { xs: 44, sm: 56 },
+                                            borderRadius: { xs: 2, sm: 3 },
                                             backgroundColor: 'rgba(255,255,255,0.2)',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             backdropFilter: 'blur(10px)',
+                                            flexShrink: 0,
                                         }}>
                                             {currentOption ? currentOption.icon : <MovementIcon sx={{ fontSize: 32, color: 'white' }} />}
                                         </Box>
@@ -561,7 +562,7 @@ export default function Movimentacao() {
                                             <Typography variant="h5" sx={{
                                                 color: 'white',
                                                 fontWeight: 800,
-                                                fontSize: { xs: '1.3rem', sm: '1.6rem' },
+                                                fontSize: { xs: '1.15rem', sm: '1.5rem' },
                                                 lineHeight: 1.2,
                                             }}>
                                                 {currentOption ? currentOption.label : 'Nova Movimentação'}
@@ -625,7 +626,7 @@ export default function Movimentacao() {
 
                         {/* Alerta de permissão */}
                         {radioDisabled && (
-                            <Alert severity="warning" sx={{ mb: 3, borderRadius: 3 }}>
+                            <Alert severity="warning" sx={{ mb: { xs: 2, sm: 3 }, borderRadius: { xs: 2, sm: 3 } }}>
                                 <AlertTitle>Acesso Restrito</AlertTitle>
                                 Sem permissão para acessar este recurso.
                             </Alert>
@@ -633,9 +634,9 @@ export default function Movimentacao() {
 
                         {/* Step 1: Tipo de Movimentação */}
                         <Fade in timeout={500}>
-                            <Card elevation={0} sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Card elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: { xs: 2, sm: 3 }, border: '1px solid', borderColor: 'divider' }}>
+                                <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                         <Chip label="1" size="small" color="primary" sx={{ fontWeight: 700, minWidth: 28 }} />
                                         Tipo de Movimentação
                                     </Typography>
@@ -717,14 +718,14 @@ export default function Movimentacao() {
                         {/* Step: Subtipo da Saída */}
                         <Collapse in={tipoMovimentacao === 'saída'}>
                             <Fade in={tipoMovimentacao === 'saída'} timeout={400}>
-                                <Card elevation={0} sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                                    <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Card elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: { xs: 2, sm: 3 }, border: '1px solid', borderColor: 'divider' }}>
+                                    <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                             <Chip label="2" size="small" color="warning" sx={{ fontWeight: 700, minWidth: 28 }} />
                                             Tipo de Saída
                                         </Typography>
 
-                                        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                                        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: { xs: 1.5, sm: 2 } }}>
                                             <Card
                                                 variant="outlined"
                                                 sx={{
@@ -738,8 +739,8 @@ export default function Movimentacao() {
                                                 }}
                                                 onClick={() => { setSaidaSubtipo('consumo'); setSaidaViaturaSelected(null); setActiveStep(1); }}
                                             >
-                                                <CardContent sx={{ p: 3, textAlign: 'center' }}>
-                                                    <ConsumoIcon sx={{ fontSize: 48, color: saidaSubtipo === 'consumo' ? '#f59e0b' : 'text.secondary', mb: 1 }} />
+                                                <CardContent sx={{ p: { xs: 2, sm: 3 }, textAlign: 'center' }}>
+                                                    <ConsumoIcon sx={{ fontSize: { xs: 36, sm: 48 }, color: saidaSubtipo === 'consumo' ? '#f59e0b' : 'text.secondary', mb: 1 }} />
                                                     <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' } }}>
                                                         Consumo
                                                     </Typography>
@@ -761,8 +762,8 @@ export default function Movimentacao() {
                                                 }}
                                                 onClick={() => { setSaidaSubtipo('viatura'); setActiveStep(1); }}
                                             >
-                                                <CardContent sx={{ p: 3, textAlign: 'center' }}>
-                                                    <CarIcon sx={{ fontSize: 48, color: saidaSubtipo === 'viatura' ? '#0ea5e9' : 'text.secondary', mb: 1 }} />
+                                                <CardContent sx={{ p: { xs: 2, sm: 3 }, textAlign: 'center' }}>
+                                                    <CarIcon sx={{ fontSize: { xs: 36, sm: 48 }, color: saidaSubtipo === 'viatura' ? '#0ea5e9' : 'text.secondary', mb: 1 }} />
                                                     <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' } }}>
                                                         Viatura
                                                     </Typography>
@@ -775,7 +776,7 @@ export default function Movimentacao() {
 
                                         {/* Seleção de viatura para saída */}
                                         <Collapse in={saidaSubtipo === 'viatura'}>
-                                            <Box sx={{ mt: 3 }}>
+                                            <Box sx={{ mt: { xs: 2, sm: 3 } }}>
                                                 <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
                                                     Selecione a viatura de destino:
                                                 </Typography>
@@ -827,9 +828,9 @@ export default function Movimentacao() {
                             tipoMovimentacao === 'cautela' ||
                             (tipoMovimentacao === 'saída' && saidaSubtipo)
                         }>
-                            <Card elevation={0} sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Card elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: { xs: 2, sm: 3 }, border: '1px solid', borderColor: 'divider' }}>
+                                <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                         <Chip
                                             label={tipoMovimentacao === 'saída' ? '3' : '2'}
                                             size="small"
@@ -847,19 +848,19 @@ export default function Movimentacao() {
 
                                     {materialSelected && (
                                         <Paper elevation={0} sx={{
-                                            mt: 2,
-                                            p: 2,
+                                            mt: { xs: 1.5, sm: 2 },
+                                            p: { xs: 1.5, sm: 2 },
                                             borderRadius: 2,
                                             border: '1px solid',
                                             borderColor: 'primary.200',
                                             backgroundColor: alpha('#3b82f6', 0.04),
                                         }}>
                                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Box>
-                                                    <Typography variant="subtitle2" fontWeight={600}>
+                                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                    <Typography variant="subtitle2" fontWeight={600} noWrap>
                                                         {materialSelected.description}
                                                     </Typography>
-                                                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                                                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
                                                         <Chip
                                                             label={`Disponível: ${materialSelected.estoque_atual}`}
                                                             size="small"
@@ -887,9 +888,9 @@ export default function Movimentacao() {
                             tipoMovimentacao === 'cautela' ||
                             (tipoMovimentacao === 'saída' && saidaSubtipo)
                         }>
-                            <Card elevation={0} sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Card elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: { xs: 2, sm: 3 }, border: '1px solid', borderColor: 'divider' }}>
+                                <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                         <Chip
                                             label={tipoMovimentacao === 'saída' ? '4' : '3'}
                                             size="small"
@@ -909,8 +910,8 @@ export default function Movimentacao() {
 
                                     {userSelected && (
                                         <Paper elevation={0} sx={{
-                                            mt: 2,
-                                            p: 2,
+                                            mt: { xs: 1.5, sm: 2 },
+                                            p: { xs: 1.5, sm: 2 },
                                             borderRadius: 2,
                                             border: '1px solid',
                                             borderColor: 'secondary.200',
@@ -935,9 +936,9 @@ export default function Movimentacao() {
 
                         {/* Step: Detalhes (Quantidade + Observações) */}
                         <Collapse in={!!materialSelected}>
-                            <Card elevation={0} sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Card elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: { xs: 2, sm: 3 }, border: '1px solid', borderColor: 'divider' }}>
+                                <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                         <Chip
                                             label={tipoMovimentacao === 'saída' ? '5' : tipoMovimentacao === 'cautela' ? '4' : tipoMovimentacao === 'reparo' ? '3' : '3'}
                                             size="small"
@@ -986,10 +987,11 @@ export default function Movimentacao() {
                                                     disabled={!materialSelected || !quantidade}
                                                     startIcon={<AddIcon />}
                                                     sx={{
-                                                        py: 1.5,
+                                                        py: { xs: 1, sm: 1.5 },
                                                         borderRadius: 2,
                                                         textTransform: 'none',
                                                         fontWeight: 600,
+                                                        fontSize: { xs: '0.85rem', sm: '0.9rem' },
                                                         borderStyle: 'dashed',
                                                         borderWidth: 2,
                                                     }}
@@ -1006,14 +1008,14 @@ export default function Movimentacao() {
                         {/* Lista de materiais selecionados (cautela) */}
                         <Collapse in={tipoMovimentacao === 'cautela' && materiaisSelected.length > 0}>
                             <Card elevation={0} sx={{
-                                mb: 3,
-                                borderRadius: 3,
+                                mb: { xs: 2, sm: 3 },
+                                borderRadius: { xs: 2, sm: 3 },
                                 border: '2px solid',
                                 borderColor: 'primary.200',
                                 background: alpha('#3b82f6', 0.03),
                             }}>
-                                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                         <AssignmentIcon color="primary" fontSize="small" />
                                         Materiais para Cautela ({materiaisSelected.length})
                                     </Typography>
@@ -1023,7 +1025,7 @@ export default function Movimentacao() {
                                             key={item.material.id}
                                             elevation={0}
                                             sx={{
-                                                p: 2,
+                                                p: { xs: 1.5, sm: 2 },
                                                 mb: 1,
                                                 borderRadius: 2,
                                                 border: '1px solid',
@@ -1052,14 +1054,14 @@ export default function Movimentacao() {
                         {/* Campos de Reparo */}
                         <Collapse in={tipoMovimentacao === 'reparo' && !!materialSelected}>
                             <Card elevation={0} sx={{
-                                mb: 3,
-                                borderRadius: 3,
+                                mb: { xs: 2, sm: 3 },
+                                borderRadius: { xs: 2, sm: 3 },
                                 border: '1px solid',
                                 borderColor: 'error.200',
                                 background: alpha('#ef4444', 0.03),
                             }}>
-                                <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                         <RepairIcon color="error" fontSize="small" />
                                         Detalhes do Reparo
                                     </Typography>
@@ -1108,13 +1110,13 @@ export default function Movimentacao() {
                             <Card
                                 elevation={0}
                                 sx={{
-                                    mb: 2,
-                                    borderRadius: 3,
+                                    mb: { xs: 1.5, sm: 2 },
+                                    borderRadius: { xs: 2, sm: 3 },
                                     background: currentOption?.gradient || 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                                     overflow: 'hidden',
                                 }}
                             >
-                                <CardContent sx={{ p: 2 }}>
+                                <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
                                     <Button
                                         variant="contained"
                                         fullWidth
@@ -1125,8 +1127,8 @@ export default function Movimentacao() {
                                             background: 'rgba(255,255,255,0.15)',
                                             color: 'white',
                                             fontWeight: 700,
-                                            fontSize: '1.05rem',
-                                            py: 1.5,
+                                            fontSize: { xs: '0.9rem', sm: '1.05rem' },
+                                            py: { xs: 1.2, sm: 1.5 },
                                             borderRadius: 2,
                                             textTransform: 'none',
                                             boxShadow: 'none',
@@ -1160,7 +1162,8 @@ export default function Movimentacao() {
                                     borderRadius: 2,
                                     textTransform: 'none',
                                     fontWeight: 600,
-                                    py: 1.2,
+                                    py: { xs: 1, sm: 1.2 },
+                                    fontSize: { xs: '0.85rem', sm: '0.9rem' },
                                     borderColor: 'divider',
                                     color: 'text.secondary',
                                 }}
@@ -1192,8 +1195,8 @@ export default function Movimentacao() {
                                     : feedbackModal.type === 'error'
                                         ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)'
                                         : 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)',
-                                py: 4,
-                                px: 3,
+                                py: { xs: 3, sm: 4 },
+                                px: { xs: 2, sm: 3 },
                                 textAlign: 'center',
                                 position: 'relative',
                             }}
@@ -1213,8 +1216,8 @@ export default function Movimentacao() {
 
                             <Box
                                 sx={{
-                                    width: 80,
-                                    height: 80,
+                                    width: { xs: 64, sm: 80 },
+                                    height: { xs: 64, sm: 80 },
                                     borderRadius: '50%',
                                     backgroundColor: 'rgba(255,255,255,0.2)',
                                     display: 'flex',
@@ -1236,12 +1239,12 @@ export default function Movimentacao() {
                                 {feedbackModal.type === 'warning' && <WarningIcon sx={{ fontSize: 44, color: 'white' }} />}
                             </Box>
 
-                            <Typography variant="h5" sx={{ color: 'white', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                            <Typography variant="h5" sx={{ color: 'white', fontWeight: 700, letterSpacing: '-0.02em', fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>
                                 {feedbackModal.title}
                             </Typography>
                         </Box>
 
-                        <DialogContent sx={{ px: 3, pt: 3, pb: 1 }}>
+                        <DialogContent sx={{ px: { xs: 2, sm: 3 }, pt: { xs: 2, sm: 3 }, pb: 1 }}>
                             <Typography variant="body1" sx={{ color: 'text.secondary', textAlign: 'center', lineHeight: 1.6 }}>
                                 {feedbackModal.message}
                             </Typography>
@@ -1249,9 +1252,9 @@ export default function Movimentacao() {
                             {feedbackModal.details.length > 0 && (
                                 <Box
                                     sx={{
-                                        mt: 2.5,
-                                        p: 2,
-                                        borderRadius: 3,
+                                        mt: { xs: 2, sm: 2.5 },
+                                        p: { xs: 1.5, sm: 2 },
+                                        borderRadius: { xs: 2, sm: 3 },
                                         backgroundColor: feedbackModal.type === 'success'
                                             ? alpha('#22c55e', 0.06)
                                             : feedbackModal.type === 'error'
@@ -1294,7 +1297,7 @@ export default function Movimentacao() {
                             )}
                         </DialogContent>
 
-                        <Box sx={{ px: 3, pb: 3, pt: 1 }}>
+                        <Box sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 }, pt: 1 }}>
                             <Button
                                 fullWidth
                                 variant="contained"

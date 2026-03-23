@@ -185,7 +185,7 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
                 </Box>
             </Box>
 
-            <DialogContent sx={{ px: 3, py: 2 }}>
+            <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
                 {/* === LOADING === */}
                 {phase === 'loading' && (
                     <Box sx={{ py: 4, textAlign: 'center' }}>
@@ -396,7 +396,7 @@ const SeedMaintenancesDialog = ({ open, onClose, materials }) => {
             </DialogContent>
 
             <Divider />
-            <DialogActions sx={{ px: 3, py: 2 }}>
+            <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, flexWrap: 'wrap' }}>
                 {phase === 'preview' && (
                     <>
                         <Button onClick={handleClose} color="inherit" sx={{ textTransform: 'none' }}>

@@ -1,6 +1,6 @@
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
-import { Fab, TextField, IconButton, Table, TableHead, TableBody, TableRow, TableCell, Popover, Typography, Tooltip, Icon } from "@mui/material";
+import { Fab, TextField, IconButton, Table, TableHead, TableBody, TableRow, TableCell, Popover, Typography, Tooltip, Icon, Box } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import InfoIcon from "@mui/icons-material/Info"
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -231,6 +231,18 @@ export default function Categoria() {
                         </div>
                     )}
                     <div className="search">
+                        <Typography
+                            variant="h4"
+                            component="h1"
+                            sx={{
+                                fontWeight: 600,
+                                color: '#1a237e',
+                                fontSize: { xs: '1.15rem', sm: '1.5rem' },
+                                mb: 2,
+                            }}
+                        >
+                            Categorias
+                        </Typography>
                         <TextField
                             size="small"
                             label="Pesquisar"
@@ -251,18 +263,19 @@ export default function Categoria() {
                                 },
                             }}
                         />
-                        <Table size="small" sx={{ marginTop: 2 }}>
+                        <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                        <Table size="small" sx={{ marginTop: 2, minWidth: 500 }}>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold" }}>Descricão</TableCell>
-                                    <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold" }}>Ações</TableCell>
+                                    <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold", fontSize: { xs: '0.8rem', sm: '0.875rem' }, padding: { xs: '10px 8px', sm: '16px' } }}>Descricão</TableCell>
+                                    <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold", fontSize: { xs: '0.8rem', sm: '0.875rem' }, padding: { xs: '10px 8px', sm: '16px' } }}>Ações</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {filteredCategorias.map((categoria) => (
                                     <TableRow key={categoria.id}>
-                                        <TableCell sx={{ textAlign: "center" }}>{categoria.description}</TableCell>
-                                        <TableCell sx={{ textAlign: "center" }}>
+                                        <TableCell sx={{ textAlign: "center", fontSize: { xs: '0.8rem', sm: '0.875rem' }, padding: { xs: '10px 8px', sm: '16px' } }}>{categoria.description}</TableCell>
+                                        <TableCell sx={{ textAlign: "center", padding: { xs: '10px 8px', sm: '16px' } }}>
                                             <IconButton
                                                 aria-owns={anchorEls[categoria.id]?.open ? "mouse-over-popover" : undefined}
                                                 aria-haspopup="true"
@@ -313,6 +326,7 @@ export default function Categoria() {
 
                             </TableBody>
                         </Table>
+                        </Box>
                     </div>
                 </div>
 
@@ -327,8 +341,8 @@ export default function Categoria() {
                             sx={{
                                 opacity: 0.9,
                                 position: 'fixed',
-                                bottom: 50,
-                                left: 50,
+                                bottom: { xs: 20, sm: 50 },
+                                left: { xs: 20, sm: 50 },
                             }}
                             onClick={() => handleOpenSaveDialog()}
                         >

@@ -18,6 +18,8 @@ import {
     Chip,
     Paper,
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import HistoryIcon from '@mui/icons-material/History';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
@@ -52,6 +54,8 @@ function formatDetails(details) {
 }
 
 export default function HistoricoDialog({ open, onClose, targetId, targetName }) {
+    const theme = useTheme();
+    const fullScreenDialog = useMediaQuery(theme.breakpoints.down('sm'));
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -95,9 +99,10 @@ export default function HistoricoDialog({ open, onClose, targetId, targetName })
             onClose={onClose}
             maxWidth="md"
             fullWidth
+            fullScreen={fullScreenDialog}
             PaperProps={{
                 sx: {
-                    borderRadius: '16px',
+                    borderRadius: fullScreenDialog ? 0 : '16px',
                     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
                     background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
                 },
@@ -112,7 +117,7 @@ export default function HistoricoDialog({ open, onClose, targetId, targetName })
                     background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
                     color: 'white',
                     margin: 0,
-                    borderRadius: '16px 16px 0 0',
+                    borderRadius: fullScreenDialog ? 0 : '16px 16px 0 0',
                 }}
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
@@ -142,7 +147,7 @@ export default function HistoricoDialog({ open, onClose, targetId, targetName })
                 <CloseIcon />
             </IconButton>
 
-            <DialogContent dividers sx={{ p: 0 }}>
+            <DialogContent dividers sx={{ p: 0, overflowX: 'auto' }}>
                 {loading && (
                     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
                         <CircularProgress />
@@ -159,7 +164,7 @@ export default function HistoricoDialog({ open, onClose, targetId, targetName })
                 )}
 
                 {!loading && logs.length > 0 && (
-                    <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 0 }}>
+                    <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 0, overflowX: 'auto' }}>
                         <Table size="small">
                             <TableHead>
                                 <TableRow
@@ -223,7 +228,7 @@ export default function HistoricoDialog({ open, onClose, targetId, targetName })
                 )}
             </DialogContent>
 
-            <DialogActions sx={{ p: 2, justifyContent: 'center' }}>
+            <DialogActions sx={{ p: { xs: 2, sm: 2 }, justifyContent: 'center' }}>
                 <Button
                     onClick={onClose}
                     variant="outlined"

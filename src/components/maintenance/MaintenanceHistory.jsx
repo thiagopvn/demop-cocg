@@ -252,34 +252,34 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
 
             {/* Estatísticas Resumidas */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={3}>
+                <Grid item xs={6} sm={3}>
                     <Paper elevation={2} sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="h4" color="primary.main">{stats.total}</Typography>
+                        <Typography variant="h4" color="primary.main" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>{stats.total}</Typography>
                         <Typography variant="body2" color="text.secondary">Total Concluídas</Typography>
                     </Paper>
                 </Grid>
-                <Grid item xs={12} sm={3}>
+                <Grid item xs={6} sm={3}>
                     <Paper elevation={2} sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="h4" color="success.main">{stats.preventiva}</Typography>
+                        <Typography variant="h4" color="success.main" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>{stats.preventiva}</Typography>
                         <Typography variant="body2" color="text.secondary">Preventivas</Typography>
                     </Paper>
                 </Grid>
-                <Grid item xs={12} sm={3}>
+                <Grid item xs={6} sm={3}>
                     <Paper elevation={2} sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="h4" color="warning.main">{stats.corretiva}</Typography>
+                        <Typography variant="h4" color="warning.main" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>{stats.corretiva}</Typography>
                         <Typography variant="body2" color="text.secondary">Corretivas</Typography>
                     </Paper>
                 </Grid>
-                <Grid item xs={12} sm={3}>
+                <Grid item xs={6} sm={3}>
                     <Paper elevation={2} sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="h4" color="info.main">{stats.avgDuration}</Typography>
+                        <Typography variant="h4" color="info.main" sx={{ fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>{stats.avgDuration}</Typography>
                         <Typography variant="body2" color="text.secondary">Dias Médios</Typography>
                     </Paper>
                 </Grid>
             </Grid>
 
             {/* Filtros e Busca */}
-            <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+            <Paper elevation={2} sx={{ p: { xs: 1.5, sm: 2 }, mb: 3 }}>
                 <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} sm={4}>
                         <TextField
@@ -297,7 +297,7 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                             size="small"
                         />
                     </Grid>
-                    <Grid item xs={12} sm={2}>
+                    <Grid item xs={6} sm={2}>
                         <TextField
                             select
                             fullWidth
@@ -321,7 +321,7 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                             <MenuItem value="reparo">Reparo</MenuItem>
                         </TextField>
                     </Grid>
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={6} sm={3}>
                         <TextField
                             select
                             fullWidth
@@ -352,8 +352,8 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
             </Paper>
 
             {/* Tabela de Histórico */}
-            <TableContainer component={Paper}>
-                <Table>
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+                <Table sx={{ minWidth: 700 }}>
                     <TableHead>
                         <TableRow>
                             <TableCell>Tipo</TableCell>

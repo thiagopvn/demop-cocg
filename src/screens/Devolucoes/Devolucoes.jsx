@@ -329,8 +329,8 @@ const ItemCard = ({ mov, isPendente, onDevolver, formatDate, theme, index }) => 
                 textTransform: "none",
                 fontWeight: 700,
                 borderRadius: 3,
-                py: 1.3,
-                fontSize: "0.9rem",
+                py: { xs: 1, sm: 1.3 },
+                fontSize: { xs: "0.82rem", sm: "0.9rem" },
                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                 boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
                 "&:hover": {
@@ -514,8 +514,8 @@ export default function Devolucoes() {
                 sx={{
                   position: "relative",
                   overflow: "hidden",
-                  borderRadius: 5,
-                  mb: 3,
+                  borderRadius: { xs: 3, sm: 5 },
+                  mb: { xs: 2, sm: 3 },
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, #142d4c 40%, #0a1628 100%)`,
                   color: "white",
                 }}
@@ -537,8 +537,8 @@ export default function Devolucoes() {
                 {/* Content */}
                 <Box sx={{ position: "relative", zIndex: 1, p: { xs: 3, sm: 4 } }}>
                   {/* Title row */}
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: { xs: 1.5, sm: 2 } }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, sm: 2 } }}>
                       <Avatar
                         sx={{
                           width: { xs: 52, sm: 60 },
@@ -634,14 +634,14 @@ export default function Devolucoes() {
               <Paper
                 elevation={0}
                 sx={{
-                  p: { xs: 2.5, sm: 3 },
-                  mb: 3,
-                  borderRadius: 4,
+                  p: { xs: 2, sm: 3 },
+                  mb: { xs: 2, sm: 3 },
+                  borderRadius: { xs: 3, sm: 4 },
                   border: `1px solid ${theme.palette.divider}`,
                   background: theme.palette.background.paper,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1.5, mb: includeReparo ? 0 : 2.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1.5, mb: includeReparo ? 0 : 2.5, flexDirection: { xs: "column", sm: "row" } }}>
                   {/* Mode toggle pill */}
                   <Box
                     sx={{
@@ -654,6 +654,8 @@ export default function Devolucoes() {
                       backgroundColor: includeReparo ? alpha(theme.palette.secondary.main, 0.08) : alpha(theme.palette.primary.main, 0.04),
                       border: `1.5px solid ${includeReparo ? alpha(theme.palette.secondary.main, 0.2) : alpha(theme.palette.primary.main, 0.1)}`,
                       transition: "all 0.3s ease",
+                      width: { xs: "100%", sm: "auto" },
+                      justifyContent: { xs: "center", sm: "flex-start" },
                     }}
                   >
                     <Avatar
@@ -712,6 +714,7 @@ export default function Devolucoes() {
                           pl: 0.5,
                           border: `1.5px solid ${alpha(theme.palette.primary.main, 0.25)}`,
                           backgroundColor: alpha(theme.palette.primary.main, 0.06),
+                          maxWidth: { xs: "100%", sm: "auto" },
                           "& .MuiChip-deleteIcon": {
                             color: "text.disabled",
                             "&:hover": { color: theme.palette.error.main },
@@ -730,7 +733,7 @@ export default function Devolucoes() {
               {/* ═══════════════════ LOADING ═══════════════════ */}
               {loading && (
                 <Box sx={{ textAlign: "center", py: 2 }}>
-                  <Grid container spacing={3}>
+                  <Grid container spacing={{ xs: 2, sm: 3 }}>
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                       <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={i}>
                         <Skeleton
@@ -757,9 +760,9 @@ export default function Devolucoes() {
                       flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
-                      py: { xs: 8, sm: 12 },
-                      px: 3,
-                      borderRadius: 5,
+                      py: { xs: 6, sm: 12 },
+                      px: { xs: 2, sm: 3 },
+                      borderRadius: { xs: 3, sm: 5 },
                       border: `2px dashed ${alpha(theme.palette.primary.main, 0.12)}`,
                       background: `radial-gradient(ellipse at center, ${alpha(theme.palette.primary.main, 0.03)} 0%, transparent 70%)`,
                     }}
@@ -779,10 +782,10 @@ export default function Devolucoes() {
                     >
                       <Person sx={{ fontSize: 48, color: alpha(theme.palette.primary.main, 0.3) }} />
                     </Box>
-                    <Typography variant="h5" sx={{ fontWeight: 800, color: "text.primary", mb: 1 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, color: "text.primary", mb: 1, fontSize: { xs: "1.2rem", sm: "1.5rem" } }}>
                       Selecione um militar
                     </Typography>
-                    <Typography variant="body1" color="text.secondary" textAlign="center" maxWidth={440} sx={{ lineHeight: 1.8 }}>
+                    <Typography variant="body1" color="text.secondary" textAlign="center" maxWidth={440} sx={{ lineHeight: 1.8, fontSize: { xs: "0.85rem", sm: "1rem" } }}>
                       Pesquise e selecione um militar no campo acima para visualizar suas cautelas e realizar devoluções.
                     </Typography>
                     <Divider sx={{ width: 60, my: 3, borderColor: alpha(theme.palette.primary.main, 0.15) }} />
@@ -803,9 +806,9 @@ export default function Devolucoes() {
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      py: { xs: 8, sm: 10 },
-                      px: 3,
-                      borderRadius: 5,
+                      py: { xs: 6, sm: 10 },
+                      px: { xs: 2, sm: 3 },
+                      borderRadius: { xs: 3, sm: 5 },
                       border: `1px solid ${theme.palette.divider}`,
                       background: `radial-gradient(ellipse at center, ${alpha(theme.palette.info.main, 0.03)} 0%, transparent 70%)`,
                     }}
@@ -821,10 +824,10 @@ export default function Devolucoes() {
                     >
                       <SearchOff sx={{ fontSize: 44, color: alpha(theme.palette.info.main, 0.35) }} />
                     </Box>
-                    <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, fontSize: { xs: "1.2rem", sm: "1.5rem" } }}>
                       Nenhuma movimentação
                     </Typography>
-                    <Typography variant="body1" color="text.secondary" textAlign="center" maxWidth={400}>
+                    <Typography variant="body1" color="text.secondary" textAlign="center" maxWidth={400} sx={{ fontSize: { xs: "0.85rem", sm: "1rem" } }}>
                       {includeReparo
                         ? "Não existem movimentações de reparo registradas no momento."
                         : "Este militar não possui cautelas registradas no sistema."}
@@ -841,8 +844,8 @@ export default function Devolucoes() {
                     <Paper
                       elevation={0}
                       sx={{
-                        mb: 3,
-                        borderRadius: 3,
+                        mb: { xs: 2, sm: 3 },
+                        borderRadius: { xs: 2, sm: 3 },
                         border: `1px solid ${theme.palette.divider}`,
                         overflow: "hidden",
                       }}
@@ -852,12 +855,13 @@ export default function Devolucoes() {
                         onChange={(_, v) => setActiveTab(v)}
                         variant="fullWidth"
                         sx={{
-                          minHeight: 56,
+                          minHeight: { xs: 48, sm: 56 },
                           "& .MuiTab-root": {
-                            minHeight: 56,
+                            minHeight: { xs: 48, sm: 56 },
                             fontWeight: 700,
-                            fontSize: "0.85rem",
+                            fontSize: { xs: "0.78rem", sm: "0.85rem" },
                             textTransform: "none",
+                            px: { xs: 1, sm: 2 },
                           },
                           "& .MuiTabs-indicator": {
                             height: 3,
@@ -913,7 +917,7 @@ export default function Devolucoes() {
                     {/* Tab content: Pendentes */}
                     {activeTab === 0 && (
                       pendentes.length > 0 ? (
-                        <Grid container spacing={3}>
+                        <Grid container spacing={{ xs: 2, sm: 3 }}>
                           {pendentes.map((mov, index) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={mov.id}>
                               <ItemCard
@@ -951,7 +955,7 @@ export default function Devolucoes() {
                     {/* Tab content: Devolvidos */}
                     {activeTab === 1 && (
                       devolvidos.length > 0 ? (
-                        <Grid container spacing={3}>
+                        <Grid container spacing={{ xs: 2, sm: 3 }}>
                           {devolvidos.map((mov, index) => (
                             <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={mov.id}>
                               <ItemCard
@@ -1030,7 +1034,7 @@ export default function Devolucoes() {
                 <AssignmentReturn sx={{ fontSize: 28 }} />
               </Avatar>
               <Box sx={{ position: "relative", zIndex: 1 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: "-0.02em" }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: "-0.02em", fontSize: { xs: "1.2rem", sm: "1.5rem" } }}>
                   Confirmar Devolução
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.55, mt: 0.3 }}>
@@ -1049,15 +1053,15 @@ export default function Devolucoes() {
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 3, borderRadius: 4,
+                      p: { xs: 2, sm: 3 }, borderRadius: { xs: 3, sm: 4 },
                       border: `1px solid ${theme.palette.divider}`,
                       background: `linear-gradient(145deg, ${theme.palette.background.paper} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
                     }}
                   >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2.5 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, sm: 2 }, mb: 2.5 }}>
                       <Avatar
                         sx={{
-                          width: 50, height: 50,
+                          width: { xs: 42, sm: 50 }, height: { xs: 42, sm: 50 },
                           bgcolor: alpha(theme.palette.primary.main, 0.08),
                           color: theme.palette.primary.main,
                           border: `2px solid ${alpha(theme.palette.primary.main, 0.12)}`,
@@ -1134,11 +1138,11 @@ export default function Devolucoes() {
             </DialogContent>
 
             <Divider />
-            <Box sx={{ p: { xs: 2, sm: 2.5 }, display: "flex", gap: 1.5, justifyContent: "flex-end" }}>
+            <Box sx={{ p: { xs: 2, sm: 2.5 }, display: "flex", gap: 1.5, justifyContent: "flex-end", flexDirection: { xs: "column-reverse", sm: "row" } }}>
               <Button
                 onClick={() => setConfirmDialog({ open: false, item: null })}
                 disabled={devolvendo}
-                sx={{ color: "text.secondary", px: 3, borderRadius: 100, fontWeight: 600 }}
+                sx={{ color: "text.secondary", px: 3, borderRadius: 100, fontWeight: 600, py: { xs: 1.2, sm: 1 } }}
               >
                 Cancelar
               </Button>
@@ -1148,8 +1152,8 @@ export default function Devolucoes() {
                 disabled={devolvendo}
                 startIcon={devolvendo ? <CircularProgress size={18} color="inherit" /> : <AssignmentReturn />}
                 sx={{
-                  px: 4, py: 1.3, borderRadius: 100,
-                  fontWeight: 700, fontSize: "0.9rem",
+                  px: { xs: 3, sm: 4 }, py: 1.3, borderRadius: 100,
+                  fontWeight: 700, fontSize: { xs: "0.85rem", sm: "0.9rem" },
                   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                   boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.35)}`,
                   "&:hover": { boxShadow: `0 6px 24px ${alpha(theme.palette.primary.main, 0.5)}` },
@@ -1173,11 +1177,12 @@ export default function Devolucoes() {
               variant="filled"
               icon={snackbar.severity === "success" ? <CheckCircle /> : undefined}
               sx={{
-                borderRadius: 100,
+                borderRadius: { xs: 3, sm: 100 },
                 fontWeight: 600,
                 boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
                 minWidth: { xs: "90vw", sm: 420 },
-                py: 1.2,
+                py: { xs: 1, sm: 1.2 },
+                fontSize: { xs: "0.8rem", sm: "0.875rem" },
               }}
             >
               {snackbar.message}

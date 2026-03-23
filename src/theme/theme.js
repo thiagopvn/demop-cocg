@@ -1,5 +1,7 @@
 import { createTheme } from '@mui/material/styles';
 
+const baseTheme = createTheme();
+
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -52,32 +54,50 @@ const theme = createTheme({
       fontWeight: 700,
       lineHeight: 1.2,
       letterSpacing: '-0.02em',
+      [baseTheme.breakpoints.down('sm')]: {
+        fontSize: '1.75rem',
+      },
     },
     h2: {
       fontSize: '2rem',
       fontWeight: 600,
       lineHeight: 1.3,
       letterSpacing: '-0.01em',
+      [baseTheme.breakpoints.down('sm')]: {
+        fontSize: '1.5rem',
+      },
     },
     h3: {
       fontSize: '1.75rem',
       fontWeight: 600,
       lineHeight: 1.4,
+      [baseTheme.breakpoints.down('sm')]: {
+        fontSize: '1.35rem',
+      },
     },
     h4: {
       fontSize: '1.5rem',
       fontWeight: 600,
       lineHeight: 1.4,
+      [baseTheme.breakpoints.down('sm')]: {
+        fontSize: '1.2rem',
+      },
     },
     h5: {
       fontSize: '1.25rem',
       fontWeight: 600,
       lineHeight: 1.5,
+      [baseTheme.breakpoints.down('sm')]: {
+        fontSize: '1.05rem',
+      },
     },
     h6: {
       fontSize: '1.125rem',
       fontWeight: 600,
       lineHeight: 1.5,
+      [baseTheme.breakpoints.down('sm')]: {
+        fontSize: '1rem',
+      },
     },
     subtitle1: {
       fontSize: '1rem',
@@ -133,6 +153,10 @@ const theme = createTheme({
           borderRadius: 8,
           padding: '10px 24px',
           fontSize: '0.95rem',
+          [baseTheme.breakpoints.down('sm')]: {
+            padding: '8px 16px',
+            fontSize: '0.85rem',
+          },
           boxShadow: 'none',
           transition: 'all 0.2s ease-in-out',
           '&:hover': {
@@ -214,6 +238,12 @@ const theme = createTheme({
         paper: {
           borderRadius: 16,
           boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+          [baseTheme.breakpoints.down('sm')]: {
+            margin: 16,
+            width: 'calc(100% - 32px)',
+            maxHeight: 'calc(100% - 32px)',
+            borderRadius: 12,
+          },
         },
       },
     },
@@ -222,6 +252,30 @@ const theme = createTheme({
         paper: {
           borderRadius: 0,
           boxShadow: '4px 0 24px rgba(0,0,0,0.08)',
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          [baseTheme.breakpoints.down('sm')]: {
+            padding: '8px 10px',
+            fontSize: '0.82rem',
+          },
+        },
+        head: {
+          [baseTheme.breakpoints.down('sm')]: {
+            padding: '8px 10px',
+            fontSize: '0.78rem',
+          },
+        },
+      },
+    },
+    MuiTableContainer: {
+      styleOverrides: {
+        root: {
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
         },
       },
     },

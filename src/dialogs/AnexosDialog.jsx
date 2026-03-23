@@ -30,6 +30,7 @@ import {
   InsertDriveFile as FileIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   uploadAttachment,
   deleteAttachment,
@@ -43,7 +44,10 @@ const DropZone = styled(Box, {
 })(({ theme, isDragOver }) => ({
   border: `2px dashed ${isDragOver ? theme.palette.primary.main : theme.palette.divider}`,
   borderRadius: 12,
-  padding: theme.spacing(3),
+  padding: theme.spacing(2),
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(3),
+  },
   textAlign: 'center',
   cursor: 'pointer',
   transition: 'all 0.2s ease',
@@ -70,6 +74,7 @@ const AttachmentCard = styled(Card)(({ theme }) => ({
 
 export default function AnexosDialog({ open, onClose, movimentacao, userRole, username }) {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const fileInputRef = useRef(null);
   const [anexos, setAnexos] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -220,7 +225,7 @@ export default function AnexosDialog({ open, onClose, movimentacao, userRole, us
           </IconButton>
         </DialogTitle>
 
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
           {/* Drop Zone - only for admin */}
           {canUpload && (
             <DropZone
@@ -368,8 +373,8 @@ export default function AnexosDialog({ open, onClose, movimentacao, userRole, us
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={onClose} variant="outlined" color="inherit" sx={{ borderRadius: 2 }}>
+        <DialogActions sx={{ p: { xs: 2, sm: 2 } }}>
+          <Button onClick={onClose} variant="outlined" color="inherit" sx={{ borderRadius: 2 }} fullWidth={isMobile}>
             Fechar
           </Button>
         </DialogActions>

@@ -464,7 +464,7 @@ const MaintenanceSuggestionDialog = ({ open, onClose, onConfirm, template, mater
             {loading && <LinearProgress />}
 
             <Divider />
-            <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+            <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, gap: 1, flexWrap: 'wrap' }}>
                 <Button
                     onClick={onClose}
                     disabled={loading}

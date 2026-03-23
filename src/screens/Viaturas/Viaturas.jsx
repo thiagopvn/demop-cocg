@@ -364,7 +364,7 @@ export default function Viaturas() {
     return (
         <PrivateRoute>
             <MenuContext>
-                <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100dvh' }}>
+                <Box sx={{ p: { xs: 1.5, sm: 3 }, minHeight: '100dvh' }}>
                     {userRole === "user" && (
                         <Box
                             sx={{
@@ -385,15 +385,16 @@ export default function Viaturas() {
                     <Box sx={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center',
+                        alignItems: { xs: 'flex-start', sm: 'center' },
+                        flexDirection: { xs: 'column', sm: 'row' },
                         mb: 3,
                         flexWrap: 'wrap',
                         gap: 2
                     }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <DirectionsCarIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+                            <DirectionsCarIcon sx={{ fontSize: { xs: 32, sm: 40 }, color: 'primary.main' }} />
                             <Box>
-                                <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                                <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main', fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>
                                     Viaturas
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
@@ -411,9 +412,11 @@ export default function Viaturas() {
                                     borderRadius: 2,
                                     textTransform: 'none',
                                     fontWeight: 600,
-                                    px: 3,
-                                    py: 1.5,
+                                    px: { xs: 2, sm: 3 },
+                                    py: { xs: 1, sm: 1.5 },
                                     boxShadow: 2,
+                                    width: { xs: '100%', sm: 'auto' },
+                                    fontSize: { xs: '0.85rem', sm: '0.875rem' },
                                     '&:hover': {
                                         boxShadow: 4,
                                         transform: 'translateY(-2px)'
@@ -477,7 +480,7 @@ export default function Viaturas() {
                             gap: 1
                         }}>
                             <DirectionsCarIcon sx={{ color: 'white' }} />
-                            <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
+                            <Typography variant="h6" sx={{ color: 'white', fontWeight: 600, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                                 Lista de Viaturas ({filteredViaturas.length})
                             </Typography>
                         </Box>
@@ -487,7 +490,8 @@ export default function Viaturas() {
                                 <CircularProgress />
                             </Box>
                         ) : (
-                            <Table size="medium">
+                          <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                            <Table size="medium" sx={{ minWidth: 650 }}>
                                 <TableHead>
                                     <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
                                         <TableCell sx={{ fontWeight: 700, color: '#1565c0' }}>
@@ -496,10 +500,10 @@ export default function Viaturas() {
                                         <TableCell sx={{ fontWeight: 700, color: '#1565c0' }}>
                                             Descricao
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center' }}>
+                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                             Materiais
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center' }}>
+                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                             Conferência
                                         </TableCell>
                                         <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center' }}>
@@ -547,7 +551,7 @@ export default function Viaturas() {
                                                         {viatura.description}
                                                     </Typography>
                                                 </TableCell>
-                                                <TableCell sx={{ textAlign: 'center' }}>
+                                                <TableCell sx={{ textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                     <Chip
                                                         icon={<InventoryIcon />}
                                                         label={`${materiaisCount[viatura.id] || 0} itens`}
@@ -556,7 +560,7 @@ export default function Viaturas() {
                                                         variant={materiaisCount[viatura.id] > 0 ? "filled" : "outlined"}
                                                     />
                                                 </TableCell>
-                                                <TableCell sx={{ textAlign: 'center' }}>
+                                                <TableCell sx={{ textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                     {(() => {
                                                         const confDate = viatura.ultima_conferencia?.toDate?.();
                                                         const confPor = viatura.conferido_por;
@@ -742,6 +746,7 @@ export default function Viaturas() {
                                     )}
                                 </TableBody>
                             </Table>
+                          </Box>
                         )}
                     </Card>
                 </Box>

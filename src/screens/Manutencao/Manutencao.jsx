@@ -30,8 +30,8 @@ const Manutencao = () => {
     return (
         <PrivateRoute>
         <MenuContext>
-            <Box className="root-protected">
-                <Typography variant="h4" gutterBottom>
+            <Box className="root-protected" sx={{ p: { xs: 1.5, sm: 3 } }}>
+                <Typography variant="h4" gutterBottom sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' }, fontWeight: 700 }}>
                     Cronograma de Manutenção
                 </Typography>
                 <Paper elevation={3} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>

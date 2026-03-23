@@ -56,6 +56,9 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   padding: theme.spacing(1.5, 2),
   borderBottom: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(1, 1),
+  },
 }));
 
 const HeaderCell = styled(TableCell)(({ theme }) => ({
@@ -65,6 +68,10 @@ const HeaderCell = styled(TableCell)(({ theme }) => ({
   letterSpacing: '0.03em',
   padding: theme.spacing(2),
   whiteSpace: 'nowrap',
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(1.5, 1),
+    fontSize: '0.8rem',
+  },
 }));
 
 const EmptyStateContainer = styled(Box)(({ theme }) => ({
@@ -176,7 +183,7 @@ const SearchResultsTable = ({
         <Box
           sx={{
             background: `linear-gradient(135deg, ${theme.palette[headerColor]?.main || theme.palette.primary.main} 0%, ${theme.palette[headerColor]?.dark || theme.palette.primary.dark} 100%)`,
-            p: 2,
+            p: { xs: 1.5, sm: 2 },
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -184,16 +191,16 @@ const SearchResultsTable = ({
             gap: 1,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <TableIcon sx={{ color: 'white', fontSize: 24 }} />
-            <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0, flex: 1 }}>
+            <TableIcon sx={{ color: 'white', fontSize: { xs: 20, sm: 24 }, flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
               {title && (
-                <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
+                <Typography variant="h6" sx={{ color: 'white', fontWeight: 600, fontSize: { xs: '1rem', sm: '1.25rem' } }} noWrap>
                   {title}
                 </Typography>
               )}
               {subtitle && (
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', display: { xs: 'none', sm: 'block' } }}>
                   {subtitle}
                 </Typography>
               )}
@@ -211,8 +218,8 @@ const SearchResultsTable = ({
       )}
 
       {/* Table Content */}
-      <Box sx={{ overflowX: 'auto' }}>
-        <Table size="small" sx={{ minWidth: isMobile ? 600 : 800 }}>
+      <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <Table size="small" sx={{ minWidth: isMobile ? 500 : 800 }}>
           <StyledTableHead headercolor={headerColor}>
             <TableRow>
               {visibleColumns.map((column, index) => (
@@ -326,6 +333,10 @@ const SearchResultsTable = ({
             '.MuiTablePagination-toolbar': {
               flexWrap: 'wrap',
               justifyContent: 'center',
+              px: { xs: 0.5, sm: 2 },
+            },
+            '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
             },
           }}
         />

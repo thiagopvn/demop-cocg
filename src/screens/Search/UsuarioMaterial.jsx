@@ -271,29 +271,32 @@ export default function UsuarioMaterial({ categorias = [] }) {
     <Box sx={{ width: '100%' }}>
       <Fade in timeout={400}>
         <SearchCard elevation={2}>
-          <CardContent sx={{ p: 3 }}>
+          <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
             {/* Header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
-                  backgroundColor: alpha(theme.palette.success.main, 0.1),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <PersonIcon sx={{ color: 'success.main' }} />
-              </Box>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main' }}>
-                  Materiais por Militar
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Selecione um militar para ver os materiais que ele acautelou
-                </Typography>
+            <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1.5, sm: 2 }, mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, width: { xs: '100%', sm: 'auto' }, flex: { sm: 1 } }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    backgroundColor: alpha(theme.palette.success.main, 0.1),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <PersonIcon sx={{ color: 'success.main' }} />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main', fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>
+                    Materiais por Militar
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                    Selecione um militar para ver os materiais que ele acautelou
+                  </Typography>
+                </Box>
               </Box>
 
               {selectedUser && (
@@ -306,7 +309,8 @@ export default function UsuarioMaterial({ categorias = [] }) {
                   sx={{
                     borderRadius: 2,
                     textTransform: 'none',
-                    fontWeight: 600
+                    fontWeight: 600,
+                    alignSelf: { xs: 'flex-end', sm: 'center' }
                   }}
                 >
                   Limpar
@@ -397,8 +401,8 @@ export default function UsuarioMaterial({ categorias = [] }) {
             )}
             sx={{
               position: 'fixed',
-              bottom: 80,
-              right: 24,
+              bottom: { xs: 70, sm: 80 },
+              right: { xs: 16, sm: 24 },
               background: 'linear-gradient(45deg, #4caf50 30%, #81c784 90%)',
               boxShadow: 3,
               '&:hover': {

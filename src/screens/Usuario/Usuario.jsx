@@ -414,23 +414,26 @@ export default function Usuario() {
   return (
     <PrivateRoute>
       <MenuContext>
-        <div className="root-protected" style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box className="root-protected" sx={{ p: { xs: 1.5, sm: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '100%' }}>
             {/* Header Section with Title and Add Button */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
+            <Box sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: { xs: 1.5, sm: 0 },
               marginBottom: '24px',
-              padding: '0 4px'
+              padding: '0 4px',
+              flexWrap: 'wrap',
             }}>
-              <Typography 
-                variant="h4" 
-                component="h1" 
-                sx={{ 
+              <Typography
+                variant="h4"
+                component="h1"
+                sx={{
                   fontWeight: 600,
                   color: '#1a237e',
-                  fontSize: { xs: '1.75rem', sm: '2.125rem' }
+                  fontSize: { xs: '1.15rem', sm: '1.5rem' }
                 }}
               >
                 Usuários
@@ -446,7 +449,8 @@ export default function Usuario() {
                     borderRadius: '12px',
                     textTransform: 'none',
                     fontWeight: 600,
-                    padding: '10px 24px',
+                    padding: { xs: '8px 16px', sm: '10px 24px' },
+                    width: { xs: '100%', sm: 'auto' },
                     boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
                     '&:hover': {
                       backgroundColor: '#1565c0',
@@ -459,13 +463,13 @@ export default function Usuario() {
                   Novo Usuário
                 </Button>
               )}
-            </div>
+            </Box>
 
             {/* Seção de Pesquisa com Filtro em Tempo Real */}
             {(userRole === "admin" || userRole === "admingeral") && (
-              <div style={{
+              <Box sx={{
                 backgroundColor: '#ffffff',
-                padding: '20px',
+                padding: { xs: '12px', sm: '20px' },
                 borderRadius: '16px',
                 marginBottom: '20px',
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
@@ -530,7 +534,7 @@ export default function Usuario() {
                     />
                   )}
                 </Box>
-              </div>
+              </Box>
             )}
 
             {/* Container da Tabela com ocupação total */}
@@ -544,19 +548,20 @@ export default function Usuario() {
               display: 'flex',
               flexDirection: 'column'
             }}>
-              <div style={{ 
-                padding: '20px 24px 16px', 
+              <Box sx={{
+                padding: { xs: '12px 16px 12px', sm: '20px 24px 16px' },
                 borderBottom: '1px solid #e3f2fd',
                 backgroundColor: '#f8f9ff'
               }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#1565c0' }}>
-                  📋 Lista de Usuários
+                <Typography variant="h6" sx={{ fontWeight: 600, color: '#1565c0', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                  Lista de Usuários
                 </Typography>
-              </div>
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                <Table 
+              </Box>
+              <Box sx={{ flex: 1, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <Table
                   size="medium"
                   sx={{
+                    minWidth: 650,
                     '& .MuiTableHead-root': {
                       position: 'sticky',
                       top: 0,
@@ -568,7 +573,7 @@ export default function Usuario() {
                           fontWeight: 700,
                           fontSize: '0.95rem',
                           color: '#1565c0',
-                          padding: '16px',
+                          padding: { xs: '10px 8px', sm: '16px' },
                         }
                       }
                     },
@@ -579,7 +584,7 @@ export default function Usuario() {
                         },
                         '& .MuiTableCell-root': {
                           borderBottom: '1px solid #e0e0e0',
-                          padding: '16px',
+                          padding: { xs: '10px 8px', sm: '16px' },
                           fontSize: '0.9rem'
                         }
                       }
@@ -667,9 +672,10 @@ export default function Usuario() {
                                 backgroundColor: 'rgba(76, 175, 80, 0.2)',
                               },
                               mr: 0.5,
+                              p: { xs: 0.5, sm: 1 },
                             }}
                           >
-                            <EditIcon sx={{ color: '#4caf50', fontSize: 20 }} />
+                            <EditIcon sx={{ color: '#4caf50', fontSize: { xs: 18, sm: 20 } }} />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Mais ações">
@@ -680,9 +686,10 @@ export default function Usuario() {
                               '&:hover': {
                                 backgroundColor: 'rgba(0, 0, 0, 0.08)',
                               },
+                              p: { xs: 0.5, sm: 1 },
                             }}
                           >
-                            <MoreVertIcon fontSize="small" />
+                            <MoreVertIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -691,10 +698,10 @@ export default function Usuario() {
                 )}
                   </TableBody>
                 </Table>
-              </div>
+              </Box>
             </div>
           </div>
-        </div>
+        </Box>
 
 
         {/* Menu de ações do usuário */}

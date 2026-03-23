@@ -196,7 +196,7 @@ export default function Perfil() {
               fontWeight: 700,
               color: theme.palette.primary.main,
               mb: 3,
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.15rem", sm: "1.5rem" },
             }}
           >
             Meu Perfil
@@ -333,11 +333,12 @@ export default function Perfil() {
                     justifyContent: "space-between",
                     alignItems: "center",
                     mb: 3,
+                    gap: 1,
                   }}
                 >
                   <Typography
                     variant="h6"
-                    sx={{ fontWeight: 600, color: theme.palette.primary.main }}
+                    sx={{ fontWeight: 600, color: theme.palette.primary.main, fontSize: { xs: '1rem', sm: '1.25rem' } }}
                   >
                     Informações Pessoais
                   </Typography>
@@ -438,7 +439,7 @@ export default function Perfil() {
 
                 {/* Save Button */}
                 {editing && (
-                  <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
+                  <Box sx={{ mt: 3, display: "flex", justifyContent: { xs: "center", sm: "flex-end" } }}>
                     <Button
                       variant="contained"
                       startIcon={
@@ -453,10 +454,11 @@ export default function Perfil() {
                       sx={{
                         borderRadius: "12px",
                         fontWeight: 600,
-                        px: 4,
+                        px: { xs: 2, sm: 4 },
                         py: 1.2,
                         textTransform: "none",
-                        fontSize: "0.95rem",
+                        fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                        width: { xs: "100%", sm: "auto" },
                         background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                         boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
                         "&:hover": {
@@ -489,6 +491,7 @@ export default function Perfil() {
                     fontWeight: 600,
                     color: theme.palette.primary.main,
                     mb: 2.5,
+                    fontSize: { xs: '1rem', sm: '1.25rem' },
                   }}
                 >
                   Segurança
