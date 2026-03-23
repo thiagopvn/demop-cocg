@@ -65,7 +65,8 @@ import {
     FilterList,
     ClearAll,
     History,
-    Sync
+    Sync,
+    HideImage
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -247,6 +248,7 @@ const Material = () => {
     const [filterCategoria, setFilterCategoria] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterEstoque, setFilterEstoque] = useState('');
+    const [filterImagem, setFilterImagem] = useState('');
 
     // Conference mode states
     const [conferenceMode, setConferenceMode] = useState(false);
@@ -578,6 +580,7 @@ const Material = () => {
         setFilterCategoria('');
         setFilterStatus('');
         setFilterEstoque('');
+        setFilterImagem('');
     }, [debouncedSearchTerm]);
 
     // Unique categories for filter dropdown
@@ -590,12 +593,13 @@ const Material = () => {
     }, [materials]);
 
     // Check if any filter is active
-    const hasActiveFilters = filterCategoria || filterStatus || filterEstoque;
+    const hasActiveFilters = filterCategoria || filterStatus || filterEstoque || filterImagem;
 
     const handleClearFilters = useCallback(() => {
         setFilterCategoria('');
         setFilterStatus('');
         setFilterEstoque('');
+        setFilterImagem('');
     }, []);
 
     // Filtro otimizado - retorna todos os materiais filtrados e ordenados
@@ -635,6 +639,15 @@ const Material = () => {
             }
         }
 
+        // Apply image filter (admingeral only)
+        if (filterImagem) {
+            if (filterImagem === 'sem_imagem') {
+                result = result.filter(m => !m.image_url);
+            } else if (filterImagem === 'com_imagem') {
+                result = result.filter(m => !!m.image_url);
+            }
+        }
+
         const dir = sortDirection === 'asc' ? 1 : -1;
         // Pre-compute conference dates for sort to avoid calling .toDate() per comparison
         if (sortField === 'conferencia') {
@@ -659,7 +672,7 @@ const Material = () => {
         }
 
         return result;
-    }, [materials, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque]);
+    }, [materials, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque, filterImagem]);
 
     // Materiais visíveis (limitados pelo visibleCount)
     const filteredMaterials = useMemo(() => {
@@ -764,11 +777,13 @@ const Material = () => {
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
         let lowStock = 0;
+        let semImagem = 0;
         const unchecked = [];
 
         for (const item of materialConferenceDates) {
             const m = item.material;
             if ((m.estoque_atual || 0) === 0 && (m.estoque_total || 0) > 0) lowStock++;
+            if (!m.image_url) semImagem++;
             if (!item.confDate || item.confDate < sixMonthsAgo) {
                 if (isAdmin) unchecked.push(item);
             }
@@ -782,6 +797,7 @@ const Material = () => {
                 total: materials.length,
                 filtered: allFilteredMaterials.length,
                 lowStock,
+                semImagem,
                 semConferencia: unchecked.length,
                 showing: filteredMaterials.length,
                 totalFiltered: allFilteredMaterials.length,
@@ -991,6 +1007,44 @@ const Material = () => {
                         </StatCard>
                     )}
 
+                    {isAdminGeral && stats.semImagem > 0 && (
+                        <StatCard
+                            sx={{
+                                flex: 1, minWidth: 200, cursor: 'pointer',
+                                background: `linear-gradient(135deg, ${alpha('#7b1fa2', 0.08)} 0%, ${alpha('#4a148c', 0.03)} 100%)`,
+                                border: `1px solid ${alpha('#7b1fa2', 0.15)}`,
+                                ...(filterImagem === 'sem_imagem' && {
+                                    borderColor: alpha('#7b1fa2', 0.5),
+                                    boxShadow: `0 0 0 2px ${alpha('#7b1fa2', 0.2)}`,
+                                }),
+                                '&:hover': {
+                                    transform: 'translateY(-3px)',
+                                    boxShadow: `0 8px 24px ${alpha('#7b1fa2', 0.15)}`,
+                                    borderColor: alpha('#7b1fa2', 0.35),
+                                },
+                            }}
+                            onClick={() => setFilterImagem(prev => prev === 'sem_imagem' ? '' : 'sem_imagem')}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{
+                                    p: 1.5, borderRadius: 2.5,
+                                    background: `linear-gradient(135deg, ${alpha('#7b1fa2', 0.2)} 0%, ${alpha('#4a148c', 0.12)} 100%)`,
+                                    color: '#4a148c', display: 'flex',
+                                }}>
+                                    <HideImage />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h5" fontWeight={700} sx={{ color: '#4a148c', lineHeight: 1.2 }}>
+                                        {stats.semImagem}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                        Sem Imagem
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </StatCard>
+                    )}
+
                     {isAdmin && stats.semConferencia > 0 && (
                         <StatCard
                             sx={{
@@ -1167,6 +1221,22 @@ const Material = () => {
                                 <MenuItem value="em_estoque">Em Estoque</MenuItem>
                             </Select>
                         </FormControl>
+                        {isAdminGeral && (
+                            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+                                <InputLabel id="filter-imagem-label">Imagem</InputLabel>
+                                <Select
+                                    labelId="filter-imagem-label"
+                                    value={filterImagem}
+                                    label="Imagem"
+                                    onChange={(e) => setFilterImagem(e.target.value)}
+                                    sx={{ borderRadius: 2, fontSize: '0.85rem' }}
+                                >
+                                    <MenuItem value="">Todos</MenuItem>
+                                    <MenuItem value="sem_imagem">Sem Imagem</MenuItem>
+                                    <MenuItem value="com_imagem">Com Imagem</MenuItem>
+                                </Select>
+                            </FormControl>
+                        )}
                         {hasActiveFilters && (
                             <Chip
                                 icon={<ClearAll />}
