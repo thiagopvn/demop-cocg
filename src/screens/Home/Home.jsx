@@ -777,40 +777,50 @@ export default function Home() {
         // User/chefe role: simple fetch
         if (role === "user" || role === "chefe") {
           if (user?.userId) {
-            const [pendingCautelasSnap, pendingSaidasSnap, returnsSnap, activeSnap] = await Promise.all([
-              getDocs(
-                query(
-                  collection(db, "movimentacoes"),
-                  where("user", "==", user.userId),
-                  where("type", "==", "cautela"),
-                  where("signed", "==", false)
-                )
-              ),
-              getDocs(
-                query(
-                  collection(db, "movimentacoes"),
-                  where("user", "==", user.userId),
-                  where("type", "==", "saída"),
-                  where("signed", "==", false)
-                )
-              ),
-              getDocs(
-                query(
-                  collection(db, "movimentacoes"),
-                  where("user", "==", user.userId),
-                  where("status", "in", ["devolvido", "devolvidaDeReparo"])
-                )
-              ),
-              getDocs(
-                query(
-                  collection(db, "movimentacoes"),
-                  where("user", "==", user.userId),
-                  where("type", "==", "cautela"),
-                  where("status", "==", "cautelado"),
-                  where("signed", "==", true)
-                )
-              ),
-            ]);
+            let pendingCautelasSnap = { docs: [] };
+            let pendingSaidasSnap = { docs: [] };
+            let returnsSnap = { docs: [] };
+            let activeSnap = { docs: [] };
+
+            try {
+              [pendingCautelasSnap, pendingSaidasSnap, returnsSnap, activeSnap] = await Promise.all([
+                getDocs(
+                  query(
+                    collection(db, "movimentacoes"),
+                    where("user", "==", user.userId),
+                    where("type", "==", "cautela"),
+                    where("signed", "==", false)
+                  )
+                ),
+                getDocs(
+                  query(
+                    collection(db, "movimentacoes"),
+                    where("user", "==", user.userId),
+                    where("type", "==", "saída"),
+                    where("signed", "==", false)
+                  )
+                ),
+                getDocs(
+                  query(
+                    collection(db, "movimentacoes"),
+                    where("user", "==", user.userId),
+                    where("status", "in", ["devolvido", "devolvidaDeReparo"])
+                  )
+                ),
+                getDocs(
+                  query(
+                    collection(db, "movimentacoes"),
+                    where("user", "==", user.userId),
+                    where("type", "==", "cautela"),
+                    where("status", "==", "cautelado"),
+                    where("signed", "==", true)
+                  )
+                ),
+              ]);
+            } catch (queryError) {
+              console.error("Erro nas queries do usuario:", queryError);
+            }
+
             // Filtrar saídas: só mostrar as novas (que têm subtype definido)
             const saidasFiltradas = pendingSaidasSnap.docs.filter((d) => {
               const data = d.data();
@@ -1190,6 +1200,28 @@ export default function Home() {
   // ==================== LOADING ====================
 
   if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100dvh",
+          gap: 2,
+          background: "linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)",
+        }}
+      >
+        <CircularProgress size={48} sx={{ color: "white" }} />
+        <Typography variant="body1" sx={{ color: "white", opacity: 0.8 }}>
+          Carregando dashboard...
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Safeguard: if role is not determined yet, show loading
+  if (!userRole) {
     return (
       <Box
         sx={{
