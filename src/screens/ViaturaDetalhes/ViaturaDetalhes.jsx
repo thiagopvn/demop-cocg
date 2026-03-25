@@ -97,6 +97,7 @@ export default function ViaturaDetalhes() {
     const [materialToEdit, setMaterialToEdit] = useState(null);
     const [editQuantidade, setEditQuantidade] = useState(0);
     const [motivoDesalocacao, setMotivoDesalocacao] = useState("");
+    const [saving, setSaving] = useState(false);
 
     // Snackbar
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -245,6 +246,7 @@ export default function ViaturaDetalhes() {
 
     // Alocar material na viatura
     const handleAlocarMaterial = async () => {
+        if (saving) return;
         if (!selectedMaterial) {
             setSnackbar({ open: true, message: "Selecione um material", severity: "warning" });
             return;
@@ -258,6 +260,7 @@ export default function ViaturaDetalhes() {
             return;
         }
 
+        setSaving(true);
         try {
             const existingQuery = query(
                 collection(db, "viatura_materiais"),
@@ -313,11 +316,14 @@ export default function ViaturaDetalhes() {
         } catch (error) {
             console.error("Erro ao alocar material:", error);
             setSnackbar({ open: true, message: "Erro ao alocar material", severity: "error" });
+        } finally {
+            setSaving(false);
         }
     };
 
     // Editar quantidade do material alocado
     const handleEditQuantidade = async () => {
+        if (saving) return;
         if (!materialToEdit) return;
 
         const novaQtd = Number(editQuantidade);
@@ -355,6 +361,7 @@ export default function ViaturaDetalhes() {
             }
         }
 
+        setSaving(true);
         try {
             // Atualizar viatura_materiais
             await updateDoc(doc(db, "viatura_materiais", materialToEdit.id), {
@@ -384,13 +391,17 @@ export default function ViaturaDetalhes() {
         } catch (error) {
             console.error("Erro ao editar quantidade:", error);
             setSnackbar({ open: true, message: "Erro ao editar quantidade", severity: "error" });
+        } finally {
+            setSaving(false);
         }
     };
 
     // Desalocar material da viatura
     const handleDesalocarMaterial = async () => {
+        if (saving) return;
         if (!materialToDesalocar) return;
 
+        setSaving(true);
         try {
             await updateDoc(doc(db, "viatura_materiais", materialToDesalocar.id), {
                 status: "desalocado",
@@ -420,6 +431,8 @@ export default function ViaturaDetalhes() {
         } catch (error) {
             console.error("Erro ao desalocar material:", error);
             setSnackbar({ open: true, message: "Erro ao desalocar material", severity: "error" });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -1107,7 +1120,7 @@ export default function ViaturaDetalhes() {
                         <Button
                             onClick={handleAlocarMaterial}
                             variant="contained"
-                            disabled={!selectedMaterial || quantidade <= 0 || quantidade > (selectedMaterial?.estoque_atual || 0)}
+                            disabled={saving || !selectedMaterial || quantidade <= 0 || quantidade > (selectedMaterial?.estoque_atual || 0)}
                             sx={{
                                 background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
                                 '&:hover': { background: 'linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)' }
@@ -1208,7 +1221,7 @@ export default function ViaturaDetalhes() {
                         <Button
                             onClick={handleEditQuantidade}
                             variant="contained"
-                            disabled={editQuantidade === materialToEdit?.quantidade}
+                            disabled={saving || editQuantidade === materialToEdit?.quantidade}
                             color={editQuantidade === 0 ? "warning" : "primary"}
                         >
                             {editQuantidade === 0 ? "Desalocar" : "Salvar"}
@@ -1294,8 +1307,9 @@ export default function ViaturaDetalhes() {
                             onClick={handleDesalocarMaterial}
                             variant="contained"
                             color="error"
+                            disabled={saving}
                         >
-                            Confirmar Desalocacao
+                            {saving ? "Desalocando..." : "Confirmar Desalocacao"}
                         </Button>
                     </DialogActions>
                 </Dialog>

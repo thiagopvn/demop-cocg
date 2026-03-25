@@ -95,6 +95,7 @@ export default function Movimentacao() {
     const [viaturasDisponiveis, setViaturasDisponiveis] = useState([]);
     const [saidaViaturaSelected, setSaidaViaturaSelected] = useState(null);
     const [loadingViaturas, setLoadingViaturas] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const showFeedback = (type, title, message, details = []) => {
         setFeedbackModal({ open: true, type, title, message, details });
@@ -216,6 +217,8 @@ export default function Movimentacao() {
     // ======= Salvar =======
 
     const handleSaveMultiplosMateriais = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
             for (const itemMaterial of materiaisSelected) {
                 const material = itemMaterial.material;
@@ -280,10 +283,14 @@ export default function Movimentacao() {
         } catch (error) {
             console.error("Erro ao salvar:", error);
             showFeedback('error', 'Erro ao salvar', 'Ocorreu um erro ao salvar as movimentações.');
+        } finally {
+            setSaving(false);
         }
     };
 
     const handleSave = async () => {
+        if (saving) return;
+        setSaving(true);
         try {
             if (tipoMovimentacao === "cautela" && materiaisSelected.length > 0) {
                 await handleSaveMultiplosMateriais();
@@ -462,6 +469,8 @@ export default function Movimentacao() {
         } catch (error) {
             console.error("Erro ao salvar movimentação:", error);
             showFeedback('error', 'Erro ao salvar', 'Ocorreu um erro. Tente novamente.');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -1121,8 +1130,9 @@ export default function Movimentacao() {
                                         variant="contained"
                                         fullWidth
                                         onClick={handleSave}
+                                        disabled={saving}
                                         size="large"
-                                        startIcon={<SaveIcon />}
+                                        startIcon={saving ? null : <SaveIcon />}
                                         sx={{
                                             background: 'rgba(255,255,255,0.15)',
                                             color: 'white',
@@ -1141,7 +1151,9 @@ export default function Movimentacao() {
                                             transition: 'all 0.2s ease',
                                         }}
                                     >
-                                        {tipoMovimentacao === 'saída' && saidaSubtipo === 'viatura'
+                                        {saving
+                                            ? 'Salvando...'
+                                            : tipoMovimentacao === 'saída' && saidaSubtipo === 'viatura'
                                             ? 'Registrar Saída para Viatura'
                                             : tipoMovimentacao === 'saída' && saidaSubtipo === 'consumo'
                                             ? 'Registrar Saída (Consumo)'
