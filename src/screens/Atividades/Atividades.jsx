@@ -206,6 +206,7 @@ export default function Atividades() {
     const [snackbarSeverity, setSnackbarSeverity] = useState('success');
     const [loggedUserId, setLoggedUserId] = useState('');
     const [loggedUserName, setLoggedUserName] = useState('');
+    const [savingTask, setSavingTask] = useState(false);
 
     const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -445,8 +446,10 @@ export default function Atividades() {
 
     // Task handlers
     const handleCreateTask = async () => {
+        if (savingTask) return;
         if (!taskForm.title.trim()) return;
 
+        setSavingTask(true);
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + taskForm.durationDays);
         expiresAt.setHours(23, 59, 59, 999);
@@ -490,6 +493,8 @@ export default function Atividades() {
             setSnackbarMessage('Erro ao criar missao do dia.');
             setSnackbarSeverity('error');
             setSnackbarOpen(true);
+        } finally {
+            setSavingTask(false);
         }
     };
 
@@ -1416,7 +1421,7 @@ export default function Atividades() {
                             <Button
                                 variant="contained"
                                 onClick={handleCreateTask}
-                                disabled={!taskForm.title.trim()}
+                                disabled={savingTask || !taskForm.title.trim()}
                                 sx={{
                                     bgcolor: '#ff6b35',
                                     fontWeight: 700,
@@ -1425,7 +1430,7 @@ export default function Atividades() {
                                     '&:hover': { bgcolor: '#e55a2b' },
                                 }}
                             >
-                                Criar Missao
+                                {savingTask ? 'Criando...' : 'Criar Missao'}
                             </Button>
                         </DialogActions>
                     </Dialog>
