@@ -511,6 +511,13 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                                 />
                                 {loggedUser?.role === "admingeral" && (
                                     <FormControlLabel
+                                        value="BensPatrimoniais"
+                                        control={<Radio sx={{ color: '#ff6b35' }} />}
+                                        label="Bens Patrimoniais"
+                                    />
+                                )}
+                                {loggedUser?.role === "admingeral" && (
+                                    <FormControlLabel
                                         value="admingeral"
                                         control={<Radio sx={{ color: '#d32f2f' }} />}
                                         label="Admin Geral"
