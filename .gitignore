@@ -27,3 +27,16 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Windows NTFS Alternate Data Stream markers (created when files come from another origin)
+*Zone.Identifier*
+
+# Claude Code local settings (per-machine)
+.claude/settings.local.json
+
+# Raw data spreadsheets (already imported to Firestore)
+ARROLAMENTO_PLANILHA_*.xlsx
+
+# Firebase service account keys (must never be committed)
+service-account.json
+*serviceAccount*.json

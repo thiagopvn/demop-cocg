@@ -110,6 +110,14 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Bens Patrimoniais: módulo isolado, acesso estrito (BensPatrimoniais role ou admingeral)
+    function isBensPatrimoniais() {
+      return isAuth() && (getRole() == 'BensPatrimoniais' || getRole() == 'admingeral');
+    }
+    match /bens_patrimoniais/{docId} {
+      allow read, create, update, delete: if isBensPatrimoniais();
+    }
+
     // Tarefas DEMOP: all auth reads, admingeral full control, admin can update progress/completion
     match /tarefas_demop/{docId} {
       allow read: if isAuth();

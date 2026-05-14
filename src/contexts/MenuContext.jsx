@@ -22,7 +22,8 @@ import {
   SupportAgent,
   LockOutlined,
   AssessmentOutlined,
-  AccountCircle
+  AccountCircle,
+  AccountBalance
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -88,7 +89,7 @@ function MenuContext({ children }) {
     { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1, roles: ['admin', 'admingeral'] },
     { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['admin', 'admingeral'] },
     { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['admin', 'admingeral'] },
-    { icon: LocalShippingOutlined, label: 'Conferência', path: '/conferencia-chefe', id: 13, roles: ['chefe', 'admin', 'admingeral'] },
+    { icon: AccountBalance, label: 'Bens Patrimoniais', path: '/bens-patrimoniais', id: 13, roles: ['BensPatrimoniais', 'admingeral'] },
     { icon: AccountCircle, label: 'Meu Perfil', path: '/perfil', id: 12, roles: ['user', 'chefe', 'admin', 'admingeral'] },
   ];
 

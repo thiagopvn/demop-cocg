@@ -1,0 +1,714 @@
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Box,
+  Container,
+  Paper,
+  Typography,
+  TextField,
+  InputAdornment,
+  IconButton,
+  Button,
+  ButtonGroup,
+  Tooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  Chip,
+  CircularProgress,
+  Snackbar,
+  Alert,
+  Fade,
+  Backdrop,
+  Stack,
+  Card,
+  alpha,
+  styled,
+} from '@mui/material';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import AddIcon from '@mui/icons-material/Add';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import EditIcon from '@mui/icons-material/Edit';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import MenuContext from '../../contexts/MenuContext';
+import PrivateRoute from '../../contexts/PrivateRoute';
+import { useDebounce } from '../../hooks/useDebounce';
+import {
+  subscribeBensPatrimoniais,
+  createBemPatrimonial,
+  updateBemPatrimonial,
+  updateLocalidade,
+  markAsConferido,
+} from '../../firebase/bensPatrimoniaisService';
+import { importBensPatrimoniaisFromFile } from '../../utils/bensPatrimoniaisImporter';
+
+const EditDialog = lazy(() => import('../../dialogs/BensPatrimoniaisEditDialog'));
+const LocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisLocationDialog'));
+
+const SIX_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 6;
+
+const StyledHeader = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  marginBottom: theme.spacing(3),
+  borderRadius: 16,
+  background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
+  color: 'white',
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(2),
+  flexWrap: 'wrap',
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(2),
+    gap: theme.spacing(1.5),
+  },
+}));
+
+const StatCard = styled(Card)(({ theme }) => ({
+  padding: theme.spacing(1.8, 2.2),
+  borderRadius: 12,
+  flex: 1,
+  minWidth: 140,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)}, ${alpha(
+    theme.palette.primary.main,
+    0.02
+  )})`,
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+  transition: 'transform 0.2s, box-shadow 0.2s',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: theme.shadows[3],
+  },
+}));
+
+const HeaderCell = styled(TableCell)(({ theme }) => ({
+  color: 'white',
+  fontWeight: 700,
+  fontSize: '0.85rem',
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+  whiteSpace: 'nowrap',
+  borderBottom: 'none',
+  [theme.breakpoints.down('md')]: { fontSize: '0.8rem' },
+}));
+
+const StyledRow = styled(TableRow, {
+  shouldForwardProp: (prop) => prop !== 'overdue',
+})(({ theme, overdue }) => ({
+  transition: 'background-color 0.2s',
+  ...(overdue
+    ? {
+        backgroundColor: alpha(theme.palette.error.light, 0.25),
+        '&:hover': { backgroundColor: alpha(theme.palette.error.light, 0.35) },
+      }
+    : {
+        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.04) },
+      }),
+}));
+
+const ELLIPSIS_SX = {
+  maxWidth: 280,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+const formatDateBR = (value) => {
+  if (!value) return null;
+  let date = null;
+  if (typeof value?.toDate === 'function') date = value.toDate();
+  else if (value instanceof Date) date = value;
+  else if (typeof value === 'number') date = new Date(value);
+  else if (typeof value === 'string') date = new Date(value);
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const isOverdueSixMonths = (dateLike) => {
+  const d = formatDateBR(dateLike);
+  if (!d) return true;
+  return Date.now() - d.getTime() > SIX_MONTHS_MS;
+};
+
+const formatValor = (v) => {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'number') {
+    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+  return String(v);
+};
+
+export default function BensPatrimoniais() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [locationItem, setLocationItem] = useState(null);
+
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const fileInputRef = useRef(null);
+
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  const showSnack = useCallback((message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const unsub = subscribeBensPatrimoniais(
+      (data) => {
+        setItems(data);
+        setLoading(false);
+      },
+      (err) => {
+        console.error(err);
+        showSnack('Erro ao carregar bens patrimoniais.', 'error');
+        setLoading(false);
+      }
+    );
+    return () => unsub();
+  }, [showSnack]);
+
+  const filteredItems = useMemo(() => {
+    const term = debouncedSearch.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter((it) => {
+      const idStr = String(it.id_patrimonio ?? '').toLowerCase();
+      const desc = String(it.descricao ?? '').toLowerCase();
+      const loc = String(it.localidade ?? '').toLowerCase();
+      const aapat = String(it.aapat_processo_sei ?? '').toLowerCase();
+      return idStr.includes(term) || desc.includes(term) || loc.includes(term) || aapat.includes(term);
+    });
+  }, [items, debouncedSearch]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch]);
+
+  const paginated = useMemo(() => {
+    const start = page * rowsPerPage;
+    return filteredItems.slice(start, start + rowsPerPage);
+  }, [filteredItems, page, rowsPerPage]);
+
+  const overdueCount = useMemo(
+    () => items.filter((it) => isOverdueSixMonths(it.ultima_conferencia)).length,
+    [items]
+  );
+
+  const localidadeSuggestions = useMemo(() => {
+    const set = new Set();
+    items.forEach((it) => {
+      if (typeof it.localidade === 'string' && it.localidade.trim()) set.add(it.localidade.trim());
+    });
+    return Array.from(set);
+  }, [items]);
+
+  const totalValor = useMemo(() => {
+    let total = 0;
+    for (const it of items) {
+      if (typeof it.valor === 'number' && Number.isFinite(it.valor)) {
+        total += it.valor;
+        continue;
+      }
+      if (typeof it.valor === 'string' && it.valor.trim()) {
+        const cleaned = it.valor.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+        const n = Number(cleaned);
+        if (Number.isFinite(n)) total += n;
+      }
+    }
+    return total;
+  }, [items]);
+
+  const handleQuickCheck = async (item) => {
+    try {
+      await markAsConferido(item.id);
+      showSnack('Item conferido com sucesso.', 'success');
+    } catch {
+      showSnack('Falha ao registrar conferência.', 'error');
+    }
+  };
+
+  const handleOpenEdit = (item) => {
+    setEditItem(item);
+    setEditOpen(true);
+  };
+
+  const handleOpenLocation = (item) => {
+    setLocationItem(item);
+    setLocationOpen(true);
+  };
+
+  const handleSubmitEdit = async (data) => {
+    try {
+      if (editItem?.id) {
+        await updateBemPatrimonial(editItem.id, data);
+        showSnack('Bem patrimonial atualizado.', 'success');
+      } else {
+        await createBemPatrimonial(data);
+        showSnack('Bem patrimonial cadastrado.', 'success');
+      }
+      setEditOpen(false);
+      setEditItem(null);
+    } catch {
+      showSnack('Erro ao salvar bem patrimonial.', 'error');
+    }
+  };
+
+  const handleSubmitLocation = async (newLocalidade) => {
+    if (!locationItem?.id) return;
+    try {
+      await updateLocalidade(locationItem.id, newLocalidade);
+      showSnack('Localidade atualizada.', 'success');
+      setLocationOpen(false);
+      setLocationItem(null);
+    } catch {
+      showSnack('Erro ao atualizar localidade.', 'error');
+    }
+  };
+
+  const handleFileSelect = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    setImportProgress({ done: 0, total: 0 });
+    try {
+      const result = await importBensPatrimoniaisFromFile(file, {
+        onProgress: (done, total) => setImportProgress({ done, total }),
+      });
+      if (result.unknownHeaders && result.unknownHeaders.length > 0) {
+        console.warn('Colunas ignoradas na importação:', result.unknownHeaders);
+      }
+      if (result.message) {
+        showSnack(result.message, 'warning');
+      } else {
+        const errSuffix = result.errors.length > 0 ? ` ${result.errors.length} erro(s).` : '';
+        showSnack(
+          `Importação concluída: ${result.created} criado(s), ${result.updated} atualizado(s).${errSuffix}`,
+          result.errors.length > 0 ? 'warning' : 'success'
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      showSnack(`Erro ao importar planilha: ${err.message || 'desconhecido'}`, 'error');
+    } finally {
+      setImporting(false);
+      setImportProgress({ done: 0, total: 0 });
+    }
+  };
+
+  return (
+    <PrivateRoute allowedRoles={['BensPatrimoniais', 'admingeral']}>
+      <MenuContext>
+        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 1.5, sm: 3 } }}>
+          <Fade in timeout={300}>
+            <Box>
+              <StyledHeader elevation={0}>
+                <AccountBalanceIcon sx={{ fontSize: { xs: 36, sm: 44 } }} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    variant="h4"
+                    fontWeight={800}
+                    sx={{ fontSize: { xs: '1.25rem', sm: '1.75rem' }, lineHeight: 1.2 }}
+                  >
+                    Bens Patrimoniais
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
+                    Gestão e conferência periódica de ativos
+                  </Typography>
+                </Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} sx={{ flexShrink: 0 }}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                  />
+                  <Button
+                    variant="contained"
+                    color="warning"
+                    startIcon={<UploadFileIcon />}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={importing}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      backgroundColor: '#ff6b35',
+                      boxShadow: '0 4px 12px rgba(255,107,53,0.35)',
+                      '&:hover': { backgroundColor: '#e85a26' },
+                    }}
+                  >
+                    Importar Planilha (XLSX)
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => {
+                      setEditItem(null);
+                      setEditOpen(true);
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      borderColor: 'white',
+                      color: 'white',
+                      '&:hover': {
+                        borderColor: 'white',
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                      },
+                    }}
+                  >
+                    Novo
+                  </Button>
+                </Stack>
+              </StyledHeader>
+
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                sx={{ mb: 3 }}
+              >
+                <StatCard>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    Total de Itens
+                  </Typography>
+                  <Typography variant="h5" fontWeight={800} sx={{ color: '#1e3a5f' }}>
+                    {items.length.toLocaleString('pt-BR')}
+                  </Typography>
+                </StatCard>
+                <StatCard>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    Atrasados (&gt; 6 meses)
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    fontWeight={800}
+                    sx={{ color: overdueCount > 0 ? 'error.dark' : 'success.dark' }}
+                  >
+                    {overdueCount.toLocaleString('pt-BR')}
+                  </Typography>
+                </StatCard>
+                <StatCard>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    Valor estimado
+                  </Typography>
+                  <Typography variant="h5" fontWeight={800} sx={{ color: '#1e3a5f' }}>
+                    {totalValor.toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    })}
+                  </Typography>
+                </StatCard>
+              </Stack>
+
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  mb: 2,
+                  borderRadius: 2,
+                  border: '1px solid #e0e0e0',
+                }}
+              >
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  placeholder="Buscar por patrimônio, descrição, localidade ou AAPat/SEI..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon sx={{ color: '#1e3a5f' }} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: searchTerm && (
+                        <InputAdornment position="end">
+                          <IconButton onClick={() => setSearchTerm('')} size="small">
+                            <ClearIcon />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: '#fafafa',
+                    },
+                  }}
+                />
+              </Paper>
+
+              <Paper
+                elevation={1}
+                sx={{
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  border: '1px solid #e0e0e0',
+                }}
+              >
+                <TableContainer sx={{ maxHeight: { xs: '60vh', md: '70vh' } }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow
+                        sx={{
+                          '& th': {
+                            background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
+                          },
+                        }}
+                      >
+                        <HeaderCell>Patrimônio</HeaderCell>
+                        <HeaderCell>Descrição</HeaderCell>
+                        <HeaderCell align="center">Qtd</HeaderCell>
+                        <HeaderCell>Valor</HeaderCell>
+                        <HeaderCell>Localidade</HeaderCell>
+                        <HeaderCell>AAPat / SEI</HeaderCell>
+                        <HeaderCell>Última Conferência</HeaderCell>
+                        <HeaderCell align="center">Ações</HeaderCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                            <CircularProgress />
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredItems.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                            <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                              {items.length === 0
+                                ? 'Nenhum bem patrimonial cadastrado. Importe uma planilha ou cadastre manualmente.'
+                                : 'Nenhum resultado para a busca atual.'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paginated.map((item) => {
+                          const overdue = isOverdueSixMonths(item.ultima_conferencia);
+                          const lastDate = formatDateBR(item.ultima_conferencia);
+                          return (
+                            <StyledRow key={item.id} overdue={overdue}>
+                              <TableCell sx={{ fontWeight: 700, color: overdue ? 'error.dark' : '#1e3a5f' }}>
+                                {item.id_patrimonio || '—'}
+                              </TableCell>
+                              <Tooltip title={item.descricao || ''} placement="top-start" arrow>
+                                <TableCell
+                                  sx={{
+                                    ...ELLIPSIS_SX,
+                                    color: overdue ? 'error.dark' : 'inherit',
+                                  }}
+                                >
+                                  {item.descricao || '—'}
+                                </TableCell>
+                              </Tooltip>
+                              <TableCell align="center" sx={{ color: overdue ? 'error.dark' : 'inherit' }}>
+                                {item.quantidade ?? 1}
+                              </TableCell>
+                              <TableCell sx={{ whiteSpace: 'nowrap', color: overdue ? 'error.dark' : 'inherit' }}>
+                                {formatValor(item.valor)}
+                              </TableCell>
+                              <TableCell sx={{ ...ELLIPSIS_SX, maxWidth: 180, color: overdue ? 'error.dark' : 'inherit' }}>
+                                {item.localidade ? (
+                                  <Chip
+                                    label={item.localidade}
+                                    size="small"
+                                    sx={{
+                                      fontWeight: 600,
+                                      backgroundColor: overdue ? '#ffebee' : '#e3f2fd',
+                                      color: overdue ? '#b71c1c' : '#1565c0',
+                                      maxWidth: '100%',
+                                    }}
+                                  />
+                                ) : (
+                                  '—'
+                                )}
+                              </TableCell>
+                              <Tooltip title={item.aapat_processo_sei || ''} placement="top-start" arrow>
+                                <TableCell
+                                  sx={{
+                                    ...ELLIPSIS_SX,
+                                    maxWidth: 200,
+                                    color: overdue ? 'error.dark' : 'inherit',
+                                  }}
+                                >
+                                  {item.aapat_processo_sei || '—'}
+                                </TableCell>
+                              </Tooltip>
+                              <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                {lastDate ? (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    {overdue && (
+                                      <WarningAmberIcon
+                                        sx={{ fontSize: 18, color: 'error.dark' }}
+                                      />
+                                    )}
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        color: overdue ? 'error.dark' : 'text.primary',
+                                        fontWeight: overdue ? 700 : 400,
+                                      }}
+                                    >
+                                      {lastDate.toLocaleDateString('pt-BR')}
+                                    </Typography>
+                                  </Box>
+                                ) : (
+                                  <Chip
+                                    size="small"
+                                    icon={<WarningAmberIcon />}
+                                    label="Nunca conferido"
+                                    sx={{
+                                      fontWeight: 600,
+                                      backgroundColor: '#ffebee',
+                                      color: '#b71c1c',
+                                    }}
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                <ButtonGroup
+                                  size="small"
+                                  variant="text"
+                                  sx={{ '& .MuiButton-root': { minWidth: 40, p: 0.6 } }}
+                                >
+                                  <Tooltip title="Conferência rápida (registra hoje)" arrow>
+                                    <Button
+                                      onClick={() => handleQuickCheck(item)}
+                                      sx={{ color: '#2e7d32' }}
+                                    >
+                                      <CheckCircleIcon fontSize="small" />
+                                    </Button>
+                                  </Tooltip>
+                                  <Tooltip title="Editar" arrow>
+                                    <Button
+                                      onClick={() => handleOpenEdit(item)}
+                                      sx={{ color: '#1e3a5f' }}
+                                    >
+                                      <EditIcon fontSize="small" />
+                                    </Button>
+                                  </Tooltip>
+                                  <Tooltip title="Alocar / mudar localidade" arrow>
+                                    <Button
+                                      onClick={() => handleOpenLocation(item)}
+                                      sx={{ color: '#ff6b35' }}
+                                    >
+                                      <LocationOnIcon fontSize="small" />
+                                    </Button>
+                                  </Tooltip>
+                                </ButtonGroup>
+                              </TableCell>
+                            </StyledRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <TablePagination
+                  component="div"
+                  count={filteredItems.length}
+                  page={page}
+                  onPageChange={(_, newPage) => setPage(newPage)}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={(e) => {
+                    setRowsPerPage(parseInt(e.target.value, 10));
+                    setPage(0);
+                  }}
+                  rowsPerPageOptions={[10, 25, 50, 100]}
+                  labelRowsPerPage="Itens por página:"
+                  labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
+                />
+              </Paper>
+            </Box>
+          </Fade>
+
+          <Suspense fallback={null}>
+            {editOpen && (
+              <EditDialog
+                open={editOpen}
+                editData={editItem}
+                onSubmit={handleSubmitEdit}
+                onCancel={() => {
+                  setEditOpen(false);
+                  setEditItem(null);
+                }}
+              />
+            )}
+            {locationOpen && (
+              <LocationDialog
+                open={locationOpen}
+                item={locationItem}
+                suggestions={localidadeSuggestions}
+                onSubmit={handleSubmitLocation}
+                onCancel={() => {
+                  setLocationOpen(false);
+                  setLocationItem(null);
+                }}
+              />
+            )}
+          </Suspense>
+
+          <Backdrop
+            open={importing}
+            sx={{
+              color: '#fff',
+              zIndex: (t) => t.zIndex.modal + 1,
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
+            <CircularProgress color="inherit" />
+            <Typography variant="h6" fontWeight={700}>
+              Importando planilha...
+            </Typography>
+            {importProgress.total > 0 && (
+              <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                {importProgress.done} de {importProgress.total} linhas processadas
+              </Typography>
+            )}
+          </Backdrop>
+
+          <Snackbar
+            open={snackbar.open}
+            autoHideDuration={4000}
+            onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          >
+            <Alert
+              onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+              severity={snackbar.severity}
+              variant="filled"
+              sx={{ borderRadius: 2, fontWeight: 600 }}
+            >
+              {snackbar.message}
+            </Alert>
+          </Snackbar>
+        </Container>
+      </MenuContext>
+    </PrivateRoute>
+  );
+}

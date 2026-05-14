@@ -30,4 +30,14 @@ export default [
       ],
     },
   },
+  {
+    files: ['scripts/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: { ...globals.node },
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+  },
 ]

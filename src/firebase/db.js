@@ -50,4 +50,8 @@ export const alertasConferenciaCollection = collection(db, 'alertas_conferencia'
 export const tarefasDemopCollection = collection(db, 'tarefas_demop');
 // ------------------------------------
 
+// --- COLEÇÃO DE BENS PATRIMONIAIS (módulo isolado) ---
+export const bensPatrimoniaisCollection = collection(db, 'bens_patrimoniais');
+// ------------------------------------
+
 export default db;

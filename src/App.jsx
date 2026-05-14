@@ -40,7 +40,7 @@ const Manutencao = lazyRetry(() => import('./screens/Manutencao/Manutencao'));
 const ViaturaDetalhes = lazyRetry(() => import('./screens/ViaturaDetalhes/ViaturaDetalhes'));
 const Atividades = lazyRetry(() => import('./screens/Atividades/Atividades'));
 const Perfil = lazyRetry(() => import('./screens/Perfil/Perfil'));
-const ConferenciaChefe = lazyRetry(() => import('./screens/ConferenciaChefe/ConferenciaChefe'));
+const BensPatrimoniais = lazyRetry(() => import('./screens/BensPatrimoniais/BensPatrimoniais'));
 
 const SuspenseFallback = (
   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
@@ -70,10 +70,10 @@ function App() {
             </PrivateRoute>
           } />
 
-          {/* Rota exclusiva do Chefe de Guarnição + admins */}
-          <Route path='/conferencia-chefe' element={
-            <PrivateRoute allowedRoles={['chefe', 'admin', 'admingeral']}>
-              <ConferenciaChefe />
+          {/* Bens Patrimoniais (módulo isolado, acesso estrito) */}
+          <Route path='/bens-patrimoniais' element={
+            <PrivateRoute allowedRoles={['BensPatrimoniais', 'admingeral']}>
+              <BensPatrimoniais />
             </PrivateRoute>
           } />
 
