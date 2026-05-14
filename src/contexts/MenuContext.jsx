@@ -643,7 +643,7 @@ function MenuContext({ children }) {
         component="main"
         sx={{
           flexGrow: 1,
-          ml: { md: `${drawerWidth}px` },
+          minWidth: 0,
           mt: { xs: '64px', md: 0 },
           transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           position: 'relative',
