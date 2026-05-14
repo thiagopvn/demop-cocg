@@ -37,7 +37,6 @@ import db from "../../firebase/db";
 import { Add, Edit, Info, AssignmentReturn } from "@mui/icons-material";
 import RingDialog from "../../dialogs/RingDialog";
 import { verifyToken } from "../../firebase/token";
-import { yellow } from "@mui/material/colors";
 
 export default function Rings() {
     const [critery, setCritery] = useState("");

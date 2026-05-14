@@ -53,7 +53,7 @@ export const extractSerialAndBase = (name) => {
   }
 
   // Padrão 4: Serial entre parênteses/colchetes  "(12345678)"  "[12345678]"
-  const inBrackets = trimmed.match(/^(.+?)\s*[(\[]\s*(\d{4,})\s*[)\]]\s*$/);
+  const inBrackets = trimmed.match(/^(.+?)\s*[([]\s*(\d{4,})\s*[)\]]\s*$/);
   if (inBrackets) {
     return { serial: inBrackets[2], base: inBrackets[1].trim() };
   }

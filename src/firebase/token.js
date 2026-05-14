@@ -17,7 +17,7 @@ export const verifyToken = async (token) => {
   try {
     const { payload } = await jwtVerify(token, secret);
     return payload;
-  } catch (error) {
+  } catch {
     // token inválido ou expirado
     return null;
   }
@@ -36,7 +36,7 @@ export const decodeJWT = (token) => {
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(window.atob(base64));
       return payload;
-  } catch (error) {
+  } catch {
       // token inválido
       return null;
   }

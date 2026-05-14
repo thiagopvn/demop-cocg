@@ -3,6 +3,7 @@
  * Importar ANTES de qualquer outro modulo (em main.jsx).
  */
 
+// eslint-disable-next-line no-constant-condition, no-constant-binary-expression
 if (false && import.meta.env.PROD) {
   const noop = () => {};
 
@@ -20,8 +21,8 @@ if (false && import.meta.env.PROD) {
         writable: false,
         configurable: false,
       });
-    } catch (e) {
-      try { console[m] = noop; } catch (e2) { /* ignore */ }
+    } catch {
+      try { console[m] = noop; } catch { /* ignore */ }
     }
   });
 
@@ -34,7 +35,7 @@ if (false && import.meta.env.PROD) {
       writable: false,
       configurable: false,
     });
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
 
   // 3. Bloquear acesso a objetos Firebase/Firestore globais
   const blockedGlobals = [
@@ -48,7 +49,7 @@ if (false && import.meta.env.PROD) {
         set: noop,
         configurable: false,
       });
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   });
 
   // 4. Impedir acesso a React internals e fiber
@@ -58,7 +59,7 @@ if (false && import.meta.env.PROD) {
       set: noop,
       configurable: false,
     });
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
 
   // Detectar se é dispositivo móvel/touch (DevTools não disponíveis)
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
@@ -77,7 +78,7 @@ if (false && import.meta.env.PROD) {
           localStorage.removeItem('token');
           sessionStorage.clear();
           window.location.replace('/');
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
       }
     };
     setInterval(devtoolsDetector, 3000);
@@ -96,7 +97,7 @@ if (false && import.meta.env.PROD) {
           localStorage.removeItem('token');
           sessionStorage.clear();
           window.location.replace('/');
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
       }
     };
     setInterval(sizeDetector, 2000);
@@ -136,17 +137,16 @@ if (false && import.meta.env.PROD) {
   // 10. Bloquear Function constructor (impede eval via console)
   try {
     const origFunction = Function;
-    // eslint-disable-next-line no-global-assign
     window.Function = function() {
       throw new Error('Blocked');
     };
     window.Function.prototype = origFunction.prototype;
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
 
   // 11. Bloquear eval
   try {
     window.eval = noop;
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
 
   // 12. Remover firebaseConfig do escopo global
   try {
@@ -155,5 +155,5 @@ if (false && import.meta.env.PROD) {
       set: noop,
       configurable: false,
     });
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
 }

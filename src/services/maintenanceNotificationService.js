@@ -296,7 +296,7 @@ const shouldCheckNow = (intervalMinutes) => {
         const intervalMs = intervalMinutes * 60 * 1000;
 
         return (now - lastCheckTime) >= intervalMs;
-    } catch (error) {
+    } catch {
         return true;
     }
 };

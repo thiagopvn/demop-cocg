@@ -26,10 +26,7 @@ const norm = (v) => (typeof v === 'string' ? v.trim() : v ?? '');
 
 export const buildViaturaLabel = (v) => {
   if (!v) return '';
-  const prefixo = norm(v.prefixo);
-  const placa = norm(v.placa);
-  if (prefixo && placa) return `${prefixo} — ${placa}`;
-  return prefixo || placa || norm(v.modelo) || 'Viatura sem identificação';
+  return norm(v.prefixo) || 'Viatura sem identificação';
 };
 
 export const subscribeBensViaturas = (onData, onError) => {
@@ -52,8 +49,6 @@ export const createBensViatura = async (data) => {
     const prefixo = norm(data.prefixo);
     const payload = stripUndefined({
       prefixo,
-      placa: norm(data.placa),
-      modelo: norm(data.modelo),
       observacoes: norm(data.observacoes),
       prefixo_lower: prefixo.toLowerCase(),
       created_at: serverTimestamp(),
@@ -72,8 +67,6 @@ export const updateBensViatura = async (docId, data) => {
     const ref = doc(db, 'bens_viaturas', docId);
     const payload = stripUndefined({
       prefixo: data.prefixo !== undefined ? norm(data.prefixo) : undefined,
-      placa: data.placa !== undefined ? norm(data.placa) : undefined,
-      modelo: data.modelo !== undefined ? norm(data.modelo) : undefined,
       observacoes: data.observacoes !== undefined ? norm(data.observacoes) : undefined,
       updated_at: serverTimestamp(),
     });

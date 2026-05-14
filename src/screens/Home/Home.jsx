@@ -1183,7 +1183,7 @@ export default function Home() {
             last_maintenance_update: now,
             last_maintenance_date: now,
           });
-        } catch (_) {}
+        } catch { /* ignore */ }
       }
 
       setCompleteDialogOpen(false);

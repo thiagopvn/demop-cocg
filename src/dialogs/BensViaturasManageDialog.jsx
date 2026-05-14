@@ -40,7 +40,10 @@ const fieldStyle = {
   '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
 };
 
-const EMPTY = { prefixo: '', placa: '', modelo: '', observacoes: '' };
+const EMPTY = { prefixo: '', observacoes: '' };
+
+// Aceita prefixo no formato letra(s)-número(s), ex.: ABT-01, P-23, ASE-1234.
+const PREFIXO_REGEX = /^[A-Za-zÀ-ÿ]+-\d+$/;
 
 export default function BensViaturasManageDialog({
   open,
@@ -85,7 +88,12 @@ export default function BensViaturasManageDialog({
 
   const validate = () => {
     const e = {};
-    if (!String(form.prefixo).trim()) e.prefixo = 'Prefixo obrigatório';
+    const prefixo = String(form.prefixo).trim();
+    if (!prefixo) {
+      e.prefixo = 'Prefixo obrigatório';
+    } else if (!PREFIXO_REGEX.test(prefixo)) {
+      e.prefixo = 'Formato esperado: LETRA-NÚMERO (ex.: ABT-01)';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -94,8 +102,6 @@ export default function BensViaturasManageDialog({
     setEditingId(v.id);
     setForm({
       prefixo: v.prefixo || '',
-      placa: v.placa || '',
-      modelo: v.modelo || '',
       observacoes: v.observacoes || '',
     });
     setErrors({});
@@ -222,37 +228,16 @@ export default function BensViaturasManageDialog({
             <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#1e3a5f', mb: 1.5 }}>
               {editingId ? 'Editar viatura' : 'Nova viatura'}
             </Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
-                gap: 2,
-              }}
-            >
-              <TextField
-                label="Prefixo *"
-                value={form.prefixo}
-                onChange={handleChange('prefixo')}
-                error={!!errors.prefixo}
-                helperText={errors.prefixo}
-                placeholder="Ex.: ABT-01"
-                sx={fieldStyle}
-              />
-              <TextField
-                label="Placa"
-                value={form.placa}
-                onChange={handleChange('placa')}
-                placeholder="Ex.: ABC1D23"
-                sx={fieldStyle}
-              />
-              <TextField
-                label="Modelo"
-                value={form.modelo}
-                onChange={handleChange('modelo')}
-                placeholder="Ex.: Mercedes Atego"
-                sx={fieldStyle}
-              />
-            </Box>
+            <TextField
+              label="Prefixo *"
+              value={form.prefixo}
+              onChange={handleChange('prefixo')}
+              error={!!errors.prefixo}
+              helperText={errors.prefixo || 'Formato: LETRA-NÚMERO (ex.: ABT-01, P-23)'}
+              placeholder="Ex.: ABT-01"
+              fullWidth
+              sx={fieldStyle}
+            />
             <TextField
               label="Observações"
               value={form.observacoes}
@@ -376,39 +361,14 @@ export default function BensViaturasManageDialog({
                           <Typography fontWeight={700} sx={{ color: '#1e3a5f' }}>
                             {v.prefixo || '—'}
                           </Typography>
-                          {v.placa && (
-                            <Chip
-                              label={v.placa}
-                              size="small"
-                              sx={{
-                                height: 20,
-                                fontSize: '0.7rem',
-                                backgroundColor: '#fff3e0',
-                                color: '#e65100',
-                                fontWeight: 600,
-                              }}
-                            />
-                          )}
                         </Box>
                       }
                       secondary={
-                        <>
-                          {v.modelo && (
-                            <Typography variant="caption" color="text.secondary" component="span">
-                              {v.modelo}
-                            </Typography>
-                          )}
-                          {v.observacoes && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              component="span"
-                              sx={{ display: 'block', mt: 0.3 }}
-                            >
-                              {v.observacoes}
-                            </Typography>
-                          )}
-                        </>
+                        v.observacoes ? (
+                          <Typography variant="caption" color="text.secondary" component="span">
+                            {v.observacoes}
+                          </Typography>
+                        ) : null
                       }
                     />
                   </ListItem>

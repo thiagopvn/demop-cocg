@@ -25,8 +25,7 @@ import {
   Badge,
   IconButton,
   alpha,
-  styled,
-  useMediaQuery
+  styled
 } from "@mui/material";
 import {
   Build as BuildIcon,
@@ -89,7 +88,6 @@ export default function Inativos({ categorias = [] }) {
   const [selectedMovForDelete, setSelectedMovForDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     const fetchMovimentacoes = async () => {

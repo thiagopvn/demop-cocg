@@ -100,7 +100,7 @@ const MaintenanceDashboard = () => {
             const token = localStorage.getItem('token');
             const user = await verifyToken(token);
             if (user) setCurrentUser({ userId: user.userId || '', userName: user.username || '' });
-        } catch {}
+        } catch { /* ignore */ }
     };
 
     const fetchTodayMaintenances = async () => {
@@ -209,7 +209,7 @@ const MaintenanceDashboard = () => {
                         last_maintenance_update: now,
                         last_maintenance_date: now
                     });
-                } catch {}
+                } catch { /* ignore */ }
             }
 
             logAudit({
@@ -272,7 +272,7 @@ const MaintenanceDashboard = () => {
                 setLoading(false);
                 return;
             }
-        } catch (_) {
+        } catch {
             // fallback para query direta
         }
         await fetchStatsFallback();

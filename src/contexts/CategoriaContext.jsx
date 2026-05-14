@@ -17,7 +17,7 @@ export const CategoriaProvider = ({ children }) => {
                 ...doc.data()
             }));
             setCategorias(categoriasList);
-        } catch (_) {
+        } catch {
             // Sem permissão (usuário não autenticado)
         }
     }, []);

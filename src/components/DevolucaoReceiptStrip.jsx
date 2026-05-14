@@ -28,7 +28,7 @@ export default function DevolucaoReceiptStrip({ cautela, onAcknowledge }) {
         hour: '2-digit',
         minute: '2-digit'
       });
-    } catch (error) {
+    } catch {
       return 'Data inválida';
     }
   };

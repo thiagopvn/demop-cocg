@@ -54,8 +54,21 @@ export default function BensPatrimoniaisLocationDialog({
   const [saving, setSaving] = useState(false);
 
   const options = useMemo(() => {
+    // Filtro defensivo: oculta valores monetários/numéricos/datas que apareceram em
+    // 'localidade' por importações com colunas trocadas.
+    const looksLikeMoneyOrNumber = (t) => {
+      if (!t) return true;
+      if (/^R\$/i.test(t)) return true;
+      if (/^[\d\s.,]+$/.test(t)) return true;
+      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(t)) return true;
+      return false;
+    };
     const unique = Array.from(
-      new Set(suggestions.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()))
+      new Set(
+        suggestions
+          .filter((s) => typeof s === 'string' && s.trim() && !looksLikeMoneyOrNumber(s.trim()))
+          .map((s) => s.trim())
+      )
     ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     return unique.map((label) => ({ label }));
   }, [suggestions]);
@@ -66,8 +79,6 @@ export default function BensPatrimoniaisLocationDialog({
         id: v.id,
         label: buildViaturaLabel(v),
         prefixo: v.prefixo,
-        placa: v.placa,
-        modelo: v.modelo,
       })),
     [viaturas]
   );
@@ -325,16 +336,9 @@ export default function BensPatrimoniaisLocationDialog({
                   <li key={key} {...rest}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                       <LocalShippingOutlinedIcon sx={{ fontSize: 18, color: '#1e3a5f' }} />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 600 }} noWrap>
-                          {option.prefixo || option.label}
-                        </Typography>
-                        {(option.placa || option.modelo) && (
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {[option.placa, option.modelo].filter(Boolean).join(' • ')}
-                          </Typography>
-                        )}
-                      </Box>
+                      <Typography sx={{ fontWeight: 600 }} noWrap>
+                        {option.prefixo || option.label}
+                      </Typography>
                     </Box>
                   </li>
                 );

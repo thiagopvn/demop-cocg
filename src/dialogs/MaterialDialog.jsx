@@ -37,7 +37,7 @@ import { CategoriaContext } from '../contexts/CategoriaContext';
 import { logAudit } from '../firebase/auditLog';
 import { findSimilarMaterials } from '../utils/materialSimilarity';
 import { incrementTaskProgress } from '../firebase/taskProgress';
-import { findBestTemplate, findMatchingTemplates } from '../utils/maintenanceTemplateMatcher';
+import { findBestTemplate } from '../utils/maintenanceTemplateMatcher';
 import { MAINTENANCE_TYPE_LABELS } from '../data/maintenanceTemplates';
 import { applySelectedMaintenances } from '../utils/seedMaintenances';
 import MaintenanceSuggestionDialog from './MaintenanceSuggestionDialog';
@@ -206,7 +206,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             return;
         }
 
-        setErrors(prev => { const { image, ...rest } = prev; return rest; });
+        setErrors(prev => { const { image: _image, ...rest } = prev; return rest; });
 
         try {
             let processedFile;
@@ -292,7 +292,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
         try {
             const storageRef = ref(storage, path);
             await deleteObject(storageRef);
-        } catch (e) {
+        } catch {
             // Ignore if file doesn't exist
         }
     };
@@ -497,7 +497,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             </DialogTitle>
             <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
                 {errors.general && (
-                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrors(prev => { const { general, ...rest } = prev; return rest; })}>
+                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrors(prev => { const { general: _general, ...rest } = prev; return rest; })}>
                         {errors.general}
                     </Alert>
                 )}
@@ -637,7 +637,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     value={description}
                     onChange={(e) => {
                         setDescription(e.target.value);
-                        setErrors(prev => { const { description, ...rest } = prev; return rest; });
+                        setErrors(prev => { const { description: _description, ...rest } = prev; return rest; });
                     }}
                     error={!!errors.description}
                     helperText={errors.description}
@@ -749,7 +749,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                         label="Categoria"
                         onChange={(e) => {
                             setCategoriaId(e.target.value);
-                            setErrors(prev => { const { categoriaId, ...rest } = prev; return rest; });
+                            setErrors(prev => { const { categoriaId: _categoriaId, ...rest } = prev; return rest; });
                         }}
                     >
                         {categorias.map(cat => (
@@ -769,7 +769,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     value={estoqueTotal}
                     onChange={(e) => {
                         setEstoqueTotal(e.target.value);
-                        setErrors(prev => { const { estoqueTotal, ...rest } = prev; return rest; });
+                        setErrors(prev => { const { estoqueTotal: _estoqueTotal, ...rest } = prev; return rest; });
                     }}
                     error={!!errors.estoqueTotal}
                     helperText={errors.estoqueTotal}

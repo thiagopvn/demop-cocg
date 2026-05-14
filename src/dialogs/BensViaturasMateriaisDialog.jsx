@@ -105,8 +105,6 @@ export default function BensViaturasMateriaisDialog({
           id: v.id,
           label: buildViaturaLabel(v),
           prefixo: v.prefixo,
-          placa: v.placa,
-          modelo: v.modelo,
         })),
     [viaturas]
   );
@@ -253,16 +251,9 @@ export default function BensViaturasMateriaisDialog({
                     <li key={key} {...rest}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                         <LocalShippingOutlinedIcon sx={{ fontSize: 18, color: '#1e3a5f' }} />
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography sx={{ fontWeight: 600 }} noWrap>
-                            {option.prefixo || option.label}
-                          </Typography>
-                          {(option.placa || option.modelo) && (
-                            <Typography variant="caption" color="text.secondary" noWrap>
-                              {[option.placa, option.modelo].filter(Boolean).join(' • ')}
-                            </Typography>
-                          )}
-                        </Box>
+                        <Typography sx={{ fontWeight: 600 }} noWrap>
+                          {option.prefixo || option.label}
+                        </Typography>
                       </Box>
                     </li>
                   );
@@ -334,11 +325,6 @@ export default function BensViaturasMateriaisDialog({
                   label={selectedViatura.label}
                   sx={{ backgroundColor: '#e3f2fd', color: '#1565c0', fontWeight: 700 }}
                 />
-                {selectedViatura.modelo && (
-                  <Typography variant="caption" color="text.secondary">
-                    {selectedViatura.modelo}
-                  </Typography>
-                )}
               </Box>
             )}
 

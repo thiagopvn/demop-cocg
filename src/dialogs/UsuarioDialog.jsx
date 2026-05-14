@@ -108,7 +108,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
         OBM: editData?.OBM || "",
     });
     const [showPassword, setShowPassword] = useState(false);
-    const [editMode, setEditMode] = useState(!!editData);
+    const editMode = !!editData;
     const [loggedUser, setLoggedUser] = useState(null);
     const [errors, setErrors] = useState({});
     useEffect(() => {
@@ -155,7 +155,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
     const handleChange = (e) => {
         const { name, value } = e.target;
         setData({ ...data, [name]: value });
-        setErrors(prev => { const { [name]: _, general, ...rest } = prev; return rest; });
+        setErrors(prev => { const { [name]: _removed, general: _general, ...rest } = prev; return rest; });
     };
 
     const handleClickShowPassword = () => {
@@ -244,7 +244,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
             <DialogContent sx={{ padding: { xs: '16px', sm: '24px' } }}>
                 <div style={{ display: 'grid', gap: '20px' }}>
                     {errors.general && (
-                        <Alert severity="error" onClose={() => setErrors(prev => { const { general, ...rest } = prev; return rest; })}>
+                        <Alert severity="error" onClose={() => setErrors(prev => { const { general: _general, ...rest } = prev; return rest; })}>
                             {errors.general}
                         </Alert>
                     )}

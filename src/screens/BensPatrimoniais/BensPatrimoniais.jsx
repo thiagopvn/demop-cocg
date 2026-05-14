@@ -208,6 +208,18 @@ const isOverdueSixMonths = (dateLike) => {
   return Date.now() - d.getTime() > SIX_MONTHS_MS;
 };
 
+// Detecta localidades que claramente são dados ruins (valor monetário, número
+// puro ou data) — vindos de planilhas com colunas trocadas na importação.
+const isInvalidLocalidade = (s) => {
+  if (typeof s !== 'string') return false;
+  const t = s.trim();
+  if (!t) return false;
+  if (/^R\$/i.test(t)) return true;
+  if (/^[\d\s.,]+$/.test(t)) return true;
+  if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(t)) return true;
+  return false;
+};
+
 const formatValor = (v) => {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'number') {
@@ -319,8 +331,23 @@ export default function BensPatrimoniais() {
 
   const localidadeSuggestions = useMemo(() => {
     const set = new Set();
+    // Filtra entradas que parecem ser valor monetário/numérico ou data —
+    // dados ruins vindos de importações com colunas trocadas.
+    const looksLikeMoneyOrNumber = (s) => {
+      const t = s.trim();
+      if (!t) return true;
+      if (/^R\$/i.test(t)) return true;
+      // Só dígitos, vírgulas, pontos e espaços (ex.: "1.234,56", "157.21")
+      if (/^[\d\s.,]+$/.test(t)) return true;
+      // Data BR no padrão dd/mm/aaaa
+      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(t)) return true;
+      return false;
+    };
     items.forEach((it) => {
-      if (typeof it.localidade === 'string' && it.localidade.trim()) set.add(it.localidade.trim());
+      if (typeof it.localidade === 'string' && it.localidade.trim()) {
+        const v = it.localidade.trim();
+        if (!looksLikeMoneyOrNumber(v)) set.add(v);
+      }
     });
     return Array.from(set);
   }, [items]);
@@ -699,36 +726,56 @@ export default function BensPatrimoniais() {
                               </TableCell>
                               <TableCell sx={{ ...WRAP_SX, minWidth: 160, color: overdue ? 'error.dark' : 'inherit' }}>
                                 {item.localidade ? (
-                                  <Chip
-                                    icon={item.viatura_bens_id ? <LocalShippingOutlinedIcon /> : undefined}
-                                    label={item.localidade}
-                                    size="small"
-                                    sx={{
-                                      fontWeight: 600,
-                                      backgroundColor: overdue
-                                        ? '#ffebee'
-                                        : item.viatura_bens_id
-                                        ? '#fff3e0'
-                                        : '#e3f2fd',
-                                      color: overdue
-                                        ? '#b71c1c'
-                                        : item.viatura_bens_id
-                                        ? '#e65100'
-                                        : '#1565c0',
-                                      maxWidth: '100%',
-                                      height: 'auto',
-                                      py: 0.4,
-                                      '& .MuiChip-label': {
-                                        whiteSpace: 'normal',
-                                        wordBreak: 'break-word',
-                                        display: 'block',
-                                        lineHeight: 1.3,
-                                      },
-                                      '& .MuiChip-icon': {
-                                        color: 'inherit',
-                                      },
-                                    }}
-                                  />
+                                  isInvalidLocalidade(item.localidade) ? (
+                                    <Tooltip
+                                      title="Localidade inválida (parece valor monetário/numérico). Edite o item para corrigir."
+                                      arrow
+                                    >
+                                      <Chip
+                                        icon={<WarningAmberIcon />}
+                                        label="Localidade inválida"
+                                        size="small"
+                                        sx={{
+                                          fontWeight: 600,
+                                          backgroundColor: '#fff8e1',
+                                          color: '#ad8600',
+                                          border: '1px dashed #f9a825',
+                                          '& .MuiChip-icon': { color: '#f9a825' },
+                                        }}
+                                      />
+                                    </Tooltip>
+                                  ) : (
+                                    <Chip
+                                      icon={item.viatura_bens_id ? <LocalShippingOutlinedIcon /> : undefined}
+                                      label={item.localidade}
+                                      size="small"
+                                      sx={{
+                                        fontWeight: 600,
+                                        backgroundColor: overdue
+                                          ? '#ffebee'
+                                          : item.viatura_bens_id
+                                          ? '#fff3e0'
+                                          : '#e3f2fd',
+                                        color: overdue
+                                          ? '#b71c1c'
+                                          : item.viatura_bens_id
+                                          ? '#e65100'
+                                          : '#1565c0',
+                                        maxWidth: '100%',
+                                        height: 'auto',
+                                        py: 0.4,
+                                        '& .MuiChip-label': {
+                                          whiteSpace: 'normal',
+                                          wordBreak: 'break-word',
+                                          display: 'block',
+                                          lineHeight: 1.3,
+                                        },
+                                        '& .MuiChip-icon': {
+                                          color: 'inherit',
+                                        },
+                                      }}
+                                    />
+                                  )
                                 ) : (
                                   '—'
                                 )}

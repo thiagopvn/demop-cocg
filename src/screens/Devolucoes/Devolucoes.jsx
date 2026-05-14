@@ -17,7 +17,6 @@ import {
   Tooltip,
   alpha,
   useTheme,
-  useMediaQuery,
   Collapse,
   Fade,
   Grow,
@@ -88,6 +87,7 @@ const AnimatedNumber = ({ value, color }) => (
 );
 
 // ─── Stat Card (glass-morphism style in hero) ───────────────
+// eslint-disable-next-line no-unused-vars
 const GlassStatCard = ({ icon: Icon, label, value, color }) => (
   <Box
     sx={{
@@ -352,7 +352,6 @@ const ItemCard = ({ mov, isPendente, onDevolver, formatDate, theme, index }) => 
 // ─── Main Component ─────────────────────────────────────────
 export default function Devolucoes() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [userRole, setUserRole] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
@@ -362,7 +361,6 @@ export default function Devolucoes() {
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, item: null });
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-  const [showDevolvidos, setShowDevolvidos] = useState(false);
   const [devolvendo, setDevolvendo] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [loggedUserId, setLoggedUserId] = useState(null);

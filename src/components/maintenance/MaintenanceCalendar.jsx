@@ -53,35 +53,7 @@ import { verifyToken } from '../../firebase/token';
 import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 import { useDebounce } from '../../hooks/useDebounce';
-import { getMaintenanceTypeLabel, MAINTENANCE_TYPE_DAYS } from '../../data/maintenanceTemplates';
-
-// Calcular a previsão da próxima manutenção baseado na periodicidade
-const calcNextDueDate = (fromDate, recurrenceType, customDays) => {
-    if (!fromDate || !recurrenceType) return null;
-    const d = fromDate instanceof Date ? new Date(fromDate) : fromDate?.toDate ? new Date(fromDate.toDate()) : null;
-    if (!d) return null;
-    // Verificar se é um tipo de dias fixos
-    if (MAINTENANCE_TYPE_DAYS[recurrenceType]) {
-        d.setDate(d.getDate() + MAINTENANCE_TYPE_DAYS[recurrenceType]);
-        return d;
-    }
-    switch (recurrenceType) {
-        case 'diaria': d.setDate(d.getDate() + 1); break;
-        case 'semanal': d.setDate(d.getDate() + 7); break;
-        case 'quinzenal': d.setDate(d.getDate() + 15); break;
-        case 'mensal': d.setMonth(d.getMonth() + 1); break;
-        case 'bimestral': d.setMonth(d.getMonth() + 2); break;
-        case 'trimestral': d.setMonth(d.getMonth() + 3); break;
-        case 'semestral': d.setMonth(d.getMonth() + 6); break;
-        case 'anual': d.setFullYear(d.getFullYear() + 1); break;
-        case 'customizado':
-            if (customDays) d.setDate(d.getDate() + customDays);
-            else return null;
-            break;
-        default: return null;
-    }
-    return d;
-};
+import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
 
 const MaintenanceCalendar = () => {
     const navigate = useNavigate();
@@ -525,19 +497,6 @@ const MaintenanceCalendar = () => {
         return status === 'pendente' && new Date(dueDate) < new Date();
     };
 
-    // Para manutenções concluídas: previsão da próxima = dueDate + periodicidade
-    // Para manutenções pendentes/em_andamento que são recorrentes: previsão = dueDate atual
-    const getNextForecast = (m) => {
-        if (!m.isRecurrent || !m.recurrenceType) return null;
-        if (m.status === 'concluida') {
-            // Calcular a partir da data de conclusão
-            const base = m.completedAt || m.dueDate;
-            return calcNextDueDate(base, m.recurrenceType, m.customRecurrenceDays);
-        }
-        // Para pendentes, a própria dueDate é a previsão atual
-        return null;
-    };
-
     if (loading) {
         return (
             <Box sx={{ width: '100%', mt: 2 }}>
@@ -749,24 +708,11 @@ const MaintenanceCalendar = () => {
                             filteredMaintenances
                             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                             .map((maintenance) => {
-                                const nextForecast = getNextForecast(maintenance);
                                 // lastCompletedAt = conclusão da manutenção anterior (para recorrentes)
                                 // completedAt = conclusão desta manutenção (se concluída)
                                 const lastCompletion = maintenance.status === 'concluida'
                                     ? maintenance.completedAt
                                     : maintenance.lastCompletedAt;
-
-                                // Próxima previsão:
-                                // - Se concluída e recorrente: calcular a partir da conclusão
-                                // - Se pendente/em_andamento: a própria dueDate é a previsão
-                                let nextPreview = null;
-                                if (maintenance.isRecurrent && maintenance.recurrenceType) {
-                                    if (maintenance.status === 'concluida' && maintenance.completedAt) {
-                                        nextPreview = calcNextDueDate(maintenance.completedAt, maintenance.recurrenceType, maintenance.customRecurrenceDays);
-                                    } else {
-                                        nextPreview = maintenance.dueDate;
-                                    }
-                                }
 
                                 return (
                                     <TableRow
