@@ -59,13 +59,13 @@ function App() {
 
           {/* Rota acessível a todos os usuários autenticados */}
           <Route path='/home' element={
-            <PrivateRoute allowedRoles={['user', 'chefe', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais']}>
               <Home />
             </PrivateRoute>
           } />
 
           <Route path='/perfil' element={
-            <PrivateRoute allowedRoles={['user', 'chefe', 'admin', 'admingeral']}>
+            <PrivateRoute allowedRoles={['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais']}>
               <Perfil />
             </PrivateRoute>
           } />

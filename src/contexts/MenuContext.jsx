@@ -78,7 +78,7 @@ function MenuContext({ children }) {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const allMenuItems = [
-    { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'chefe', 'admin', 'admingeral'] },
+    { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: AssessmentOutlined, label: 'Atividades', path: '/atividades', id: 11, roles: ['admingeral'] },
     { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['admin', 'admingeral'] },
     { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['admin', 'admingeral'] },
@@ -90,7 +90,7 @@ function MenuContext({ children }) {
     { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['admin', 'admingeral'] },
     { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['admin', 'admingeral'] },
     { icon: AccountBalance, label: 'Bens Patrimoniais', path: '/bens-patrimoniais', id: 13, roles: ['BensPatrimoniais', 'admingeral'] },
-    { icon: AccountCircle, label: 'Meu Perfil', path: '/perfil', id: 12, roles: ['user', 'chefe', 'admin', 'admingeral'] },
+    { icon: AccountCircle, label: 'Meu Perfil', path: '/perfil', id: 12, roles: ['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais'] },
   ];
 
   // Filtrar itens de menu baseado no papel do usuário
