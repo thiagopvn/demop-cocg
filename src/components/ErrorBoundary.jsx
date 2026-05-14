@@ -10,15 +10,38 @@ class ErrorBoundary extends React.Component {
 
   static getDerivedStateFromError(error) {
     const message = error?.message || String(error);
-    // Detecta erro de chunk/módulo dinâmico e recarrega automaticamente
-    const isChunkError = /Failed to fetch dynamically imported module|Loading chunk|Loading CSS chunk|dynamically imported module/i.test(message);
+    // Detecta erros típicos de chunk antigo cacheado após novo deploy.
+    // - Vite/Webpack: "Failed to fetch dynamically imported module"
+    // - Vite + React.lazy: "Cannot read properties of undefined (reading 'default')"
+    //   (acontece quando o navegador serve um chunk antigo cujo módulo já foi
+    //   removido/renomeado pelo deploy mais recente)
+    const isChunkError =
+      /Failed to fetch dynamically imported module|Loading chunk|Loading CSS chunk|dynamically imported module/i.test(message) ||
+      /Cannot read properties of undefined \(reading 'default'\)/i.test(message) ||
+      /undefined is not an object \(evaluating '.*\.default'\)/i.test(message);
+
     if (isChunkError) {
       const reloadKey = 'chunk-reload';
       const lastReload = sessionStorage.getItem(reloadKey);
       const now = Date.now();
       if (!lastReload || now - Number(lastReload) > 10000) {
         sessionStorage.setItem(reloadKey, String(now));
-        window.location.reload();
+        // Limpa caches conhecidos antes do reload — força navegador a baixar
+        // os assets mais recentes em vez do cache antigo.
+        try {
+          if (typeof caches !== 'undefined' && caches?.keys) {
+            caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+          }
+        } catch { /* ignore */ }
+        // location.reload(true) é não-padrão (e ignorado em alguns browsers),
+        // então adicionamos query string para garantir cache-bust em CDN.
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set('_cb', String(now));
+          window.location.replace(url.toString());
+        } catch {
+          window.location.reload();
+        }
         return { hasError: false, errorMessage: '' };
       }
     }
@@ -83,7 +106,22 @@ class ErrorBoundary extends React.Component {
 
             <Button
               variant="contained"
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                // Limpa caches conhecidos e força reload com cache-bust.
+                try {
+                  if (typeof caches !== 'undefined' && caches?.keys) {
+                    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+                  }
+                  sessionStorage.removeItem('chunk-reload');
+                } catch { /* ignore */ }
+                try {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('_cb', String(Date.now()));
+                  window.location.replace(url.toString());
+                } catch {
+                  window.location.reload();
+                }
+              }}
             >
               Recarregar Página
             </Button>
