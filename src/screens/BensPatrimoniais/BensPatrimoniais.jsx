@@ -17,6 +17,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
+  TableSortLabel,
   Chip,
   CircularProgress,
   Snackbar,
@@ -37,6 +38,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
+import InventoryIcon from '@mui/icons-material/Inventory2Outlined';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -47,10 +50,13 @@ import {
   updateLocalidade,
   markAsConferido,
 } from '../../firebase/bensPatrimoniaisService';
+import { subscribeBensViaturas } from '../../firebase/bensViaturasService';
 import { importBensPatrimoniaisFromFile } from '../../utils/bensPatrimoniaisImporter';
 
 const EditDialog = lazy(() => import('../../dialogs/BensPatrimoniaisEditDialog'));
 const LocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisLocationDialog'));
+const ViaturasManageDialog = lazy(() => import('../../dialogs/BensViaturasManageDialog'));
+const ViaturasMateriaisDialog = lazy(() => import('../../dialogs/BensViaturasMateriaisDialog'));
 
 const SIX_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 6;
 
@@ -115,11 +121,74 @@ const StyledRow = styled(TableRow, {
       }),
 }));
 
-const ELLIPSIS_SX = {
-  maxWidth: 280,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+const WRAP_SX = {
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
+  verticalAlign: 'top',
+};
+
+const SORT_LABEL_SX = {
+  color: 'white !important',
+  '&:hover': { color: 'rgba(255,255,255,0.85) !important' },
+  '&.Mui-active': { color: 'white !important' },
+  '& .MuiTableSortLabel-icon': { color: 'white !important', opacity: 0.7 },
+};
+
+const FIELD_TYPES = {
+  id_patrimonio: 'natural',
+  descricao: 'text',
+  quantidade: 'number',
+  valor: 'number',
+  localidade: 'text',
+  aapat_processo_sei: 'natural',
+  ultima_conferencia: 'date',
+};
+
+const parseNumeric = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string') {
+    const cleaned = v.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+};
+
+const compareValues = (av, bv, type, direction) => {
+  const aEmpty = av === null || av === undefined || av === '';
+  const bEmpty = bv === null || bv === undefined || bv === '';
+
+  if (type === 'date') {
+    // "nunca conferido" (null) é considerado mais antigo que qualquer data: -Infinity
+    const aTime = aEmpty ? -Infinity : (formatDateBR(av)?.getTime() ?? -Infinity);
+    const bTime = bEmpty ? -Infinity : (formatDateBR(bv)?.getTime() ?? -Infinity);
+    const cmp = aTime - bTime;
+    return direction === 'asc' ? cmp : -cmp;
+  }
+
+  if (type === 'number') {
+    if (aEmpty && bEmpty) return 0;
+    if (aEmpty) return 1; // vazios sempre ao fim
+    if (bEmpty) return -1;
+    const an = parseNumeric(av);
+    const bn = parseNumeric(bv);
+    if (an === null && bn === null) return 0;
+    if (an === null) return 1;
+    if (bn === null) return -1;
+    const cmp = an - bn;
+    return direction === 'asc' ? cmp : -cmp;
+  }
+
+  // text / natural — localeCompare com { numeric: true } trata "Item 10" > "Item 2"
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+  const cmp = String(av).localeCompare(String(bv), 'pt-BR', {
+    numeric: true,
+    sensitivity: 'base',
+  });
+  return direction === 'asc' ? cmp : -cmp;
 };
 
 const formatDateBR = (value) => {
@@ -154,11 +223,27 @@ export default function BensPatrimoniais() {
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [sortConfig, setSortConfig] = useState({ field: null, direction: 'asc' });
+
+  const handleSort = useCallback((field) => {
+    setSortConfig((prev) => {
+      if (prev.field !== field) {
+        // Primeiro clique: datas começam do mais antigo p/ mais recente (asc);
+        // números e texto começam crescente (1→9 / A→Z) — comportamento natural
+        return { field, direction: 'asc' };
+      }
+      return { field, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+    });
+  }, []);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationItem, setLocationItem] = useState(null);
+  const [viaturas, setViaturas] = useState([]);
+  const [manageViaturasOpen, setManageViaturasOpen] = useState(false);
+  const [materiaisViaturaOpen, setMateriaisViaturaOpen] = useState(false);
+  const [materiaisInitialViaturaId, setMateriaisInitialViaturaId] = useState(null);
 
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
@@ -186,6 +271,16 @@ export default function BensPatrimoniais() {
     return () => unsub();
   }, [showSnack]);
 
+  useEffect(() => {
+    const unsub = subscribeBensViaturas(
+      (data) => setViaturas(data),
+      (err) => {
+        console.error(err);
+      }
+    );
+    return () => unsub();
+  }, []);
+
   const filteredItems = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
     if (!term) return items;
@@ -202,10 +297,20 @@ export default function BensPatrimoniais() {
     setPage(0);
   }, [debouncedSearch]);
 
+  const sortedItems = useMemo(() => {
+    if (!sortConfig.field) return filteredItems;
+    const type = FIELD_TYPES[sortConfig.field] || 'text';
+    const arr = [...filteredItems];
+    arr.sort((a, b) =>
+      compareValues(a[sortConfig.field], b[sortConfig.field], type, sortConfig.direction)
+    );
+    return arr;
+  }, [filteredItems, sortConfig]);
+
   const paginated = useMemo(() => {
     const start = page * rowsPerPage;
-    return filteredItems.slice(start, start + rowsPerPage);
-  }, [filteredItems, page, rowsPerPage]);
+    return sortedItems.slice(start, start + rowsPerPage);
+  }, [sortedItems, page, rowsPerPage]);
 
   const overdueCount = useMemo(
     () => items.filter((it) => isOverdueSixMonths(it.ultima_conferencia)).length,
@@ -271,11 +376,14 @@ export default function BensPatrimoniais() {
     }
   };
 
-  const handleSubmitLocation = async (newLocalidade) => {
+  const handleSubmitLocation = async (newLocalidade, viaturaInfo = null) => {
     if (!locationItem?.id) return;
     try {
-      await updateLocalidade(locationItem.id, newLocalidade);
-      showSnack('Localidade atualizada.', 'success');
+      await updateLocalidade(locationItem.id, newLocalidade, viaturaInfo);
+      showSnack(
+        viaturaInfo ? `Alocado em ${viaturaInfo.nome}.` : 'Localidade atualizada.',
+        'success'
+      );
       setLocationOpen(false);
       setLocationItem(null);
     } catch {
@@ -358,6 +466,45 @@ export default function BensPatrimoniais() {
                     }}
                   >
                     Importar Planilha (XLSX)
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<LocalShippingOutlinedIcon />}
+                    onClick={() => setManageViaturasOpen(true)}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      borderColor: 'white',
+                      color: 'white',
+                      '&:hover': {
+                        borderColor: 'white',
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                      },
+                    }}
+                  >
+                    Viaturas
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<InventoryIcon />}
+                    onClick={() => {
+                      setMateriaisInitialViaturaId(null);
+                      setMateriaisViaturaOpen(true);
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      borderColor: 'white',
+                      color: 'white',
+                      '&:hover': {
+                        borderColor: 'white',
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                      },
+                    }}
+                  >
+                    Ver por Viatura
                   </Button>
                   <Button
                     variant="outlined"
@@ -479,13 +626,33 @@ export default function BensPatrimoniais() {
                           },
                         }}
                       >
-                        <HeaderCell>Patrimônio</HeaderCell>
-                        <HeaderCell>Descrição</HeaderCell>
-                        <HeaderCell align="center">Qtd</HeaderCell>
-                        <HeaderCell>Valor</HeaderCell>
-                        <HeaderCell>Localidade</HeaderCell>
-                        <HeaderCell>AAPat / SEI</HeaderCell>
-                        <HeaderCell>Última Conferência</HeaderCell>
+                        {[
+                          { field: 'id_patrimonio', label: 'Patrimônio', align: 'left' },
+                          { field: 'descricao', label: 'Descrição', align: 'left' },
+                          { field: 'quantidade', label: 'Qtd', align: 'center' },
+                          { field: 'valor', label: 'Valor', align: 'left' },
+                          { field: 'localidade', label: 'Localidade', align: 'left' },
+                          { field: 'aapat_processo_sei', label: 'AAPat / SEI', align: 'left' },
+                          { field: 'ultima_conferencia', label: 'Última Conferência', align: 'left' },
+                        ].map(({ field, label, align }) => {
+                          const active = sortConfig.field === field;
+                          return (
+                            <HeaderCell
+                              key={field}
+                              align={align}
+                              sortDirection={active ? sortConfig.direction : false}
+                            >
+                              <TableSortLabel
+                                active={active}
+                                direction={active ? sortConfig.direction : 'asc'}
+                                onClick={() => handleSort(field)}
+                                sx={SORT_LABEL_SX}
+                              >
+                                {label}
+                              </TableSortLabel>
+                            </HeaderCell>
+                          );
+                        })}
                         <HeaderCell align="center">Ações</HeaderCell>
                       </TableRow>
                     </TableHead>
@@ -512,53 +679,70 @@ export default function BensPatrimoniais() {
                           const lastDate = formatDateBR(item.ultima_conferencia);
                           return (
                             <StyledRow key={item.id} overdue={overdue}>
-                              <TableCell sx={{ fontWeight: 700, color: overdue ? 'error.dark' : '#1e3a5f' }}>
+                              <TableCell sx={{ ...WRAP_SX, fontWeight: 700, color: overdue ? 'error.dark' : '#1e3a5f' }}>
                                 {item.id_patrimonio || '—'}
                               </TableCell>
-                              <Tooltip title={item.descricao || ''} placement="top-start" arrow>
-                                <TableCell
-                                  sx={{
-                                    ...ELLIPSIS_SX,
-                                    color: overdue ? 'error.dark' : 'inherit',
-                                  }}
-                                >
-                                  {item.descricao || '—'}
-                                </TableCell>
-                              </Tooltip>
-                              <TableCell align="center" sx={{ color: overdue ? 'error.dark' : 'inherit' }}>
+                              <TableCell
+                                sx={{
+                                  ...WRAP_SX,
+                                  color: overdue ? 'error.dark' : 'inherit',
+                                  minWidth: 220,
+                                }}
+                              >
+                                {item.descricao || '—'}
+                              </TableCell>
+                              <TableCell align="center" sx={{ ...WRAP_SX, color: overdue ? 'error.dark' : 'inherit' }}>
                                 {item.quantidade ?? 1}
                               </TableCell>
-                              <TableCell sx={{ whiteSpace: 'nowrap', color: overdue ? 'error.dark' : 'inherit' }}>
+                              <TableCell sx={{ ...WRAP_SX, color: overdue ? 'error.dark' : 'inherit' }}>
                                 {formatValor(item.valor)}
                               </TableCell>
-                              <TableCell sx={{ ...ELLIPSIS_SX, maxWidth: 180, color: overdue ? 'error.dark' : 'inherit' }}>
+                              <TableCell sx={{ ...WRAP_SX, minWidth: 160, color: overdue ? 'error.dark' : 'inherit' }}>
                                 {item.localidade ? (
                                   <Chip
+                                    icon={item.viatura_bens_id ? <LocalShippingOutlinedIcon /> : undefined}
                                     label={item.localidade}
                                     size="small"
                                     sx={{
                                       fontWeight: 600,
-                                      backgroundColor: overdue ? '#ffebee' : '#e3f2fd',
-                                      color: overdue ? '#b71c1c' : '#1565c0',
+                                      backgroundColor: overdue
+                                        ? '#ffebee'
+                                        : item.viatura_bens_id
+                                        ? '#fff3e0'
+                                        : '#e3f2fd',
+                                      color: overdue
+                                        ? '#b71c1c'
+                                        : item.viatura_bens_id
+                                        ? '#e65100'
+                                        : '#1565c0',
                                       maxWidth: '100%',
+                                      height: 'auto',
+                                      py: 0.4,
+                                      '& .MuiChip-label': {
+                                        whiteSpace: 'normal',
+                                        wordBreak: 'break-word',
+                                        display: 'block',
+                                        lineHeight: 1.3,
+                                      },
+                                      '& .MuiChip-icon': {
+                                        color: 'inherit',
+                                      },
                                     }}
                                   />
                                 ) : (
                                   '—'
                                 )}
                               </TableCell>
-                              <Tooltip title={item.aapat_processo_sei || ''} placement="top-start" arrow>
-                                <TableCell
-                                  sx={{
-                                    ...ELLIPSIS_SX,
-                                    maxWidth: 200,
-                                    color: overdue ? 'error.dark' : 'inherit',
-                                  }}
-                                >
-                                  {item.aapat_processo_sei || '—'}
-                                </TableCell>
-                              </Tooltip>
-                              <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                              <TableCell
+                                sx={{
+                                  ...WRAP_SX,
+                                  minWidth: 180,
+                                  color: overdue ? 'error.dark' : 'inherit',
+                                }}
+                              >
+                                {item.aapat_processo_sei || '—'}
+                              </TableCell>
+                              <TableCell sx={WRAP_SX}>
                                 {lastDate ? (
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                     {overdue && (
@@ -589,7 +773,7 @@ export default function BensPatrimoniais() {
                                   />
                                 )}
                               </TableCell>
-                              <TableCell align="center">
+                              <TableCell align="center" sx={{ verticalAlign: 'top' }}>
                                 <ButtonGroup
                                   size="small"
                                   variant="text"
@@ -651,6 +835,9 @@ export default function BensPatrimoniais() {
               <EditDialog
                 open={editOpen}
                 editData={editItem}
+                localidadeSuggestions={localidadeSuggestions}
+                viaturas={viaturas}
+                onManageViaturas={() => setManageViaturasOpen(true)}
                 onSubmit={handleSubmitEdit}
                 onCancel={() => {
                   setEditOpen(false);
@@ -663,10 +850,34 @@ export default function BensPatrimoniais() {
                 open={locationOpen}
                 item={locationItem}
                 suggestions={localidadeSuggestions}
+                viaturas={viaturas}
+                onManageViaturas={() => setManageViaturasOpen(true)}
                 onSubmit={handleSubmitLocation}
                 onCancel={() => {
                   setLocationOpen(false);
                   setLocationItem(null);
+                }}
+              />
+            )}
+            {manageViaturasOpen && (
+              <ViaturasManageDialog
+                open={manageViaturasOpen}
+                viaturas={viaturas}
+                onClose={() => setManageViaturasOpen(false)}
+                onViewMateriais={(v) => {
+                  setMateriaisInitialViaturaId(v.id);
+                  setMateriaisViaturaOpen(true);
+                }}
+              />
+            )}
+            {materiaisViaturaOpen && (
+              <ViaturasMateriaisDialog
+                open={materiaisViaturaOpen}
+                viaturas={viaturas}
+                initialViaturaId={materiaisInitialViaturaId}
+                onClose={() => {
+                  setMateriaisViaturaOpen(false);
+                  setMateriaisInitialViaturaId(null);
                 }}
               />
             )}

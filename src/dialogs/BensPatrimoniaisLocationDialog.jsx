@@ -12,10 +12,15 @@ import {
   TextField,
   CircularProgress,
   Chip,
+  ToggleButton,
+  ToggleButtonGroup,
+  Divider,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import SaveIcon from '@mui/icons-material/Save';
+import { buildViaturaLabel } from '../firebase/bensViaturasService';
 
 const filterCreatable = (options, params) => {
   const { inputValue } = params;
@@ -36,11 +41,16 @@ export default function BensPatrimoniaisLocationDialog({
   open,
   item,
   suggestions = [],
+  viaturas = [],
   onSubmit,
   onCancel,
+  onManageViaturas,
 }) {
-  const [value, setValue] = useState(null);
-  const [inputValue, setInputValue] = useState('');
+  // 'viatura' = alocar em uma viatura cadastrada; 'livre' = digitar localidade livre
+  const [mode, setMode] = useState('livre');
+  const [freeValue, setFreeValue] = useState(null);
+  const [freeInput, setFreeInput] = useState('');
+  const [viaturaValue, setViaturaValue] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const options = useMemo(() => {
@@ -50,29 +60,71 @@ export default function BensPatrimoniaisLocationDialog({
     return unique.map((label) => ({ label }));
   }, [suggestions]);
 
+  const viaturaOptions = useMemo(
+    () =>
+      (viaturas || []).map((v) => ({
+        id: v.id,
+        label: buildViaturaLabel(v),
+        prefixo: v.prefixo,
+        placa: v.placa,
+        modelo: v.modelo,
+      })),
+    [viaturas]
+  );
+
   useEffect(() => {
-    if (open) {
-      const current = item?.localidade ? String(item.localidade) : '';
-      setValue(current ? { label: current } : null);
-      setInputValue(current);
-      setSaving(false);
+    if (!open) return;
+    const currentLoc = item?.localidade ? String(item.localidade) : '';
+    const currentViaturaId = item?.viatura_bens_id || '';
+    if (currentViaturaId) {
+      const found =
+        viaturaOptions.find((v) => v.id === currentViaturaId) || {
+          id: currentViaturaId,
+          label: item?.viatura_bens_nome || 'Viatura',
+        };
+      setMode('viatura');
+      setViaturaValue(found);
+      setFreeValue(null);
+      setFreeInput('');
+    } else {
+      setMode('livre');
+      setViaturaValue(null);
+      setFreeValue(currentLoc ? { label: currentLoc } : null);
+      setFreeInput(currentLoc);
     }
-  }, [open, item]);
+    setSaving(false);
+  }, [open, item, viaturaOptions]);
 
   const handleConfirm = async () => {
-    const newLocalidade =
-      (value && typeof value === 'object' && (value.inputValue || value.label)) ||
-      (typeof value === 'string' ? value : inputValue.trim());
+    let finalLoc = '';
+    let viaturaInfo = null;
 
-    const finalValue = (newLocalidade || '').trim();
-    if (finalValue === (item?.localidade || '').trim()) {
+    if (mode === 'viatura') {
+      if (!viaturaValue) {
+        // Sem viatura selecionada → nada a fazer
+        onCancel();
+        return;
+      }
+      finalLoc = `Viatura ${viaturaValue.label}`;
+      viaturaInfo = { id: viaturaValue.id, nome: viaturaValue.label };
+    } else {
+      const typed =
+        (freeValue && typeof freeValue === 'object' && (freeValue.inputValue || freeValue.label)) ||
+        (typeof freeValue === 'string' ? freeValue : freeInput.trim());
+      finalLoc = (typed || '').trim();
+      viaturaInfo = null;
+    }
+
+    const sameLoc = finalLoc === (item?.localidade || '').trim();
+    const sameViatura = (viaturaInfo?.id || null) === (item?.viatura_bens_id || null);
+    if (sameLoc && sameViatura) {
       onCancel();
       return;
     }
 
     setSaving(true);
     try {
-      await onSubmit(finalValue);
+      await onSubmit(finalLoc, viaturaInfo);
     } finally {
       setSaving(false);
     }
@@ -137,11 +189,12 @@ export default function BensPatrimoniaisLocationDialog({
             {item?.descricao || '—'}
           </Typography>
           {item?.localidade && (
-            <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               <Typography variant="body2" color="text.secondary">
                 Atual:
               </Typography>
               <Chip
+                icon={item?.viatura_bens_id ? <LocalShippingOutlinedIcon /> : <LocationOnIcon />}
                 label={item.localidade}
                 size="small"
                 sx={{ fontWeight: 600, backgroundColor: '#e3f2fd', color: '#1565c0' }}
@@ -150,65 +203,181 @@ export default function BensPatrimoniaisLocationDialog({
           )}
         </Box>
 
-        <Autocomplete
-          value={value}
-          onChange={(_, newValue) => {
-            if (typeof newValue === 'string') {
-              setValue({ label: newValue });
-            } else if (newValue && newValue.inputValue) {
-              setValue({ label: newValue.inputValue });
-            } else {
-              setValue(newValue);
-            }
-          }}
-          inputValue={inputValue}
-          onInputChange={(_, newInput) => setInputValue(newInput)}
-          options={options}
-          getOptionLabel={(opt) => {
-            if (!opt) return '';
-            if (typeof opt === 'string') return opt;
-            return opt.inputValue || opt.label || '';
-          }}
-          filterOptions={filterCreatable}
-          freeSolo
-          selectOnFocus
-          clearOnBlur={false}
-          handleHomeEndKeys
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Nova localidade"
-              placeholder="Digite ou selecione (ex.: Demop, Guarda, Viatura X)"
-              autoFocus
-              sx={{
-                '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
+        <Divider sx={{ my: 1 }} />
+
+        <Box sx={{ mt: 2, mb: 2 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+            Tipo de alocação
+          </Typography>
+          <ToggleButtonGroup
+            value={mode}
+            exclusive
+            onChange={(_, v) => v && setMode(v)}
+            size="small"
+            fullWidth
+            sx={{
+              '& .MuiToggleButton-root': {
+                textTransform: 'none',
+                fontWeight: 600,
+                py: 1,
+                borderRadius: 2,
+                '&.Mui-selected': {
+                  backgroundColor: 'rgba(30,58,95,0.08)',
+                  color: '#1e3a5f',
+                  borderColor: '#1e3a5f',
+                },
+              },
+            }}
+          >
+            <ToggleButton value="livre">
+              <LocationOnIcon sx={{ mr: 1, fontSize: 18 }} />
+              Local livre
+            </ToggleButton>
+            <ToggleButton value="viatura">
+              <LocalShippingOutlinedIcon sx={{ mr: 1, fontSize: 18 }} />
+              Viatura
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        {mode === 'livre' ? (
+          <Autocomplete
+            value={freeValue}
+            onChange={(_, newValue) => {
+              if (typeof newValue === 'string') {
+                setFreeValue({ label: newValue });
+              } else if (newValue && newValue.inputValue) {
+                setFreeValue({ label: newValue.inputValue });
+              } else {
+                setFreeValue(newValue);
+              }
+            }}
+            inputValue={freeInput}
+            onInputChange={(_, newInput) => setFreeInput(newInput)}
+            options={options}
+            getOptionLabel={(opt) => {
+              if (!opt) return '';
+              if (typeof opt === 'string') return opt;
+              return opt.inputValue || opt.label || '';
+            }}
+            filterOptions={filterCreatable}
+            freeSolo
+            selectOnFocus
+            clearOnBlur={false}
+            handleHomeEndKeys
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Nova localidade"
+                placeholder="Digite ou selecione (ex.: Demop, Guarda, Sala 5)"
+                autoFocus
+                sx={{
+                  '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
+                }}
+              />
+            )}
+            renderOption={(props, option) => {
+              const { key, ...rest } = props;
+              return (
+                <li key={key} {...rest}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                    {option.isNew ? (
+                      <Typography sx={{ color: '#2e7d32', fontWeight: 600 }}>
+                        + {option.label}
+                      </Typography>
+                    ) : (
+                      <>
+                        <LocationOnIcon sx={{ fontSize: 18, color: '#1e3a5f' }} />
+                        <Typography>{option.label}</Typography>
+                      </>
+                    )}
+                  </Box>
+                </li>
+              );
+            }}
+          />
+        ) : (
+          <Box>
+            <Autocomplete
+              value={viaturaValue}
+              onChange={(_, v) => setViaturaValue(v)}
+              options={viaturaOptions}
+              getOptionLabel={(opt) => (opt && opt.label) || ''}
+              isOptionEqualToValue={(opt, val) => opt?.id === val?.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Selecione a viatura"
+                  placeholder={
+                    viaturaOptions.length === 0
+                      ? 'Nenhuma viatura cadastrada'
+                      : 'Escolha uma viatura'
+                  }
+                  autoFocus
+                  sx={{
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
+                  }}
+                />
+              )}
+              renderOption={(props, option) => {
+                const { key, ...rest } = props;
+                return (
+                  <li key={key} {...rest}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                      <LocalShippingOutlinedIcon sx={{ fontSize: 18, color: '#1e3a5f' }} />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 600 }} noWrap>
+                          {option.prefixo || option.label}
+                        </Typography>
+                        {(option.placa || option.modelo) && (
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            {[option.placa, option.modelo].filter(Boolean).join(' • ')}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </li>
+                );
               }}
             />
-          )}
-          renderOption={(props, option) => {
-            const { key, ...rest } = props;
-            return (
-              <li key={key} {...rest}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                  {option.isNew ? (
-                    <Typography sx={{ color: '#2e7d32', fontWeight: 600 }}>
-                      + {option.label}
-                    </Typography>
-                  ) : (
-                    <>
-                      <LocationOnIcon sx={{ fontSize: 18, color: '#1e3a5f' }} />
-                      <Typography>{option.label}</Typography>
-                    </>
-                  )}
-                </Box>
-              </li>
-            );
-          }}
-        />
+            {onManageViaturas && (
+              <Button
+                onClick={onManageViaturas}
+                size="small"
+                variant="text"
+                startIcon={<LocalShippingOutlinedIcon />}
+                sx={{
+                  mt: 1,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  color: '#ff6b35',
+                }}
+              >
+                {viaturaOptions.length === 0
+                  ? 'Cadastrar viaturas'
+                  : 'Gerenciar viaturas'}
+              </Button>
+            )}
+            {viaturaValue && (
+              <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Localidade:
+                </Typography>
+                <Chip
+                  size="small"
+                  icon={<LocationOnIcon />}
+                  label={`Viatura ${viaturaValue.label}`}
+                  sx={{ backgroundColor: '#e3f2fd', color: '#1565c0', fontWeight: 600 }}
+                />
+              </Box>
+            )}
+          </Box>
+        )}
 
         <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
-          Sugestões vêm das localidades já cadastradas neste módulo. Você pode digitar um novo
-          local livremente.
+          {mode === 'viatura'
+            ? 'As viaturas listadas pertencem exclusivamente ao módulo Bens Patrimoniais (não confundir com as viaturas operacionais do DEMOP).'
+            : 'Sugestões vêm das localidades já cadastradas neste módulo. Você pode digitar um novo local livremente.'}
         </Typography>
       </DialogContent>
 

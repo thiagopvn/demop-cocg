@@ -85,6 +85,8 @@ export const createBemPatrimonial = async (data) => {
       localidade: normalizeText(data.localidade),
       aapat_processo_sei: normalizeText(data.aapat_processo_sei),
       observacoes: normalizeText(data.observacoes),
+      viatura_bens_id: data.viatura_bens_id || null,
+      viatura_bens_nome: data.viatura_bens_nome ? normalizeText(data.viatura_bens_nome) : '',
       ultima_conferencia: data.ultima_conferencia ?? null,
       created_at: serverTimestamp(),
       updated_at: serverTimestamp(),
@@ -113,6 +115,10 @@ export const updateBemPatrimonial = async (docId, data) => {
       aapat_processo_sei:
         data.aapat_processo_sei !== undefined ? normalizeText(data.aapat_processo_sei) : undefined,
       observacoes: data.observacoes !== undefined ? normalizeText(data.observacoes) : undefined,
+      viatura_bens_id:
+        data.viatura_bens_id !== undefined ? (data.viatura_bens_id || null) : undefined,
+      viatura_bens_nome:
+        data.viatura_bens_nome !== undefined ? normalizeText(data.viatura_bens_nome) : undefined,
       updated_at: serverTimestamp(),
     });
     if (data.descricao !== undefined) {
@@ -125,13 +131,16 @@ export const updateBemPatrimonial = async (docId, data) => {
   }
 };
 
-export const updateLocalidade = async (docId, localidade) => {
+export const updateLocalidade = async (docId, localidade, viaturaInfo = null) => {
   try {
     const ref = doc(db, 'bens_patrimoniais', docId);
-    await updateDoc(ref, {
+    const payload = {
       localidade: normalizeText(localidade),
+      viatura_bens_id: viaturaInfo?.id || null,
+      viatura_bens_nome: viaturaInfo?.nome ? normalizeText(viaturaInfo.nome) : '',
       updated_at: serverTimestamp(),
-    });
+    };
+    await updateDoc(ref, payload);
   } catch (err) {
     console.error('Erro ao atualizar localidade:', err);
     throw err;

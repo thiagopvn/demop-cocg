@@ -54,4 +54,10 @@ export const tarefasDemopCollection = collection(db, 'tarefas_demop');
 export const bensPatrimoniaisCollection = collection(db, 'bens_patrimoniais');
 // ------------------------------------
 
+// --- VIATURAS EXCLUSIVAS DO MÓDULO BENS PATRIMONIAIS ---
+// Sem relação com a coleção 'viaturas' usada em /viaturas.
+// Servem apenas como localidade onde um bem patrimonial pode ser alocado.
+export const bensViaturasCollection = collection(db, 'bens_viaturas');
+// ------------------------------------
+
 export default db;

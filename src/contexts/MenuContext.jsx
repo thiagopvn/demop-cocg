@@ -80,22 +80,24 @@ function MenuContext({ children }) {
   const allMenuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: AssessmentOutlined, label: 'Atividades', path: '/atividades', id: 11, roles: ['admingeral'] },
-    { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['admin', 'admingeral'] },
-    { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['admin', 'admingeral'] },
-    { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['admin', 'admingeral'] },
-    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['admin', 'admingeral'] },
-    { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['admin', 'admingeral'] },
-    { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['admin', 'admingeral'] },
-    { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1, roles: ['admin', 'admingeral'] },
-    { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['admin', 'admingeral'] },
-    { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['admin', 'admingeral'] },
+    { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: PersonOutline, label: 'Usuários', path: '/usuario', id: 1, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: AccountBalance, label: 'Bens Patrimoniais', path: '/bens-patrimoniais', id: 13, roles: ['BensPatrimoniais', 'admingeral'] },
     { icon: AccountCircle, label: 'Meu Perfil', path: '/perfil', id: 12, roles: ['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais'] },
   ];
 
-  // Filtrar itens de menu baseado no papel do usuário
+  // Filtrar itens de menu baseado no papel do usuário.
+  // Enquanto userRole ainda não foi resolvido (null), mostra vazio em vez
+  // de mostrar todos os itens — evita flash do menu admin para roles novos.
   const menuItems = useMemo(() =>
-    allMenuItems.filter(item => !userRole || item.roles.includes(userRole)),
+    userRole ? allMenuItems.filter(item => item.roles.includes(userRole)) : [],
     [userRole]
   );
 
@@ -372,7 +374,8 @@ function MenuContext({ children }) {
                 label={
                   userRole === 'admingeral' ? 'Admin Geral' :
                   userRole === 'admin' ? 'Administrador' :
-                  userRole === 'chefe' ? 'Chefe de Guarnição' : 'Usuário'
+                  userRole === 'chefe' ? 'Chefe de Guarnição' :
+                  userRole === 'BensPatrimoniais' ? 'Bens Patrimoniais' : 'Usuário'
                 }
                 size="small"
                 sx={{
@@ -380,16 +383,19 @@ function MenuContext({ children }) {
                     userRole === 'admingeral' ? 'rgba(211, 47, 47, 0.2)' :
                     userRole === 'admin' ? 'rgba(255, 107, 53, 0.2)' :
                     userRole === 'chefe' ? 'rgba(34, 197, 94, 0.2)' :
+                    userRole === 'BensPatrimoniais' ? 'rgba(168, 85, 247, 0.2)' :
                     'rgba(96, 165, 250, 0.2)',
                   color:
                     userRole === 'admingeral' ? '#d32f2f' :
                     userRole === 'admin' ? '#ff6b35' :
                     userRole === 'chefe' ? '#22c55e' :
+                    userRole === 'BensPatrimoniais' ? '#a855f7' :
                     '#60a5fa',
                   border: `1px solid ${
                     userRole === 'admingeral' ? '#d32f2f' :
                     userRole === 'admin' ? '#ff6b35' :
                     userRole === 'chefe' ? '#22c55e' :
+                    userRole === 'BensPatrimoniais' ? '#a855f7' :
                     '#60a5fa'
                   }`,
                   fontSize: '0.7rem',
