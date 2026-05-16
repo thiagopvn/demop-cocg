@@ -147,13 +147,18 @@ export const updateLocalidade = async (docId, localidade, viaturaInfo = null) =>
   }
 };
 
-export const markAsConferido = async (docId) => {
+export const markAsConferido = async (docId, userInfo = null) => {
   try {
     const ref = doc(db, 'bens_patrimoniais', docId);
-    await updateDoc(ref, {
+    const payload = {
       ultima_conferencia: serverTimestamp(),
       updated_at: serverTimestamp(),
-    });
+    };
+    if (userInfo) {
+      if (userInfo.userName) payload.conferido_por = userInfo.userName;
+      if (userInfo.userId) payload.conferido_por_id = userInfo.userId;
+    }
+    await updateDoc(ref, payload);
   } catch (err) {
     console.error('Erro ao registrar conferência:', err);
     throw err;

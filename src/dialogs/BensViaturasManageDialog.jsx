@@ -35,6 +35,7 @@ import {
   buildViaturaLabel,
   countBensInViatura,
 } from '../firebase/bensViaturasService';
+import { logAudit } from '../firebase/auditLog';
 
 const fieldStyle = {
   '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
@@ -50,6 +51,8 @@ export default function BensViaturasManageDialog({
   viaturas = [],
   onClose,
   onViewMateriais,
+  loggedUserId = '',
+  loggedUserName = '',
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -117,11 +120,28 @@ export default function BensViaturasManageDialog({
     if (!validate()) return;
     setSaving(true);
     try {
+      const targetName = String(form.prefixo).trim();
       if (editingId) {
         await updateBensViatura(editingId, form);
+        logAudit({
+          action: 'bem_viatura_update',
+          userId: loggedUserId,
+          userName: loggedUserName,
+          targetCollection: 'bens_viaturas',
+          targetId: editingId,
+          targetName,
+        });
         setSnack({ open: true, message: 'Viatura atualizada.', severity: 'success' });
       } else {
-        await createBensViatura(form);
+        const newId = await createBensViatura(form);
+        logAudit({
+          action: 'bem_viatura_create',
+          userId: loggedUserId,
+          userName: loggedUserName,
+          targetCollection: 'bens_viaturas',
+          targetId: newId,
+          targetName,
+        });
         setSnack({ open: true, message: 'Viatura cadastrada.', severity: 'success' });
       }
       setForm(EMPTY);
@@ -148,6 +168,14 @@ export default function BensViaturasManageDialog({
     setDeletingId(confirmDelete.id);
     try {
       await deleteBensViatura(confirmDelete.id);
+      logAudit({
+        action: 'bem_viatura_delete',
+        userId: loggedUserId,
+        userName: loggedUserName,
+        targetCollection: 'bens_viaturas',
+        targetId: confirmDelete.id,
+        targetName: confirmDelete.label,
+      });
       setSnack({ open: true, message: 'Viatura excluída.', severity: 'success' });
       if (editingId === confirmDelete.id) cancelEdit();
     } catch (err) {

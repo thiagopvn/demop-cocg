@@ -59,6 +59,15 @@ export const ACTION_LABELS = {
     tarefa_create: 'Criou missao do dia',
     tarefa_complete: 'Concluiu missao do dia',
     tarefa_cancel: 'Cancelou missao do dia',
+    bem_create: 'Cadastrou bem patrimonial',
+    bem_update: 'Editou bem patrimonial',
+    bem_delete: 'Excluiu bem patrimonial',
+    bem_conferir: 'Conferiu bem patrimonial',
+    bem_localidade: 'Atualizou localidade de bem',
+    bem_observacao: 'Atualizou observação de bem',
+    bem_viatura_create: 'Cadastrou viatura (bens)',
+    bem_viatura_update: 'Editou viatura (bens)',
+    bem_viatura_delete: 'Excluiu viatura (bens)',
 };
 
 // Cores para cada tipo de ação
@@ -89,4 +98,13 @@ export const ACTION_COLORS = {
     tarefa_create: '#ff6b35',
     tarefa_complete: '#4caf50',
     tarefa_cancel: '#f44336',
+    bem_create: '#4caf50',
+    bem_update: '#2196f3',
+    bem_delete: '#f44336',
+    bem_conferir: '#1e3a5f',
+    bem_localidade: '#ff6b35',
+    bem_observacao: '#f9a825',
+    bem_viatura_create: '#4caf50',
+    bem_viatura_update: '#2196f3',
+    bem_viatura_delete: '#f44336',
 };

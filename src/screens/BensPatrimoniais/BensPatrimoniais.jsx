@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Container,
@@ -23,7 +23,6 @@ import {
   Snackbar,
   Alert,
   Fade,
-  Backdrop,
   Stack,
   Card,
   alpha,
@@ -32,7 +31,6 @@ import {
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
@@ -41,6 +39,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import InventoryIcon from '@mui/icons-material/Inventory2Outlined';
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -52,7 +51,10 @@ import {
   markAsConferido,
 } from '../../firebase/bensPatrimoniaisService';
 import { subscribeBensViaturas } from '../../firebase/bensViaturasService';
-import { importBensPatrimoniaisFromFile } from '../../utils/bensPatrimoniaisImporter';
+import { verifyToken } from '../../firebase/token';
+import { doc, getDoc } from 'firebase/firestore';
+import db from '../../firebase/db';
+import { logAudit } from '../../firebase/auditLog';
 
 const EditDialog = lazy(() => import('../../dialogs/BensPatrimoniaisEditDialog'));
 const LocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisLocationDialog'));
@@ -210,6 +212,15 @@ const isOverdueSixMonths = (dateLike) => {
   return Date.now() - d.getTime() > SIX_MONTHS_MS;
 };
 
+const formatDateTimeBR = (date) =>
+  date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
 // Detecta localidades que claramente são dados ruins (valor monetário, número
 // puro ou data) — vindos de planilhas com colunas trocadas na importação.
 const isInvalidLocalidade = (s) => {
@@ -261,14 +272,34 @@ export default function BensPatrimoniais() {
   const [materiaisViaturaOpen, setMateriaisViaturaOpen] = useState(false);
   const [materiaisInitialViaturaId, setMateriaisInitialViaturaId] = useState(null);
 
-  const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
-  const fileInputRef = useRef(null);
-
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  const [loggedUserId, setLoggedUserId] = useState(null);
+  const [loggedUserName, setLoggedUserName] = useState(null);
 
   const showSnack = useCallback((message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
+  }, []);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const decoded = await verifyToken(token);
+        setLoggedUserId(decoded.userId);
+        const userDoc = await getDoc(doc(db, 'users', decoded.userId));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setLoggedUserName(data.full_name || data.username || decoded.username);
+        } else {
+          setLoggedUserName(decoded.username);
+        }
+      } catch (err) {
+        console.error('Erro ao verificar token:', err);
+      }
+    };
+    fetchUserData();
   }, []);
 
   useEffect(() => {
@@ -374,7 +405,18 @@ export default function BensPatrimoniais() {
 
   const handleQuickCheck = async (item) => {
     try {
-      await markAsConferido(item.id);
+      await markAsConferido(item.id, {
+        userId: loggedUserId,
+        userName: loggedUserName,
+      });
+      logAudit({
+        action: 'bem_conferir',
+        userId: loggedUserId,
+        userName: loggedUserName,
+        targetCollection: 'bens_patrimoniais',
+        targetId: item.id,
+        targetName: `${item.id_patrimonio || '—'} · ${item.descricao || ''}`.trim(),
+      });
       showSnack('Item conferido com sucesso.', 'success');
     } catch {
       showSnack('Falha ao registrar conferência.', 'error');
@@ -400,6 +442,18 @@ export default function BensPatrimoniais() {
     if (!observacaoItem?.id) return;
     try {
       await updateBemPatrimonial(observacaoItem.id, { observacoes: newObservacao });
+      logAudit({
+        action: 'bem_observacao',
+        userId: loggedUserId,
+        userName: loggedUserName,
+        targetCollection: 'bens_patrimoniais',
+        targetId: observacaoItem.id,
+        targetName: `${observacaoItem.id_patrimonio || '—'} · ${observacaoItem.descricao || ''}`.trim(),
+        details: {
+          tamanho: newObservacao.length,
+          acao: newObservacao.trim() ? 'preenchida' : 'removida',
+        },
+      });
       showSnack(
         newObservacao.trim() ? 'Observação salva.' : 'Observação removida.',
         'success'
@@ -413,11 +467,28 @@ export default function BensPatrimoniais() {
 
   const handleSubmitEdit = async (data) => {
     try {
+      const targetName = `${data.id_patrimonio || '—'} · ${data.descricao || ''}`.trim();
       if (editItem?.id) {
         await updateBemPatrimonial(editItem.id, data);
+        logAudit({
+          action: 'bem_update',
+          userId: loggedUserId,
+          userName: loggedUserName,
+          targetCollection: 'bens_patrimoniais',
+          targetId: editItem.id,
+          targetName,
+        });
         showSnack('Bem patrimonial atualizado.', 'success');
       } else {
-        await createBemPatrimonial(data);
+        const newId = await createBemPatrimonial(data);
+        logAudit({
+          action: 'bem_create',
+          userId: loggedUserId,
+          userName: loggedUserName,
+          targetCollection: 'bens_patrimoniais',
+          targetId: newId,
+          targetName,
+        });
         showSnack('Bem patrimonial cadastrado.', 'success');
       }
       setEditOpen(false);
@@ -431,6 +502,18 @@ export default function BensPatrimoniais() {
     if (!locationItem?.id) return;
     try {
       await updateLocalidade(locationItem.id, newLocalidade, viaturaInfo);
+      logAudit({
+        action: 'bem_localidade',
+        userId: loggedUserId,
+        userName: loggedUserName,
+        targetCollection: 'bens_patrimoniais',
+        targetId: locationItem.id,
+        targetName: `${locationItem.id_patrimonio || '—'} · ${locationItem.descricao || ''}`.trim(),
+        details: {
+          localidade: newLocalidade || null,
+          viatura: viaturaInfo?.nome || null,
+        },
+      });
       showSnack(
         viaturaInfo ? `Alocado em ${viaturaInfo.nome}.` : 'Localidade atualizada.',
         'success'
@@ -439,37 +522,6 @@ export default function BensPatrimoniais() {
       setLocationItem(null);
     } catch {
       showSnack('Erro ao atualizar localidade.', 'error');
-    }
-  };
-
-  const handleFileSelect = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    setImporting(true);
-    setImportProgress({ done: 0, total: 0 });
-    try {
-      const result = await importBensPatrimoniaisFromFile(file, {
-        onProgress: (done, total) => setImportProgress({ done, total }),
-      });
-      if (result.unknownHeaders && result.unknownHeaders.length > 0) {
-        console.warn('Colunas ignoradas na importação:', result.unknownHeaders);
-      }
-      if (result.message) {
-        showSnack(result.message, 'warning');
-      } else {
-        const errSuffix = result.errors.length > 0 ? ` ${result.errors.length} erro(s).` : '';
-        showSnack(
-          `Importação concluída: ${result.created} criado(s), ${result.updated} atualizado(s).${errSuffix}`,
-          result.errors.length > 0 ? 'warning' : 'success'
-        );
-      }
-    } catch (err) {
-      console.error(err);
-      showSnack(`Erro ao importar planilha: ${err.message || 'desconhecido'}`, 'error');
-    } finally {
-      setImporting(false);
-      setImportProgress({ done: 0, total: 0 });
     }
   };
 
@@ -494,30 +546,6 @@ export default function BensPatrimoniais() {
                   </Typography>
                 </Box>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} sx={{ flexShrink: 0 }}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                  />
-                  <Button
-                    variant="contained"
-                    color="warning"
-                    startIcon={<UploadFileIcon />}
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={importing}
-                    sx={{
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      fontWeight: 700,
-                      backgroundColor: '#ff6b35',
-                      boxShadow: '0 4px 12px rgba(255,107,53,0.35)',
-                      '&:hover': { backgroundColor: '#e85a26' },
-                    }}
-                  >
-                    Importar Planilha (XLSX)
-                  </Button>
                   <Button
                     variant="outlined"
                     startIcon={<LocalShippingOutlinedIcon />}
@@ -720,7 +748,7 @@ export default function BensPatrimoniais() {
                           <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                             <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
                               {items.length === 0
-                                ? 'Nenhum bem patrimonial cadastrado. Importe uma planilha ou cadastre manualmente.'
+                                ? 'Nenhum bem patrimonial cadastrado. Clique em "Novo" para cadastrar.'
                                 : 'Nenhum resultado para a busca atual.'}
                             </Typography>
                           </TableCell>
@@ -814,23 +842,60 @@ export default function BensPatrimoniais() {
                               >
                                 {item.aapat_processo_sei || '—'}
                               </TableCell>
-                              <TableCell sx={WRAP_SX}>
+                              <TableCell sx={{ ...WRAP_SX, minWidth: 180 }}>
                                 {lastDate ? (
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    {overdue && (
-                                      <WarningAmberIcon
-                                        sx={{ fontSize: 18, color: 'error.dark' }}
-                                      />
+                                  <Box
+                                    sx={{
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: 0.25,
+                                    }}
+                                  >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      {overdue && (
+                                        <WarningAmberIcon
+                                          sx={{ fontSize: 18, color: 'error.dark' }}
+                                        />
+                                      )}
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          color: overdue ? 'error.dark' : 'text.primary',
+                                          fontWeight: overdue ? 700 : 500,
+                                          lineHeight: 1.3,
+                                        }}
+                                      >
+                                        {formatDateTimeBR(lastDate)}
+                                      </Typography>
+                                    </Box>
+                                    {item.conferido_por && (
+                                      <Box
+                                        sx={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 0.4,
+                                          ml: overdue ? 2.5 : 0,
+                                        }}
+                                      >
+                                        <PersonOutlineIcon
+                                          sx={{
+                                            fontSize: 14,
+                                            color: overdue ? 'error.dark' : 'text.secondary',
+                                          }}
+                                        />
+                                        <Typography
+                                          variant="caption"
+                                          sx={{
+                                            color: overdue ? 'error.dark' : 'text.secondary',
+                                            fontWeight: 600,
+                                            fontSize: '0.72rem',
+                                            lineHeight: 1.2,
+                                          }}
+                                        >
+                                          {item.conferido_por}
+                                        </Typography>
+                                      </Box>
                                     )}
-                                    <Typography
-                                      variant="body2"
-                                      sx={{
-                                        color: overdue ? 'error.dark' : 'text.primary',
-                                        fontWeight: overdue ? 700 : 400,
-                                      }}
-                                    >
-                                      {lastDate.toLocaleDateString('pt-BR')}
-                                    </Typography>
                                   </Box>
                                 ) : (
                                   <Chip
@@ -968,7 +1033,7 @@ export default function BensPatrimoniais() {
                     setRowsPerPage(parseInt(e.target.value, 10));
                     setPage(0);
                   }}
-                  rowsPerPageOptions={[10, 25, 50, 100]}
+                  rowsPerPageOptions={[10, 25, 50, 100, 500, 1000]}
                   labelRowsPerPage="Itens por página:"
                   labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count}`}
                 />
@@ -1009,6 +1074,8 @@ export default function BensPatrimoniais() {
               <ViaturasManageDialog
                 open={manageViaturasOpen}
                 viaturas={viaturas}
+                loggedUserId={loggedUserId}
+                loggedUserName={loggedUserName}
                 onClose={() => setManageViaturasOpen(false)}
                 onViewMateriais={(v) => {
                   setMateriaisInitialViaturaId(v.id);
@@ -1039,26 +1106,6 @@ export default function BensPatrimoniais() {
               />
             )}
           </Suspense>
-
-          <Backdrop
-            open={importing}
-            sx={{
-              color: '#fff',
-              zIndex: (t) => t.zIndex.modal + 1,
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
-            <CircularProgress color="inherit" />
-            <Typography variant="h6" fontWeight={700}>
-              Importando planilha...
-            </Typography>
-            {importProgress.total > 0 && (
-              <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                {importProgress.done} de {importProgress.total} linhas processadas
-              </Typography>
-            )}
-          </Backdrop>
 
           <Snackbar
             open={snackbar.open}

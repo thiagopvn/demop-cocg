@@ -63,6 +63,9 @@ import {
     Message,
     Visibility,
     PlaylistAddCheck,
+    AccountBalance,
+    LocationOn,
+    StickyNote2,
 } from '@mui/icons-material';
 import { collection, query, orderBy, onSnapshot, where, Timestamp, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
@@ -136,6 +139,15 @@ const ACTION_ICONS = {
     ring_create: Inventory,
     ring_update: Edit,
     ring_delete: Delete,
+    bem_create: AccountBalance,
+    bem_update: Edit,
+    bem_delete: Delete,
+    bem_conferir: PlaylistAddCheck,
+    bem_localidade: LocationOn,
+    bem_observacao: StickyNote2,
+    bem_viatura_create: LocalShipping,
+    bem_viatura_update: Edit,
+    bem_viatura_delete: Delete,
 };
 
 const TASK_TYPES = {
@@ -381,6 +393,7 @@ export default function Atividades() {
                     viaturas: 0,
                     manutencoes: 0,
                     categorias: 0,
+                    bens: 0,
                     outros: 0,
                 };
             }
@@ -410,6 +423,16 @@ export default function Atividades() {
                 case 'categoria_update':
                 case 'categoria_delete':
                     s.categorias++; break;
+                case 'bem_create':
+                case 'bem_update':
+                case 'bem_delete':
+                case 'bem_conferir':
+                case 'bem_localidade':
+                case 'bem_observacao':
+                case 'bem_viatura_create':
+                case 'bem_viatura_update':
+                case 'bem_viatura_delete':
+                    s.bens++; break;
                 default: s.outros++; break;
             }
         });
@@ -750,6 +773,11 @@ export default function Atividades() {
                                                         </Tooltip>
                                                     </TableCell>
                                                     <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
+                                                        <Tooltip title="Bens Patrimoniais">
+                                                            <span>Bens</span>
+                                                        </Tooltip>
+                                                    </TableCell>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Viaturas + Categorias + Usuários">
                                                             <span>Outros</span>
                                                         </Tooltip>
@@ -822,6 +850,12 @@ export default function Atividades() {
                                                             <Typography variant="body2" fontWeight={stat.manutencoes > 0 ? 600 : 400}
                                                                 color={stat.manutencoes > 0 ? '#9c27b0' : 'text.disabled'}>
                                                                 {stat.manutencoes}
+                                                            </Typography>
+                                                        </StyledTableCell>
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                                                            <Typography variant="body2" fontWeight={stat.bens > 0 ? 600 : 400}
+                                                                color={stat.bens > 0 ? '#1e3a5f' : 'text.disabled'}>
+                                                                {stat.bens}
                                                             </Typography>
                                                         </StyledTableCell>
                                                         <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
