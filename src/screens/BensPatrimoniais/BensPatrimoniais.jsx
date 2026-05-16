@@ -40,6 +40,8 @@ import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined
 import InventoryIcon from '@mui/icons-material/Inventory2Outlined';
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import RuleFolderOutlinedIcon from '@mui/icons-material/RuleFolderOutlined';
+import Badge from '@mui/material/Badge';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -51,6 +53,12 @@ import {
   markAsConferido,
 } from '../../firebase/bensPatrimoniaisService';
 import { subscribeBensViaturas } from '../../firebase/bensViaturasService';
+import {
+  subscribeBensDivergentes,
+  createBemDivergente,
+  updateBemDivergente,
+  deleteBemDivergente,
+} from '../../firebase/bensDivergentesService';
 import { verifyToken, decodeJWT } from '../../firebase/token';
 import { doc, getDoc } from 'firebase/firestore';
 import db from '../../firebase/db';
@@ -61,6 +69,7 @@ const LocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisLocation
 const ViaturasManageDialog = lazy(() => import('../../dialogs/BensViaturasManageDialog'));
 const ViaturasMateriaisDialog = lazy(() => import('../../dialogs/BensViaturasMateriaisDialog'));
 const ObservacaoDialog = lazy(() => import('../../dialogs/BensPatrimoniaisObservacaoDialog'));
+const DivergentesListDialog = lazy(() => import('../../dialogs/BensDivergentesListDialog'));
 
 const SIX_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 6;
 
@@ -263,6 +272,7 @@ export default function BensPatrimoniais() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [editKind, setEditKind] = useState('normal'); // 'normal' | 'divergente'
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationItem, setLocationItem] = useState(null);
   const [observacaoOpen, setObservacaoOpen] = useState(false);
@@ -271,6 +281,9 @@ export default function BensPatrimoniais() {
   const [manageViaturasOpen, setManageViaturasOpen] = useState(false);
   const [materiaisViaturaOpen, setMateriaisViaturaOpen] = useState(false);
   const [materiaisInitialViaturaId, setMateriaisInitialViaturaId] = useState(null);
+  const [divergentesOpen, setDivergentesOpen] = useState(false);
+  const [divergentes, setDivergentes] = useState([]);
+  const [divergentesLoading, setDivergentesLoading] = useState(true);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
@@ -333,6 +346,21 @@ export default function BensPatrimoniais() {
       (data) => setViaturas(data),
       (err) => {
         console.error(err);
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    setDivergentesLoading(true);
+    const unsub = subscribeBensDivergentes(
+      (data) => {
+        setDivergentes(data);
+        setDivergentesLoading(false);
+      },
+      (err) => {
+        console.error(err);
+        setDivergentesLoading(false);
       }
     );
     return () => unsub();
@@ -414,15 +442,25 @@ export default function BensPatrimoniais() {
   }, [items]);
 
   const handleQuickCheck = async (item) => {
+    // Última linha de defesa: se loggedUserName ainda for null por algum motivo,
+    // tenta decodificar do token agora (sync) antes de gravar.
+    let nome = loggedUserName;
+    if (!nome) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const decoded = decodeJWT(token);
+        nome = decoded?.username || null;
+      }
+    }
     try {
       await markAsConferido(item.id, {
         userId: loggedUserId,
-        userName: loggedUserName,
+        userName: nome,
       });
       logAudit({
         action: 'bem_conferir',
         userId: loggedUserId,
-        userName: loggedUserName,
+        userName: nome,
         targetCollection: 'bens_patrimoniais',
         targetId: item.id,
         targetName: `${item.id_patrimonio || '—'} · ${item.descricao || ''}`.trim(),
@@ -435,7 +473,78 @@ export default function BensPatrimoniais() {
 
   const handleOpenEdit = (item) => {
     setEditItem(item);
+    setEditKind('normal');
     setEditOpen(true);
+  };
+
+  const handleOpenEditDivergente = (item) => {
+    setEditItem(item);
+    setEditKind('divergente');
+    setEditOpen(true);
+  };
+
+  const handleOpenNewDivergente = () => {
+    setEditItem(null);
+    setEditKind('divergente');
+    setEditOpen(true);
+  };
+
+  const closeEdit = () => {
+    setEditOpen(false);
+    setEditItem(null);
+    setEditKind('normal');
+  };
+
+  const handleSubmitDivergente = async (data) => {
+    try {
+      const targetName = data.descricao || 'item divergente';
+      if (editKind === 'divergente' && editItem?.id) {
+        await updateBemDivergente(editItem.id, data);
+        logAudit({
+          action: 'bem_divergente_update',
+          userId: loggedUserId,
+          userName: loggedUserName,
+          targetCollection: 'bens_divergentes',
+          targetId: editItem.id,
+          targetName,
+        });
+        showSnack('Item divergente atualizado.', 'success');
+      } else {
+        const newId = await createBemDivergente(data, {
+          userId: loggedUserId,
+          userName: loggedUserName,
+        });
+        logAudit({
+          action: 'bem_divergente_create',
+          userId: loggedUserId,
+          userName: loggedUserName,
+          targetCollection: 'bens_divergentes',
+          targetId: newId,
+          targetName,
+        });
+        showSnack('Item fora do arrolamento cadastrado.', 'success');
+      }
+      closeEdit();
+    } catch {
+      showSnack('Erro ao salvar item divergente.', 'error');
+    }
+  };
+
+  const handleDeleteDivergente = async (item) => {
+    try {
+      await deleteBemDivergente(item.id);
+      logAudit({
+        action: 'bem_divergente_delete',
+        userId: loggedUserId,
+        userName: loggedUserName,
+        targetCollection: 'bens_divergentes',
+        targetId: item.id,
+        targetName: item.descricao || 'item divergente',
+      });
+      showSnack('Item divergente excluído.', 'success');
+    } catch {
+      showSnack('Erro ao excluir item divergente.', 'error');
+    }
   };
 
   const handleOpenLocation = (item) => {
@@ -595,11 +704,52 @@ export default function BensPatrimoniais() {
                   >
                     Ver por Viatura
                   </Button>
+                  <Tooltip
+                    title="Itens encontrados em conferência que não constam na planilha oficial"
+                    arrow
+                  >
+                    <Badge
+                      badgeContent={divergentes.length}
+                      max={999}
+                      color="warning"
+                      overlap="rectangular"
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          fontWeight: 700,
+                          fontSize: '0.7rem',
+                          backgroundColor: '#ff6b35',
+                          color: 'white',
+                          border: '2px solid #1e3a5f',
+                        },
+                      }}
+                    >
+                      <Button
+                        variant="outlined"
+                        startIcon={<RuleFolderOutlinedIcon />}
+                        onClick={() => setDivergentesOpen(true)}
+                        sx={{
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          borderColor: 'white',
+                          color: 'white',
+                          width: '100%',
+                          '&:hover': {
+                            borderColor: 'white',
+                            backgroundColor: 'rgba(255,255,255,0.08)',
+                          },
+                        }}
+                      >
+                        Fora do Arrolamento
+                      </Button>
+                    </Badge>
+                  </Tooltip>
                   <Button
                     variant="outlined"
                     startIcon={<AddIcon />}
                     onClick={() => {
                       setEditItem(null);
+                      setEditKind('normal');
                       setEditOpen(true);
                     }}
                     sx={{
@@ -878,34 +1028,41 @@ export default function BensPatrimoniais() {
                                         {formatDateTimeBR(lastDate)}
                                       </Typography>
                                     </Box>
-                                    {item.conferido_por && (
-                                      <Box
+                                    <Box
+                                      sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.4,
+                                        ml: overdue ? 2.5 : 0,
+                                      }}
+                                    >
+                                      <PersonOutlineIcon
                                         sx={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: 0.4,
-                                          ml: overdue ? 2.5 : 0,
+                                          fontSize: 14,
+                                          color: item.conferido_por
+                                            ? overdue
+                                              ? 'error.dark'
+                                              : 'text.secondary'
+                                            : '#9e9e9e',
+                                        }}
+                                      />
+                                      <Typography
+                                        variant="caption"
+                                        sx={{
+                                          color: item.conferido_por
+                                            ? overdue
+                                              ? 'error.dark'
+                                              : 'text.secondary'
+                                            : '#9e9e9e',
+                                          fontWeight: item.conferido_por ? 600 : 500,
+                                          fontStyle: item.conferido_por ? 'normal' : 'italic',
+                                          fontSize: '0.72rem',
+                                          lineHeight: 1.2,
                                         }}
                                       >
-                                        <PersonOutlineIcon
-                                          sx={{
-                                            fontSize: 14,
-                                            color: overdue ? 'error.dark' : 'text.secondary',
-                                          }}
-                                        />
-                                        <Typography
-                                          variant="caption"
-                                          sx={{
-                                            color: overdue ? 'error.dark' : 'text.secondary',
-                                            fontWeight: 600,
-                                            fontSize: '0.72rem',
-                                            lineHeight: 1.2,
-                                          }}
-                                        >
-                                          {item.conferido_por}
-                                        </Typography>
-                                      </Box>
-                                    )}
+                                        {item.conferido_por || 'sem identificação'}
+                                      </Typography>
+                                    </Box>
                                   </Box>
                                 ) : (
                                   <Chip
@@ -1056,14 +1213,24 @@ export default function BensPatrimoniais() {
               <EditDialog
                 open={editOpen}
                 editData={editItem}
+                editKind={editKind}
                 localidadeSuggestions={localidadeSuggestions}
                 viaturas={viaturas}
                 onManageViaturas={() => setManageViaturasOpen(true)}
                 onSubmit={handleSubmitEdit}
-                onCancel={() => {
-                  setEditOpen(false);
-                  setEditItem(null);
-                }}
+                onSubmitDivergente={handleSubmitDivergente}
+                onCancel={closeEdit}
+              />
+            )}
+            {divergentesOpen && (
+              <DivergentesListDialog
+                open={divergentesOpen}
+                items={divergentes}
+                loading={divergentesLoading}
+                onClose={() => setDivergentesOpen(false)}
+                onCreate={handleOpenNewDivergente}
+                onEdit={handleOpenEditDivergente}
+                onDelete={handleDeleteDivergente}
               />
             )}
             {locationOpen && (

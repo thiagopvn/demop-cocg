@@ -2,128 +2,157 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ============= HELPERS =============
     function isAuth() { return request.auth != null; }
     function getRole() { return request.auth.token.role; }
     function isAdmin() { return isAuth() && (getRole() == 'admin' || getRole() == 'admingeral'); }
-    function isChefeOrAdmin() { return isAuth() && (getRole() == 'chefe' || getRole() == 'admin' || getRole() == 'admingeral'); }
     function isAdminGeral() { return isAuth() && getRole() == 'admingeral'; }
+    function isChefe() { return isAuth() && getRole() == 'chefe'; }
+    function isBensRole() { return isAuth() && getRole() == 'BensPatrimoniais'; }
+    // BensPatrimoniais tem acesso operacional equivalente ao admin (exceto exclusões
+    // sensíveis e dados de senhas). Veja allowedRoles em src/App.jsx.
+    function isAdminOrBens() { return isAdmin() || isBensRole(); }
+    function isChefeOrAdmin() { return isAdmin() || isChefe(); }
+    function isChefeOrAdminOrBens() { return isChefeOrAdmin() || isBensRole(); }
 
-    // Block everything by default
+    // ============= DEFAULT DENY =============
     match /{document=**} { allow read, write: if false; }
 
-    // Users: any authenticated reads, admin writes (hierarchy enforced)
+    // ============= USERS =============
+    // Leitura: qualquer autenticado (para selects, autocompletes).
+    // Escrita: admin/BensPatrimoniais (com hierarquia — admingeral é intocável
+    // por admin/BensPatrimoniais; somente admingeral cria/altera/exclui admingeral).
     match /users/{userId} {
       allow read: if isAuth();
-      allow create: if isAdmin()
+      allow create: if isAdminOrBens()
         && (isAdminGeral() || request.resource.data.role != 'admingeral');
-      allow update: if isAdmin()
+      allow update: if isAdminOrBens()
         && (isAdminGeral() || (resource.data.role != 'admingeral' && request.resource.data.role != 'admingeral'));
-      allow delete: if isAdmin()
+      allow delete: if isAdminOrBens()
         && (isAdminGeral() || resource.data.role != 'admingeral');
     }
 
-    // User secrets (passwords): ONLY admingeral reads, Cloud Functions write via Admin SDK
+    // ============= USER SECRETS (senhas) =============
+    // Apenas admingeral lê. Escrita só via Admin SDK (Cloud Functions).
     match /user_secrets/{userId} {
       allow read: if isAdminGeral();
       allow write: if false;
     }
 
-    // Materials: all auth read, admin full CRUD, chefe can update (stock adjustment during conferência)
+    // ============= MATERIALS =============
+    // Leitura: todos autenticados. CRUD: admin/admingeral/BensPatrimoniais.
+    // Chefe pode atualizar (ajuste de estoque durante conferência).
     match /materials/{docId} {
       allow read: if isAuth();
-      allow create, delete: if isAdmin();
-      allow update: if isChefeOrAdmin();
+      allow create, delete: if isAdminOrBens();
+      allow update: if isChefeOrAdminOrBens();
     }
 
-    // Categories: all auth read, admin only write
+    // ============= CATEGORIAS =============
     match /categorias/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAdminOrBens();
     }
 
-    // Vehicles: all auth read, admin full CRUD, chefe can update (ultima_conferencia timestamp)
+    // ============= VIATURAS (operacionais — /viaturas) =============
     match /viaturas/{docId} {
       allow read: if isAuth();
-      allow create, delete: if isAdmin();
-      allow update: if isChefeOrAdmin();
+      allow create, delete: if isAdminOrBens();
+      allow update: if isChefeOrAdminOrBens();
     }
 
-    // Vehicle materials (allocation records): all auth read, admin full CRUD, chefe can update (conferência)
+    // ============= VIATURA_MATERIAIS (materiais alocados em viaturas operacionais) =============
     match /viatura_materiais/{docId} {
       allow read: if isAuth();
-      allow create, delete: if isAdmin();
-      allow update: if isChefeOrAdmin();
+      allow create, delete: if isAdminOrBens();
+      allow update: if isChefeOrAdminOrBens();
     }
 
-    // Movements (cautela records)
+    // ============= MOVIMENTACOES (cautelas, saídas, reparos, entradas) =============
+    // Leitura: todos autenticados.
+    // Criação: admin/admingeral/BensPatrimoniais.
+    // Atualização: admin/BensPatrimoniais OU o próprio usuário cautelado (para
+    // assinar/marcar como ciente da devolução).
+    // Exclusão: somente admingeral.
     match /movimentacoes/{docId} {
       allow read: if isAuth();
-      allow create: if isAdmin();
+      allow create: if isAdminOrBens();
       allow delete: if isAdminGeral();
-      allow update: if isAdmin()
+      allow update: if isAdminOrBens()
         || (isAuth()
             && resource.data.user == request.auth.token.firestoreId
             && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['signed', 'signed_date', 'user_acknowledged_return']))
-        || (isAdmin()
-            && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['anexos']));
+                .hasOnly(['signed', 'signed_date', 'user_acknowledged_return']));
     }
 
-    // Rings
+    // ============= RINGS =============
     match /rings/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAdminOrBens();
     }
 
-    // Maintenance
+    // ============= MANUTENCOES =============
     match /manutencoes/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAdminOrBens();
     }
 
-    // Maintenance history
+    // ============= HISTORICO MANUTENCOES =============
     match /historico_manutencoes/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAdminOrBens();
     }
 
-    // Vehicle conference history: all auth read, chefe+admin create, admin update/delete
+    // ============= CONFERENCIAS DE VIATURAS =============
     match /conferencias_viaturas/{docId} {
       allow read: if isAuth();
-      allow create: if isChefeOrAdmin();
-      allow update, delete: if isAdmin();
+      allow create: if isChefeOrAdminOrBens();
+      allow update, delete: if isAdminOrBens();
     }
 
-    // Conference alerts (chefe → admin): admin reads+updates, chefe+admin creates
+    // ============= ALERTAS DE CONFERENCIA (chefe -> admin) =============
     match /alertas_conferencia/{docId} {
-      allow read: if isAdmin();
-      allow create: if isChefeOrAdmin();
-      allow update: if isAdmin();
+      allow read: if isAdminOrBens();
+      allow create: if isChefeOrAdminOrBens();
+      allow update: if isAdminOrBens();
       allow delete: if isAdminGeral();
     }
 
-    // Audit logs: any authenticated user can write, only admingeral can read
+    // ============= AUDIT LOGS =============
+    // Qualquer autenticado cria (log). Só admingeral lê. Imutável (nunca update/delete).
     match /audit_logs/{docId} {
       allow read: if isAdminGeral();
       allow create: if isAuth();
       allow update, delete: if false;
     }
 
-    // Bens Patrimoniais: módulo isolado, acesso estrito (BensPatrimoniais role ou admingeral)
-    function isBensPatrimoniais() {
-      return isAuth() && (getRole() == 'BensPatrimoniais' || getRole() == 'admingeral');
-    }
+    // ============= BENS PATRIMONIAIS (módulo isolado) =============
+    // Acesso estrito: somente role BensPatrimoniais ou admingeral.
     match /bens_patrimoniais/{docId} {
-      allow read, create, update, delete: if isBensPatrimoniais();
+      allow read, create, update, delete: if isBensRole() || isAdminGeral();
     }
 
-    // Tarefas DEMOP: all auth reads, admingeral full control, admin can update progress/completion
+    // ============= BENS VIATURAS (viaturas exclusivas do módulo Bens) =============
+    // Independente de /viaturas. Acesso estrito: BensPatrimoniais ou admingeral.
+    match /bens_viaturas/{docId} {
+      allow read, create, update, delete: if isBensRole() || isAdminGeral();
+    }
+
+    // ============= BENS DIVERGENTES (itens encontrados fora do arrolamento) =============
+    // Itens cadastrados durante conferência que não constam na planilha oficial.
+    // Coleção independente para manter a tabela principal limpa.
+    match /bens_divergentes/{docId} {
+      allow read, create, update, delete: if isBensRole() || isAdminGeral();
+    }
+
+    // ============= TAREFAS DEMOP =============
+    // Leitura: todos autenticados. Create/Delete: admingeral. Update:
+    // admingeral OU admin/BensPatrimoniais (só campos de progresso/conclusão).
     match /tarefas_demop/{docId} {
       allow read: if isAuth();
       allow create, delete: if isAdminGeral();
       allow update: if isAdminGeral()
-        || (isAdmin()
+        || (isAdminOrBens()
             && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['progress', 'status', 'completedAt', 'completedBy', 'completedByName']));
     }

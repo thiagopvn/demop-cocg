@@ -13,12 +13,16 @@ import {
   InputAdornment,
   Autocomplete,
   Chip,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import SaveIcon from '@mui/icons-material/Save';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
+import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined';
+import RuleFolderOutlinedIcon from '@mui/icons-material/RuleFolderOutlined';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { buildViaturaLabel } from '../firebase/bensViaturasService';
@@ -60,9 +64,11 @@ const fieldStyle = {
 export default function BensPatrimoniaisEditDialog({
   open,
   editData,
+  editKind = 'normal', // 'normal' | 'divergente' — define o modo inicial quando editando
   localidadeSuggestions = [],
   viaturas = [],
   onSubmit,
+  onSubmitDivergente,
   onCancel,
   onManageViaturas,
 }) {
@@ -72,6 +78,13 @@ export default function BensPatrimoniaisEditDialog({
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [localidadeInput, setLocalidadeInput] = useState('');
+  const [mode, setMode] = useState('normal'); // 'normal' | 'divergente'
+
+  const isEdit = !!editData?.id;
+  // Quando editando, o modo é fixo (não pode trocar de divergente -> oficial e vice-versa);
+  // quando criando, o usuário alterna livremente.
+  const canToggleMode = !isEdit;
+  const isDivergente = mode === 'divergente';
 
   const viaturaOptions = useMemo(
     () =>
@@ -130,8 +143,9 @@ export default function BensPatrimoniaisEditDialog({
       setLocalidadeInput(initial.localidade || '');
       setErrors({});
       setSaving(false);
+      setMode(editKind === 'divergente' ? 'divergente' : 'normal');
     }
-  }, [open, editData]);
+  }, [open, editData, editKind]);
 
   const handleChange = (field) => (e) => {
     const value = e.target.value;
@@ -139,9 +153,18 @@ export default function BensPatrimoniaisEditDialog({
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
+  const handleModeChange = (_, next) => {
+    if (!next || !canToggleMode) return;
+    setMode(next);
+    // Limpa erros que não se aplicam ao novo modo
+    setErrors({});
+  };
+
   const validate = () => {
     const e = {};
-    if (!String(data.id_patrimonio).trim()) e.id_patrimonio = 'Obrigatório';
+    if (!isDivergente && !String(data.id_patrimonio).trim()) {
+      e.id_patrimonio = 'Obrigatório';
+    }
     if (!String(data.descricao).trim()) e.descricao = 'Obrigatório';
     const qtd = Number(data.quantidade);
     if (!Number.isFinite(qtd) || qtd < 0) e.quantidade = 'Quantidade inválida';
@@ -167,25 +190,52 @@ export default function BensPatrimoniaisEditDialog({
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    // Pega o que estiver digitado no Autocomplete de localidade caso não
-    // tenha sido confirmado via blur/seleção
     const typedLocalidade = localidadeInput.trim();
     const finalLocalidade = typedLocalidade || (data.localidade || '').trim();
     setSaving(true);
     try {
-      await onSubmit({
-        ...data,
-        localidade: finalLocalidade,
-        quantidade: Number(data.quantidade) || 0,
-        viatura_bens_id: data.viatura_bens_id || null,
-        viatura_bens_nome: data.viatura_bens_nome || '',
-      });
+      if (isDivergente) {
+        await onSubmitDivergente?.({
+          descricao: data.descricao,
+          quantidade: Number(data.quantidade) || 0,
+          observacoes: data.observacoes,
+          localidade: finalLocalidade,
+          viatura_bens_id: data.viatura_bens_id || null,
+          viatura_bens_nome: data.viatura_bens_nome || '',
+        });
+      } else {
+        await onSubmit({
+          ...data,
+          localidade: finalLocalidade,
+          quantidade: Number(data.quantidade) || 0,
+          viatura_bens_id: data.viatura_bens_id || null,
+          viatura_bens_nome: data.viatura_bens_nome || '',
+        });
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  const isEdit = !!editData?.id;
+  const headerGradient = isDivergente
+    ? 'linear-gradient(135deg, #c2410c 0%, #ea580c 100%)'
+    : 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)';
+
+  const dialogTitle = isEdit
+    ? isDivergente
+      ? 'Editar Item Fora do Arrolamento'
+      : 'Editar Bem Patrimonial'
+    : isDivergente
+    ? 'Novo Item Fora do Arrolamento'
+    : 'Novo Bem Patrimonial';
+
+  const dialogSubtitle = isEdit
+    ? isDivergente
+      ? 'Item não constante na planilha oficial'
+      : `Patrimônio nº ${editData.id_patrimonio || '—'}`
+    : isDivergente
+    ? 'Encontrado em conferência física, sem cadastro oficial'
+    : 'Cadastro manual';
 
   return (
     <Dialog
@@ -206,22 +256,27 @@ export default function BensPatrimoniaisEditDialog({
     >
       <DialogTitle
         sx={{
-          background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
+          background: headerGradient,
           color: 'white',
           py: 2.5,
           px: 3,
           display: 'flex',
           alignItems: 'center',
           gap: 1.5,
+          transition: 'background 0.25s ease',
         }}
       >
-        <AccountBalanceIcon sx={{ fontSize: 32 }} />
-        <Box sx={{ flex: 1 }}>
+        {isDivergente ? (
+          <RuleFolderOutlinedIcon sx={{ fontSize: 32 }} />
+        ) : (
+          <AccountBalanceIcon sx={{ fontSize: 32 }} />
+        )}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.15rem', lineHeight: 1.2 }}>
-            {isEdit ? 'Editar Bem Patrimonial' : 'Novo Bem Patrimonial'}
+            {dialogTitle}
           </Typography>
           <Typography variant="caption" sx={{ opacity: 0.85, fontSize: '0.85rem' }}>
-            {isEdit ? `Patrimônio nº ${editData.id_patrimonio || '—'}` : 'Cadastro manual'}
+            {dialogSubtitle}
           </Typography>
         </Box>
         <IconButton
@@ -239,23 +294,103 @@ export default function BensPatrimoniaisEditDialog({
       </DialogTitle>
 
       <DialogContent sx={{ p: { xs: 2, sm: 3 }, mt: 0 }}>
+        {canToggleMode && (
+          <Box
+            sx={{
+              mt: 2,
+              mb: 1,
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            <ToggleButtonGroup
+              value={mode}
+              exclusive
+              onChange={handleModeChange}
+              size="small"
+              sx={{
+                backgroundColor: '#f5f5f5',
+                borderRadius: '12px',
+                p: 0.5,
+                '& .MuiToggleButton-root': {
+                  border: 'none',
+                  borderRadius: '8px !important',
+                  px: 2.2,
+                  py: 0.9,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  color: 'text.secondary',
+                  gap: 0.7,
+                  '&.Mui-selected': {
+                    backgroundColor: '#ffffff',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                    color: mode === 'divergente' ? '#c2410c' : '#1e3a5f',
+                    '&:hover': { backgroundColor: '#ffffff' },
+                  },
+                },
+              }}
+            >
+              <ToggleButton value="normal">
+                <VerifiedOutlinedIcon fontSize="small" />
+                Patrimônio Oficial
+              </ToggleButton>
+              <ToggleButton value="divergente">
+                <RuleFolderOutlinedIcon fontSize="small" />
+                Fora do Arrolamento
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        )}
+
+        {isDivergente && (
+          <Box
+            sx={{
+              mt: 1,
+              mb: 1,
+              p: 1.5,
+              borderRadius: 2,
+              backgroundColor: '#fff7ed',
+              border: '1px solid #fed7aa',
+              display: 'flex',
+              gap: 1,
+              alignItems: 'flex-start',
+            }}
+          >
+            <RuleFolderOutlinedIcon sx={{ color: '#c2410c', mt: 0.2 }} />
+            <Box>
+              <Typography variant="body2" fontWeight={700} sx={{ color: '#9a3412' }}>
+                Item encontrado fora do arrolamento oficial
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#9a3412', display: 'block', mt: 0.3 }}>
+                Será salvo em uma coleção separada e não aparecerá na tabela principal de
+                Bens Patrimoniais.
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
+            gridTemplateColumns: isDivergente
+              ? { xs: '1fr', sm: '2fr 1fr' }
+              : { xs: '1fr', sm: '1fr 1fr 1fr' },
             gap: 2,
             mt: 2,
           }}
         >
-          <TextField
-            label="Nº Patrimônio"
-            value={data.id_patrimonio}
-            onChange={handleChange('id_patrimonio')}
-            error={!!errors.id_patrimonio}
-            helperText={errors.id_patrimonio}
-            sx={fieldStyle}
-            autoFocus={!isEdit}
-          />
+          {!isDivergente && (
+            <TextField
+              label="Nº Patrimônio"
+              value={data.id_patrimonio}
+              onChange={handleChange('id_patrimonio')}
+              error={!!errors.id_patrimonio}
+              helperText={errors.id_patrimonio}
+              sx={fieldStyle}
+              autoFocus={!isEdit}
+            />
+          )}
           <TextField
             label="Quantidade"
             type="number"
@@ -266,22 +401,40 @@ export default function BensPatrimoniaisEditDialog({
             slotProps={{ htmlInput: { min: 0, step: 1 } }}
             sx={fieldStyle}
           />
-          <TextField
-            label="Valor"
-            value={data.valor}
-            onChange={handleChange('valor')}
-            placeholder="R$ 0,00"
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Typography sx={{ color: 'text.secondary', fontWeight: 600 }}>R$</Typography>
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={fieldStyle}
-          />
+          {!isDivergente && (
+            <TextField
+              label="Valor"
+              value={data.valor}
+              onChange={handleChange('valor')}
+              placeholder="R$ 0,00"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Typography sx={{ color: 'text.secondary', fontWeight: 600 }}>R$</Typography>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={fieldStyle}
+            />
+          )}
+          {isDivergente && (
+            <TextField
+              label="Quantidade encontrada"
+              value="(item físico)"
+              disabled
+              helperText="Sem AAPat / Valor / Nº Patrimônio"
+              sx={{
+                ...fieldStyle,
+                '& .MuiOutlinedInput-root.Mui-disabled': {
+                  backgroundColor: '#fafafa',
+                  '& .MuiOutlinedInput-input': { color: '#9e9e9e', fontStyle: 'italic' },
+                },
+                visibility: 'hidden',
+              }}
+            />
+          )}
         </Box>
 
         <TextField
@@ -289,11 +442,12 @@ export default function BensPatrimoniaisEditDialog({
           value={data.descricao}
           onChange={handleChange('descricao')}
           error={!!errors.descricao}
-          helperText={errors.descricao}
+          helperText={errors.descricao || (isDivergente ? 'Descreva o item encontrado fisicamente' : undefined)}
           multiline
           minRows={2}
           maxRows={4}
           fullWidth
+          autoFocus={isDivergente && !isEdit}
           sx={{ ...fieldStyle, mt: 2 }}
         />
 
@@ -383,7 +537,7 @@ export default function BensPatrimoniaisEditDialog({
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            gridTemplateColumns: isDivergente ? '1fr' : { xs: '1fr', sm: '1fr 1fr' },
             gap: 2,
             mt: 2,
           }}
@@ -402,7 +556,6 @@ export default function BensPatrimoniaisEditDialog({
               setLocalidadeInput(next);
             }}
             onBlur={() => {
-              // Permite usar texto digitado mesmo sem selecionar da lista
               const typed = localidadeInput.trim();
               if (typed && typed !== data.localidade) {
                 setData((prev) => ({ ...prev, localidade: typed }));
@@ -446,19 +599,26 @@ export default function BensPatrimoniaisEditDialog({
               );
             }}
           />
-          <TextField
-            label="AAPat e Processo SEI"
-            value={data.aapat_processo_sei}
-            onChange={handleChange('aapat_processo_sei')}
-            placeholder="Ex.: AAPat 1234 / SEI-XXXX.XXXXXXX/XXXX-XX"
-            sx={fieldStyle}
-          />
+          {!isDivergente && (
+            <TextField
+              label="AAPat e Processo SEI"
+              value={data.aapat_processo_sei}
+              onChange={handleChange('aapat_processo_sei')}
+              placeholder="Ex.: AAPat 1234 / SEI-XXXX.XXXXXXX/XXXX-XX"
+              sx={fieldStyle}
+            />
+          )}
         </Box>
 
         <TextField
           label="Observações"
           value={data.observacoes}
           onChange={handleChange('observacoes')}
+          placeholder={
+            isDivergente
+              ? 'Onde foi encontrado, estado de conservação, contexto da divergência…'
+              : undefined
+          }
           multiline
           minRows={3}
           maxRows={8}
@@ -487,11 +647,19 @@ export default function BensPatrimoniaisEditDialog({
             fontWeight: 700,
             minHeight: 44,
             px: 3,
-            background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
-            '&:hover': { background: 'linear-gradient(135deg, #162d4a 0%, #1e3a5f 100%)' },
+            background: headerGradient,
+            '&:hover': {
+              background: isDivergente
+                ? 'linear-gradient(135deg, #9a3412 0%, #c2410c 100%)'
+                : 'linear-gradient(135deg, #162d4a 0%, #1e3a5f 100%)',
+            },
           }}
         >
-          {saving ? 'Salvando...' : 'Salvar'}
+          {saving
+            ? 'Salvando...'
+            : isDivergente
+            ? 'Salvar item divergente'
+            : 'Salvar'}
         </Button>
       </DialogActions>
     </Dialog>
