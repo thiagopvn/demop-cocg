@@ -41,6 +41,7 @@ import InventoryIcon from '@mui/icons-material/Inventory2Outlined';
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import RuleFolderOutlinedIcon from '@mui/icons-material/RuleFolderOutlined';
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import Badge from '@mui/material/Badge';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
@@ -70,6 +71,7 @@ const ViaturasManageDialog = lazy(() => import('../../dialogs/BensViaturasManage
 const ViaturasMateriaisDialog = lazy(() => import('../../dialogs/BensViaturasMateriaisDialog'));
 const ObservacaoDialog = lazy(() => import('../../dialogs/BensPatrimoniaisObservacaoDialog'));
 const DivergentesListDialog = lazy(() => import('../../dialogs/BensDivergentesListDialog'));
+const PorLocalidadeDialog = lazy(() => import('../../dialogs/BensPorLocalidadeDialog'));
 
 const SIX_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 6;
 
@@ -284,6 +286,8 @@ export default function BensPatrimoniais() {
   const [divergentesOpen, setDivergentesOpen] = useState(false);
   const [divergentes, setDivergentes] = useState([]);
   const [divergentesLoading, setDivergentesLoading] = useState(true);
+  const [localidadeOpen, setLocalidadeOpen] = useState(false);
+  const [initialLocalidade, setInitialLocalidade] = useState(null);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
@@ -726,6 +730,27 @@ export default function BensPatrimoniais() {
                     }}
                   >
                     Ver por Viatura
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<PlaceOutlinedIcon />}
+                    onClick={() => {
+                      setInitialLocalidade(null);
+                      setLocalidadeOpen(true);
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      borderColor: 'white',
+                      color: 'white',
+                      '&:hover': {
+                        borderColor: 'white',
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                      },
+                    }}
+                  >
+                    Ver por Localidade
                   </Button>
                   <Tooltip
                     title="Itens encontrados em conferência que não constam na planilha oficial"
@@ -1254,6 +1279,18 @@ export default function BensPatrimoniais() {
                 onCreate={handleOpenNewDivergente}
                 onEdit={handleOpenEditDivergente}
                 onDelete={handleDeleteDivergente}
+              />
+            )}
+            {localidadeOpen && (
+              <PorLocalidadeDialog
+                open={localidadeOpen}
+                items={items}
+                loading={loading}
+                initialLocalidade={initialLocalidade}
+                onClose={() => {
+                  setLocalidadeOpen(false);
+                  setInitialLocalidade(null);
+                }}
               />
             )}
             {locationOpen && (
