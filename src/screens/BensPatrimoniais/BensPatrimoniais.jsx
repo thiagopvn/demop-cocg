@@ -51,7 +51,7 @@ import {
   markAsConferido,
 } from '../../firebase/bensPatrimoniaisService';
 import { subscribeBensViaturas } from '../../firebase/bensViaturasService';
-import { verifyToken } from '../../firebase/token';
+import { verifyToken, decodeJWT } from '../../firebase/token';
 import { doc, getDoc } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { logAudit } from '../../firebase/auditLog';
@@ -274,32 +274,42 @@ export default function BensPatrimoniais() {
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  const [loggedUserId, setLoggedUserId] = useState(null);
-  const [loggedUserName, setLoggedUserName] = useState(null);
+  // Inicializa síncrono a partir do token em localStorage para evitar race
+  // condition: se o usuário clicar em "Conferência rápida" antes do useEffect
+  // assíncrono terminar, ainda assim teremos ID e nome para gravar.
+  const [loggedUserId, setLoggedUserId] = useState(() => {
+    const token = localStorage.getItem('token');
+    return token ? decodeJWT(token)?.userId || null : null;
+  });
+  const [loggedUserName, setLoggedUserName] = useState(() => {
+    const token = localStorage.getItem('token');
+    return token ? decodeJWT(token)?.username || null : null;
+  });
 
   const showSnack = useCallback((message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
   }, []);
 
+  // Enriquece o nome com full_name do Firestore (assíncrono). Não bloqueia
+  // o uso — se o usuário agir antes, ainda temos username do token.
   useEffect(() => {
-    const fetchUserData = async () => {
+    const enrichUserData = async () => {
       const token = localStorage.getItem('token');
       if (!token) return;
       try {
         const decoded = await verifyToken(token);
-        setLoggedUserId(decoded.userId);
+        if (!decoded) return;
+        if (decoded.userId) setLoggedUserId(decoded.userId);
         const userDoc = await getDoc(doc(db, 'users', decoded.userId));
         if (userDoc.exists()) {
           const data = userDoc.data();
           setLoggedUserName(data.full_name || data.username || decoded.username);
-        } else {
-          setLoggedUserName(decoded.username);
         }
       } catch (err) {
         console.error('Erro ao verificar token:', err);
       }
     };
-    fetchUserData();
+    enrichUserData();
   }, []);
 
   useEffect(() => {
