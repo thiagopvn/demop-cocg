@@ -40,6 +40,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import InventoryIcon from '@mui/icons-material/Inventory2Outlined';
+import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -57,6 +58,7 @@ const EditDialog = lazy(() => import('../../dialogs/BensPatrimoniaisEditDialog')
 const LocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisLocationDialog'));
 const ViaturasManageDialog = lazy(() => import('../../dialogs/BensViaturasManageDialog'));
 const ViaturasMateriaisDialog = lazy(() => import('../../dialogs/BensViaturasMateriaisDialog'));
+const ObservacaoDialog = lazy(() => import('../../dialogs/BensPatrimoniaisObservacaoDialog'));
 
 const SIX_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 6;
 
@@ -252,6 +254,8 @@ export default function BensPatrimoniais() {
   const [editItem, setEditItem] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationItem, setLocationItem] = useState(null);
+  const [observacaoOpen, setObservacaoOpen] = useState(false);
+  const [observacaoItem, setObservacaoItem] = useState(null);
   const [viaturas, setViaturas] = useState([]);
   const [manageViaturasOpen, setManageViaturasOpen] = useState(false);
   const [materiaisViaturaOpen, setMateriaisViaturaOpen] = useState(false);
@@ -385,6 +389,26 @@ export default function BensPatrimoniais() {
   const handleOpenLocation = (item) => {
     setLocationItem(item);
     setLocationOpen(true);
+  };
+
+  const handleOpenObservacao = (item) => {
+    setObservacaoItem(item);
+    setObservacaoOpen(true);
+  };
+
+  const handleSubmitObservacao = async (newObservacao) => {
+    if (!observacaoItem?.id) return;
+    try {
+      await updateBemPatrimonial(observacaoItem.id, { observacoes: newObservacao });
+      showSnack(
+        newObservacao.trim() ? 'Observação salva.' : 'Observação removida.',
+        'success'
+      );
+      setObservacaoOpen(false);
+      setObservacaoItem(null);
+    } catch {
+      showSnack('Erro ao salvar observação.', 'error');
+    }
   };
 
   const handleSubmitEdit = async (data) => {
@@ -680,19 +704,20 @@ export default function BensPatrimoniais() {
                             </HeaderCell>
                           );
                         })}
+                        <HeaderCell align="left" sx={{ minWidth: 240 }}>Observação</HeaderCell>
                         <HeaderCell align="center">Ações</HeaderCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                          <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                             <CircularProgress />
                           </TableCell>
                         </TableRow>
                       ) : filteredItems.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                          <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                             <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
                               {items.length === 0
                                 ? 'Nenhum bem patrimonial cadastrado. Importe uma planilha ou cadastre manualmente.'
@@ -820,6 +845,80 @@ export default function BensPatrimoniais() {
                                   />
                                 )}
                               </TableCell>
+                              <TableCell
+                                sx={{
+                                  verticalAlign: 'top',
+                                  minWidth: 240,
+                                  maxWidth: 320,
+                                  py: 1,
+                                }}
+                              >
+                                {item.observacoes ? (
+                                  <Tooltip title="Clique para editar a observação" arrow placement="top">
+                                    <Box
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={() => handleOpenObservacao(item)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                          e.preventDefault();
+                                          handleOpenObservacao(item);
+                                        }
+                                      }}
+                                      sx={{
+                                        cursor: 'pointer',
+                                        backgroundColor: '#fffbe6',
+                                        borderLeft: '3px solid #f9a825',
+                                        borderRadius: '6px',
+                                        p: 1,
+                                        fontSize: '0.82rem',
+                                        color: '#5d4037',
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                        lineHeight: 1.45,
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 3,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                        transition: 'background-color 0.15s, box-shadow 0.15s',
+                                        '&:hover': {
+                                          backgroundColor: '#fff3c4',
+                                          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                                        },
+                                        '&:focus-visible': {
+                                          outline: '2px solid #ff6b35',
+                                          outlineOffset: 1,
+                                        },
+                                      }}
+                                    >
+                                      {item.observacoes}
+                                    </Box>
+                                  </Tooltip>
+                                ) : (
+                                  <Button
+                                    size="small"
+                                    variant="text"
+                                    onClick={() => handleOpenObservacao(item)}
+                                    startIcon={
+                                      <StickyNote2OutlinedIcon fontSize="small" />
+                                    }
+                                    sx={{
+                                      textTransform: 'none',
+                                      fontWeight: 500,
+                                      fontSize: '0.78rem',
+                                      color: 'text.secondary',
+                                      borderRadius: '6px',
+                                      px: 1,
+                                      '&:hover': {
+                                        backgroundColor: 'rgba(249,168,37,0.08)',
+                                        color: '#8d6e00',
+                                      },
+                                    }}
+                                  >
+                                    Adicionar
+                                  </Button>
+                                )}
+                              </TableCell>
                               <TableCell align="center" sx={{ verticalAlign: 'top' }}>
                                 <ButtonGroup
                                   size="small"
@@ -925,6 +1024,17 @@ export default function BensPatrimoniais() {
                 onClose={() => {
                   setMateriaisViaturaOpen(false);
                   setMateriaisInitialViaturaId(null);
+                }}
+              />
+            )}
+            {observacaoOpen && (
+              <ObservacaoDialog
+                open={observacaoOpen}
+                item={observacaoItem}
+                onSubmit={handleSubmitObservacao}
+                onCancel={() => {
+                  setObservacaoOpen(false);
+                  setObservacaoItem(null);
                 }}
               />
             )}
