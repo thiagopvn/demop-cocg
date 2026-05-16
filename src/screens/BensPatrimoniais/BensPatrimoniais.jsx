@@ -325,6 +325,36 @@ export default function BensPatrimoniais() {
     enrichUserData();
   }, []);
 
+  // Garante nome ANTES de qualquer save: se o enrichUserData ainda não
+  // completou (race condition), busca o user doc agora síncronamente.
+  // Resolve o caso do LEONARDO (BensPatrimoniais) e qualquer outro usuário
+  // que clica antes da promise terminar.
+  const ensureUserName = useCallback(async () => {
+    if (loggedUserName && loggedUserName !== loggedUserId) {
+      // Já temos um nome (não é apenas o userId/RG bruto)
+      return loggedUserName;
+    }
+    const token = localStorage.getItem('token');
+    const decoded = token ? decodeJWT(token) : null;
+    const userId = loggedUserId || decoded?.userId;
+    if (userId) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          const nome = data.full_name || data.username || decoded?.username;
+          if (nome) {
+            setLoggedUserName(nome);
+            return nome;
+          }
+        }
+      } catch (err) {
+        console.error('Falha ao buscar user doc para nome:', err);
+      }
+    }
+    return decoded?.username || loggedUserName || null;
+  }, [loggedUserId, loggedUserName]);
+
   useEffect(() => {
     setLoading(true);
     const unsub = subscribeBensPatrimoniais(
@@ -442,16 +472,7 @@ export default function BensPatrimoniais() {
   }, [items]);
 
   const handleQuickCheck = async (item) => {
-    // Última linha de defesa: se loggedUserName ainda for null por algum motivo,
-    // tenta decodificar do token agora (sync) antes de gravar.
-    let nome = loggedUserName;
-    if (!nome) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const decoded = decodeJWT(token);
-        nome = decoded?.username || null;
-      }
-    }
+    const nome = await ensureUserName();
     try {
       await markAsConferido(item.id, {
         userId: loggedUserId,
@@ -496,6 +517,7 @@ export default function BensPatrimoniais() {
   };
 
   const handleSubmitDivergente = async (data) => {
+    const nome = await ensureUserName();
     try {
       const targetName = data.descricao || 'item divergente';
       if (editKind === 'divergente' && editItem?.id) {
@@ -503,7 +525,7 @@ export default function BensPatrimoniais() {
         logAudit({
           action: 'bem_divergente_update',
           userId: loggedUserId,
-          userName: loggedUserName,
+          userName: nome,
           targetCollection: 'bens_divergentes',
           targetId: editItem.id,
           targetName,
@@ -512,12 +534,12 @@ export default function BensPatrimoniais() {
       } else {
         const newId = await createBemDivergente(data, {
           userId: loggedUserId,
-          userName: loggedUserName,
+          userName: nome,
         });
         logAudit({
           action: 'bem_divergente_create',
           userId: loggedUserId,
-          userName: loggedUserName,
+          userName: nome,
           targetCollection: 'bens_divergentes',
           targetId: newId,
           targetName,
@@ -531,12 +553,13 @@ export default function BensPatrimoniais() {
   };
 
   const handleDeleteDivergente = async (item) => {
+    const nome = await ensureUserName();
     try {
       await deleteBemDivergente(item.id);
       logAudit({
         action: 'bem_divergente_delete',
         userId: loggedUserId,
-        userName: loggedUserName,
+        userName: nome,
         targetCollection: 'bens_divergentes',
         targetId: item.id,
         targetName: item.descricao || 'item divergente',

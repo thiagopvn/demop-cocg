@@ -40,6 +40,8 @@ export const subscribeBensDivergentes = (onData, onError) => {
 
 export const createBemDivergente = async (data, userInfo = null) => {
   try {
+    // Garante created_by_nome sempre preenchido (espelha markAsConferido).
+    const nome = userInfo?.userName?.trim?.() || 'Usuário não identificado';
     const payload = stripUndefined({
       descricao: normalizeText(data.descricao),
       quantidade: Number.isFinite(Number(data.quantidade)) ? Number(data.quantidade) : 1,
@@ -48,7 +50,7 @@ export const createBemDivergente = async (data, userInfo = null) => {
       viatura_bens_id: data.viatura_bens_id || null,
       viatura_bens_nome: data.viatura_bens_nome ? normalizeText(data.viatura_bens_nome) : '',
       created_by_id: userInfo?.userId || null,
-      created_by_nome: userInfo?.userName || '',
+      created_by_nome: nome,
       created_at: serverTimestamp(),
       updated_at: serverTimestamp(),
     });
