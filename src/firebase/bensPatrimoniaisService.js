@@ -147,6 +147,37 @@ export const updateLocalidade = async (docId, localidade, viaturaInfo = null) =>
   }
 };
 
+export const updateLocalidadeBulk = async (docIds, localidade, viaturaInfo = null) => {
+  if (!Array.isArray(docIds) || docIds.length === 0) return { updated: 0 };
+  try {
+    const payload = {
+      localidade: normalizeText(localidade),
+      viatura_bens_id: viaturaInfo?.id || null,
+      viatura_bens_nome: viaturaInfo?.nome ? normalizeText(viaturaInfo.nome) : '',
+      updated_at: serverTimestamp(),
+    };
+    let batch = writeBatch(db);
+    let ops = 0;
+    let updated = 0;
+    for (const id of docIds) {
+      const ref = doc(db, 'bens_patrimoniais', id);
+      batch.update(ref, payload);
+      ops += 1;
+      updated += 1;
+      if (ops >= BATCH_LIMIT) {
+        await batch.commit();
+        batch = writeBatch(db);
+        ops = 0;
+      }
+    }
+    if (ops > 0) await batch.commit();
+    return { updated };
+  } catch (err) {
+    console.error('Erro ao atualizar localidades em massa:', err);
+    throw err;
+  }
+};
+
 export const markAsConferido = async (docId, userInfo = null) => {
   try {
     const ref = doc(db, 'bens_patrimoniais', docId);

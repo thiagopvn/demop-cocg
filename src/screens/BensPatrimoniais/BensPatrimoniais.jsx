@@ -19,6 +19,7 @@ import {
   TablePagination,
   TableSortLabel,
   Chip,
+  Checkbox,
   CircularProgress,
   Snackbar,
   Alert,
@@ -51,6 +52,7 @@ import {
   createBemPatrimonial,
   updateBemPatrimonial,
   updateLocalidade,
+  updateLocalidadeBulk,
   markAsConferido,
 } from '../../firebase/bensPatrimoniaisService';
 import { subscribeBensViaturas } from '../../firebase/bensViaturasService';
@@ -67,6 +69,7 @@ import { logAudit } from '../../firebase/auditLog';
 
 const EditDialog = lazy(() => import('../../dialogs/BensPatrimoniaisEditDialog'));
 const LocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisLocationDialog'));
+const BulkLocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisBulkLocationDialog'));
 const ViaturasManageDialog = lazy(() => import('../../dialogs/BensViaturasManageDialog'));
 const ViaturasMateriaisDialog = lazy(() => import('../../dialogs/BensViaturasMateriaisDialog'));
 const ObservacaoDialog = lazy(() => import('../../dialogs/BensPatrimoniaisObservacaoDialog'));
@@ -289,6 +292,9 @@ export default function BensPatrimoniais() {
   const [localidadeOpen, setLocalidadeOpen] = useState(false);
   const [initialLocalidade, setInitialLocalidade] = useState(null);
 
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkLocationOpen, setBulkLocationOpen] = useState(false);
+
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Inicializa síncrono a partir do token em localStorage para evitar race
@@ -430,6 +436,26 @@ export default function BensPatrimoniais() {
     const start = page * rowsPerPage;
     return sortedItems.slice(start, start + rowsPerPage);
   }, [sortedItems, page, rowsPerPage]);
+
+  const visibleSelectedCount = useMemo(
+    () => paginated.reduce((acc, it) => acc + (selectedIds.has(it.id) ? 1 : 0), 0),
+    [paginated, selectedIds]
+  );
+  const allVisibleSelected = paginated.length > 0 && visibleSelectedCount === paginated.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && visibleSelectedCount < paginated.length;
+
+  const toggleSelectAllVisible = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = paginated.length > 0 && paginated.every((it) => next.has(it.id));
+      if (allSelected) {
+        paginated.forEach((it) => next.delete(it.id));
+      } else {
+        paginated.forEach((it) => next.add(it.id));
+      }
+      return next;
+    });
+  }, [paginated]);
 
   const overdueCount = useMemo(
     () => items.filter((it) => isOverdueSixMonths(it.ultima_conferencia)).length,
@@ -641,6 +667,57 @@ export default function BensPatrimoniais() {
       setEditItem(null);
     } catch {
       showSnack('Erro ao salvar bem patrimonial.', 'error');
+    }
+  };
+
+  const toggleSelected = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const selectedItems = useMemo(
+    () => items.filter((it) => selectedIds.has(it.id)),
+    [items, selectedIds]
+  );
+
+  const handleSubmitBulkLocation = async (newLocalidade, viaturaInfo = null) => {
+    const idsToUpdate = selectedItems.map((it) => it.id);
+    if (idsToUpdate.length === 0) return;
+    const nome = await ensureUserName();
+    try {
+      await updateLocalidadeBulk(idsToUpdate, newLocalidade, viaturaInfo);
+      logAudit({
+        action: 'bem_localidade_bulk',
+        userId: loggedUserId,
+        userName: nome,
+        targetCollection: 'bens_patrimoniais',
+        targetId: null,
+        targetName: `${idsToUpdate.length} itens`,
+        details: {
+          quantidade: idsToUpdate.length,
+          localidade: newLocalidade || null,
+          viatura: viaturaInfo?.nome || null,
+          ids: idsToUpdate,
+        },
+      });
+      showSnack(
+        viaturaInfo
+          ? `${idsToUpdate.length} ${idsToUpdate.length === 1 ? 'item alocado' : 'itens alocados'} em ${viaturaInfo.nome}.`
+          : `${idsToUpdate.length} ${idsToUpdate.length === 1 ? 'item atualizado' : 'itens atualizados'}.`,
+        'success'
+      );
+      setBulkLocationOpen(false);
+      clearSelection();
+    } catch {
+      showSnack('Erro ao atualizar localidade em massa.', 'error');
     }
   };
 
@@ -895,6 +972,63 @@ export default function BensPatrimoniais() {
                 />
               </Paper>
 
+              {selectedIds.size > 0 && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.5,
+                    mb: 2,
+                    borderRadius: 2,
+                    border: '1px solid #ff6b35',
+                    backgroundColor: '#fff3e0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Chip
+                    label={`${selectedIds.size} ${selectedIds.size === 1 ? 'selecionado' : 'selecionados'}`}
+                    sx={{
+                      fontWeight: 700,
+                      backgroundColor: '#ff6b35',
+                      color: 'white',
+                    }}
+                  />
+                  <Typography variant="body2" sx={{ color: '#5d4037', flex: 1, minWidth: 200 }}>
+                    Aloque todos os itens selecionados em uma única localidade (ou viatura) de uma vez.
+                  </Typography>
+                  <Button
+                    onClick={() => setBulkLocationOpen(true)}
+                    variant="contained"
+                    startIcon={<LocationOnIcon />}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #162d4a 0%, #1e3a5f 100%)',
+                      },
+                    }}
+                  >
+                    Alocar selecionados
+                  </Button>
+                  <Button
+                    onClick={clearSelection}
+                    variant="text"
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      color: '#5d4037',
+                    }}
+                  >
+                    Limpar
+                  </Button>
+                </Paper>
+              )}
+
               <Paper
                 elevation={1}
                 sx={{
@@ -913,6 +1047,20 @@ export default function BensPatrimoniais() {
                           },
                         }}
                       >
+                        <HeaderCell padding="checkbox" align="center">
+                          <Checkbox
+                            indeterminate={someVisibleSelected}
+                            checked={allVisibleSelected}
+                            onChange={toggleSelectAllVisible}
+                            disabled={paginated.length === 0}
+                            sx={{
+                              color: 'rgba(255,255,255,0.85)',
+                              '&.Mui-checked': { color: 'white' },
+                              '&.MuiCheckbox-indeterminate': { color: 'white' },
+                              '&.Mui-disabled': { color: 'rgba(255,255,255,0.4)' },
+                            }}
+                          />
+                        </HeaderCell>
                         {[
                           { field: 'id_patrimonio', label: 'Patrimônio', align: 'left' },
                           { field: 'descricao', label: 'Descrição', align: 'left' },
@@ -947,13 +1095,13 @@ export default function BensPatrimoniais() {
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                          <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                             <CircularProgress />
                           </TableCell>
                         </TableRow>
                       ) : filteredItems.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                          <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                             <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
                               {items.length === 0
                                 ? 'Nenhum bem patrimonial cadastrado. Clique em "Novo" para cadastrar.'
@@ -965,8 +1113,19 @@ export default function BensPatrimoniais() {
                         paginated.map((item) => {
                           const overdue = isOverdueSixMonths(item.ultima_conferencia);
                           const lastDate = formatDateBR(item.ultima_conferencia);
+                          const isSelected = selectedIds.has(item.id);
                           return (
-                            <StyledRow key={item.id} overdue={overdue}>
+                            <StyledRow key={item.id} overdue={overdue} selected={isSelected}>
+                              <TableCell padding="checkbox" align="center">
+                                <Checkbox
+                                  checked={isSelected}
+                                  onChange={() => toggleSelected(item.id)}
+                                  sx={{
+                                    color: '#1e3a5f',
+                                    '&.Mui-checked': { color: '#ff6b35' },
+                                  }}
+                                />
+                              </TableCell>
                               <TableCell sx={{ ...WRAP_SX, fontWeight: 700, color: overdue ? 'error.dark' : '#1e3a5f' }}>
                                 {item.id_patrimonio || '—'}
                               </TableCell>
@@ -1305,6 +1464,17 @@ export default function BensPatrimoniais() {
                   setLocationOpen(false);
                   setLocationItem(null);
                 }}
+              />
+            )}
+            {bulkLocationOpen && (
+              <BulkLocationDialog
+                open={bulkLocationOpen}
+                items={selectedItems}
+                suggestions={localidadeSuggestions}
+                viaturas={viaturas}
+                onManageViaturas={() => setManageViaturasOpen(true)}
+                onSubmit={handleSubmitBulkLocation}
+                onCancel={() => setBulkLocationOpen(false)}
               />
             )}
             {manageViaturasOpen && (
