@@ -34,6 +34,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RemoveDoneIcon from '@mui/icons-material/RemoveDone';
 import EditIcon from '@mui/icons-material/Edit';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -54,6 +55,7 @@ import {
   updateLocalidade,
   updateLocalidadeBulk,
   markAsConferido,
+  unmarkAsConferido,
 } from '../../firebase/bensPatrimoniaisService';
 import { subscribeBensViaturas } from '../../firebase/bensViaturasService';
 import {
@@ -70,6 +72,9 @@ import { logAudit } from '../../firebase/auditLog';
 const EditDialog = lazy(() => import('../../dialogs/BensPatrimoniaisEditDialog'));
 const LocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisLocationDialog'));
 const BulkLocationDialog = lazy(() => import('../../dialogs/BensPatrimoniaisBulkLocationDialog'));
+const UnmarkConferenciaDialog = lazy(() =>
+  import('../../dialogs/BensPatrimoniaisUnmarkConferenciaDialog')
+);
 const ViaturasManageDialog = lazy(() => import('../../dialogs/BensViaturasManageDialog'));
 const ViaturasMateriaisDialog = lazy(() => import('../../dialogs/BensViaturasMateriaisDialog'));
 const ObservacaoDialog = lazy(() => import('../../dialogs/BensPatrimoniaisObservacaoDialog'));
@@ -294,6 +299,8 @@ export default function BensPatrimoniais() {
 
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkLocationOpen, setBulkLocationOpen] = useState(false);
+  const [unmarkOpen, setUnmarkOpen] = useState(false);
+  const [unmarkItem, setUnmarkItem] = useState(null);
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
@@ -519,6 +526,43 @@ export default function BensPatrimoniais() {
       showSnack('Item conferido com sucesso.', 'success');
     } catch {
       showSnack('Falha ao registrar conferência.', 'error');
+    }
+  };
+
+  const handleOpenUnmark = (item) => {
+    setUnmarkItem(item);
+    setUnmarkOpen(true);
+  };
+
+  const handleConfirmUnmark = async () => {
+    if (!unmarkItem?.id) return;
+    const nome = await ensureUserName();
+    try {
+      const result = await unmarkAsConferido(unmarkItem.id);
+      logAudit({
+        action: 'bem_desconferir',
+        userId: loggedUserId,
+        userName: nome,
+        targetCollection: 'bens_patrimoniais',
+        targetId: unmarkItem.id,
+        targetName: `${unmarkItem.id_patrimonio || '—'} · ${unmarkItem.descricao || ''}`.trim(),
+        details: {
+          restored: Boolean(result?.restored),
+          conferencia_descartada: unmarkItem.ultima_conferencia
+            ? { por: unmarkItem.conferido_por || null }
+            : null,
+        },
+      });
+      showSnack(
+        result?.restored
+          ? 'Conferência desfeita. Estado anterior restaurado.'
+          : 'Conferência desfeita. Item voltou para "Nunca conferido".',
+        'success'
+      );
+      setUnmarkOpen(false);
+      setUnmarkItem(null);
+    } catch {
+      showSnack('Falha ao desfazer conferência.', 'error');
     }
   };
 
@@ -1372,6 +1416,23 @@ export default function BensPatrimoniais() {
                                       <CheckCircleIcon fontSize="small" />
                                     </Button>
                                   </Tooltip>
+                                  {item.ultima_conferencia && (
+                                    <Tooltip
+                                      title={
+                                        item.conferencia_anterior?.ultima_conferencia
+                                          ? 'Desfazer conferência (volta para a conferência anterior)'
+                                          : 'Desfazer conferência (volta para "Nunca conferido")'
+                                      }
+                                      arrow
+                                    >
+                                      <Button
+                                        onClick={() => handleOpenUnmark(item)}
+                                        sx={{ color: '#b71c1c' }}
+                                      >
+                                        <RemoveDoneIcon fontSize="small" />
+                                      </Button>
+                                    </Tooltip>
+                                  )}
                                   <Tooltip title="Editar" arrow>
                                     <Button
                                       onClick={() => handleOpenEdit(item)}
@@ -1475,6 +1536,17 @@ export default function BensPatrimoniais() {
                 onManageViaturas={() => setManageViaturasOpen(true)}
                 onSubmit={handleSubmitBulkLocation}
                 onCancel={() => setBulkLocationOpen(false)}
+              />
+            )}
+            {unmarkOpen && (
+              <UnmarkConferenciaDialog
+                open={unmarkOpen}
+                item={unmarkItem}
+                onConfirm={handleConfirmUnmark}
+                onCancel={() => {
+                  setUnmarkOpen(false);
+                  setUnmarkItem(null);
+                }}
               />
             )}
             {manageViaturasOpen && (

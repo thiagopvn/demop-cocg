@@ -3,6 +3,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   getDoc,
   getDocs,
   query,
@@ -181,6 +182,9 @@ export const updateLocalidadeBulk = async (docIds, localidade, viaturaInfo = nul
 export const markAsConferido = async (docId, userInfo = null) => {
   try {
     const ref = doc(db, 'bens_patrimoniais', docId);
+    const snap = await getDoc(ref);
+    const cur = snap.exists() ? snap.data() : {};
+
     // Sempre persiste conferido_por — mesmo que o nome do usuário não tenha
     // chegado a tempo, grava 'Usuário não identificado' para que a coluna
     // nunca exiba data sem responsável.
@@ -191,9 +195,55 @@ export const markAsConferido = async (docId, userInfo = null) => {
       conferido_por: nome,
     };
     if (userInfo?.userId) payload.conferido_por_id = userInfo.userId;
+
+    // Snapshot da conferência anterior para permitir "desfazer" voltando ao
+    // estado real (e não a "Nunca conferido"). Se não havia conferência antes,
+    // garante limpar qualquer snapshot residual.
+    if (cur.ultima_conferencia) {
+      payload.conferencia_anterior = {
+        ultima_conferencia: cur.ultima_conferencia,
+        conferido_por: cur.conferido_por ?? null,
+        conferido_por_id: cur.conferido_por_id ?? null,
+      };
+    } else {
+      payload.conferencia_anterior = deleteField();
+    }
+
     await updateDoc(ref, payload);
   } catch (err) {
     console.error('Erro ao registrar conferência:', err);
+    throw err;
+  }
+};
+
+export const unmarkAsConferido = async (docId) => {
+  try {
+    const ref = doc(db, 'bens_patrimoniais', docId);
+    const snap = await getDoc(ref);
+    const cur = snap.exists() ? snap.data() : {};
+    const anterior = cur.conferencia_anterior;
+
+    const payload = {
+      updated_at: serverTimestamp(),
+      conferencia_anterior: deleteField(),
+    };
+
+    if (anterior && anterior.ultima_conferencia) {
+      // Restaura conferência anterior
+      payload.ultima_conferencia = anterior.ultima_conferencia;
+      payload.conferido_por = anterior.conferido_por ?? deleteField();
+      payload.conferido_por_id = anterior.conferido_por_id ?? deleteField();
+    } else {
+      // Não havia conferência anterior — volta para "Nunca conferido"
+      payload.ultima_conferencia = deleteField();
+      payload.conferido_por = deleteField();
+      payload.conferido_por_id = deleteField();
+    }
+
+    await updateDoc(ref, payload);
+    return { restored: Boolean(anterior && anterior.ultima_conferencia) };
+  } catch (err) {
+    console.error('Erro ao desfazer conferência:', err);
     throw err;
   }
 };
