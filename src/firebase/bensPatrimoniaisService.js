@@ -193,6 +193,8 @@ export const markAsConferido = async (docId, userInfo = null) => {
       ultima_conferencia: serverTimestamp(),
       updated_at: serverTimestamp(),
       conferido_por: nome,
+      // Nova conferência sempre limpa o estado "desfeita"
+      conferencia_desfeita: deleteField(),
     };
     if (userInfo?.userId) payload.conferido_por_id = userInfo.userId;
 
@@ -226,6 +228,9 @@ export const unmarkAsConferido = async (docId) => {
     const payload = {
       updated_at: serverTimestamp(),
       conferencia_anterior: deleteField(),
+      // Sinaliza que a conferência foi desfeita — usado pela UI para
+      // exibir o item em vermelho mesmo que a data restaurada seja recente.
+      conferencia_desfeita: true,
     };
 
     if (anterior && anterior.ultima_conferencia) {

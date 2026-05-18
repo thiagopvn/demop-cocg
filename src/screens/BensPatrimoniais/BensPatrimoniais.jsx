@@ -1155,7 +1155,9 @@ export default function BensPatrimoniais() {
                         </TableRow>
                       ) : (
                         paginated.map((item) => {
-                          const overdue = isOverdueSixMonths(item.ultima_conferencia);
+                          const desfeita = item.conferencia_desfeita === true;
+                          const overdue =
+                            isOverdueSixMonths(item.ultima_conferencia) || desfeita;
                           const lastDate = formatDateBR(item.ultima_conferencia);
                           const isSelected = selectedIds.has(item.id);
                           return (
@@ -1262,6 +1264,23 @@ export default function BensPatrimoniais() {
                                       gap: 0.25,
                                     }}
                                   >
+                                    {desfeita && (
+                                      <Chip
+                                        size="small"
+                                        icon={<RemoveDoneIcon sx={{ fontSize: 14 }} />}
+                                        label="Conferência desfeita"
+                                        sx={{
+                                          alignSelf: 'flex-start',
+                                          fontWeight: 700,
+                                          fontSize: '0.68rem',
+                                          height: 20,
+                                          backgroundColor: '#b71c1c',
+                                          color: 'white',
+                                          mb: 0.25,
+                                          '& .MuiChip-icon': { color: 'white' },
+                                        }}
+                                      />
+                                    )}
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                       {overdue && (
                                         <WarningAmberIcon
