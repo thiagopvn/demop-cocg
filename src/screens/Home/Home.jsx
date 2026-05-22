@@ -72,6 +72,7 @@ import {
   serverTimestamp,
   Timestamp,
   addDoc,
+  limit,
 } from "firebase/firestore";
 import {
   BarChart,
@@ -783,52 +784,55 @@ export default function Home() {
             let returnsSnap = { docs: [] };
             let activeSnap = { docs: [] };
 
-            try {
-              [pendingCautelasSnap, pendingSaidasSnap, pendingTrocasSnap, returnsSnap, activeSnap] = await Promise.all([
-                getDocs(
-                  query(
-                    collection(db, "movimentacoes"),
-                    where("user", "==", user.userId),
-                    where("type", "==", "cautela"),
-                    where("signed", "==", false)
-                  )
-                ),
-                getDocs(
-                  query(
-                    collection(db, "movimentacoes"),
-                    where("user", "==", user.userId),
-                    where("type", "==", "saída"),
-                    where("signed", "==", false)
-                  )
-                ),
-                getDocs(
-                  query(
-                    collection(db, "movimentacoes"),
-                    where("user", "==", user.userId),
-                    where("type", "==", "troca"),
-                    where("signed", "==", false)
-                  )
-                ),
-                getDocs(
-                  query(
-                    collection(db, "movimentacoes"),
-                    where("user", "==", user.userId),
-                    where("status", "in", ["devolvido", "devolvidaDeReparo"])
-                  )
-                ),
-                getDocs(
-                  query(
-                    collection(db, "movimentacoes"),
-                    where("user", "==", user.userId),
-                    where("type", "==", "cautela"),
-                    where("status", "==", "cautelado"),
-                    where("signed", "==", true)
-                  )
-                ),
-              ]);
-            } catch (queryError) {
-              console.error("Erro nas queries do usuario:", queryError);
-            }
+            // Promise.allSettled: 1 query falhando (ex.: índice ausente) não derruba as outras
+            const results = await Promise.allSettled([
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("type", "==", "cautela"),
+                  where("signed", "==", false)
+                )
+              ),
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("type", "==", "saída"),
+                  where("signed", "==", false)
+                )
+              ),
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("type", "==", "troca"),
+                  where("signed", "==", false)
+                )
+              ),
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("status", "in", ["devolvido", "devolvidaDeReparo"])
+                )
+              ),
+              getDocs(
+                query(
+                  collection(db, "movimentacoes"),
+                  where("user", "==", user.userId),
+                  where("type", "==", "cautela"),
+                  where("status", "==", "cautelado"),
+                  where("signed", "==", true)
+                )
+              ),
+            ]);
+            const [r0, r1, r2, r3, r4] = results;
+            if (r0.status === 'fulfilled') pendingCautelasSnap = r0.value; else console.error('cautelas pendentes:', r0.reason);
+            if (r1.status === 'fulfilled') pendingSaidasSnap = r1.value; else console.error('saidas pendentes:', r1.reason);
+            if (r2.status === 'fulfilled') pendingTrocasSnap = r2.value; else console.error('trocas pendentes:', r2.reason);
+            if (r3.status === 'fulfilled') returnsSnap = r3.value; else console.error('devolucoes:', r3.reason);
+            if (r4.status === 'fulfilled') activeSnap = r4.value; else console.error('cautelas ativas:', r4.reason);
 
             // Filtrar saídas: só mostrar as novas (que têm subtype definido)
             const saidasFiltradas = pendingSaidasSnap.docs.filter((d) => {
@@ -887,21 +891,32 @@ export default function Home() {
           setRings(ringsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
           setManutencoes(manutencoesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
           setCategorias(categoriasSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+          // Libera a UI antes do listener real-time de movimentações terminar
+          setLoading(false);
         }
 
-        // Real-time movements listener
+        // Real-time movements listener — limita às 2000 mais recentes para evitar carregar
+        // todo o histórico no abrir do app. Dashboards filtram por data no client.
         const movQuery = query(
           collection(db, "movimentacoes"),
-          orderBy("date", "desc")
+          orderBy("date", "desc"),
+          limit(2000)
         );
-        const unsub = onSnapshot(movQuery, (snapshot) => {
-          if (isMounted) {
-            setAllMovements(
-              snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-            );
-            setLoading(false);
+        const unsub = onSnapshot(
+          movQuery,
+          (snapshot) => {
+            if (isMounted) {
+              setAllMovements(
+                snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+              );
+              setLoading(false);
+            }
+          },
+          (err) => {
+            console.error("Erro no listener de movimentações:", err);
+            if (isMounted) setLoading(false);
           }
-        });
+        );
         unsubscribers.push(unsub);
 
         // Real-time DEMOP tasks listener
@@ -910,18 +925,22 @@ export default function Home() {
           where("status", "==", "ativa"),
           orderBy("createdAt", "desc")
         );
-        const taskUnsub = onSnapshot(tasksQuery, (snapshot) => {
-          if (isMounted) {
-            const now = new Date();
-            const activeTasks = snapshot.docs
-              .map((d) => ({ id: d.id, ...d.data() }))
-              .filter(t => {
-                const exp = t.expiresAt?.toDate ? t.expiresAt.toDate() : null;
-                return !exp || exp > now;
-              });
-            setDemopTasks(activeTasks);
-          }
-        });
+        const taskUnsub = onSnapshot(
+          tasksQuery,
+          (snapshot) => {
+            if (isMounted) {
+              const now = new Date();
+              const activeTasks = snapshot.docs
+                .map((d) => ({ id: d.id, ...d.data() }))
+                .filter(t => {
+                  const exp = t.expiresAt?.toDate ? t.expiresAt.toDate() : null;
+                  return !exp || exp > now;
+                });
+              setDemopTasks(activeTasks);
+            }
+          },
+          (err) => console.error("Listener tarefas DEMOP:", err)
+        );
         unsubscribers.push(taskUnsub);
 
         // User's own cautelas + saídas + trocas pendentes (real-time)
@@ -941,7 +960,8 @@ export default function Home() {
                   return [...cautelas, ...outros];
                 });
               }
-            }
+            },
+            (err) => console.error("Listener cautelas pendentes:", err)
           );
           unsubscribers.push(cautelaUnsub);
 
@@ -963,7 +983,8 @@ export default function Home() {
                   return [...outros, ...saidas];
                 });
               }
-            }
+            },
+            (err) => console.error("Listener saídas pendentes:", err)
           );
           unsubscribers.push(saidaUnsub);
 
@@ -982,7 +1003,8 @@ export default function Home() {
                   return [...outros, ...trocas];
                 });
               }
-            }
+            },
+            (err) => console.error("Listener trocas pendentes:", err)
           );
           unsubscribers.push(trocaUnsub);
 
@@ -1000,7 +1022,8 @@ export default function Home() {
                     .filter((item) => !item.user_acknowledged_return)
                 );
               }
-            }
+            },
+            (err) => console.error("Listener devoluções:", err)
           );
           unsubscribers.push(returnUnsub);
         }

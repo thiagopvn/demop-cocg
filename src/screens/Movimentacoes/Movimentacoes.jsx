@@ -1162,7 +1162,7 @@ export default function Movimentacao() {
                                             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                                 <Chip label="2" size="small" sx={{ fontWeight: 700, minWidth: 28, bgcolor: '#8b5cf6', color: 'white' }} />
                                                 <OutputIcon fontSize="small" sx={{ color: '#8b5cf6' }} />
-                                                Material Enviado (DEMOP → Viatura)
+                                                Material que desceu do DEMOP para viatura (DEMOP → Viatura)
                                             </Typography>
 
                                             <MaterialSearch
@@ -1288,7 +1288,7 @@ export default function Movimentacao() {
                                             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                                 <Chip label="3" size="small" sx={{ fontWeight: 700, minWidth: 28, bgcolor: '#0ea5e9', color: 'white' }} />
                                                 <InputIcon fontSize="small" sx={{ color: '#0ea5e9' }} />
-                                                Material Recebido (Viatura → DEMOP)
+                                                Material que subiu da Viatura para o DEMOP (Viatura → DEMOP)
                                             </Typography>
 
                                             <MaterialSearch
@@ -1336,10 +1336,10 @@ export default function Movimentacao() {
                                                 </Grid>
                                                 <Grid item xs={12} sm={6}>
                                                     <FormControl fullWidth required error={!statusRecebido}>
-                                                        <InputLabel>Status do material recebido</InputLabel>
+                                                        <InputLabel>Status do material que subiu da viatura</InputLabel>
                                                         <Select
                                                             value={statusRecebido}
-                                                            label="Status do material recebido"
+                                                            label="Status do material que subiu da viatura"
                                                             onChange={(e) => {
                                                                 setStatusRecebido(e.target.value);
                                                                 if (e.target.value === 'operante') {
@@ -1424,7 +1424,7 @@ export default function Movimentacao() {
                                             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                                                 <Chip label="4" size="small" color="secondary" sx={{ fontWeight: 700, minWidth: 28 }} />
                                                 <PersonIcon fontSize="small" color="secondary" />
-                                                Militar Responsável (assinará o termo)
+                                                Militar Responsável (deverá assinar antes de sair do DEMOP)
                                             </Typography>
 
                                             <UserSearch
