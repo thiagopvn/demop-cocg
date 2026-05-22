@@ -14,6 +14,23 @@ const auditLogsCollection = collection(db, 'audit_logs');
  * @param {string} [params.targetName] - Nome/descricao do item afetado
  * @param {Object} [params.details] - Detalhes adicionais da acao
  */
+// Remove valores `undefined` recursivamente — Firestore rejeita undefined em qualquer nível.
+function sanitizeForFirestore(value) {
+    if (value === undefined) return null;
+    if (value === null || typeof value !== 'object') return value;
+    if (Array.isArray(value)) {
+        return value
+            .map(sanitizeForFirestore)
+            .filter((v) => v !== undefined);
+    }
+    const out = {};
+    for (const k of Object.keys(value)) {
+        const sanitized = sanitizeForFirestore(value[k]);
+        if (sanitized !== undefined) out[k] = sanitized;
+    }
+    return out;
+}
+
 export async function logAudit({ action, userId, userName, targetCollection, targetId, targetName, details }) {
     try {
         await addDoc(auditLogsCollection, {
@@ -23,7 +40,7 @@ export async function logAudit({ action, userId, userName, targetCollection, tar
             targetCollection,
             targetId: targetId || null,
             targetName: targetName || null,
-            details: details || null,
+            details: details ? sanitizeForFirestore(details) : null,
             timestamp: serverTimestamp(),
         });
     } catch (error) {

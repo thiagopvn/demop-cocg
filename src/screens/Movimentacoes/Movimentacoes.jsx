@@ -533,20 +533,23 @@ export default function Movimentacao() {
 
             await batch.commit();
 
+            const auditDetails = {
+                tipo: 'troca',
+                enviado: { material: materialEnviado.description, quantidade: qtdEnv },
+                recebido: { material: materialRecebido.description, quantidade: qtdRec, status: statusRecebido },
+                viatura: `${trocaViaturaSelected.prefixo || ''} - ${trocaViaturaSelected.description || ''}`,
+                militar: userSelected.full_name,
+            };
+            if (statusRecebido === 'inoperante') {
+                auditDetails.sei = numeroSeiTroca.trim();
+            }
             logAudit({
                 action: 'movimentacao_create',
                 userId,
                 userName,
                 targetCollection: 'movimentacoes',
                 targetName: `Troca: ${materialEnviado.description} ↔ ${materialRecebido.description}`,
-                details: {
-                    tipo: 'troca',
-                    enviado: { material: materialEnviado.description, quantidade: qtdEnv },
-                    recebido: { material: materialRecebido.description, quantidade: qtdRec, status: statusRecebido },
-                    viatura: `${trocaViaturaSelected.prefixo || ''} - ${trocaViaturaSelected.description || ''}`,
-                    militar: userSelected.full_name,
-                    sei: statusRecebido === 'inoperante' ? numeroSeiTroca.trim() : undefined,
-                },
+                details: auditDetails,
             });
 
             const detalhes = [
