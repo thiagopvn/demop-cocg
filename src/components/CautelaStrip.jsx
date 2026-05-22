@@ -33,6 +33,9 @@ import {
   Output as OutputIcon,
   DirectionsCar as CarIcon,
   ShoppingCart as ConsumoIcon,
+  SwapHoriz as SwapHorizIcon,
+  Build as RepairIcon,
+  Input as InputIcon,
 } from "@mui/icons-material";
 
 export default function CautelaStrip({ cautela, onSign }) {
@@ -43,6 +46,11 @@ export default function CautelaStrip({ cautela, onSign }) {
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [signedDate, setSignedDate] = useState(null);
   const [signing, setSigning] = useState(false);
+
+  const isTroca = cautela.type === 'troca';
+  const trocaEnviado = cautela.enviado || null;
+  const trocaRecebido = cautela.recebido || null;
+  const recebidoInoperante = trocaRecebido?.status === 'inoperante';
   
   const formatDate = (timestamp) => {
     if (!timestamp) return "";
@@ -115,15 +123,21 @@ export default function CautelaStrip({ cautela, onSign }) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
               <Avatar
                 sx={{
-                  bgcolor: signed ? alpha('#22c55e', 0.1) : alpha('#f59e0b', 0.1),
-                  color: signed ? '#22c55e' : '#f59e0b',
+                  bgcolor: signed
+                    ? alpha('#22c55e', 0.1)
+                    : isTroca
+                      ? alpha('#8b5cf6', 0.12)
+                      : alpha('#f59e0b', 0.1),
+                  color: signed ? '#22c55e' : isTroca ? '#8b5cf6' : '#f59e0b',
                   width: { xs: 40, sm: 48 },
                   height: { xs: 40, sm: 48 },
                 }}
               >
-                {cautela.type === 'saída'
-                  ? (cautela.subtype === 'viatura' ? <CarIcon sx={{ fontSize: { xs: 20, sm: 24 } }} /> : <OutputIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />)
-                  : <Assignment sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                {isTroca
+                  ? <SwapHorizIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />
+                  : cautela.type === 'saída'
+                    ? (cautela.subtype === 'viatura' ? <CarIcon sx={{ fontSize: { xs: 20, sm: 24 } }} /> : <OutputIcon sx={{ fontSize: { xs: 20, sm: 24 } }} />)
+                    : <Assignment sx={{ fontSize: { xs: 20, sm: 24 } }} />
                 }
               </Avatar>
               <Box sx={{ flex: 1 }}>
@@ -141,6 +155,22 @@ export default function CautelaStrip({ cautela, onSign }) {
                     }}
                   />
                 )}
+                {isTroca && (
+                  <Chip
+                    label={`Troca com Viatura${cautela.viatura_prefixo ? ` — ${cautela.viatura_prefixo}` : ''}`}
+                    size="small"
+                    icon={<SwapHorizIcon sx={{ fontSize: 14 }} />}
+                    sx={{
+                      mb: 0.5,
+                      height: 22,
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      backgroundColor: alpha('#8b5cf6', 0.15),
+                      color: '#6d28d9',
+                      '& .MuiChip-icon': { color: '#8b5cf6' }
+                    }}
+                  />
+                )}
                 <Typography
                   variant="h6"
                   fontWeight={600}
@@ -150,7 +180,9 @@ export default function CautelaStrip({ cautela, onSign }) {
                     wordBreak: 'break-word'
                   }}
                 >
-                  {cautela.material_description || "Material não especificado"}
+                  {isTroca
+                    ? `Troca: ${trocaEnviado?.description || '—'} ↔ ${trocaRecebido?.description || '—'}`
+                    : (cautela.material_description || "Material não especificado")}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
                   <Chip
@@ -183,19 +215,115 @@ export default function CautelaStrip({ cautela, onSign }) {
                 )}
               </Box>
             </Box>
-            <Chip
-              label={`${cautela.quantity || 0} un.`}
-              color="primary"
-              sx={{
-                fontWeight: 700,
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                height: { xs: 32, sm: 36 },
-                minWidth: { xs: 70, sm: 80 },
-                backgroundColor: alpha('#3b82f6', 0.9),
-                alignSelf: { xs: 'flex-start', sm: 'center' }
-              }}
-            />
+            {!isTroca && (
+              <Chip
+                label={`${cautela.quantity || 0} un.`}
+                color="primary"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  height: { xs: 32, sm: 36 },
+                  minWidth: { xs: 70, sm: 80 },
+                  backgroundColor: alpha('#3b82f6', 0.9),
+                  alignSelf: { xs: 'flex-start', sm: 'center' }
+                }}
+              />
+            )}
           </Box>
+
+          {isTroca && (
+            <Box
+              sx={{
+                mt: 1,
+                p: { xs: 1.5, sm: 2 },
+                borderRadius: 2,
+                border: '1px dashed',
+                borderColor: alpha('#8b5cf6', 0.4),
+                backgroundColor: alpha('#8b5cf6', 0.04),
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'stretch', sm: 'center' },
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  flex: 1,
+                  p: 1.5,
+                  borderRadius: 2,
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: alpha('#8b5cf6', 0.25),
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                  <OutputIcon sx={{ color: '#8b5cf6', fontSize: 16 }} />
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Você receberá do DEMOP
+                  </Typography>
+                </Box>
+                <Typography variant="body2" fontWeight={700} sx={{ fontSize: { xs: '0.85rem', sm: '0.95rem' } }}>
+                  {trocaEnviado?.description || '—'}
+                </Typography>
+                <Chip
+                  label={`${trocaEnviado?.quantidade || 0} un.`}
+                  size="small"
+                  sx={{ mt: 0.5, bgcolor: '#8b5cf6', color: 'white', fontWeight: 700 }}
+                />
+              </Box>
+              <SwapHorizIcon sx={{ color: '#8b5cf6', fontSize: 28, alignSelf: 'center', transform: { xs: 'rotate(90deg)', sm: 'none' } }} />
+              <Box
+                sx={{
+                  flex: 1,
+                  p: 1.5,
+                  borderRadius: 2,
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: recebidoInoperante ? alpha('#ef4444', 0.3) : alpha('#22c55e', 0.3),
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                  {recebidoInoperante
+                    ? <RepairIcon sx={{ color: '#ef4444', fontSize: 16 }} />
+                    : <InputIcon sx={{ color: '#22c55e', fontSize: 16 }} />}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 700,
+                      color: recebidoInoperante ? '#b91c1c' : '#15803d',
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5
+                    }}
+                  >
+                    Você devolve ao DEMOP ({recebidoInoperante ? 'inoperante' : 'operante'})
+                  </Typography>
+                </Box>
+                <Typography variant="body2" fontWeight={700} sx={{ fontSize: { xs: '0.85rem', sm: '0.95rem' } }}>
+                  {trocaRecebido?.description || '—'}
+                </Typography>
+                <Chip
+                  label={`${trocaRecebido?.quantidade || 0} un.`}
+                  size="small"
+                  sx={{
+                    mt: 0.5,
+                    bgcolor: recebidoInoperante ? '#ef4444' : '#22c55e',
+                    color: 'white',
+                    fontWeight: 700
+                  }}
+                />
+                {recebidoInoperante && trocaRecebido?.sei && (
+                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#b91c1c', fontWeight: 600 }}>
+                    SEI: {trocaRecebido.sei}
+                  </Typography>
+                )}
+                {recebidoInoperante && trocaRecebido?.motivo && (
+                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary', fontStyle: 'italic' }}>
+                    Problema: {trocaRecebido.motivo}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          )}
 
           {!signed && (
             <Alert 
@@ -219,7 +347,9 @@ export default function CautelaStrip({ cautela, onSign }) {
                 Assinatura Pendente
               </AlertTitle>
               <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                Clique no botão abaixo para confirmar o recebimento deste material
+                {isTroca
+                  ? 'Clique no botão abaixo para confirmar a operação de troca com a viatura.'
+                  : 'Clique no botão abaixo para confirmar o recebimento deste material'}
               </Typography>
             </Alert>
           )}
@@ -337,8 +467,19 @@ export default function CautelaStrip({ cautela, onSign }) {
               Atenção: Ação Irreversível
             </AlertTitle>
             <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-              Ao assinar, você confirma {cautela.type === 'saída' ? 'a retirada' : 'o recebimento'} do material <strong>{cautela.material_description}</strong> em
-              quantidade de <strong>{cautela.quantity} unidades</strong> e assume total responsabilidade pelo mesmo.
+              {isTroca ? (
+                <>
+                  Ao assinar, você confirma a operação de <strong>troca com a viatura {cautela.viatura_prefixo || ''}</strong>:
+                  o DEMOP envia <strong>{trocaEnviado?.description}</strong> ({trocaEnviado?.quantidade} un.) e recebe de volta
+                  <strong> {trocaRecebido?.description}</strong> ({trocaRecebido?.quantidade} un. — {trocaRecebido?.status}).
+                  {recebidoInoperante && trocaRecebido?.sei ? ` SEI ${trocaRecebido.sei}.` : ''}
+                </>
+              ) : (
+                <>
+                  Ao assinar, você confirma {cautela.type === 'saída' ? 'a retirada' : 'o recebimento'} do material <strong>{cautela.material_description}</strong> em
+                  quantidade de <strong>{cautela.quantity} unidades</strong> e assume total responsabilidade pelo mesmo.
+                </>
+              )}
             </Typography>
           </Alert>
           
@@ -522,7 +663,9 @@ export default function CautelaStrip({ cautela, onSign }) {
               Comprovante de Recebimento
             </AlertTitle>
             <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-              Este documento confirma {cautela.type === 'saída' ? 'a retirada' : 'o recebimento'} do material sob sua responsabilidade.
+              {isTroca
+                ? 'Este documento confirma a operação de troca com a viatura sob sua responsabilidade.'
+                : `Este documento confirma ${cautela.type === 'saída' ? 'a retirada' : 'o recebimento'} do material sob sua responsabilidade.`}
             </Typography>
           </Alert>
 
@@ -536,41 +679,80 @@ export default function CautelaStrip({ cautela, onSign }) {
               mb: 2
             }}
           >
-            <Box sx={{ mb: 2 }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
-              >
-                Material
-              </Typography>
-              <Typography
-                variant="body1"
-                fontWeight={600}
-                sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
-              >
-                {cautela.material_description || "Material não especificado"}
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
-              <Box sx={{ flex: 1, minWidth: 100 }}>
+            {isTroca ? (
+              <Box sx={{ mb: 2 }}>
                 <Typography
                   variant="caption"
                   color="text.secondary"
                   sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
                 >
-                  Quantidade
+                  Troca com viatura {cautela.viatura_prefixo || ''}
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5, mt: 1, alignItems: { xs: 'stretch', sm: 'center' } }}>
+                  <Box sx={{ flex: 1, p: 1.5, borderRadius: 2, border: '1px solid', borderColor: alpha('#8b5cf6', 0.3), backgroundColor: alpha('#8b5cf6', 0.04) }}>
+                    <Typography variant="caption" sx={{ color: '#6d28d9', fontWeight: 700 }}>DEMOP enviou</Typography>
+                    <Typography variant="body2" fontWeight={700}>{trocaEnviado?.description}</Typography>
+                    <Typography variant="caption">{trocaEnviado?.quantidade} un.</Typography>
+                  </Box>
+                  <SwapHorizIcon sx={{ color: '#8b5cf6', fontSize: 28, alignSelf: 'center', transform: { xs: 'rotate(90deg)', sm: 'none' } }} />
+                  <Box sx={{
+                    flex: 1, p: 1.5, borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: recebidoInoperante ? alpha('#ef4444', 0.3) : alpha('#22c55e', 0.3),
+                    backgroundColor: recebidoInoperante ? alpha('#ef4444', 0.04) : alpha('#22c55e', 0.04)
+                  }}>
+                    <Typography variant="caption" sx={{ color: recebidoInoperante ? '#b91c1c' : '#15803d', fontWeight: 700 }}>
+                      DEMOP recebeu ({trocaRecebido?.status})
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700}>{trocaRecebido?.description}</Typography>
+                    <Typography variant="caption">{trocaRecebido?.quantidade} un.</Typography>
+                    {recebidoInoperante && trocaRecebido?.sei && (
+                      <Typography variant="caption" sx={{ display: 'block', color: '#b91c1c', fontWeight: 600 }}>
+                        SEI: {trocaRecebido.sei}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+            ) : (
+              <Box sx={{ mb: 2 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                >
+                  Material
                 </Typography>
                 <Typography
                   variant="body1"
                   fontWeight={600}
-                  color="primary"
                   sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
                 >
-                  {cautela.quantity || 0} unidade(s)
+                  {cautela.material_description || "Material não especificado"}
                 </Typography>
               </Box>
+            )}
+
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+              {!isTroca && (
+                <Box sx={{ flex: 1, minWidth: 100 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                  >
+                    Quantidade
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    fontWeight={600}
+                    color="primary"
+                    sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}
+                  >
+                    {cautela.quantity || 0} unidade(s)
+                  </Typography>
+                </Box>
+              )}
               <Box sx={{ flex: 1, minWidth: 100 }}>
                 <Typography
                   variant="caption"

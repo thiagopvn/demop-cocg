@@ -779,11 +779,12 @@ export default function Home() {
           if (user?.userId) {
             let pendingCautelasSnap = { docs: [] };
             let pendingSaidasSnap = { docs: [] };
+            let pendingTrocasSnap = { docs: [] };
             let returnsSnap = { docs: [] };
             let activeSnap = { docs: [] };
 
             try {
-              [pendingCautelasSnap, pendingSaidasSnap, returnsSnap, activeSnap] = await Promise.all([
+              [pendingCautelasSnap, pendingSaidasSnap, pendingTrocasSnap, returnsSnap, activeSnap] = await Promise.all([
                 getDocs(
                   query(
                     collection(db, "movimentacoes"),
@@ -797,6 +798,14 @@ export default function Home() {
                     collection(db, "movimentacoes"),
                     where("user", "==", user.userId),
                     where("type", "==", "saída"),
+                    where("signed", "==", false)
+                  )
+                ),
+                getDocs(
+                  query(
+                    collection(db, "movimentacoes"),
+                    where("user", "==", user.userId),
+                    where("type", "==", "troca"),
                     where("signed", "==", false)
                   )
                 ),
@@ -827,7 +836,7 @@ export default function Home() {
               return data.subtype;
             });
             const pendingSnap = {
-              docs: [...pendingCautelasSnap.docs, ...saidasFiltradas]
+              docs: [...pendingCautelasSnap.docs, ...saidasFiltradas, ...pendingTrocasSnap.docs]
             };
             if (isMounted) {
               setMinhasCautelas(
@@ -915,7 +924,7 @@ export default function Home() {
         });
         unsubscribers.push(taskUnsub);
 
-        // User's own cautelas + saídas pendentes (real-time)
+        // User's own cautelas + saídas + trocas pendentes (real-time)
         if (user?.userId) {
           const cautelaUnsub = onSnapshot(
             query(
@@ -928,8 +937,8 @@ export default function Home() {
               if (isMounted) {
                 const cautelas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
                 setMinhasCautelas((prev) => {
-                  const saidasPendentes = prev.filter((m) => m.type === "saída");
-                  return [...cautelas, ...saidasPendentes];
+                  const outros = prev.filter((m) => m.type === "saída" || m.type === "troca");
+                  return [...cautelas, ...outros];
                 });
               }
             }
@@ -950,13 +959,32 @@ export default function Home() {
                   .map((d) => ({ id: d.id, ...d.data() }))
                   .filter((m) => m.subtype);
                 setMinhasCautelas((prev) => {
-                  const cautelasPendentes = prev.filter((m) => m.type === "cautela");
-                  return [...cautelasPendentes, ...saidas];
+                  const outros = prev.filter((m) => m.type === "cautela" || m.type === "troca");
+                  return [...outros, ...saidas];
                 });
               }
             }
           );
           unsubscribers.push(saidaUnsub);
+
+          const trocaUnsub = onSnapshot(
+            query(
+              collection(db, "movimentacoes"),
+              where("user", "==", user.userId),
+              where("type", "==", "troca"),
+              where("signed", "==", false)
+            ),
+            (snap) => {
+              if (isMounted) {
+                const trocas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+                setMinhasCautelas((prev) => {
+                  const outros = prev.filter((m) => m.type === "cautela" || m.type === "saída");
+                  return [...outros, ...trocas];
+                });
+              }
+            }
+          );
+          unsubscribers.push(trocaUnsub);
 
           const returnUnsub = onSnapshot(
             query(

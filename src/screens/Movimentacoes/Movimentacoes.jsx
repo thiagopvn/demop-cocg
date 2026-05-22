@@ -61,7 +61,7 @@ import PrivateRoute from "../../contexts/PrivateRoute";
 import MaterialSearch from "../../components/MaterialSearch";
 import UserSearch from "../../components/UserSearch";
 import db from "../../firebase/db";
-import { collection, addDoc, updateDoc, doc, getDocs, query, where, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, serverTimestamp, writeBatch } from "firebase/firestore";
 import { verifyToken } from "../../firebase/token";
 import { logAudit } from '../../firebase/auditLog';
 
@@ -70,6 +70,7 @@ const STEPS = {
     cautela: ['Tipo', 'Material', 'Militar', 'Detalhes', 'Confirmar'],
     'saída': ['Tipo', 'Subtipo', 'Material', 'Destinatário', 'Detalhes', 'Confirmar'],
     reparo: ['Tipo', 'Material', 'Detalhes', 'Reparo', 'Confirmar'],
+    troca: ['Tipo', 'Enviado', 'Recebido', 'Militar', 'Confirmar'],
 };
 
 export default function Movimentacao() {
@@ -96,6 +97,16 @@ export default function Movimentacao() {
     const [saidaViaturaSelected, setSaidaViaturaSelected] = useState(null);
     const [loadingViaturas, setLoadingViaturas] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    // Troca com Viatura
+    const [materialEnviado, setMaterialEnviado] = useState(null);
+    const [quantidadeEnviada, setQuantidadeEnviada] = useState("");
+    const [trocaViaturaSelected, setTrocaViaturaSelected] = useState(null);
+    const [materialRecebido, setMaterialRecebido] = useState(null);
+    const [quantidadeRecebida, setQuantidadeRecebida] = useState("");
+    const [statusRecebido, setStatusRecebido] = useState(""); // "operante" | "inoperante"
+    const [numeroSeiTroca, setNumeroSeiTroca] = useState("");
+    const [motivoInoperancia, setMotivoInoperancia] = useState("");
 
     const showFeedback = (type, title, message, details = []) => {
         setFeedbackModal({ open: true, type, title, message, details });
@@ -130,9 +141,13 @@ export default function Movimentacao() {
         }
     }, [userRole]);
 
-    // Buscar viaturas quando saída → viatura é selecionado
+    // Buscar viaturas quando saída → viatura ou troca é selecionado
     useEffect(() => {
-        if (tipoMovimentacao === 'saída' && saidaSubtipo === 'viatura' && viaturasDisponiveis.length === 0) {
+        const precisaViaturas =
+            (tipoMovimentacao === 'saída' && saidaSubtipo === 'viatura') ||
+            tipoMovimentacao === 'troca';
+
+        if (precisaViaturas && viaturasDisponiveis.length === 0) {
             const fetchViaturas = async () => {
                 setLoadingViaturas(true);
                 try {
@@ -161,6 +176,15 @@ export default function Movimentacao() {
         setSaidaSubtipo("");
         setSaidaViaturaSelected(null);
         setActiveStep(0);
+        // Troca
+        setMaterialEnviado(null);
+        setQuantidadeEnviada("");
+        setTrocaViaturaSelected(null);
+        setMaterialRecebido(null);
+        setQuantidadeRecebida("");
+        setStatusRecebido("");
+        setNumeroSeiTroca("");
+        setMotivoInoperancia("");
     };
 
     const limparTudo = () => {
@@ -288,8 +312,271 @@ export default function Movimentacao() {
         }
     };
 
+    // ======= Salvar Troca =======
+
+    const handleSaveTroca = async () => {
+        if (saving) return;
+        setSaving(true);
+        try {
+            const qtdEnv = parseInt(quantidadeEnviada);
+            const qtdRec = parseInt(quantidadeRecebida);
+
+            if (!qtdEnv || qtdEnv <= 0 || !qtdRec || qtdRec <= 0) {
+                showFeedback('warning', 'Quantidades inválidas', 'As quantidades enviada e recebida devem ser maiores que zero.');
+                return;
+            }
+            if (!materialEnviado?.id || !materialRecebido?.id) {
+                showFeedback('error', 'Material inválido', 'Selecione os materiais enviado e recebido.');
+                return;
+            }
+            if (!trocaViaturaSelected?.id) {
+                showFeedback('warning', 'Viatura não selecionada', 'Escolha a viatura envolvida na troca.');
+                return;
+            }
+            if (!userSelected?.id) {
+                showFeedback('warning', 'Militar não selecionado', 'Selecione o militar responsável que assinará o termo.');
+                return;
+            }
+            if (statusRecebido === 'inoperante' && (!numeroSeiTroca.trim() || !motivoInoperancia.trim())) {
+                showFeedback('warning', 'Dados de inoperância', 'Para material inoperante é obrigatório informar o nº SEI e o problema.');
+                return;
+            }
+
+            // Buscar estado fresco dos materiais
+            const enviadoRef = doc(db, 'materials', materialEnviado.id);
+            const recebidoRef = doc(db, 'materials', materialRecebido.id);
+            const [enviadoSnap, recebidoSnap] = await Promise.all([getDoc(enviadoRef), getDoc(recebidoRef)]);
+
+            if (!enviadoSnap.exists() || !recebidoSnap.exists()) {
+                showFeedback('error', 'Material não encontrado', 'Não foi possível localizar um dos materiais no banco.');
+                return;
+            }
+            const enviadoData = enviadoSnap.data();
+            const recebidoData = recebidoSnap.data();
+            const enviadoEstoqueAtual = enviadoData.estoque_atual || 0;
+            const enviadoEstoqueViatura = enviadoData.estoque_viatura || 0;
+            const recebidoEstoqueAtual = recebidoData.estoque_atual || 0;
+            const recebidoEstoqueViatura = recebidoData.estoque_viatura || 0;
+
+            if (enviadoEstoqueAtual < qtdEnv) {
+                showFeedback('warning', 'Estoque insuficiente', `Estoque insuficiente do material enviado (${materialEnviado.description}). Disponível: ${enviadoEstoqueAtual}.`);
+                return;
+            }
+
+            // Buscar viatura_materiais existente para o material recebido nessa viatura
+            const vmRecebidoQuery = query(
+                collection(db, 'viatura_materiais'),
+                where('viatura_id', '==', trocaViaturaSelected.id),
+                where('material_id', '==', materialRecebido.id),
+                where('status', '==', 'alocado')
+            );
+            const vmRecebidoSnap = await getDocs(vmRecebidoQuery);
+
+            // Buscar viatura_materiais existente para o material enviado nessa viatura
+            const vmEnviadoQuery = query(
+                collection(db, 'viatura_materiais'),
+                where('viatura_id', '==', trocaViaturaSelected.id),
+                where('material_id', '==', materialEnviado.id),
+                where('status', '==', 'alocado')
+            );
+            const vmEnviadoSnap = await getDocs(vmEnviadoQuery);
+
+            const batch = writeBatch(db);
+
+            // 1) Atualizar estoques do material ENVIADO (sai do DEMOP, vai para viatura)
+            batch.update(enviadoRef, {
+                estoque_atual: enviadoEstoqueAtual - qtdEnv,
+                estoque_viatura: enviadoEstoqueViatura + qtdEnv,
+                ultima_movimentacao: serverTimestamp(),
+            });
+
+            // 2) Atualizar estoques do material RECEBIDO (volta da viatura)
+            const recebidoUpdate = {
+                estoque_viatura: Math.max(0, recebidoEstoqueViatura - qtdRec),
+                ultima_movimentacao: serverTimestamp(),
+            };
+            if (statusRecebido === 'operante') {
+                recebidoUpdate.estoque_atual = recebidoEstoqueAtual + qtdRec;
+                recebidoUpdate.maintenance_status = 'operante';
+            } else {
+                // Inoperante: NÃO soma ao estoque_atual
+                recebidoUpdate.maintenance_status = 'inoperante';
+                recebidoUpdate.inoperante_sei = numeroSeiTroca.trim();
+                recebidoUpdate.inoperante_motivo = motivoInoperancia.trim();
+                recebidoUpdate.inoperante_registrado_em = serverTimestamp();
+            }
+            batch.update(recebidoRef, recebidoUpdate);
+
+            // 3) Lidar com viatura_materiais do RECEBIDO (sai da viatura)
+            if (!vmRecebidoSnap.empty) {
+                const existing = vmRecebidoSnap.docs[0];
+                const existingQtd = existing.data().quantidade || 0;
+                const novaQtd = existingQtd - qtdRec;
+                if (novaQtd <= 0) {
+                    batch.update(doc(db, 'viatura_materiais', existing.id), {
+                        status: 'desalocado',
+                        quantidade: 0,
+                        desalocado_em: serverTimestamp(),
+                        desalocado_por: userId,
+                        desalocado_por_nome: userName,
+                        motivo_desalocacao: `Troca com viatura — ${statusRecebido === 'inoperante' ? `inoperante (SEI ${numeroSeiTroca.trim()})` : 'operante'}`,
+                    });
+                } else {
+                    batch.update(doc(db, 'viatura_materiais', existing.id), {
+                        quantidade: novaQtd,
+                        ultima_atualizacao: serverTimestamp(),
+                        atualizado_por: userId,
+                        atualizado_por_nome: userName,
+                    });
+                }
+            }
+
+            // 4) Lidar com viatura_materiais do ENVIADO (entra na viatura)
+            if (!vmEnviadoSnap.empty) {
+                const existing = vmEnviadoSnap.docs[0];
+                const existingQtd = existing.data().quantidade || 0;
+                batch.update(doc(db, 'viatura_materiais', existing.id), {
+                    quantidade: existingQtd + qtdEnv,
+                    ultima_atualizacao: serverTimestamp(),
+                    atualizado_por: userId,
+                    atualizado_por_nome: userName,
+                });
+            } else {
+                const novoVmRef = doc(collection(db, 'viatura_materiais'));
+                batch.set(novoVmRef, {
+                    viatura_id: trocaViaturaSelected.id,
+                    viatura_prefixo: trocaViaturaSelected.prefixo || '',
+                    viatura_description: trocaViaturaSelected.description || '',
+                    material_id: materialEnviado.id,
+                    material_description: materialEnviado.description,
+                    categoria: materialEnviado.categoria || '',
+                    quantidade: qtdEnv,
+                    data_alocacao: serverTimestamp(),
+                    alocado_por: userId,
+                    alocado_por_nome: userName,
+                    status: 'alocado',
+                    origem: 'troca',
+                });
+            }
+
+            // 5) Documento principal da movimentação (type: troca, signed: false)
+            const movRef = doc(collection(db, 'movimentacoes'));
+            const dadosTroca = {
+                type: 'troca',
+                date: new Date(),
+                sender: userId,
+                sender_name: userName,
+                user: userSelected.id,
+                user_name: userSelected.full_name,
+                telefone_responsavel: userSelected.telefone || null,
+                user_rg: userSelected.rg || null,
+                signed: false,
+                status: 'pendente',
+                observacoes: observacoes || null,
+                viatura: trocaViaturaSelected.id,
+                viatura_description: `${trocaViaturaSelected.prefixo || ''} - ${trocaViaturaSelected.description || ''}`.trim(),
+                viatura_prefixo: trocaViaturaSelected.prefixo || '',
+                // Para compatibilidade com componentes existentes (resumo no card)
+                material: materialEnviado.id,
+                material_description: materialEnviado.description,
+                quantity: qtdEnv,
+                categoria: materialEnviado.categoria || null,
+                // Estrutura completa da troca
+                enviado: {
+                    materialId: materialEnviado.id,
+                    description: materialEnviado.description,
+                    categoria: materialEnviado.categoria || null,
+                    quantidade: qtdEnv,
+                    viaturaId: trocaViaturaSelected.id,
+                    viaturaPrefixo: trocaViaturaSelected.prefixo || '',
+                    viaturaDescription: trocaViaturaSelected.description || '',
+                },
+                recebido: {
+                    materialId: materialRecebido.id,
+                    description: materialRecebido.description,
+                    categoria: materialRecebido.categoria || null,
+                    quantidade: qtdRec,
+                    status: statusRecebido,
+                    sei: statusRecebido === 'inoperante' ? numeroSeiTroca.trim() : null,
+                    motivo: statusRecebido === 'inoperante' ? motivoInoperancia.trim() : null,
+                },
+            };
+            batch.set(movRef, dadosTroca);
+
+            // 6) Se inoperante, criar registro auxiliar do tipo "reparo" para aparecer em /search (Inoperantes)
+            if (statusRecebido === 'inoperante') {
+                const reparoRef = doc(collection(db, 'movimentacoes'));
+                batch.set(reparoRef, {
+                    type: 'reparo',
+                    date: new Date(),
+                    sender: userId,
+                    sender_name: userName,
+                    signed: true,
+                    status: 'emReparo',
+                    material: materialRecebido.id,
+                    material_description: materialRecebido.description,
+                    categoria: materialRecebido.categoria || null,
+                    quantity: qtdRec,
+                    repairLocation: 'DEMOP',
+                    seiNumber: numeroSeiTroca.trim(),
+                    motivoReparo: motivoInoperancia.trim(),
+                    observacoes: `Originado de troca com viatura ${trocaViaturaSelected.prefixo || ''}`,
+                    origem: 'troca',
+                    troca_ref: movRef.id,
+                });
+            }
+
+            // 7) Atualizar timestamp da viatura
+            batch.update(doc(db, 'viaturas', trocaViaturaSelected.id), {
+                ultima_movimentacao: serverTimestamp(),
+            });
+
+            await batch.commit();
+
+            logAudit({
+                action: 'movimentacao_create',
+                userId,
+                userName,
+                targetCollection: 'movimentacoes',
+                targetName: `Troca: ${materialEnviado.description} ↔ ${materialRecebido.description}`,
+                details: {
+                    tipo: 'troca',
+                    enviado: { material: materialEnviado.description, quantidade: qtdEnv },
+                    recebido: { material: materialRecebido.description, quantidade: qtdRec, status: statusRecebido },
+                    viatura: `${trocaViaturaSelected.prefixo || ''} - ${trocaViaturaSelected.description || ''}`,
+                    militar: userSelected.full_name,
+                    sei: statusRecebido === 'inoperante' ? numeroSeiTroca.trim() : undefined,
+                },
+            });
+
+            const detalhes = [
+                `Enviado: ${materialEnviado.description} (${qtdEnv}) → ${trocaViaturaSelected.prefixo || trocaViaturaSelected.description}`,
+                `Recebido: ${materialRecebido.description} (${qtdRec}) — ${statusRecebido === 'operante' ? 'Operante' : 'Inoperante'}`,
+                `Militar responsável: ${userSelected.full_name}`,
+            ];
+            if (statusRecebido === 'inoperante') detalhes.push(`SEI: ${numeroSeiTroca.trim()}`);
+
+            showFeedback(
+                'success',
+                'Troca registrada!',
+                'Termo de cautela enviado ao militar para assinatura.',
+                detalhes
+            );
+            limparTudo();
+        } catch (error) {
+            console.error('Erro ao salvar troca:', error);
+            showFeedback('error', 'Erro ao salvar troca', error?.message || 'Ocorreu um erro ao processar a troca.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleSave = async () => {
         if (saving) return;
+        if (tipoMovimentacao === 'troca') {
+            await handleSaveTroca();
+            return;
+        }
         setSaving(true);
         try {
             if (tipoMovimentacao === "cautela" && materiaisSelected.length > 0) {
@@ -488,6 +775,21 @@ export default function Movimentacao() {
                 return materialSelected && quantidade && localReparo && numeroSei && motivoReparo;
             case "cautela":
                 return (materialSelected && userSelected && quantidade) || (materiaisSelected.length > 0 && userSelected);
+            case "troca": {
+                const baseOk =
+                    materialEnviado &&
+                    trocaViaturaSelected &&
+                    quantidadeEnviada && parseInt(quantidadeEnviada) > 0 &&
+                    materialRecebido &&
+                    quantidadeRecebida && parseInt(quantidadeRecebida) > 0 &&
+                    statusRecebido &&
+                    userSelected;
+                if (!baseOk) return false;
+                if (statusRecebido === 'inoperante') {
+                    return Boolean(numeroSeiTroca.trim() && motivoInoperancia.trim());
+                }
+                return true;
+            }
             default:
                 return false;
         }
@@ -527,6 +829,14 @@ export default function Movimentacao() {
             description: "Material inoperante/reparo",
             color: "#ef4444",
             gradient: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+        },
+        {
+            value: "troca",
+            label: "Troca com Viatura",
+            icon: <MovementIcon sx={{ fontSize: 40 }} />,
+            description: "Substituição de material na viatura que subiu para o DEMOP",
+            color: "#8b5cf6",
+            gradient: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)"
         }
     ];
 
@@ -652,7 +962,7 @@ export default function Movimentacao() {
 
                                     <Box sx={{
                                         display: 'grid',
-                                        gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr 1fr 1fr' },
+                                        gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(5, 1fr)' },
                                         gap: { xs: 1.5, sm: 2 }
                                     }}>
                                         {movementOptions.map((option) => (
@@ -827,6 +1137,407 @@ export default function Movimentacao() {
                                         </Collapse>
                                     </CardContent>
                                 </Card>
+                            </Fade>
+                        </Collapse>
+
+                        {/* ===== TROCA com Viatura ===== */}
+                        <Collapse in={tipoMovimentacao === 'troca'}>
+                            <Fade in={tipoMovimentacao === 'troca'} timeout={400}>
+                                <Box>
+                                    {/* Bloco 1: Material Enviado (DEMOP -> Viatura) */}
+                                    <Card
+                                        elevation={0}
+                                        sx={{
+                                            mb: { xs: 2, sm: 3 },
+                                            borderRadius: { xs: 2, sm: 3 },
+                                            border: '2px solid',
+                                            borderColor: alpha('#8b5cf6', 0.35),
+                                            background: `linear-gradient(135deg, ${alpha('#8b5cf6', 0.04)} 0%, ${alpha('#8b5cf6', 0.01)} 100%)`,
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                        }}
+                                    >
+                                        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, #8b5cf6 0%, #6d28d9 100%)' }} />
+                                        <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                                                <Chip label="2" size="small" sx={{ fontWeight: 700, minWidth: 28, bgcolor: '#8b5cf6', color: 'white' }} />
+                                                <OutputIcon fontSize="small" sx={{ color: '#8b5cf6' }} />
+                                                Material Enviado (DEMOP → Viatura)
+                                            </Typography>
+
+                                            <MaterialSearch
+                                                onSelectMaterial={setMaterialEnviado}
+                                                selectedItem={materialEnviado}
+                                            />
+
+                                            {materialEnviado && (
+                                                <Paper elevation={0} sx={{
+                                                    mt: { xs: 1.5, sm: 2 },
+                                                    p: { xs: 1.5, sm: 2 },
+                                                    borderRadius: 2,
+                                                    border: '1px solid',
+                                                    borderColor: alpha('#8b5cf6', 0.3),
+                                                    backgroundColor: alpha('#8b5cf6', 0.05),
+                                                }}>
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                            <Typography variant="subtitle2" fontWeight={600} noWrap>
+                                                                {materialEnviado.description}
+                                                            </Typography>
+                                                            <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                                                                <Chip
+                                                                    label={`Disponível: ${materialEnviado.estoque_atual || 0}`}
+                                                                    size="small"
+                                                                    color={(materialEnviado.estoque_atual || 0) > 0 ? 'success' : 'error'}
+                                                                />
+                                                                <Chip label={`Total: ${materialEnviado.estoque_total || 0}`} size="small" variant="outlined" />
+                                                            </Box>
+                                                        </Box>
+                                                        <IconButton size="small" onClick={() => setMaterialEnviado(null)} color="error">
+                                                            <CloseIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+                                                </Paper>
+                                            )}
+
+                                            <Box sx={{ mt: { xs: 2, sm: 3 } }}>
+                                                <Typography variant="body2" fontWeight={600} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <CarIcon fontSize="small" sx={{ color: '#8b5cf6' }} />
+                                                    Viatura de destino
+                                                </Typography>
+                                                {loadingViaturas ? (
+                                                    <LinearProgress sx={{ borderRadius: 2 }} />
+                                                ) : (
+                                                    <FormControl fullWidth size="small">
+                                                        <InputLabel>Viatura</InputLabel>
+                                                        <Select
+                                                            value={trocaViaturaSelected?.id || ''}
+                                                            label="Viatura"
+                                                            onChange={(e) => {
+                                                                const vtr = viaturasDisponiveis.find(v => v.id === e.target.value);
+                                                                setTrocaViaturaSelected(vtr || null);
+                                                            }}
+                                                            sx={{ borderRadius: 2 }}
+                                                        >
+                                                            {viaturasDisponiveis.map((v) => (
+                                                                <MenuItem key={v.id} value={v.id}>
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                        <CarIcon fontSize="small" sx={{ color: '#8b5cf6' }} />
+                                                                        {v.prefixo} - {v.description}
+                                                                    </Box>
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+                                                )}
+                                                {trocaViaturaSelected && (
+                                                    <Chip
+                                                        icon={<CarIcon />}
+                                                        label={`${trocaViaturaSelected.prefixo} - ${trocaViaturaSelected.description}`}
+                                                        sx={{ mt: 1, bgcolor: alpha('#8b5cf6', 0.12), color: '#6d28d9', fontWeight: 600 }}
+                                                        onDelete={() => setTrocaViaturaSelected(null)}
+                                                    />
+                                                )}
+                                            </Box>
+
+                                            <Box sx={{ mt: { xs: 2, sm: 3 } }}>
+                                                <TextField
+                                                    label="Quantidade enviada"
+                                                    type="number"
+                                                    fullWidth
+                                                    value={quantidadeEnviada}
+                                                    onChange={(e) => setQuantidadeEnviada(e.target.value)}
+                                                    inputProps={{ min: 1, step: 1 }}
+                                                    helperText={materialEnviado ? `Máximo disponível: ${materialEnviado.estoque_atual || 0}` : 'Selecione um material primeiro'}
+                                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                />
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Bloco 2: Material Recebido (Viatura -> DEMOP) */}
+                                    <Card
+                                        elevation={0}
+                                        sx={{
+                                            mb: { xs: 2, sm: 3 },
+                                            borderRadius: { xs: 2, sm: 3 },
+                                            border: '2px solid',
+                                            borderColor: statusRecebido === 'inoperante'
+                                                ? alpha('#ef4444', 0.4)
+                                                : statusRecebido === 'operante'
+                                                    ? alpha('#22c55e', 0.4)
+                                                    : alpha('#0ea5e9', 0.35),
+                                            background: statusRecebido === 'inoperante'
+                                                ? `linear-gradient(135deg, ${alpha('#ef4444', 0.04)} 0%, ${alpha('#ef4444', 0.01)} 100%)`
+                                                : statusRecebido === 'operante'
+                                                    ? `linear-gradient(135deg, ${alpha('#22c55e', 0.04)} 0%, ${alpha('#22c55e', 0.01)} 100%)`
+                                                    : `linear-gradient(135deg, ${alpha('#0ea5e9', 0.04)} 0%, ${alpha('#0ea5e9', 0.01)} 100%)`,
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                        }}
+                                    >
+                                        <Box sx={{
+                                            position: 'absolute', top: 0, left: 0, right: 0, height: 4,
+                                            background: statusRecebido === 'inoperante'
+                                                ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'
+                                                : statusRecebido === 'operante'
+                                                    ? 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)'
+                                                    : 'linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%)',
+                                        }} />
+                                        <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                                                <Chip label="3" size="small" sx={{ fontWeight: 700, minWidth: 28, bgcolor: '#0ea5e9', color: 'white' }} />
+                                                <InputIcon fontSize="small" sx={{ color: '#0ea5e9' }} />
+                                                Material Recebido (Viatura → DEMOP)
+                                            </Typography>
+
+                                            <MaterialSearch
+                                                onSelectMaterial={setMaterialRecebido}
+                                                selectedItem={materialRecebido}
+                                            />
+
+                                            {materialRecebido && (
+                                                <Paper elevation={0} sx={{
+                                                    mt: { xs: 1.5, sm: 2 },
+                                                    p: { xs: 1.5, sm: 2 },
+                                                    borderRadius: 2,
+                                                    border: '1px solid',
+                                                    borderColor: alpha('#0ea5e9', 0.3),
+                                                    backgroundColor: alpha('#0ea5e9', 0.05),
+                                                }}>
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                            <Typography variant="subtitle2" fontWeight={600} noWrap>
+                                                                {materialRecebido.description}
+                                                            </Typography>
+                                                            <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                                                                <Chip label={`Em viatura: ${materialRecebido.estoque_viatura || 0}`} size="small" color="info" variant="outlined" />
+                                                                <Chip label={`No DEMOP: ${materialRecebido.estoque_atual || 0}`} size="small" variant="outlined" />
+                                                            </Box>
+                                                        </Box>
+                                                        <IconButton size="small" onClick={() => setMaterialRecebido(null)} color="error">
+                                                            <CloseIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+                                                </Paper>
+                                            )}
+
+                                            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                                                <Grid item xs={12} sm={6}>
+                                                    <TextField
+                                                        label="Quantidade recebida"
+                                                        type="number"
+                                                        fullWidth
+                                                        value={quantidadeRecebida}
+                                                        onChange={(e) => setQuantidadeRecebida(e.target.value)}
+                                                        inputProps={{ min: 1, step: 1 }}
+                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                    />
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <FormControl fullWidth required error={!statusRecebido}>
+                                                        <InputLabel>Status do material recebido</InputLabel>
+                                                        <Select
+                                                            value={statusRecebido}
+                                                            label="Status do material recebido"
+                                                            onChange={(e) => {
+                                                                setStatusRecebido(e.target.value);
+                                                                if (e.target.value === 'operante') {
+                                                                    setNumeroSeiTroca("");
+                                                                    setMotivoInoperancia("");
+                                                                }
+                                                            }}
+                                                            sx={{ borderRadius: 2 }}
+                                                        >
+                                                            <MenuItem value="operante">
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                    <CheckIcon fontSize="small" sx={{ color: '#22c55e' }} />
+                                                                    Operante (volta ao estoque)
+                                                                </Box>
+                                                            </MenuItem>
+                                                            <MenuItem value="inoperante">
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                    <RepairIcon fontSize="small" sx={{ color: '#ef4444' }} />
+                                                                    Inoperante (vai para reparo)
+                                                                </Box>
+                                                            </MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                </Grid>
+                                            </Grid>
+
+                                            <Collapse in={statusRecebido === 'inoperante'}>
+                                                <Box sx={{
+                                                    mt: 2,
+                                                    p: { xs: 1.5, sm: 2 },
+                                                    borderRadius: 2,
+                                                    border: '1px dashed',
+                                                    borderColor: alpha('#ef4444', 0.4),
+                                                    backgroundColor: alpha('#ef4444', 0.04),
+                                                }}>
+                                                    <Typography variant="body2" fontWeight={700} sx={{ mb: 1.5, color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <WarningIcon fontSize="small" />
+                                                        Dados obrigatórios para material inoperante
+                                                    </Typography>
+                                                    <Grid container spacing={2}>
+                                                        <Grid item xs={12}>
+                                                            <TextField
+                                                                label="Número do Processo SEI"
+                                                                fullWidth
+                                                                required
+                                                                value={numeroSeiTroca}
+                                                                onChange={(e) => setNumeroSeiTroca(e.target.value)}
+                                                                placeholder="Ex.: SEI-270015/000123/2025"
+                                                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                            />
+                                                        </Grid>
+                                                        <Grid item xs={12}>
+                                                            <TextField
+                                                                label="Descreva o problema/inoperância"
+                                                                fullWidth
+                                                                multiline
+                                                                rows={2}
+                                                                required
+                                                                value={motivoInoperancia}
+                                                                onChange={(e) => setMotivoInoperancia(e.target.value)}
+                                                                placeholder="Descrição detalhada do defeito ou avaria..."
+                                                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                                            />
+                                                        </Grid>
+                                                    </Grid>
+                                                </Box>
+                                            </Collapse>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Bloco 3: Militar Responsável */}
+                                    <Card
+                                        elevation={0}
+                                        sx={{
+                                            mb: { xs: 2, sm: 3 },
+                                            borderRadius: { xs: 2, sm: 3 },
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                        }}
+                                    >
+                                        <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: { xs: 1.5, sm: 2 }, display: 'flex', alignItems: 'center', gap: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                                                <Chip label="4" size="small" color="secondary" sx={{ fontWeight: 700, minWidth: 28 }} />
+                                                <PersonIcon fontSize="small" color="secondary" />
+                                                Militar Responsável (assinará o termo)
+                                            </Typography>
+
+                                            <UserSearch
+                                                userCritery={userCritery}
+                                                onSetUserCritery={setUserCritery}
+                                                onSelectUser={handleUserSelect}
+                                                selectedItem={userSelected}
+                                            />
+
+                                            {userSelected && (
+                                                <Paper elevation={0} sx={{
+                                                    mt: { xs: 1.5, sm: 2 },
+                                                    p: { xs: 1.5, sm: 2 },
+                                                    borderRadius: 2,
+                                                    border: '1px solid',
+                                                    borderColor: 'secondary.200',
+                                                    backgroundColor: alpha('#ff6b35', 0.04),
+                                                }}>
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <PersonIcon color="secondary" fontSize="small" />
+                                                            <Typography variant="subtitle2" fontWeight={600}>
+                                                                {userSelected.full_name}
+                                                            </Typography>
+                                                        </Box>
+                                                        <IconButton size="small" onClick={() => setUserSelected(null)} color="error">
+                                                            <CloseIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+                                                </Paper>
+                                            )}
+
+                                            <TextField
+                                                label="Observações (opcional)"
+                                                fullWidth
+                                                multiline
+                                                rows={2}
+                                                value={observacoes}
+                                                onChange={(e) => setObservacoes(e.target.value)}
+                                                placeholder="Informações adicionais sobre a troca..."
+                                                sx={{ mt: 2, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                            />
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Resumo da Troca */}
+                                    <Collapse in={Boolean(materialEnviado && materialRecebido && trocaViaturaSelected && statusRecebido)}>
+                                        <Card
+                                            elevation={0}
+                                            sx={{
+                                                mb: { xs: 2, sm: 3 },
+                                                borderRadius: { xs: 2, sm: 3 },
+                                                border: '2px dashed',
+                                                borderColor: alpha('#8b5cf6', 0.4),
+                                                background: alpha('#8b5cf6', 0.03),
+                                            }}
+                                        >
+                                            <CardContent sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+                                                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5, color: '#6d28d9', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <MovementIcon fontSize="small" />
+                                                    Resumo da troca
+                                                </Typography>
+                                                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5, alignItems: 'center' }}>
+                                                    <Paper elevation={0} sx={{ flex: 1, p: 1.5, borderRadius: 2, border: '1px solid', borderColor: alpha('#8b5cf6', 0.3), width: '100%' }}>
+                                                        <Typography variant="caption" sx={{ color: '#6d28d9', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                                            DEMOP envia
+                                                        </Typography>
+                                                        <Typography variant="body2" fontWeight={700}>
+                                                            {materialEnviado?.description} <Chip label={`${quantidadeEnviada || 0} un.`} size="small" sx={{ ml: 0.5, bgcolor: '#8b5cf6', color: 'white' }} />
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            → {trocaViaturaSelected?.prefixo} - {trocaViaturaSelected?.description}
+                                                        </Typography>
+                                                    </Paper>
+                                                    <MovementIcon sx={{ color: '#8b5cf6', fontSize: 32, transform: { xs: 'rotate(90deg)', sm: 'none' } }} />
+                                                    <Paper elevation={0} sx={{
+                                                        flex: 1, p: 1.5, borderRadius: 2,
+                                                        border: '1px solid',
+                                                        borderColor: statusRecebido === 'inoperante' ? alpha('#ef4444', 0.3) : alpha('#22c55e', 0.3),
+                                                        width: '100%'
+                                                    }}>
+                                                        <Typography variant="caption" sx={{
+                                                            color: statusRecebido === 'inoperante' ? '#b91c1c' : '#15803d',
+                                                            fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5
+                                                        }}>
+                                                            DEMOP recebe ({statusRecebido})
+                                                        </Typography>
+                                                        <Typography variant="body2" fontWeight={700}>
+                                                            {materialRecebido?.description}
+                                                            <Chip
+                                                                label={`${quantidadeRecebida || 0} un.`}
+                                                                size="small"
+                                                                sx={{
+                                                                    ml: 0.5,
+                                                                    bgcolor: statusRecebido === 'inoperante' ? '#ef4444' : '#22c55e',
+                                                                    color: 'white',
+                                                                }}
+                                                            />
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            ← {trocaViaturaSelected?.prefixo}
+                                                        </Typography>
+                                                    </Paper>
+                                                </Box>
+                                                {statusRecebido === 'inoperante' && numeroSeiTroca && (
+                                                    <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: '#b91c1c', fontWeight: 600 }}>
+                                                        SEI: {numeroSeiTroca}
+                                                    </Typography>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    </Collapse>
+                                </Box>
                             </Fade>
                         </Collapse>
 
@@ -1157,6 +1868,8 @@ export default function Movimentacao() {
                                             ? 'Registrar Saída para Viatura'
                                             : tipoMovimentacao === 'saída' && saidaSubtipo === 'consumo'
                                             ? 'Registrar Saída (Consumo)'
+                                            : tipoMovimentacao === 'troca'
+                                            ? 'Registrar Troca e Gerar Termo'
                                             : 'Salvar Movimentação'}
                                     </Button>
                                 </CardContent>
