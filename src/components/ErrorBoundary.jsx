@@ -61,7 +61,7 @@ class ErrorBoundary extends React.Component {
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: '100dvh',
-            backgroundColor: '#f0f2f5',
+            backgroundColor: 'background.default',
           }}
         >
           <Paper

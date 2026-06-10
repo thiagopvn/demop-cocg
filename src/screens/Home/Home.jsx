@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   Box,
   Grid,
@@ -170,7 +170,19 @@ const getDaysUntil = (date) => {
 
 // ==================== CLICKABLE STAT CARD ====================
 
-const StatCard = (props) => {
+// Comparador ignora a identidade do onClick (arrow functions inline mudam a cada
+// render do pai, mas o comportamento de navegação é estável — só a presença importa)
+const statCardPropsEqual = (prev, next) =>
+  prev.icon === next.icon &&
+  prev.title === next.title &&
+  prev.value === next.value &&
+  prev.color === next.color &&
+  prev.subtitle === next.subtitle &&
+  prev.badge === next.badge &&
+  prev.progress === next.progress &&
+  !!prev.onClick === !!next.onClick;
+
+const StatCard = memo(function StatCard(props) {
   const { icon, title, value, color, subtitle, onClick, badge, progress } = props;
   const IconComponent = icon;
   return (
@@ -297,7 +309,7 @@ const StatCard = (props) => {
     </CardContent>
   </Card>
   );
-};
+}, statCardPropsEqual);
 
 // ==================== DATE FILTER ====================
 
@@ -309,7 +321,7 @@ const DATE_FILTERS = [
   { value: "all", label: "Todo o Periodo", icon: <Visibility sx={{ fontSize: 16 }} /> },
 ];
 
-const DateFilterBar = ({ dateFilter, setDateFilter, customStart, setCustomStart, customEnd, setCustomEnd }) => (
+const DateFilterBar = memo(({ dateFilter, setDateFilter, customStart, setCustomStart, customEnd, setCustomEnd }) => (
   <Box sx={{ mb: 1 }}>
     <Box
       sx={{
@@ -367,11 +379,12 @@ const DateFilterBar = ({ dateFilter, setDateFilter, customStart, setCustomStart,
       </Box>
     )}
   </Box>
-);
+));
+DateFilterBar.displayName = "DateFilterBar";
 
 // ==================== SECTION HEADER ====================
 
-const SectionHeader = ({ title, icon, action, count }) => (
+const SectionHeader = memo(({ title, icon, action, count }) => (
   <Box
     sx={{
       display: "flex",
@@ -413,7 +426,8 @@ const SectionHeader = ({ title, icon, action, count }) => (
     </Box>
     {action}
   </Box>
-);
+));
+SectionHeader.displayName = "SectionHeader";
 
 // ==================== CHART TOOLTIP ====================
 
@@ -2083,7 +2097,7 @@ export default function Home() {
                   borderRadius: 2,
                   border: "1px solid",
                   borderColor: "divider",
-                  bgcolor: alpha("#f8fafc", 0.5),
+                  bgcolor: (theme) => alpha(theme.palette.background.default, 0.5),
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
@@ -2137,10 +2151,10 @@ export default function Home() {
                             <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke={alpha("#000", 0.06)} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.text.primary, 0.08)} />
                         <XAxis
                           dataKey="date"
-                          tick={{ fontSize: stats.dailyTrend.length > 20 ? 9 : 11 }}
+                          tick={{ fontSize: stats.dailyTrend.length > 20 ? 9 : 11, fill: theme.palette.text.secondary }}
                           axisLine={false}
                           tickLine={false}
                           interval={stats.dailyTrend.length > 30 ? Math.ceil(stats.dailyTrend.length / 15) - 1 : 0}
@@ -2148,7 +2162,7 @@ export default function Home() {
                           textAnchor={stats.dailyTrend.length > 15 ? "end" : "middle"}
                         />
                         <YAxis
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: 11, fill: theme.palette.text.secondary }}
                           axisLine={false}
                           tickLine={false}
                           allowDecimals={false}
@@ -2260,15 +2274,15 @@ export default function Home() {
                     />
                     <ResponsiveContainer width="100%" height="78%">
                       <BarChart data={typeChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={alpha("#000", 0.06)} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.text.primary, 0.08)} />
                         <XAxis
                           dataKey="name"
-                          tick={{ fontSize: 10 }}
+                          tick={{ fontSize: 10, fill: theme.palette.text.secondary }}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis
-                          tick={{ fontSize: 10 }}
+                          tick={{ fontSize: 10, fill: theme.palette.text.secondary }}
                           axisLine={false}
                           tickLine={false}
                           allowDecimals={false}

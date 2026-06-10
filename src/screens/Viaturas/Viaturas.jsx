@@ -368,7 +368,7 @@ export default function Viaturas() {
                     {userRole === "user" && (
                         <Box
                             sx={{
-                                backgroundColor: '#fff3cd',
+                                backgroundColor: 'surface.orange',
                                 color: '#856404',
                                 p: 2,
                                 borderRadius: 2,
@@ -493,20 +493,20 @@ export default function Viaturas() {
                           <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                             <Table size="medium" sx={{ minWidth: 650 }}>
                                 <TableHead>
-                                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                    <TableRow sx={{ backgroundColor: 'background.default' }}>
+                                        <TableCell sx={{ fontWeight: 700, color: 'surface.blueText' }}>
                                             Prefixo
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0' }}>
+                                        <TableCell sx={{ fontWeight: 700, color: 'surface.blueText' }}>
                                             Descricao
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
+                                        <TableCell sx={{ fontWeight: 700, color: 'surface.blueText', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                             Materiais
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
+                                        <TableCell sx={{ fontWeight: 700, color: 'surface.blueText', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                             Conferência
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, color: '#1565c0', textAlign: 'center' }}>
+                                        <TableCell sx={{ fontWeight: 700, color: 'surface.blueText', textAlign: 'center' }}>
                                             Acoes
                                         </TableCell>
                                     </TableRow>

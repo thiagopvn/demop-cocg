@@ -1010,7 +1010,7 @@ export default function BensPatrimoniais() {
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
-                      backgroundColor: '#fafafa',
+                      backgroundColor: 'background.default',
                     },
                   }}
                 />
@@ -1024,7 +1024,7 @@ export default function BensPatrimoniais() {
                     mb: 2,
                     borderRadius: 2,
                     border: '1px solid #ff6b35',
-                    backgroundColor: '#fff3e0',
+                    backgroundColor: 'surface.orange',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1.5,
@@ -1203,7 +1203,7 @@ export default function BensPatrimoniais() {
                                         size="small"
                                         sx={{
                                           fontWeight: 600,
-                                          backgroundColor: '#fff8e1',
+                                          backgroundColor: 'surface.amber',
                                           color: '#ad8600',
                                           border: '1px dashed #f9a825',
                                           '& .MuiChip-icon': { color: '#f9a825' },
@@ -1341,7 +1341,7 @@ export default function BensPatrimoniais() {
                                     label="Nunca conferido"
                                     sx={{
                                       fontWeight: 600,
-                                      backgroundColor: '#ffebee',
+                                      backgroundColor: 'surface.red',
                                       color: '#b71c1c',
                                     }}
                                   />
@@ -1369,7 +1369,7 @@ export default function BensPatrimoniais() {
                                       }}
                                       sx={{
                                         cursor: 'pointer',
-                                        backgroundColor: '#fffbe6',
+                                        backgroundColor: 'surface.amber',
                                         borderLeft: '3px solid #f9a825',
                                         borderRadius: '6px',
                                         p: 1,
@@ -1384,7 +1384,7 @@ export default function BensPatrimoniais() {
                                         overflow: 'hidden',
                                         transition: 'background-color 0.15s, box-shadow 0.15s',
                                         '&:hover': {
-                                          backgroundColor: '#fff3c4',
+                                          backgroundColor: 'surface.orange',
                                           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                                         },
                                         '&:focus-visible': {

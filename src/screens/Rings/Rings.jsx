@@ -252,17 +252,17 @@ export default function Rings() {
             <MenuContext>
                 <div className="root-protected" style={{ minHeight: 'calc(100dvh - 200px)', display: 'flex', flexDirection: 'column' }}>
                     {userRole === "user" && (
-                        <div style={{ 
-                            backgroundColor: '#fff3e0', 
-                            color: '#e65100',
-                            textAlign: "center", 
+                        <Box sx={{
+                            backgroundColor: 'surface.orange',
+                            color: (theme) => theme.palette.mode === 'dark' ? '#fdba74' : '#e65100',
+                            textAlign: "center",
                             padding: '12px',
                             borderRadius: '8px',
                             marginBottom: '16px',
                             fontWeight: 600
                         }}>
                             ⚠️ Você tem permissão apenas para visualizar os registros
-                        </div>
+                        </Box>
                     )}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', maxWidth: '100%' }}>
                         {/* Header Section with Title and Add Button */}
@@ -316,12 +316,12 @@ export default function Rings() {
 
                         {/* Seção de Pesquisa Moderna */}
                         <Box sx={{
-                            backgroundColor: '#ffffff',
+                            backgroundColor: 'background.paper',
                             p: { xs: 1.5, sm: 3 },
                             borderRadius: '16px',
                             marginBottom: '20px',
                             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                            border: '1px solid #fff3e0'
+                            border: '1px solid', borderColor: 'divider'
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                                 <SearchIcon sx={{ color: '#ff9800', fontSize: '24px' }} />
@@ -340,14 +340,14 @@ export default function Rings() {
                                 sx={{ 
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: '12px',
-                                        backgroundColor: '#fff8e1',
+                                        backgroundColor: 'surface.amber',
                                         fontSize: '1rem',
                                         '&:hover': {
-                                            backgroundColor: '#ffffff',
+                                            backgroundColor: 'background.paper',
                                             boxShadow: '0 2px 8px rgba(255, 152, 0, 0.1)',
                                         },
                                         '&.Mui-focused': {
-                                            backgroundColor: '#ffffff',
+                                            backgroundColor: 'background.paper',
                                             boxShadow: '0 4px 12px rgba(255, 152, 0, 0.2)',
                                         }
                                     }
@@ -377,20 +377,21 @@ export default function Rings() {
                         </Box>
 
                         {/* Container da Tabela com ocupação total */}
-                        <div style={{
+                        <Box sx={{
                             flex: 1,
-                            backgroundColor: '#ffffff',
+                            backgroundColor: 'background.paper',
                             borderRadius: '16px',
                             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                            border: '1px solid #fff3e0',
+                            border: '1px solid',
+                            borderColor: 'divider',
                             overflow: 'hidden',
                             display: 'flex',
                             flexDirection: 'column'
                         }}>
                             <Box sx={{
                                 p: { xs: '12px 16px 12px', sm: '20px 24px 16px' },
-                                borderBottom: '1px solid #fff3e0',
-                                backgroundColor: '#fff8e1'
+                                borderBottom: '1px solid', borderBottomColor: 'divider',
+                                backgroundColor: 'surface.amber'
                             }}>
                                 <Typography variant="h6" sx={{ fontWeight: 600, color: '#e65100', fontSize: { xs: '0.95rem', sm: '1.25rem' } }}>
                                     💍 Lista de Retiradas de Anéis
@@ -407,7 +408,7 @@ export default function Rings() {
                                             zIndex: 1,
                                             '& .MuiTableRow-root': {
                                                 '& .MuiTableCell-root': {
-                                                    backgroundColor: '#fff3e0',
+                                                    backgroundColor: 'surface.orange',
                                                     borderBottom: '2px solid #ff9800',
                                                     fontWeight: 700,
                                                     fontSize: { xs: '0.8rem', sm: '0.95rem' },
@@ -419,7 +420,7 @@ export default function Rings() {
                                         '& .MuiTableBody-root': {
                                             '& .MuiTableRow-root': {
                                                 '&:hover': {
-                                                    backgroundColor: '#fff8e1',
+                                                    backgroundColor: 'surface.amber',
                                                 },
                                                 '& .MuiTableCell-root': {
                                                     borderBottom: '1px solid #e0e0e0',
@@ -578,7 +579,7 @@ export default function Rings() {
                                                         marginBottom: '8px',
                                                         padding: '4px 8px',
                                                         borderRadius: '4px',
-                                                        backgroundColor: '#fff8e1',
+                                                        backgroundColor: 'surface.amber',
                                                         fontWeight: 500,
                                                     }
                                                 }}>
@@ -601,7 +602,7 @@ export default function Rings() {
                                     </TableBody>
                                 </Table>
                             </div>
-                        </div>
+                        </Box>
                     </div>
                 </div>
                 <RingDialog

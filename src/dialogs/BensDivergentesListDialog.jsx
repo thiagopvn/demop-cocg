@@ -215,7 +215,7 @@ export default function BensDivergentesListDialog({
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ p: { xs: 2, sm: 3 }, backgroundColor: '#fafafa' }}>
+        <DialogContent sx={{ p: { xs: 2, sm: 3 }, backgroundColor: 'background.default' }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
             <StatCard>
               <Typography variant="caption" sx={{ color: '#9a3412', fontWeight: 600 }}>
@@ -249,7 +249,7 @@ export default function BensDivergentesListDialog({
               mb: 2,
               borderRadius: 2,
               border: '1px solid #e0e0e0',
-              backgroundColor: '#ffffff',
+              backgroundColor: 'background.paper',
             }}
           >
             <TextField
@@ -281,7 +281,7 @@ export default function BensDivergentesListDialog({
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2,
-                  backgroundColor: '#fafafa',
+                  backgroundColor: 'background.default',
                 },
               }}
             />
@@ -292,7 +292,7 @@ export default function BensDivergentesListDialog({
               borderRadius: 2,
               overflow: 'hidden',
               border: '1px solid #e0e0e0',
-              backgroundColor: '#ffffff',
+              backgroundColor: 'background.paper',
             }}
           >
             <TableContainer sx={{ maxHeight: { xs: '55vh', md: '50vh' } }}>
@@ -398,7 +398,7 @@ export default function BensDivergentesListDialog({
                             {item.observacoes ? (
                               <Box
                                 sx={{
-                                  backgroundColor: '#fffbe6',
+                                  backgroundColor: 'surface.amber',
                                   borderLeft: '3px solid #f9a825',
                                   borderRadius: '6px',
                                   p: 1,

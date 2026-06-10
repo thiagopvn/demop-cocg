@@ -384,7 +384,7 @@ export default function ConferenciaViaturaDialog({
                             sx={{
                                 px: 3,
                                 py: 2,
-                                backgroundColor: "#fff8e1",
+                                backgroundColor: 'surface.amber',
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 2,
@@ -488,17 +488,17 @@ export default function ConferenciaViaturaDialog({
                                     <TableRow>
                                         <TableCell
                                             padding="checkbox"
-                                            sx={{ backgroundColor: "#f5f5f5", fontWeight: 700 }}
+                                            sx={{ backgroundColor: 'background.default', fontWeight: 700 }}
                                         />
-                                        <TableCell sx={{ backgroundColor: "#f5f5f5", fontWeight: 700 }}>
+                                        <TableCell sx={{ backgroundColor: 'background.default', fontWeight: 700 }}>
                                             Material
                                         </TableCell>
-                                        <TableCell sx={{ backgroundColor: "#f5f5f5", fontWeight: 700 }}>
+                                        <TableCell sx={{ backgroundColor: 'background.default', fontWeight: 700 }}>
                                             Categoria
                                         </TableCell>
                                         <TableCell
                                             sx={{
-                                                backgroundColor: "#f5f5f5",
+                                                backgroundColor: 'background.default',
                                                 fontWeight: 700,
                                                 textAlign: "center",
                                             }}
@@ -507,7 +507,7 @@ export default function ConferenciaViaturaDialog({
                                         </TableCell>
                                         <TableCell
                                             sx={{
-                                                backgroundColor: "#f5f5f5",
+                                                backgroundColor: 'background.default',
                                                 fontWeight: 700,
                                                 textAlign: "center",
                                             }}
@@ -516,7 +516,7 @@ export default function ConferenciaViaturaDialog({
                                         </TableCell>
                                         <TableCell
                                             sx={{
-                                                backgroundColor: "#f5f5f5",
+                                                backgroundColor: 'background.default',
                                                 fontWeight: 700,
                                                 textAlign: "center",
                                             }}
@@ -803,7 +803,7 @@ export default function ConferenciaViaturaDialog({
                             background: "linear-gradient(135deg, #e65100 0%, #bf360c 100%)",
                         },
                         "&.Mui-disabled": {
-                            background: "#e0e0e0",
+                            backgroundColor: 'background.default',
                         },
                     }}
                 >

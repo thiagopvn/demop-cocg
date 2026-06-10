@@ -246,7 +246,7 @@ export default function BensPorLocalidadeDialog({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: { xs: 2, sm: 3 }, backgroundColor: '#fafafa' }}>
+      <DialogContent sx={{ p: { xs: 2, sm: 3 }, backgroundColor: 'background.default' }}>
         {loading ? (
           <Box sx={{ py: 8, textAlign: 'center' }}>
             <CircularProgress sx={{ color: TEAL_DARK }} />
@@ -292,7 +292,7 @@ export default function BensPorLocalidadeDialog({
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,
-                        backgroundColor: '#ffffff',
+                        backgroundColor: 'background.paper',
                       },
                     }}
                   />
@@ -359,7 +359,7 @@ export default function BensPorLocalidadeDialog({
                   flex: 1,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 2,
-                    backgroundColor: '#ffffff',
+                    backgroundColor: 'background.paper',
                   },
                 }}
               />
@@ -418,7 +418,7 @@ export default function BensPorLocalidadeDialog({
                 borderRadius: 2,
                 overflow: 'hidden',
                 border: '1px solid #e0e0e0',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'background.paper',
               }}
             >
               <TableContainer sx={{ maxHeight: { xs: '50vh', md: '50vh' } }}>

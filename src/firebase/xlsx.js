@@ -1,4 +1,6 @@
-import * as XLSX from 'xlsx';
+// xlsx (~290 kB) é carregado sob demanda no momento da exportação,
+// para não pesar o carregamento inicial das telas que importam este módulo
+const loadXLSX = () => import('xlsx');
 
 /**
  * Converte uma lista de objetos para arquivo XLSX
@@ -11,11 +13,13 @@ import * as XLSX from 'xlsx';
  * const headers = {nome: 'Nome Completo', idade: 'Idade do Usuário'};
  * exportToExcel(data, 'usuarios', 'Dados', headers);
  */
-export const exportToExcel = (data, fileName, sheetName = 'Dados', customHeaders = null) => {
+export const exportToExcel = async (data, fileName, sheetName = 'Dados', customHeaders = null) => {
     try {
         if (!Array.isArray(data) || data.length === 0) {
             throw new Error('Dados inválidos para exportação');
         }
+
+        const XLSX = await loadXLSX();
 
         // Preparar os dados para exportação
         const dataToExport = data.map(item => {
@@ -70,11 +74,13 @@ export const exportToExcel = (data, fileName, sheetName = 'Dados', customHeaders
  * @param {Array} movimentacoes - Lista de movimentações
  * @param {string} nomeArquivo - Nome base do arquivo
  */
-export const exportarMovimentacoes = (movimentacoes, nomeArquivo) => {
+export const exportarMovimentacoes = async (movimentacoes, nomeArquivo) => {
     try {
         if (!Array.isArray(movimentacoes) || movimentacoes.length === 0) {
             throw new Error('Não há dados para exportar');
         }
+
+        const XLSX = await loadXLSX();
 
         const headers = {
             material: 'ID Material',

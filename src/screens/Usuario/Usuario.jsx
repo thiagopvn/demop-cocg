@@ -468,12 +468,12 @@ export default function Usuario() {
             {/* Seção de Pesquisa com Filtro em Tempo Real */}
             {(userRole === "admin" || userRole === "admingeral") && (
               <Box sx={{
-                backgroundColor: '#ffffff',
+                backgroundColor: 'background.paper',
                 padding: { xs: '12px', sm: '20px' },
                 borderRadius: '16px',
                 marginBottom: '20px',
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                border: '1px solid #e3f2fd'
+                border: '1px solid', borderColor: 'divider'
               }}>
                 <TextField
                   size="medium"
@@ -486,14 +486,14 @@ export default function Usuario() {
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '12px',
-                      backgroundColor: '#f8f9ff',
+                      backgroundColor: 'background.default',
                       fontSize: '1rem',
                       '&:hover': {
-                        backgroundColor: '#ffffff',
+                        backgroundColor: 'background.paper',
                         boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)',
                       },
                       '&.Mui-focused': {
-                        backgroundColor: '#ffffff',
+                        backgroundColor: 'background.paper',
                         boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
                       }
                     }
@@ -538,22 +538,23 @@ export default function Usuario() {
             )}
 
             {/* Container da Tabela com ocupação total */}
-            <div style={{
+            <Box sx={{
               flex: 1,
-              backgroundColor: '#ffffff',
+              backgroundColor: 'background.paper',
               borderRadius: '16px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: '1px solid #e3f2fd',
+              border: '1px solid',
+              borderColor: 'divider',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column'
             }}>
               <Box sx={{
                 padding: { xs: '12px 16px 12px', sm: '20px 24px 16px' },
-                borderBottom: '1px solid #e3f2fd',
-                backgroundColor: '#f8f9ff'
+                borderBottom: '1px solid', borderBottomColor: 'divider',
+                backgroundColor: 'background.default'
               }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: '#1565c0', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'surface.blueText', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                   Lista de Usuários
                 </Typography>
               </Box>
@@ -568,11 +569,11 @@ export default function Usuario() {
                       zIndex: 1,
                       '& .MuiTableRow-root': {
                         '& .MuiTableCell-root': {
-                          backgroundColor: '#e3f2fd',
+                          backgroundColor: 'surface.blue',
                           borderBottom: '2px solid #1976d2',
                           fontWeight: 700,
                           fontSize: '0.95rem',
-                          color: '#1565c0',
+                          color: 'surface.blueText',
                           padding: { xs: '10px 8px', sm: '16px' },
                         }
                       }
@@ -580,7 +581,7 @@ export default function Usuario() {
                     '& .MuiTableBody-root': {
                       '& .MuiTableRow-root': {
                         '&:hover': {
-                          backgroundColor: '#f8f9ff',
+                          backgroundColor: 'background.default',
                         },
                         '& .MuiTableCell-root': {
                           borderBottom: '1px solid #e0e0e0',
@@ -596,7 +597,7 @@ export default function Usuario() {
                   <TableCell
                     sx={{
                       textAlign: "center",
-                      backgroundColor: "#ddeeee",
+                      backgroundColor: 'background.default',
                       fontWeight: "bold",
                     }}
                   >
@@ -605,7 +606,7 @@ export default function Usuario() {
                   <TableCell
                     sx={{
                       textAlign: "center",
-                      backgroundColor: "#ddeeee",
+                      backgroundColor: 'background.default',
                       fontWeight: "bold",
                     }}
                   >
@@ -614,7 +615,7 @@ export default function Usuario() {
                   <TableCell
                     sx={{
                       textAlign: "center",
-                      backgroundColor: "#ddeeee",
+                      backgroundColor: 'background.default',
                       fontWeight: "bold",
                     }}
                   >
@@ -699,7 +700,7 @@ export default function Usuario() {
                   </TableBody>
                 </Table>
               </Box>
-            </div>
+            </Box>
           </div>
         </Box>
 
@@ -805,7 +806,7 @@ export default function Usuario() {
                   marginBottom: '8px',
                   padding: '4px 8px',
                   borderRadius: '4px',
-                  backgroundColor: '#f5f5f5',
+                  backgroundColor: 'background.default',
                   fontWeight: 500,
                 }
               }}>

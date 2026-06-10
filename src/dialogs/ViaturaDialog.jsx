@@ -120,7 +120,7 @@ export default function ViaturaDialog({ onSubmit, onCancel, open, editData = nul
                             variant="subtitle2"
                             sx={{
                                 mb: 1,
-                                color: '#1565c0',
+                                color: 'surface.blueText',
                                 fontWeight: 600,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -143,14 +143,14 @@ export default function ViaturaDialog({ onSubmit, onCancel, open, editData = nul
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                     fontWeight: 600,
                                     fontSize: '1.1rem',
                                     '&:hover': {
-                                        backgroundColor: '#f8f9ff',
+                                        backgroundColor: 'background.default',
                                     },
                                     '&.Mui-focused': {
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }
                             }}
@@ -171,7 +171,7 @@ export default function ViaturaDialog({ onSubmit, onCancel, open, editData = nul
                             variant="subtitle2"
                             sx={{
                                 mb: 1,
-                                color: '#1565c0',
+                                color: 'surface.blueText',
                                 fontWeight: 600
                             }}
                         >
@@ -190,12 +190,12 @@ export default function ViaturaDialog({ onSubmit, onCancel, open, editData = nul
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                     '&:hover': {
-                                        backgroundColor: '#f8f9ff',
+                                        backgroundColor: 'background.default',
                                     },
                                     '&.Mui-focused': {
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }
                             }}

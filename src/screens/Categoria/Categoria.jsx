@@ -267,8 +267,8 @@ export default function Categoria() {
                         <Table size="small" sx={{ marginTop: 2, minWidth: 500 }}>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold", fontSize: { xs: '0.8rem', sm: '0.875rem' }, padding: { xs: '10px 8px', sm: '16px' } }}>Descricão</TableCell>
-                                    <TableCell sx={{ textAlign: "center", backgroundColor: "#ddeeee", fontWeight: "bold", fontSize: { xs: '0.8rem', sm: '0.875rem' }, padding: { xs: '10px 8px', sm: '16px' } }}>Ações</TableCell>
+                                    <TableCell sx={{ textAlign: "center", backgroundColor: 'background.default', fontWeight: "bold", fontSize: { xs: '0.8rem', sm: '0.875rem' }, padding: { xs: '10px 8px', sm: '16px' } }}>Descricão</TableCell>
+                                    <TableCell sx={{ textAlign: "center", backgroundColor: 'background.default', fontWeight: "bold", fontSize: { xs: '0.8rem', sm: '0.875rem' }, padding: { xs: '10px 8px', sm: '16px' } }}>Ações</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>

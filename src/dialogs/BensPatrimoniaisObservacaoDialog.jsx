@@ -133,7 +133,7 @@ export default function BensPatrimoniaisObservacaoDialog({
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '12px',
-                backgroundColor: '#fffde7',
+                backgroundColor: 'surface.amber',
                 fontFamily: 'inherit',
                 lineHeight: 1.55,
                 alignItems: 'flex-start',

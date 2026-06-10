@@ -265,7 +265,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                                     backgroundColor: editMode ? '#f5f5f5' : '#f8f9ff',
                                 },
                                 '&.Mui-focused': {
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                 }
                             }
                         }}
@@ -281,12 +281,12 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
-                                backgroundColor: '#ffffff',
+                                backgroundColor: 'background.paper',
                                 '&:hover': {
-                                    backgroundColor: '#f8f9ff',
+                                    backgroundColor: 'background.default',
                                 },
                                 '&.Mui-focused': {
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                 }
                             }
                         }}
@@ -303,12 +303,12 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
-                                backgroundColor: '#ffffff',
+                                backgroundColor: 'background.paper',
                                 '&:hover': {
-                                    backgroundColor: '#f8f9ff',
+                                    backgroundColor: 'background.default',
                                 },
                                 '&.Mui-focused': {
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                 }
                             }
                         }}
@@ -328,12 +328,12 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                     '&:hover': {
-                                        backgroundColor: '#f8f9ff',
+                                        backgroundColor: 'background.default',
                                     },
                                     '&.Mui-focused': {
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }
                             }}
@@ -365,12 +365,12 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                     '&:hover': {
-                                        backgroundColor: '#f8f9ff',
+                                        backgroundColor: 'background.default',
                                     },
                                     '&.Mui-focused': {
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }
                             }}
@@ -405,12 +405,12 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                     '&:hover': {
-                                        backgroundColor: '#f8f9ff',
+                                        backgroundColor: 'background.default',
                                     },
                                     '&.Mui-focused': {
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }
                             }}
@@ -426,12 +426,12 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                     '&:hover': {
-                                        backgroundColor: '#f8f9ff',
+                                        backgroundColor: 'background.default',
                                     },
                                     '&.Mui-focused': {
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }
                             }}
@@ -449,12 +449,12 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             onChange={handleChange}
                             sx={{
                                 borderRadius: '12px',
-                                backgroundColor: '#ffffff',
+                                backgroundColor: 'background.paper',
                                 '&:hover': {
-                                    backgroundColor: '#f8f9ff',
+                                    backgroundColor: 'background.default',
                                 },
                                 '&.Mui-focused': {
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                 }
                             }}
                         >
@@ -487,10 +487,10 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                                     flexDirection: "row",
                                     justifyContent: "space-around",
                                     flexWrap: "wrap",
-                                    backgroundColor: '#f8f9ff',
+                                    backgroundColor: 'background.default',
                                     padding: '16px',
                                     borderRadius: '12px',
-                                    border: '1px solid #e3f2fd',
+                                    border: '1px solid', borderColor: 'divider',
                                 }}
                                 onChange={handleChange}
                             >

@@ -158,8 +158,8 @@ export default function BensPatrimoniaisUnmarkConferenciaDialog({
               label={lastDate ? formatDateTimeBR(lastDate) : 'Sem data registrada'}
               sx={{
                 fontWeight: 600,
-                backgroundColor: '#e3f2fd',
-                color: '#1565c0',
+                backgroundColor: 'surface.blue',
+                color: 'surface.blueText',
               }}
             />
           </Box>
@@ -171,7 +171,7 @@ export default function BensPatrimoniaisUnmarkConferenciaDialog({
               label={item?.conferido_por || 'Sem identificação'}
               sx={{
                 fontWeight: 600,
-                backgroundColor: '#f5f5f5',
+                backgroundColor: 'background.default',
                 color: '#424242',
                 fontStyle: item?.conferido_por ? 'normal' : 'italic',
               }}

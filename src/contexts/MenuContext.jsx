@@ -23,7 +23,9 @@ import {
   LockOutlined,
   AssessmentOutlined,
   AccountCircle,
-  AccountBalance
+  AccountBalance,
+  DarkModeOutlined,
+  LightModeOutlined
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -55,15 +57,17 @@ import {
   Snackbar,
   Alert
 } from '@mui/material';
-import { collection, getDocs, deleteDoc, doc, query, where, Timestamp, onSnapshot as firestoreOnSnapshot } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, query, where, Timestamp, onSnapshot as firestoreOnSnapshot } from 'firebase/firestore';
 import db from '../firebase/db';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { verifyToken } from '../firebase/token';
 import { checkAndNotifyMaintenances } from '../services/maintenanceNotificationService';
+import { useThemeContext } from './ThemeContext';
 const ChangePasswordDialog = lazy(() => import('../dialogs/ChangePasswordDialog'));
 
 function MenuContext({ children }) {
   const [active, setActive] = React.useState(0);
+  const { mode, toggleMode } = useThemeContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -214,30 +218,47 @@ function MenuContext({ children }) {
       try {
         const twoYearsAgo = new Date();
         twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+        const cutoff = Timestamp.fromDate(twoYearsAgo);
 
-        const movimentacoesCollection = collection(db, "movimentacoes");
-        const querySnapshot = await getDocs(movimentacoesCollection);
+        // Busca apenas os documentos elegíveis em vez de varrer a coleção inteira
+        const snapshots = await Promise.all(
+          ["devolvido", "descartado"].map((status) =>
+            getDocs(query(
+              collection(db, "movimentacoes"),
+              where("status", "==", status),
+              where("date", "<=", cutoff)
+            ))
+          )
+        );
+        const docsToDelete = snapshots.flatMap((snap) => snap.docs);
 
-        for (const docSnapshot of querySnapshot.docs) {
-          const data = docSnapshot.data();
-          if (data.date && data.status && (data.status === "devolvido" || data.status === "descartado")) {
-            const date = data.date.toDate();
-            if (date <= twoYearsAgo) {
-              await deleteDoc(doc(db, "movimentacoes", docSnapshot.id));
-              console.log(`Movimentação com ID ${docSnapshot.id} excluída.`);
-            }
-          }
+        // Exclui em lotes (limite do Firestore: 500 operações por batch)
+        for (let i = 0; i < docsToDelete.length; i += 450) {
+          const batch = writeBatch(db);
+          docsToDelete.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+          await batch.commit();
         }
 
-        console.log("Limpeza concluída.");
+        setSnackbar({
+          open: true,
+          message: docsToDelete.length > 0
+            ? `Limpeza concluída: ${docsToDelete.length} movimentações antigas excluídas.`
+            : "Nenhuma movimentação antiga para excluir.",
+          severity: "success",
+        });
       } catch (error) {
         console.error("Erro ao executar limpeza:", error);
+        setSnackbar({ open: true, message: "Erro ao executar a limpeza.", severity: "error" });
       } finally {
         setIsCleaning(false);
         handleCloseCleanupDialog();
       }
     } else {
-      alert("Você não tem permissão para limpar movimentações antigas. Apenas o administrador geral pode realizar esta ação.");
+      setSnackbar({
+        open: true,
+        message: "Apenas o administrador geral pode limpar movimentações antigas.",
+        severity: "warning",
+      });
       handleCloseCleanupDialog();
     }
   };
@@ -521,6 +542,32 @@ function MenuContext({ children }) {
       {/* Bottom Actions */}
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Tooltip title={!drawerOpen ? (mode === 'dark' ? 'Modo Claro' : 'Modo Escuro') : ''} placement="right">
+          <Button
+            fullWidth
+            variant="contained"
+            startIcon={drawerOpen && (mode === 'dark' ? <LightModeOutlined /> : <DarkModeOutlined />)}
+            onClick={toggleMode}
+            sx={{
+              justifyContent: drawerOpen ? 'flex-start' : 'center',
+              background: 'rgba(96, 165, 250, 0.1)',
+              color: '#60a5fa',
+              border: '1px solid rgba(96, 165, 250, 0.3)',
+              boxShadow: 'none',
+              borderRadius: 2,
+              py: 1.2,
+              '&:hover': {
+                background: 'rgba(96, 165, 250, 0.2)',
+                borderColor: '#60a5fa',
+                boxShadow: '0 4px 12px rgba(96, 165, 250, 0.2)',
+              }
+            }}
+          >
+            {drawerOpen
+              ? (mode === 'dark' ? 'Modo Claro' : 'Modo Escuro')
+              : (mode === 'dark' ? <LightModeOutlined /> : <DarkModeOutlined />)}
+          </Button>
+        </Tooltip>
         <Tooltip title={!drawerOpen ? 'Alterar Senha' : ''} placement="right">
           <Button
             fullWidth
@@ -574,7 +621,7 @@ function MenuContext({ children }) {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100dvh', backgroundColor: '#f8fafc' }}>
+    <Box sx={{ display: 'flex', minHeight: '100dvh', backgroundColor: 'background.default' }}>
       {/* Mobile App Bar */}
       <Box
         sx={{
@@ -605,6 +652,13 @@ function MenuContext({ children }) {
             DEMOP
           </Typography>
         </Box>
+        <IconButton
+          onClick={toggleMode}
+          aria-label={mode === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+          sx={{ color: 'rgba(255,255,255,0.85)' }}
+        >
+          {mode === 'dark' ? <LightModeOutlined /> : <DarkModeOutlined />}
+        </IconButton>
       </Box>
 
       {/* Desktop Drawer */}
@@ -689,8 +743,10 @@ function MenuContext({ children }) {
             py: 3,
             px: { xs: 2, sm: 4 },
             borderTop: '1px solid',
-            borderColor: alpha('#1e3a5f', 0.1),
-            background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)',
+            borderColor: 'divider',
+            background: (theme) => theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
+              : 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)',
           }}
         >
           <Box
@@ -723,7 +779,7 @@ function MenuContext({ children }) {
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#1e3a5f',
+                  color: (theme) => theme.palette.mode === 'dark' ? '#9dc1e8' : '#1e3a5f',
                   fontWeight: 600,
                   letterSpacing: '0.02em',
                   textAlign: 'center',

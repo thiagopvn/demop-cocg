@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { CircularProgress, Box } from '@mui/material';
+import { CircularProgress, Box, Typography } from '@mui/material';
 import './App.css';
 import PrivateRoute from './contexts/PrivateRoute';
+import brasao from './assets/brasao.png';
 
 // Retry dinâmico para lazy imports que falham após novo deploy
 function lazyRetry(importFn) {
@@ -43,8 +44,27 @@ const Perfil = lazyRetry(() => import('./screens/Perfil/Perfil'));
 const BensPatrimoniais = lazyRetry(() => import('./screens/BensPatrimoniais/BensPatrimoniais'));
 
 const SuspenseFallback = (
-  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
-    <CircularProgress />
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100dvh',
+      gap: 2,
+      background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)',
+    }}
+  >
+    <Box
+      component="img"
+      src={brasao}
+      alt=""
+      sx={{ width: 72, height: 72, filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' }}
+    />
+    <CircularProgress size={32} sx={{ color: 'rgba(255,255,255,0.85)' }} />
+    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+      DEMOP — Carregando...
+    </Typography>
   </Box>
 );
 

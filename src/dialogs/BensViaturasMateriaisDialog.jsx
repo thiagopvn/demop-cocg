@@ -240,7 +240,7 @@ export default function BensViaturasMateriaisDialog({
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,
-                        backgroundColor: '#fafafa',
+                        backgroundColor: 'background.default',
                       },
                     }}
                   />
@@ -276,7 +276,7 @@ export default function BensViaturasMateriaisDialog({
                   flex: 1,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 2,
-                    backgroundColor: '#fafafa',
+                    backgroundColor: 'background.default',
                   },
                 }}
               />
@@ -323,7 +323,7 @@ export default function BensViaturasMateriaisDialog({
                 <Chip
                   icon={<LocalShippingOutlinedIcon />}
                   label={selectedViatura.label}
-                  sx={{ backgroundColor: '#e3f2fd', color: '#1565c0', fontWeight: 700 }}
+                  sx={{ backgroundColor: 'surface.blue', color: 'surface.blueText', fontWeight: 700 }}
                 />
               </Box>
             )}

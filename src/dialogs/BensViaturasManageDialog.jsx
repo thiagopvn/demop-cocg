@@ -38,7 +38,7 @@ import {
 import { logAudit } from '../firebase/auditLog';
 
 const fieldStyle = {
-  '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
+  '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: 'background.default' },
 };
 
 const EMPTY = { prefixo: '', observacoes: '' };
@@ -250,7 +250,7 @@ export default function BensViaturasManageDialog({
               p: 2,
               borderRadius: 2,
               border: '1px solid #e0e0e0',
-              background: '#fafbff',
+              backgroundColor: 'background.default',
             }}
           >
             <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#1e3a5f', mb: 1.5 }}>
@@ -310,7 +310,7 @@ export default function BensViaturasManageDialog({
               icon={<LocalShippingOutlinedIcon />}
               label={`${sortedViaturas.length} viatura(s) cadastrada(s)`}
               size="small"
-              sx={{ backgroundColor: '#e3f2fd', color: '#1565c0', fontWeight: 600 }}
+              sx={{ backgroundColor: 'surface.blue', color: 'surface.blueText', fontWeight: 600 }}
             />
           </Divider>
 
@@ -344,7 +344,7 @@ export default function BensViaturasManageDialog({
                               <IconButton
                                 size="small"
                                 onClick={() => onViewMateriais(v)}
-                                sx={{ color: '#1565c0' }}
+                                sx={{ color: 'surface.blueText' }}
                               >
                                 <VisibilityOutlinedIcon fontSize="small" />
                               </IconButton>

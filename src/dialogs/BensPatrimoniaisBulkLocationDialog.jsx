@@ -197,7 +197,7 @@ export default function BensPatrimoniaisBulkLocationDialog({
               borderRadius: 2,
               maxHeight: 180,
               overflowY: 'auto',
-              backgroundColor: '#fafafa',
+              backgroundColor: 'background.default',
             }}
           >
             <List dense disablePadding>
@@ -211,8 +211,8 @@ export default function BensPatrimoniaisBulkLocationDialog({
                           size="small"
                           sx={{
                             fontWeight: 700,
-                            backgroundColor: '#e3f2fd',
-                            color: '#1565c0',
+                            backgroundColor: 'surface.blue',
+                            color: 'surface.blueText',
                             height: 22,
                           }}
                         />
@@ -308,7 +308,7 @@ export default function BensPatrimoniaisBulkLocationDialog({
                 placeholder="Digite ou selecione (ex.: DEMOP, Guarda, Sala 5)"
                 autoFocus
                 sx={{
-                  '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
+                  '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: 'background.default' },
                 }}
               />
             )}
@@ -351,7 +351,7 @@ export default function BensPatrimoniaisBulkLocationDialog({
                   }
                   autoFocus
                   sx={{
-                    '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: 'background.default' },
                   }}
                 />
               )}
@@ -394,7 +394,7 @@ export default function BensPatrimoniaisBulkLocationDialog({
                   size="small"
                   icon={<LocationOnIcon />}
                   label={`Viatura ${viaturaValue.label}`}
-                  sx={{ backgroundColor: '#e3f2fd', color: '#1565c0', fontWeight: 600 }}
+                  sx={{ backgroundColor: 'surface.blue', color: 'surface.blueText', fontWeight: 600 }}
                 />
               </Box>
             )}

@@ -797,7 +797,7 @@ export default function ViaturaDetalhes() {
                             <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                                 <Table size="medium" sx={{ minWidth: 650 }}>
                                     <TableHead>
-                                        <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                                        <TableRow sx={{ backgroundColor: 'background.default' }}>
                                             <TableCell sx={{ fontWeight: 700 }}>
                                                 <TableSortLabel
                                                     active={sortField === 'material_description'}
@@ -1069,7 +1069,7 @@ export default function ViaturaDetalhes() {
                         />
 
                         {selectedMaterial && (
-                            <Paper sx={{ p: 2, mt: 2, backgroundColor: '#f5f5f5', borderRadius: 2 }}>
+                            <Paper sx={{ p: 2, mt: 2, backgroundColor: 'background.default', borderRadius: 2 }}>
                                 <Typography variant="subtitle2" color="primary" gutterBottom>
                                     Material Selecionado
                                 </Typography>
@@ -1152,7 +1152,7 @@ export default function ViaturaDetalhes() {
                     <DialogContent sx={{ pt: 3 }}>
                         {materialToEdit && (
                             <>
-                                <Paper sx={{ p: 2, backgroundColor: '#f5f5f5', borderRadius: 2, mb: 2 }}>
+                                <Paper sx={{ p: 2, backgroundColor: 'background.default', borderRadius: 2, mb: 2 }}>
                                     <Typography variant="subtitle2" color="primary" gutterBottom>
                                         Material
                                     </Typography>
@@ -1258,7 +1258,7 @@ export default function ViaturaDetalhes() {
                                     O material sera devolvido ao estoque do DEMOP
                                 </Alert>
 
-                                <Paper sx={{ p: 2, backgroundColor: '#f5f5f5', borderRadius: 2 }}>
+                                <Paper sx={{ p: 2, backgroundColor: 'background.default', borderRadius: 2 }}>
                                     <Typography variant="subtitle2" color="error" gutterBottom>
                                         Material a ser desalocado
                                     </Typography>

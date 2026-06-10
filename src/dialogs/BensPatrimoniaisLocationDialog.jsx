@@ -208,7 +208,7 @@ export default function BensPatrimoniaisLocationDialog({
                 icon={item?.viatura_bens_id ? <LocalShippingOutlinedIcon /> : <LocationOnIcon />}
                 label={item.localidade}
                 size="small"
-                sx={{ fontWeight: 600, backgroundColor: '#e3f2fd', color: '#1565c0' }}
+                sx={{ fontWeight: 600, backgroundColor: 'surface.blue', color: 'surface.blueText' }}
               />
             </Box>
           )}
@@ -283,7 +283,7 @@ export default function BensPatrimoniaisLocationDialog({
                 placeholder="Digite ou selecione (ex.: Demop, Guarda, Sala 5)"
                 autoFocus
                 sx={{
-                  '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
+                  '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: 'background.default' },
                 }}
               />
             )}
@@ -326,7 +326,7 @@ export default function BensPatrimoniaisLocationDialog({
                   }
                   autoFocus
                   sx={{
-                    '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#fafafa' },
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: 'background.default' },
                   }}
                 />
               )}
@@ -371,7 +371,7 @@ export default function BensPatrimoniaisLocationDialog({
                   size="small"
                   icon={<LocationOnIcon />}
                   label={`Viatura ${viaturaValue.label}`}
-                  sx={{ backgroundColor: '#e3f2fd', color: '#1565c0', fontWeight: 600 }}
+                  sx={{ backgroundColor: 'surface.blue', color: 'surface.blueText', fontWeight: 600 }}
                 />
               </Box>
             )}

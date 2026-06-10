@@ -57,7 +57,7 @@ const EMPTY = {
 const fieldStyle = {
   '& .MuiOutlinedInput-root': {
     borderRadius: '12px',
-    backgroundColor: '#ffffff',
+    backgroundColor: 'background.paper',
   },
 };
 
@@ -309,7 +309,7 @@ export default function BensPatrimoniaisEditDialog({
               onChange={handleModeChange}
               size="small"
               sx={{
-                backgroundColor: '#f5f5f5',
+                backgroundColor: 'background.default',
                 borderRadius: '12px',
                 p: 0.5,
                 '& .MuiToggleButton-root': {
@@ -323,10 +323,10 @@ export default function BensPatrimoniaisEditDialog({
                   color: 'text.secondary',
                   gap: 0.7,
                   '&.Mui-selected': {
-                    backgroundColor: '#ffffff',
+                    backgroundColor: 'background.paper',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
                     color: mode === 'divergente' ? '#c2410c' : '#1e3a5f',
-                    '&:hover': { backgroundColor: '#ffffff' },
+                    '&:hover': { backgroundColor: 'background.paper' },
                   },
                 },
               }}
@@ -350,7 +350,7 @@ export default function BensPatrimoniaisEditDialog({
               mb: 1,
               p: 1.5,
               borderRadius: 2,
-              backgroundColor: '#fff7ed',
+              backgroundColor: 'surface.orange',
               border: '1px solid #fed7aa',
               display: 'flex',
               gap: 1,
@@ -428,7 +428,7 @@ export default function BensPatrimoniaisEditDialog({
               sx={{
                 ...fieldStyle,
                 '& .MuiOutlinedInput-root.Mui-disabled': {
-                  backgroundColor: '#fafafa',
+                  backgroundColor: 'background.default',
                   '& .MuiOutlinedInput-input': { color: '#9e9e9e', fontStyle: 'italic' },
                 },
                 visibility: 'hidden',
@@ -524,7 +524,7 @@ export default function BensPatrimoniaisEditDialog({
                 size="small"
                 icon={<LocationOnIcon />}
                 label={`Viatura ${selectedViatura.label}`}
-                sx={{ backgroundColor: '#e3f2fd', color: '#1565c0', fontWeight: 600 }}
+                sx={{ backgroundColor: 'surface.blue', color: 'surface.blueText', fontWeight: 600 }}
               />
             </Box>
           )}

@@ -661,9 +661,9 @@ function FieldRow({
               mt: 0.5,
               "& .MuiOutlinedInput-root": {
                 borderRadius: "10px",
-                backgroundColor: "#fff",
-                "&:hover": { backgroundColor: "#f8f9ff" },
-                "&.Mui-focused": { backgroundColor: "#fff" },
+                backgroundColor: 'background.paper',
+                "&:hover": { backgroundColor: 'background.default' },
+                "&.Mui-focused": { backgroundColor: 'background.paper' },
               },
             }}
           />

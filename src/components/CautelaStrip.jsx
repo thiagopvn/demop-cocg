@@ -675,7 +675,7 @@ export default function CautelaStrip({ cautela, onSign }) {
               borderRadius: 2,
               border: '1px solid',
               borderColor: 'divider',
-              backgroundColor: alpha('#f8fafc', 0.5),
+              backgroundColor: (theme) => alpha(theme.palette.background.default, 0.5),
               mb: 2
             }}
           >

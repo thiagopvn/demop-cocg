@@ -132,12 +132,12 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
-                                backgroundColor: '#ffffff',
+                                backgroundColor: 'background.paper',
                                 '&:hover': {
-                                    backgroundColor: '#fff8e1',
+                                    backgroundColor: 'surface.amber',
                                 },
                                 '&.Mui-focused': {
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                 }
                             }
                         }}
@@ -145,7 +145,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
 
                     {/* Seção do Militar */}
                     <Box sx={{ 
-                        backgroundColor: '#fff8e1', 
+                        backgroundColor: 'surface.amber', 
                         padding: '16px', 
                         borderRadius: '12px',
                         border: '1px solid #ffcc02'
@@ -188,7 +188,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
 
                     {/* Dados do Solicitante */}
                     <Box sx={{ 
-                        backgroundColor: '#f3e5f5', 
+                        backgroundColor: 'surface.purple', 
                         padding: '16px', 
                         borderRadius: '12px',
                         border: '1px solid #e1bee7'
@@ -215,7 +215,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: '12px',
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }}
                             />
@@ -229,7 +229,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                                     sx={{
                                         '& .MuiOutlinedInput-root': {
                                             borderRadius: '12px',
-                                            backgroundColor: '#ffffff',
+                                            backgroundColor: 'background.paper',
                                         }
                                     }}
                                 />
@@ -241,7 +241,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                                     sx={{
                                         '& .MuiOutlinedInput-root': {
                                             borderRadius: '12px',
-                                            backgroundColor: '#ffffff',
+                                            backgroundColor: 'background.paper',
                                         }
                                     }}
                                 />
@@ -254,7 +254,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: '12px',
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }}
                             />
@@ -275,12 +275,12 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                     '&:hover': {
-                                        backgroundColor: '#fff8e1',
+                                        backgroundColor: 'surface.amber',
                                     },
                                     '&.Mui-focused': {
-                                        backgroundColor: '#ffffff',
+                                        backgroundColor: 'background.paper',
                                     }
                                 }
                             }}
@@ -300,7 +300,7 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                             }
                             label="✅ Já foi devolvido?"
                             sx={{
-                                backgroundColor: '#f5f5f5',
+                                backgroundColor: 'background.default',
                                 padding: '12px',
                                 borderRadius: '12px',
                                 margin: 0,
@@ -320,12 +320,12 @@ export default function RingDialog({ onSubmit, onCancel, open, editData = null }
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
-                                backgroundColor: '#ffffff',
+                                backgroundColor: 'background.paper',
                                 '&:hover': {
-                                    backgroundColor: '#fff8e1',
+                                    backgroundColor: 'surface.amber',
                                 },
                                 '&.Mui-focused': {
-                                    backgroundColor: '#ffffff',
+                                    backgroundColor: 'background.paper',
                                 }
                             }
                         }}

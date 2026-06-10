@@ -145,9 +145,9 @@ export default function ChangePasswordDialog({ open, onClose, forced = false }) 
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    backgroundColor: '#ffffff',
-                                    '&:hover': { backgroundColor: '#f8f9ff' },
-                                    '&.Mui-focused': { backgroundColor: '#ffffff' }
+                                    backgroundColor: 'background.paper',
+                                    '&:hover': { backgroundColor: 'background.default' },
+                                    '&.Mui-focused': { backgroundColor: 'background.paper' }
                                 }
                             }}
                             slotProps={{
@@ -177,9 +177,9 @@ export default function ChangePasswordDialog({ open, onClose, forced = false }) 
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
-                                backgroundColor: '#ffffff',
-                                '&:hover': { backgroundColor: '#f8f9ff' },
-                                '&.Mui-focused': { backgroundColor: '#ffffff' }
+                                backgroundColor: 'background.paper',
+                                '&:hover': { backgroundColor: 'background.default' },
+                                '&.Mui-focused': { backgroundColor: 'background.paper' }
                             }
                         }}
                         slotProps={{
@@ -207,9 +207,9 @@ export default function ChangePasswordDialog({ open, onClose, forced = false }) 
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
-                                backgroundColor: '#ffffff',
-                                '&:hover': { backgroundColor: '#f8f9ff' },
-                                '&.Mui-focused': { backgroundColor: '#ffffff' }
+                                backgroundColor: 'background.paper',
+                                '&:hover': { backgroundColor: 'background.default' },
+                                '&.Mui-focused': { backgroundColor: 'background.paper' }
                             }
                         }}
                         slotProps={{

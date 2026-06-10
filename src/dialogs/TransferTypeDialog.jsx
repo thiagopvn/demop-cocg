@@ -208,7 +208,7 @@ export default function TransferTypeDialog({
       <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
         {/* Info da movimentação atual */}
         {movimentacao && (
-          <Card variant="outlined" sx={{ mb: 3, borderRadius: 2, backgroundColor: alpha('#f8fafc', 0.5) }}>
+          <Card variant="outlined" sx={{ mb: 3, borderRadius: 2, backgroundColor: (theme) => alpha(theme.palette.background.default, 0.5) }}>
             <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
               <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 Movimentação Atual
