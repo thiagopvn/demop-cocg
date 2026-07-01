@@ -3,6 +3,7 @@ import SearchResultsTable from "../../components/SearchResultsTable";
 import FilterChips from "../../components/FilterChips";
 import MovimentacaoDetails from "../../components/MovimentacaoDetails";
 import TransferTypeDialog from "../../dialogs/TransferTypeDialog";
+import ExportMovimentacoesPdfDialog from "../../dialogs/ExportMovimentacoesPdfDialog";
 import {
   Box,
   Typography,
@@ -42,11 +43,17 @@ import {
   Draw as SignatureIcon,
   Phone as PhoneIcon,
   DeleteForever as DeleteForeverIcon,
-  TransferWithinAStation as TransferIcon
+  TransferWithinAStation as TransferIcon,
+  Numbers as NumbersIcon,
+  Notes as NotesIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Close as CloseIcon,
+  PictureAsPdf as PdfIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
-import { collection, query, where, getDocs, orderBy, getDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, getDoc, doc, updateDoc } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 import { verifyToken } from "../../firebase/token";
@@ -88,6 +95,10 @@ export default function Cautelados() {
   const [deleting, setDeleting] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedMovForTransfer, setSelectedMovForTransfer] = useState(null);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [editingObsId, setEditingObsId] = useState(null);
+  const [obsDraft, setObsDraft] = useState("");
+  const [savingObs, setSavingObs] = useState(false);
   const theme = useTheme();
 
   useEffect(() => {
@@ -275,189 +286,365 @@ export default function Cautelados() {
   };
 
   const isAdminGeral = userRole === "admingeral";
+  const canEditObs = userRole === "admin" || userRole === "admingeral";
+  // Na aba "Entradas" nao ha militar/whatsapp/assinatura envolvidos:
+  // mostramos quantidade e observacao no lugar.
+  const isEntradas = filtro === 5;
 
-  const columns = [
-    {
-      field: 'material_description',
-      headerName: 'Material',
-      icon: <InventoryIcon fontSize="small" />,
-      minWidth: 200,
-      renderCell: (row) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <InventoryIcon fontSize="small" color="error" />
-          <Typography variant="body2" fontWeight={500}>
-            {row.material_description || '-'}
-          </Typography>
-        </Box>
-      ),
-    },
-    {
-      field: 'user_name',
-      headerName: 'Militar',
-      icon: <PersonIcon fontSize="small" />,
-      minWidth: 150,
-      renderCell: (row) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PersonIcon fontSize="small" color="action" />
-          <Typography variant="body2">
-            {row.user_name || '-'}
-          </Typography>
-        </Box>
-      ),
-    },
-    {
-      field: 'telefone_responsavel',
-      headerName: 'WhatsApp',
-      icon: <PhoneIcon fontSize="small" />,
-      minWidth: 140,
-      renderCell: (row) => {
-        const telefone = row.telefone_responsavel;
-        if (!telefone) return '-';
-        const numeroLimpo = telefone.replace(/\D/g, '');
-        const numeroWpp = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
-        return (
-          <Chip
-            icon={<PhoneIcon sx={{ fontSize: 14 }} />}
-            label={telefone}
-            size="small"
-            color="success"
-            variant="outlined"
-            component="a"
-            href={`https://wa.me/${numeroWpp}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            clickable
-            sx={{
-              fontWeight: 500,
-              cursor: 'pointer',
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.success.main, 0.1),
-              }
-            }}
-          />
-        );
-      },
-    },
-    {
-      field: 'date',
-      headerName: 'Data',
-      minWidth: 110,
-      renderCell: (row) => (
-        <Chip
-          label={row.date?.seconds ? new Date(row.date.seconds * 1000).toLocaleDateString('pt-BR') : '-'}
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 500 }}
-        />
-      ),
-    },
-    {
-      field: 'type',
-      headerName: 'Tipo',
-      minWidth: 100,
-      hideOnMobile: true,
-      renderCell: (row) => {
-        let color = 'default';
-        let icon = null;
+  const startEditObs = (row) => {
+    setEditingObsId(row.id);
+    setObsDraft(row.observacoes || "");
+  };
 
-        switch (row.type) {
-          case 'cautela':
-            color = 'primary';
-            icon = <AssignmentIcon sx={{ fontSize: 14 }} />;
-            break;
-          case 'entrada':
-            color = 'info';
-            icon = <InIcon sx={{ fontSize: 14 }} />;
-            break;
-          case 'saída':
-            color = 'secondary';
-            icon = <OutIcon sx={{ fontSize: 14 }} />;
-            break;
-          default:
-            break;
+  const cancelEditObs = () => {
+    setEditingObsId(null);
+    setObsDraft("");
+  };
+
+  const saveObs = async (row) => {
+    const novoValor = obsDraft.trim() || null;
+    setSavingObs(true);
+    try {
+      await updateDoc(doc(db, "movimentacoes", row.id), { observacoes: novoValor });
+      // Atualiza todos os caches em memoria (o mesmo doc pode estar em varios filtros)
+      setCachedMovimentacoes((prev) => {
+        const updated = {};
+        for (const key in prev) {
+          updated[key] = prev[key].map((m) =>
+            m.id === row.id ? { ...m, observacoes: novoValor } : m
+          );
         }
+        return updated;
+      });
+      cancelEditObs();
+    } catch (error) {
+      console.error("Erro ao salvar observação:", error);
+      alert("Erro ao salvar observação: " + error.message);
+    } finally {
+      setSavingObs(false);
+    }
+  };
 
+  const materialColumn = {
+    field: 'material_description',
+    headerName: 'Material',
+    icon: <InventoryIcon fontSize="small" />,
+    minWidth: 200,
+    renderCell: (row) => (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <InventoryIcon fontSize="small" color="error" />
+        <Typography variant="body2" fontWeight={500}>
+          {row.material_description || '-'}
+        </Typography>
+      </Box>
+    ),
+  };
+
+  const militarColumn = {
+    field: 'user_name',
+    headerName: 'Militar',
+    icon: <PersonIcon fontSize="small" />,
+    minWidth: 150,
+    renderCell: (row) => (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <PersonIcon fontSize="small" color="action" />
+        <Typography variant="body2">
+          {row.user_name || '-'}
+        </Typography>
+      </Box>
+    ),
+  };
+
+  const whatsappColumn = {
+    field: 'telefone_responsavel',
+    headerName: 'WhatsApp',
+    icon: <PhoneIcon fontSize="small" />,
+    minWidth: 140,
+    renderCell: (row) => {
+      const telefone = row.telefone_responsavel;
+      if (!telefone) return '-';
+      const numeroLimpo = telefone.replace(/\D/g, '');
+      const numeroWpp = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
+      return (
+        <Chip
+          icon={<PhoneIcon sx={{ fontSize: 14 }} />}
+          label={telefone}
+          size="small"
+          color="success"
+          variant="outlined"
+          component="a"
+          href={`https://wa.me/${numeroWpp}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          clickable
+          sx={{
+            fontWeight: 500,
+            cursor: 'pointer',
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.success.main, 0.1),
+            }
+          }}
+        />
+      );
+    },
+  };
+
+  const quantidadeColumn = {
+    field: 'quantity',
+    headerName: 'Quantidade',
+    icon: <NumbersIcon fontSize="small" />,
+    minWidth: 120,
+    align: 'center',
+    renderCell: (row) => (
+      <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+        <Chip
+          icon={<NumbersIcon sx={{ fontSize: 14 }} />}
+          label={row.quantity ?? '-'}
+          size="small"
+          color="info"
+          variant="filled"
+          sx={{ fontWeight: 700, minWidth: 56 }}
+        />
+      </Box>
+    ),
+  };
+
+  const observacaoColumn = {
+    field: 'observacoes',
+    headerName: 'Observação',
+    icon: <NotesIcon fontSize="small" />,
+    minWidth: 320,
+    width: 420,
+    renderCell: (row) => {
+      const obs = row.observacoes;
+      const isEditing = editingObsId === row.id;
+
+      // Modo edicao inline (admin / admingeral)
+      if (isEditing) {
         return (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            <Chip
-              icon={icon}
-              label={row.type || '-'}
+          <Box
+            sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <TextField
+              value={obsDraft}
+              onChange={(e) => setObsDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveObs(row);
+                if (e.key === 'Escape') cancelEditObs();
+              }}
+              multiline
+              minRows={1}
+              maxRows={6}
               size="small"
-              color={color}
-              variant="filled"
+              autoFocus
+              fullWidth
+              placeholder="Digite a observação..."
+              disabled={savingObs}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem' } }}
             />
-            {row.original_type && (
-              <Chip
-                label={`era: ${row.original_type}`}
-                size="small"
-                variant="outlined"
-                sx={{ fontSize: '0.65rem', height: 18 }}
-              />
-            )}
+            <Tooltip title="Salvar (Ctrl+Enter)" arrow>
+              <span>
+                <IconButton size="small" color="success" onClick={() => saveObs(row)} disabled={savingObs}>
+                  <SaveIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Cancelar (Esc)" arrow>
+              <span>
+                <IconButton size="small" color="inherit" onClick={cancelEditObs} disabled={savingObs}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
           </Box>
         );
-      },
+      }
+
+      // Modo leitura — pencil de edicao para admin/admingeral
+      return (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 1,
+            '&:hover .obs-edit-btn': { opacity: 1 },
+          }}
+        >
+          <NotesIcon fontSize="small" color="action" sx={{ mt: 0.25, flexShrink: 0 }} />
+          <Typography
+            variant="body2"
+            sx={{
+              flex: 1,
+              whiteSpace: 'normal',
+              wordBreak: 'break-word',
+              lineHeight: 1.4,
+              color: obs ? 'text.primary' : 'text.disabled',
+              fontStyle: obs ? 'normal' : 'italic',
+            }}
+          >
+            {obs || 'Sem observação'}
+          </Typography>
+          {canEditObs && (
+            <Tooltip title="Editar observação" arrow>
+              <IconButton
+                className="obs-edit-btn"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEditObs(row);
+                }}
+                sx={{
+                  flexShrink: 0,
+                  opacity: { xs: 1, md: 0 },
+                  transition: 'opacity 0.15s ease',
+                  color: 'primary.main',
+                }}
+              >
+                <EditIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      );
     },
-    {
-      field: 'signed',
-      headerName: 'Assinado',
-      minWidth: 100,
-      renderCell: (row) => {
-        if (row.signed === undefined || (row.type !== 'cautela' && row.type !== 'saída')) return '-';
-        return (
+  };
+
+  const dataColumn = {
+    field: 'date',
+    headerName: 'Data',
+    minWidth: 110,
+    renderCell: (row) => (
+      <Chip
+        label={row.date?.seconds ? new Date(row.date.seconds * 1000).toLocaleDateString('pt-BR') : '-'}
+        size="small"
+        variant="outlined"
+        sx={{ fontWeight: 500 }}
+      />
+    ),
+  };
+
+  const tipoColumn = {
+    field: 'type',
+    headerName: 'Tipo',
+    minWidth: 100,
+    hideOnMobile: true,
+    renderCell: (row) => {
+      let color = 'default';
+      let icon = null;
+
+      switch (row.type) {
+        case 'cautela':
+          color = 'primary';
+          icon = <AssignmentIcon sx={{ fontSize: 14 }} />;
+          break;
+        case 'entrada':
+          color = 'info';
+          icon = <InIcon sx={{ fontSize: 14 }} />;
+          break;
+        case 'saída':
+          color = 'secondary';
+          icon = <OutIcon sx={{ fontSize: 14 }} />;
+          break;
+        default:
+          break;
+      }
+
+      return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
           <Chip
-            icon={row.signed ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : <CancelIcon sx={{ fontSize: 14 }} />}
-            label={row.signed ? "Sim" : "Nao"}
+            icon={icon}
+            label={row.type || '-'}
             size="small"
-            color={row.signed ? "success" : "error"}
+            color={color}
             variant="filled"
           />
-        );
-      },
+          {row.original_type && (
+            <Chip
+              label={`era: ${row.original_type}`}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: '0.65rem', height: 18 }}
+            />
+          )}
+        </Box>
+      );
     },
-    {
-      field: 'status',
-      headerName: 'Status',
-      minWidth: 120,
-      renderCell: (row) => {
-        const getStatusConfig = (status) => {
-          switch (status?.toLowerCase()) {
-            case 'devolvido':
-              return { color: 'success', icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> };
-            case 'cautelado':
-              return { color: 'warning', icon: <AssignmentIcon sx={{ fontSize: 14 }} /> };
-            case 'descartado':
-              return { color: 'secondary', icon: <OutIcon sx={{ fontSize: 14 }} /> };
-            default:
-              return { color: 'default', icon: null };
-          }
-        };
+  };
 
-        const config = getStatusConfig(row.status);
+  const signedColumn = {
+    field: 'signed',
+    headerName: 'Assinado',
+    minWidth: 100,
+    renderCell: (row) => {
+      if (row.signed === undefined || (row.type !== 'cautela' && row.type !== 'saída')) return '-';
+      return (
+        <Chip
+          icon={row.signed ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : <CancelIcon sx={{ fontSize: 14 }} />}
+          label={row.signed ? "Sim" : "Nao"}
+          size="small"
+          color={row.signed ? "success" : "error"}
+          variant="filled"
+        />
+      );
+    },
+  };
 
-        return (
-          <Chip
-            icon={config.icon}
-            label={row.status || '-'}
-            size="small"
-            color={config.color}
-            variant="filled"
-          />
-        );
-      },
+  const statusColumn = {
+    field: 'status',
+    headerName: 'Status',
+    minWidth: 120,
+    renderCell: (row) => {
+      const getStatusConfig = (status) => {
+        switch (status?.toLowerCase()) {
+          case 'devolvido':
+            return { color: 'success', icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> };
+          case 'cautelado':
+            return { color: 'warning', icon: <AssignmentIcon sx={{ fontSize: 14 }} /> };
+          case 'descartado':
+            return { color: 'secondary', icon: <OutIcon sx={{ fontSize: 14 }} /> };
+          default:
+            return { color: 'default', icon: null };
+        }
+      };
+
+      const config = getStatusConfig(row.status);
+
+      return (
+        <Chip
+          icon={config.icon}
+          label={row.status || '-'}
+          size="small"
+          color={config.color}
+          variant="filled"
+        />
+      );
     },
-    {
-      field: 'sender_name',
-      headerName: 'Quem realizou',
-      icon: <BadgeIcon fontSize="small" />,
-      minWidth: 140,
-      align: 'center',
-      renderCell: (row) => (
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500, textAlign: 'center', width: '100%' }}>
-          {row.sender_name || '-'}
-        </Typography>
-      ),
-    },
+  };
+
+  const senderColumn = {
+    field: 'sender_name',
+    headerName: 'Quem realizou',
+    icon: <BadgeIcon fontSize="small" />,
+    minWidth: 140,
+    align: 'center',
+    renderCell: (row) => (
+      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500, textAlign: 'center', width: '100%' }}>
+        {row.sender_name || '-'}
+      </Typography>
+    ),
+  };
+
+  const columns = [
+    materialColumn,
+    ...(isEntradas
+      ? [quantidadeColumn, observacaoColumn]
+      : [militarColumn, whatsappColumn]),
+    dataColumn,
+    tipoColumn,
+    ...(isEntradas ? [] : [signedColumn]),
+    statusColumn,
+    senderColumn,
     ...(isAdminGeral ? [{
       field: 'actions',
       headerName: 'Acoes',
@@ -628,7 +815,30 @@ export default function Cautelados() {
         </Box>
       </Fade>
 
-      {/* Export FAB */}
+      {/* Export PDF FAB - relatorio por periodo com selecao de tipos */}
+      <Tooltip title="Exportar relatório em PDF" placement="left">
+        <Fab
+          color="error"
+          size="medium"
+          onClick={() => setPdfDialogOpen(true)}
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 130, sm: 148 },
+            right: { xs: 16, sm: 24 },
+            background: 'linear-gradient(45deg, #d32f2f 30%, #ef5350 90%)',
+            boxShadow: 3,
+            '&:hover': {
+              transform: 'scale(1.1)',
+              boxShadow: 6
+            },
+            transition: 'all 0.3s ease'
+          }}
+        >
+          <PdfIcon />
+        </Fab>
+      </Tooltip>
+
+      {/* Export Excel FAB */}
       {filteredMovimentacoes.length > 0 && (
         <Tooltip title="Exportar para Excel" placement="left">
           <Fab
@@ -655,6 +865,12 @@ export default function Cautelados() {
           </Fab>
         </Tooltip>
       )}
+
+      {/* Export PDF Dialog */}
+      <ExportMovimentacoesPdfDialog
+        open={pdfDialogOpen}
+        onClose={() => setPdfDialogOpen(false)}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog

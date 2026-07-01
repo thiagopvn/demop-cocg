@@ -17,6 +17,8 @@
     "dotenv": "^16.4.7",
     "firebase": "^11.4.0",
     "jose": "^6.0.8",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.2.0",
