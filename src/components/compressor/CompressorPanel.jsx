@@ -32,6 +32,7 @@ import {
     Build,
     AccessTime,
     Edit,
+    DeleteOutline,
     History,
     EventAvailable,
     Warning,
@@ -93,7 +94,7 @@ const formatD = (val) => {
 const CompressorPanel = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const { compressor, usos, manutencoes, loading, status, actions } = useCompressor();
+    const { compressor, usos, manutencoes, loading, status, actions, isAdminGeral } = useCompressor();
 
     const [controlOpen, setControlOpen] = useState(false);
     const [concludeOpen, setConcludeOpen] = useState(false);
@@ -144,6 +145,22 @@ const CompressorPanel = () => {
         await actions.editUso(editUso.id, durationSeconds, observacao);
         setEditUso(null);
         notify('Sessão atualizada');
+    };
+
+    const handleDeleteUso = async (u) => {
+        if (!window.confirm(`Excluir esta sessão de uso (${formatDuration(u.durationSeconds)})? A duração será abatida do total do ciclo.`)) return;
+        try {
+            await actions.deleteUso(u.id);
+            notify('Sessão de uso excluída');
+        } catch { notify('Erro ao excluir a sessão'); }
+    };
+
+    const handleDeleteManutencao = async (m) => {
+        if (!window.confirm(`Excluir o registro de manutenção "${getTipoManutencaoLabel(m.tipo)}" de ${formatD(m.data)}?`)) return;
+        try {
+            await actions.deleteManutencao(m.id);
+            notify('Registro de manutenção excluído');
+        } catch { notify('Erro ao excluir a manutenção'); }
     };
 
     const handleRegistrarManutencao = async (opts) => {
@@ -406,11 +423,20 @@ const CompressorPanel = () => {
                                             )}
                                         </TableCell>
                                         <TableCell align="center">
-                                            <Tooltip title="Corrigir duração">
-                                                <IconButton size="small" onClick={() => setEditUso(u)}>
-                                                    <Edit fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
+                                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                                <Tooltip title="Corrigir duração">
+                                                    <IconButton size="small" onClick={() => setEditUso(u)}>
+                                                        <Edit fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                {isAdminGeral && (
+                                                    <Tooltip title="Excluir sessão (admingeral)">
+                                                        <IconButton size="small" color="error" onClick={() => handleDeleteUso(u)}>
+                                                            <DeleteOutline fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                            </Box>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -464,6 +490,13 @@ const CompressorPanel = () => {
                                                     {m.horasNoMomento != null ? `${m.horasNoMomento}h no momento` : ''} {m.realizadoPor ? `• ${m.realizadoPor}` : ''}
                                                 </Typography>
                                             </Box>
+                                            {isAdminGeral && (
+                                                <Tooltip title="Excluir registro (admingeral)">
+                                                    <IconButton size="small" color="error" onClick={() => handleDeleteManutencao(m)} sx={{ flexShrink: 0 }}>
+                                                        <DeleteOutline fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
                                         </Box>
                                         {idx < manutencoes.length - 1 && <Divider />}
                                     </Box>

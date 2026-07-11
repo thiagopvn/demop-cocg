@@ -12,6 +12,8 @@ import {
     discardCompressorSession,
     registrarManutencao,
     editUsoSession,
+    deleteUsoSession,
+    deleteManutencaoRegistro,
 } from '../services/compressorService';
 
 /**
@@ -28,6 +30,7 @@ export const useCompressor = (compressorId = COMPRESSOR_FIXO_ID) => {
     const [loading, setLoading] = useState(true);
     const [now, setNow] = useState(Date.now());
     const [operador, setOperador] = useState('');
+    const [role, setRole] = useState('');
     const seeded = useRef(false);
 
     // Carrega o operador (usuário logado) para carimbar as ações
@@ -35,7 +38,10 @@ export const useCompressor = (compressorId = COMPRESSOR_FIXO_ID) => {
         (async () => {
             try {
                 const user = await verifyToken(localStorage.getItem('token'));
-                if (user) setOperador(user.username || '');
+                if (user) {
+                    setOperador(user.username || '');
+                    setRole(user.role || '');
+                }
             } catch { /* ignore */ }
         })();
     }, []);
@@ -137,6 +143,16 @@ export const useCompressor = (compressorId = COMPRESSOR_FIXO_ID) => {
         (usoId, novaDuracaoSeconds, observacao) => editUsoSession(usoId, compressorId, novaDuracaoSeconds, observacao),
         [compressorId]
     );
+    const deleteUso = useCallback(
+        (usoId) => deleteUsoSession(usoId, compressorId, { userName: operador }),
+        [compressorId, operador]
+    );
+    const deleteManutencao = useCallback(
+        (manutId) => deleteManutencaoRegistro(manutId, { userName: operador }),
+        [operador]
+    );
+
+    const isAdminGeral = role === 'admingeral';
 
     return {
         compressor,
@@ -145,8 +161,10 @@ export const useCompressor = (compressorId = COMPRESSOR_FIXO_ID) => {
         loading,
         status,
         operador,
+        role,
+        isAdminGeral,
         now,
-        actions: { start, pause, conclude, discard, registrar, editUso },
+        actions: { start, pause, conclude, discard, registrar, editUso, deleteUso, deleteManutencao },
     };
 };
 

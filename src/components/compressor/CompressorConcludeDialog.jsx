@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -32,19 +32,28 @@ const CompressorConcludeDialog = ({ open, onClose, initialSeconds = 0, onSave, m
     const [minutos, setMinutos] = useState(0);
     const [observacao, setObservacao] = useState('');
     const [saving, setSaving] = useState(false);
+    // Congela o tempo no momento em que o modal abre. Sem isso, o cronômetro
+    // (que continua rodando) atualizaria initialSeconds a cada segundo e
+    // resetaria os campos enquanto o usuário digita — impedindo aumentar/editar.
+    const [baseSeconds, setBaseSeconds] = useState(0);
+    const initedRef = useRef(false);
 
     useEffect(() => {
-        if (open) {
+        if (open && !initedRef.current) {
+            initedRef.current = true;
             const s = Math.max(0, Math.round(initialSeconds));
+            setBaseSeconds(s);
             setHoras(Math.floor(s / 3600));
             setMinutos(Math.round((s % 3600) / 60));
             setObservacao('');
             setSaving(false);
+        } else if (!open) {
+            initedRef.current = false;
         }
     }, [open, initialSeconds]);
 
     const novaDuracao = (Number(horas) || 0) * 3600 + (Number(minutos) || 0) * 60;
-    const foiEditado = Math.abs(novaDuracao - Math.round(initialSeconds)) > 30; // >30s de diferença
+    const foiEditado = Math.abs(novaDuracao - baseSeconds) > 30; // >30s de diferença
     const isConcluir = mode === 'concluir';
 
     const clampMin = (v) => Math.max(0, Math.min(59, Number(v) || 0));
@@ -86,7 +95,7 @@ const CompressorConcludeDialog = ({ open, onClose, initialSeconds = 0, onSave, m
                     <Typography variant="body2" color="text.secondary">
                         Cronômetro registrou:
                     </Typography>
-                    <Chip label={formatDuration(initialSeconds)} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700 }} />
+                    <Chip label={formatDuration(baseSeconds)} size="small" color="primary" variant="outlined" sx={{ fontWeight: 700 }} />
                 </Box>
 
                 <Typography variant="subtitle2" fontWeight={700} gutterBottom>
@@ -123,9 +132,8 @@ const CompressorConcludeDialog = ({ open, onClose, initialSeconds = 0, onSave, m
                     size="small"
                     startIcon={<RestartAlt />}
                     onClick={() => {
-                        const s = Math.max(0, Math.round(initialSeconds));
-                        setHoras(Math.floor(s / 3600));
-                        setMinutos(Math.round((s % 3600) / 60));
+                        setHoras(Math.floor(baseSeconds / 3600));
+                        setMinutos(Math.round((baseSeconds % 3600) / 60));
                     }}
                     sx={{ mb: 1.5, textTransform: 'none' }}
                 >

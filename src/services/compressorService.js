@@ -20,6 +20,7 @@ import {
     setDoc,
     updateDoc,
     addDoc,
+    deleteDoc,
     getDocs,
     query,
     where,
@@ -475,6 +476,68 @@ export const registrarManutencao = async (compressorId, opts = {}) => {
     });
 
     return { resetaCiclo };
+};
+
+// ---------------------------------------------------------------------------
+// Exclusões (uso restrito a admingeral — reforçado nas regras do Firestore)
+// ---------------------------------------------------------------------------
+
+/**
+ * Exclui uma sessão de uso (abastecimento). Se a sessão pertence ao ciclo
+ * atual (endAt >= última manutenção), abate a duração do total acumulado para
+ * manter a contagem consistente.
+ */
+export const deleteUsoSession = async (usoId, compressorId, opts = {}) => {
+    const usoRef = doc(db, 'compressor_usos', usoId);
+    const usoSnap = await getDoc(usoRef);
+    if (!usoSnap.exists()) return;
+    const uso = usoSnap.data();
+    const dur = uso.durationSeconds || 0;
+
+    const compRef = doc(compressoresCollection, compressorId);
+    const compSnap = await getDoc(compRef);
+    const comp = compSnap.data() || {};
+    const ultimaMan = toDate(comp.ultimaManutencao);
+    const usoEnd = toDate(uso.endAt);
+    const dentroCiclo = !ultimaMan || !usoEnd || usoEnd >= ultimaMan;
+
+    await deleteDoc(usoRef);
+
+    if (dentroCiclo && dur) {
+        const atual = comp.horasAcumuladasSegundos || 0;
+        await updateDoc(compRef, { horasAcumuladasSegundos: Math.max(0, atual - dur) });
+    }
+
+    logAudit({
+        action: 'material_delete',
+        userId: 'compressor',
+        userName: opts.userName || '',
+        targetCollection: 'compressor_usos',
+        targetId: usoId,
+        targetName: 'Compressor — sessão de uso',
+        details: {
+            duracao_removida: formatDuration(dur),
+            abateu_do_ciclo: dentroCiclo ? 'sim' : 'não',
+        },
+    });
+};
+
+/** Exclui um registro de manutenção do histórico do compressor. */
+export const deleteManutencaoRegistro = async (manutId, opts = {}) => {
+    const ref = doc(db, 'compressor_manutencoes', manutId);
+    const snap = await getDoc(ref);
+    const tipo = snap.exists() ? snap.data().tipo : null;
+    await deleteDoc(ref);
+
+    logAudit({
+        action: 'material_delete',
+        userId: 'compressor',
+        userName: opts.userName || '',
+        targetCollection: 'compressor_manutencoes',
+        targetId: manutId,
+        targetName: `Compressor — ${getTipoManutencaoLabel(tipo)}`,
+        details: { tipo: getTipoManutencaoLabel(tipo) },
+    });
 };
 
 // ---------------------------------------------------------------------------

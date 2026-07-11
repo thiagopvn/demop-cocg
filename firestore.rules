@@ -108,19 +108,24 @@ service cloud.firestore {
     // Leitura: todos autenticados. Escrita: admin/admingeral/BensPatrimoniais.
     match /compressores/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdminOrBens();
+      allow create, update: if isAdminOrBens();
+      allow delete: if isAdminGeral();
     }
 
     // ============= COMPRESSOR - HISTORICO DE USO (sessões do cronômetro) =============
+    // Exclusão restrita a admingeral (correção de registros).
     match /compressor_usos/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdminOrBens();
+      allow create, update: if isAdminOrBens();
+      allow delete: if isAdminGeral();
     }
 
     // ============= COMPRESSOR - HISTORICO DE MANUTENCOES =============
+    // Exclusão restrita a admingeral (correção de registros).
     match /compressor_manutencoes/{docId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdminOrBens();
+      allow create, update: if isAdminOrBens();
+      allow delete: if isAdminGeral();
     }
 
     // ============= CONFERENCIAS DE VIATURAS =============
