@@ -103,6 +103,26 @@ service cloud.firestore {
       allow create, update, delete: if isAdminOrBens();
     }
 
+    // ============= COMPRESSORES (controle de uso por horímetro) =============
+    // Cadastro/estado do cronômetro do compressor fixo (e futuros equipamentos).
+    // Leitura: todos autenticados. Escrita: admin/admingeral/BensPatrimoniais.
+    match /compressores/{docId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdminOrBens();
+    }
+
+    // ============= COMPRESSOR - HISTORICO DE USO (sessões do cronômetro) =============
+    match /compressor_usos/{docId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdminOrBens();
+    }
+
+    // ============= COMPRESSOR - HISTORICO DE MANUTENCOES =============
+    match /compressor_manutencoes/{docId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdminOrBens();
+    }
+
     // ============= CONFERENCIAS DE VIATURAS =============
     match /conferencias_viaturas/{docId} {
       allow read: if isAuth();

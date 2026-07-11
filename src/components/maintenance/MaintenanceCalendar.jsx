@@ -54,6 +54,7 @@ import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
+import CompressorPanel from '../compressor/CompressorPanel';
 
 const MaintenanceCalendar = () => {
     const navigate = useNavigate();
@@ -510,6 +511,9 @@ const MaintenanceCalendar = () => {
 
     return (
         <Box>
+            {/* Controle de Manutenção do Compressor Fixo (por horas de uso) */}
+            <CompressorPanel />
+
             {/* Busca */}
             <Paper elevation={2} sx={{ p: { xs: 1.5, sm: 2 }, mb: 2 }}>
                 <TextField

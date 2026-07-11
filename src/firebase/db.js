@@ -54,6 +54,15 @@ export const tarefasDemopCollection = collection(db, 'tarefas_demop');
 export const bensPatrimoniaisCollection = collection(db, 'bens_patrimoniais');
 // ------------------------------------
 
+// --- CONTROLE DE COMPRESSORES (compressor fixo e equipamentos com horímetro) ---
+// compressores: cadastro de cada equipamento + estado do cronômetro/horímetro
+// compressor_usos: histórico de sessões de uso (start/stop) que somam as horas
+// compressor_manutencoes: histórico de manutenções realizadas (preventiva, filtro, tubulação...)
+export const compressoresCollection = collection(db, 'compressores');
+export const compressorUsosCollection = collection(db, 'compressor_usos');
+export const compressorManutencoesCollection = collection(db, 'compressor_manutencoes');
+// ------------------------------------
+
 // --- VIATURAS EXCLUSIVAS DO MÓDULO BENS PATRIMONIAIS ---
 // Sem relação com a coleção 'viaturas' usada em /viaturas.
 // Servem apenas como localidade onde um bem patrimonial pode ser alocado.

@@ -98,6 +98,7 @@ import { logAudit } from "../../firebase/auditLog";
 import CautelaStrip from "../../components/CautelaStrip";
 import DevolucaoReceiptStrip from "../../components/DevolucaoReceiptStrip";
 import UpcomingMaintenances from "../../components/maintenance/UpcomingMaintenances";
+import CompressorQuickCard from "../../components/compressor/CompressorQuickCard";
 import { createNextRecurrentMaintenance } from "../../services/maintenanceNotificationService";
 
 // ==================== TASK TYPE CONFIG ====================
@@ -1929,6 +1930,17 @@ export default function Home() {
                       : "manutencoes vencidas"}{" "}
                     requer(em) atencao imediata
                   </Alert>
+                </Box>
+              )}
+
+              {/* ====== CONTROLE DO COMPRESSOR FIXO (admins) ====== */}
+              {(userRole === 'admin' || userRole === 'admingeral') && (
+                <Box sx={{ mb: 3 }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <CompressorQuickCard />
+                    </Grid>
+                  </Grid>
                 </Box>
               )}
 
