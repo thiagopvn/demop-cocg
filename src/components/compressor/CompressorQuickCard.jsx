@@ -103,7 +103,7 @@ const CompressorQuickCard = () => {
                             <Typography variant="subtitle2" fontWeight={800} sx={{ lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {compressor.nome}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">Controle de uso</Typography>
+                            <Typography variant="caption" color="text.secondary">Uso p/ abastecimento de cilindros</Typography>
                         </Box>
                         <Tooltip title="Abrir no cronograma">
                             <IconButton size="small" onClick={() => navigate('/manutencao?tab=1')}>
@@ -117,7 +117,7 @@ const CompressorQuickCard = () => {
                         <Typography variant="h4" fontWeight={900} sx={{ color: nivel.color, fontSize: { xs: '1.5rem', sm: '1.9rem' }, lineHeight: 1 }}>
                             {status.horas.toFixed(1)}h
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">/ {HORAS_LIMITE_MANUTENCAO}h</Typography>
+                        <Typography variant="caption" color="text.secondary">de uso / {HORAS_LIMITE_MANUTENCAO}h p/ manutenção</Typography>
                         {isRedAlert && (
                             <Chip icon={<Warning sx={{ fontSize: '13px !important' }} />} label={status.vencida ? 'Vencida' : 'Alerta'} size="small" color="error" sx={{ height: 20, fontWeight: 700, fontSize: '0.62rem', ml: 'auto' }} />
                         )}
@@ -137,7 +137,7 @@ const CompressorQuickCard = () => {
                             </Typography>
                             <Chip
                                 size="small"
-                                label={running ? 'em operação' : 'pausado'}
+                                label={running ? 'abastecendo' : 'pausado'}
                                 sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: alpha(running ? '#22c55e' : '#f59e0b', 0.12), color: running ? '#16a34a' : '#d97706' }}
                             />
                         </Box>

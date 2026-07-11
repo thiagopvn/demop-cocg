@@ -191,7 +191,10 @@ const CompressorPanel = () => {
                                 {status.horas.toFixed(1)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                                de {HORAS_LIMITE_MANUTENCAO}h
+                                h de uso
+                            </Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem' }}>
+                                de {HORAS_LIMITE_MANUTENCAO}h p/ manutenção
                             </Typography>
                         </Gauge>
                     </Grid>
@@ -216,16 +219,21 @@ const CompressorPanel = () => {
                             />
                         </Box>
 
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                            {compressor.local} • Manutenção a cada {HORAS_LIMITE_MANUTENCAO}h ou {MESES_LIMITE_MANUTENCAO} meses
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                            {compressor.local}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, lineHeight: 1.4 }}>
+                            O cronômetro soma o <strong>tempo de uso abastecendo cilindros</strong>. Ao atingir{' '}
+                            <strong>{HORAS_LIMITE_MANUTENCAO}h de uso</strong> ou <strong>{MESES_LIMITE_MANUTENCAO} meses</strong> desde a última
+                            manutenção, é necessária uma nova manutenção.
                         </Typography>
 
                         {/* Barras de progresso */}
                         <Box sx={{ mb: 0.5 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
-                                <Typography variant="caption" fontWeight={700}>Horas de uso</Typography>
+                                <Typography variant="caption" fontWeight={700}>Uso acumulado (abastecimento)</Typography>
                                 <Typography variant="caption" fontWeight={700} sx={{ color: nivel.color }}>
-                                    {status.horasRestantes.toFixed(1)}h restantes
+                                    faltam {status.horasRestantes.toFixed(1)}h p/ manutenção
                                 </Typography>
                             </Box>
                             <LinearProgress
@@ -235,7 +243,7 @@ const CompressorPanel = () => {
                         </Box>
                         <Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3, mt: 1 }}>
-                                <Typography variant="caption" fontWeight={700}>Prazo (2 meses)</Typography>
+                                <Typography variant="caption" fontWeight={700}>Prazo (2 meses desde a manutenção)</Typography>
                                 <Typography variant="caption" fontWeight={700} color="text.secondary">
                                     {status.diasAteData > 0 ? `${status.diasAteData} dias restantes` : 'vencido'}
                                 </Typography>
@@ -293,7 +301,7 @@ const CompressorPanel = () => {
                             {formatClock(status.sessionSeconds)}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                            {running ? 'sessão em andamento' : 'sessão pausada'}
+                            {running ? 'abastecendo cilindros' : 'abastecimento pausado'}
                         </Typography>
                     </Box>
                 )}
@@ -320,8 +328,8 @@ const CompressorPanel = () => {
             {/* ============ MINI STATS ============ */}
             <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3 }}>
                 {[
-                    { icon: <TrendingUp />, label: 'Horas no ciclo', value: `${status.horas.toFixed(1)}h`, color: nivel.color },
-                    { icon: <AccessTime />, label: 'Restam até 50h', value: `${status.horasRestantes.toFixed(1)}h`, color: '#3b82f6' },
+                    { icon: <TrendingUp />, label: 'Uso desde a manutenção', value: `${status.horas.toFixed(1)}h`, color: nivel.color },
+                    { icon: <AccessTime />, label: 'Falta p/ manutenção', value: `${status.horasRestantes.toFixed(1)}h`, color: '#3b82f6' },
                     { icon: <EventAvailable />, label: 'Próxima manutenção', value: formatD(status.proximaPorData), color: '#8b5cf6' },
                     { icon: <History />, label: 'Última manutenção', value: formatD(status.ultimaManutencao), color: '#22c55e' },
                 ].map((s, i) => (

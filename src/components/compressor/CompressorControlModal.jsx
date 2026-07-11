@@ -111,7 +111,7 @@ const CompressorControlModal = ({ open, onClose, compressor, status, actions, on
                             {compressor?.nome || 'Compressor Fixo'}
                         </Typography>
                         <Typography variant="caption" sx={{ opacity: 0.85 }}>
-                            Controle de uso — cronômetro
+                            Tempo de uso no abastecimento de cilindros
                         </Typography>
                     </Box>
                     <IconButton onClick={onClose} disabled={busy} sx={{ color: 'white' }}>
@@ -134,7 +134,7 @@ const CompressorControlModal = ({ open, onClose, compressor, status, actions, on
                                 }}
                             />
                         }
-                        label={running ? 'EM OPERAÇÃO' : paused ? 'PAUSADO' : 'PARADO'}
+                        label={running ? 'ABASTECENDO CILINDROS' : paused ? 'PAUSADO' : 'PARADO'}
                         sx={{
                             fontWeight: 800, letterSpacing: 0.5, mb: 2,
                             bgcolor: alpha(displayColor, 0.12), color: displayColor,
@@ -170,7 +170,7 @@ const CompressorControlModal = ({ open, onClose, compressor, status, actions, on
                             {formatClock(status.sessionSeconds)}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                            tempo desta sessão
+                            tempo de uso nesta sessão de abastecimento
                         </Typography>
                     </Box>
 
@@ -178,7 +178,7 @@ const CompressorControlModal = ({ open, onClose, compressor, status, actions, on
                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mb: 3, flexWrap: 'wrap', mt: 1.5 }}>
                         <Chip
                             icon={<AccessTime sx={{ fontSize: 16 }} />}
-                            label={`Total no ciclo: ${status.horas.toFixed(1)}h / ${HORAS_LIMITE_MANUTENCAO}h`}
+                            label={`Uso acumulado: ${status.horas.toFixed(1)}h / ${HORAS_LIMITE_MANUTENCAO}h p/ manutenção`}
                             size="small"
                             sx={{ fontWeight: 700, bgcolor: alpha(nivel.color, 0.1), color: nivel.color }}
                         />
