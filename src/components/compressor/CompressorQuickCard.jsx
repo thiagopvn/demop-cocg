@@ -17,6 +17,7 @@ import {
     Bolt,
     PlayArrow,
     Pause,
+    Stop,
     Timer,
     OpenInNew,
     Warning,
@@ -29,6 +30,7 @@ import {
     HORAS_LIMITE_MANUTENCAO,
 } from '../../services/compressorService';
 import CompressorControlModal from './CompressorControlModal';
+import CompressorConcludeDialog from './CompressorConcludeDialog';
 
 /**
  * Card compacto do compressor para o Dashboard (Home).
@@ -39,6 +41,7 @@ const CompressorQuickCard = () => {
     const navigate = useNavigate();
     const { compressor, loading, status, actions } = useCompressor();
     const [controlOpen, setControlOpen] = useState(false);
+    const [concludeOpen, setConcludeOpen] = useState(false);
     const [snack, setSnack] = useState('');
 
     if (loading || !compressor) {
@@ -57,6 +60,12 @@ const CompressorQuickCard = () => {
             if (running) { await actions.pause(); notify('Cronômetro pausado'); }
             else { await actions.start(); notify(paused ? 'Cronômetro retomado' : 'Compressor iniciado'); }
         } catch { notify('Erro ao atualizar o cronômetro'); }
+    };
+
+    const handleConcludeSave = async (durationSeconds, observacao, editado) => {
+        await actions.conclude({ durationSeconds, observacao, editado });
+        setConcludeOpen(false);
+        notify('Sessão registrada no histórico de uso');
     };
 
     return (
@@ -144,14 +153,25 @@ const CompressorQuickCard = () => {
                         >
                             {running ? 'Pausar' : paused ? 'Retomar' : 'Iniciar'}
                         </Button>
-                        <Button
-                            fullWidth size="small" variant="outlined"
-                            startIcon={<Timer />}
-                            onClick={() => setControlOpen(true)}
-                            sx={{ fontWeight: 700 }}
-                        >
-                            Controle
-                        </Button>
+                        {(running || paused) ? (
+                            <Button
+                                fullWidth size="small" variant="contained"
+                                startIcon={<Stop />}
+                                onClick={() => setConcludeOpen(true)}
+                                sx={{ fontWeight: 800, bgcolor: '#1e3a5f', '&:hover': { bgcolor: '#0d1f3c' } }}
+                            >
+                                Concluir
+                            </Button>
+                        ) : (
+                            <Button
+                                fullWidth size="small" variant="outlined"
+                                startIcon={<Timer />}
+                                onClick={() => setControlOpen(true)}
+                                sx={{ fontWeight: 700 }}
+                            >
+                                Controle
+                            </Button>
+                        )}
                     </Box>
                 </CardContent>
             </Card>
@@ -163,6 +183,13 @@ const CompressorQuickCard = () => {
                 status={status}
                 actions={actions}
                 onNotify={notify}
+            />
+            <CompressorConcludeDialog
+                open={concludeOpen}
+                onClose={() => setConcludeOpen(false)}
+                initialSeconds={status.sessionSeconds}
+                onSave={handleConcludeSave}
+                mode="concluir"
             />
             <Snackbar
                 open={!!snack}

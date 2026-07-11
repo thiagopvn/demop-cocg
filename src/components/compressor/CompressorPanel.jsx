@@ -28,6 +28,7 @@ import {
     Bolt,
     PlayArrow,
     Pause,
+    Stop,
     Build,
     AccessTime,
     Edit,
@@ -95,6 +96,7 @@ const CompressorPanel = () => {
     const { compressor, usos, manutencoes, loading, status, actions } = useCompressor();
 
     const [controlOpen, setControlOpen] = useState(false);
+    const [concludeOpen, setConcludeOpen] = useState(false);
     const [maintOpen, setMaintOpen] = useState(false);
     const [editUso, setEditUso] = useState(null);
     const [showAllUsos, setShowAllUsos] = useState(false);
@@ -130,6 +132,12 @@ const CompressorPanel = () => {
                 notify(paused ? 'Cronômetro retomado' : 'Compressor iniciado');
             }
         } catch { notify('Erro ao atualizar o cronômetro'); }
+    };
+
+    const handleConcludeSave = async (durationSeconds, observacao, editado) => {
+        await actions.conclude({ durationSeconds, observacao, editado });
+        setConcludeOpen(false);
+        notify('Sessão registrada no histórico de uso');
     };
 
     const handleEditUsoSave = async (durationSeconds, observacao) => {
@@ -254,14 +262,25 @@ const CompressorPanel = () => {
                             >
                                 {running ? 'Pausar' : paused ? 'Retomar' : 'Iniciar'}
                             </Button>
-                            <Button
-                                onClick={(e) => { e.stopPropagation(); setControlOpen(true); }}
-                                variant="outlined"
-                                startIcon={<Timer />}
-                                sx={{ flex: 1, fontWeight: 700, minWidth: 120 }}
-                            >
-                                Cronômetro
-                            </Button>
+                            {(running || paused) ? (
+                                <Button
+                                    onClick={(e) => { e.stopPropagation(); setConcludeOpen(true); }}
+                                    variant="contained"
+                                    startIcon={<Stop />}
+                                    sx={{ flex: 1, fontWeight: 800, minWidth: 120, bgcolor: '#1e3a5f', '&:hover': { bgcolor: '#0d1f3c' } }}
+                                >
+                                    Concluir
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={(e) => { e.stopPropagation(); setControlOpen(true); }}
+                                    variant="outlined"
+                                    startIcon={<Timer />}
+                                    sx={{ flex: 1, fontWeight: 700, minWidth: 120 }}
+                                >
+                                    Cronômetro
+                                </Button>
+                            )}
                         </Box>
                     </Grid>
                 </Grid>
@@ -461,6 +480,13 @@ const CompressorPanel = () => {
                 onClose={() => setMaintOpen(false)}
                 onSave={handleRegistrarManutencao}
                 status={status}
+            />
+            <CompressorConcludeDialog
+                open={concludeOpen}
+                onClose={() => setConcludeOpen(false)}
+                initialSeconds={status.sessionSeconds}
+                onSave={handleConcludeSave}
+                mode="concluir"
             />
             <CompressorConcludeDialog
                 open={!!editUso}
