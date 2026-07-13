@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     Box,
     Paper,
@@ -102,7 +102,37 @@ const CompressorPanel = () => {
     const [editUso, setEditUso] = useState(null);
     const [showAllUsos, setShowAllUsos] = useState(false);
     const [showManut, setShowManut] = useState(false);
+    const [periodoUso, setPeriodoUso] = useState('todos');
     const [snack, setSnack] = useState('');
+
+    // Tempo (ms) da última manutenção — usado para separar ciclo atual x geral.
+    const ultimaManMs = toDate(compressor?.ultimaManutencao)?.getTime() || 0;
+
+    // Resumo do histórico: soma do ciclo atual x total geral
+    const usoResumo = useMemo(() => {
+        let totalGeral = 0, totalCiclo = 0, countGeral = 0, countCiclo = 0;
+        for (const u of usos) {
+            const dur = u.durationSeconds || 0;
+            totalGeral += dur; countGeral += 1;
+            const endMs = toDate(u.endAt)?.getTime() || 0;
+            if (!ultimaManMs || endMs >= ultimaManMs) { totalCiclo += dur; countCiclo += 1; }
+        }
+        return { totalGeral, totalCiclo, countGeral, countCiclo };
+    }, [usos, ultimaManMs]);
+
+    // Filtro por período aplicado à tabela de sessões
+    const usosFiltrados = useMemo(() => {
+        if (periodoUso === 'todos') return usos;
+        if (periodoUso === 'ciclo') {
+            return usos.filter((u) => {
+                const e = toDate(u.endAt)?.getTime() || 0;
+                return !ultimaManMs || e >= ultimaManMs;
+            });
+        }
+        const dias = periodoUso === '7' ? 7 : 30;
+        const limite = Date.now() - dias * 24 * 3600 * 1000;
+        return usos.filter((u) => (toDate(u.endAt)?.getTime() || 0) >= limite);
+    }, [usos, periodoUso, ultimaManMs]);
 
     if (loading || !compressor) {
         return (
@@ -118,7 +148,7 @@ const CompressorPanel = () => {
     const paused = status.isPaused;
     const isRedAlert = status.nivel === 'alerta' || status.nivel === 'vencida';
 
-    const usosVisiveis = showAllUsos ? usos : usos.slice(0, 6);
+    const usosVisiveis = showAllUsos ? usosFiltrados : usosFiltrados.slice(0, 6);
 
     const notify = (m) => setSnack(m);
 
@@ -385,6 +415,59 @@ const CompressorPanel = () => {
                     </Typography>
                     <Chip label={`${usos.length} sessões`} size="small" sx={{ fontWeight: 700 }} />
                 </Box>
+
+                {/* Resumo: ciclo atual x total geral */}
+                {usos.length > 0 && (
+                    <Box sx={{ px: { xs: 1.5, sm: 2.5 }, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <Grid container spacing={1.5}>
+                            <Grid item xs={6}>
+                                <Box sx={{ p: 1.25, borderRadius: 2, bgcolor: alpha(nivel.color, 0.08), border: `1px solid ${alpha(nivel.color, 0.2)}` }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', fontSize: '0.62rem' }}>
+                                        CICLO ATUAL (desde a manutenção)
+                                    </Typography>
+                                    <Typography variant="h6" fontWeight={800} sx={{ color: nivel.color, fontSize: { xs: '1rem', sm: '1.25rem' }, lineHeight: 1.2 }}>
+                                        {formatDuration(usoResumo.totalCiclo)}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">{usoResumo.countCiclo} sessões</Typography>
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Box sx={{ p: 1.25, borderRadius: 2, bgcolor: alpha('#1e3a5f', 0.06), border: '1px solid', borderColor: 'divider' }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', fontSize: '0.62rem' }}>
+                                        TOTAL GERAL (todo o histórico)
+                                    </Typography>
+                                    <Typography variant="h6" fontWeight={800} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, lineHeight: 1.2 }}>
+                                        {formatDuration(usoResumo.totalGeral)}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">{usoResumo.countGeral} sessões</Typography>
+                                </Box>
+                            </Grid>
+                        </Grid>
+
+                        {/* Filtro por período */}
+                        <Box sx={{ display: 'flex', gap: 0.75, mt: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ mr: 0.5 }}>Período:</Typography>
+                            {[
+                                { v: 'todos', l: 'Todos' },
+                                { v: 'ciclo', l: 'Ciclo atual' },
+                                { v: '7', l: '7 dias' },
+                                { v: '30', l: '30 dias' },
+                            ].map((f) => (
+                                <Chip
+                                    key={f.v}
+                                    label={f.l}
+                                    size="small"
+                                    onClick={() => { setPeriodoUso(f.v); setShowAllUsos(false); }}
+                                    variant={periodoUso === f.v ? 'filled' : 'outlined'}
+                                    color={periodoUso === f.v ? 'primary' : 'default'}
+                                    sx={{ fontWeight: 700, fontSize: '0.68rem', height: 26 }}
+                                />
+                            ))}
+                            <Chip label={`${usosFiltrados.length} no filtro`} size="small" variant="outlined" sx={{ ml: 'auto', fontSize: '0.66rem', height: 24 }} />
+                        </Box>
+                    </Box>
+                )}
+
                 {usos.length === 0 ? (
                     <Box sx={{ p: 3, textAlign: 'center' }}>
                         <Typography color="text.secondary">Nenhuma sessão registrada ainda.</Typography>
@@ -402,7 +485,13 @@ const CompressorPanel = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {usosVisiveis.map((u) => (
+                                {usosVisiveis.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                                            <Typography variant="body2" color="text.secondary">Nenhuma sessão neste período.</Typography>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : usosVisiveis.map((u) => (
                                     <TableRow key={u.id} hover>
                                         <TableCell sx={{ fontSize: '0.78rem' }}>{formatDT(u.startAt)}</TableCell>
                                         <TableCell sx={{ fontSize: '0.78rem' }}>{formatDT(u.endAt)}</TableCell>
@@ -444,10 +533,10 @@ const CompressorPanel = () => {
                         </Table>
                     </TableContainer>
                 )}
-                {usos.length > 6 && (
+                {usosFiltrados.length > 6 && (
                     <Box sx={{ textAlign: 'center', py: 1 }}>
                         <Button size="small" onClick={() => setShowAllUsos((v) => !v)} endIcon={showAllUsos ? <ExpandLess /> : <ExpandMore />}>
-                            {showAllUsos ? 'Ver menos' : `Ver todas (${usos.length})`}
+                            {showAllUsos ? 'Ver menos' : `Ver todas (${usosFiltrados.length})`}
                         </Button>
                     </Box>
                 )}

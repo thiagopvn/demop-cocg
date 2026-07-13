@@ -53,6 +53,7 @@ import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 import UpcomingMaintenances from './UpcomingMaintenances';
 import NotificationSettings from './NotificationSettings';
+import CompressorQuickCard from '../compressor/CompressorQuickCard';
 import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
 
 const MaintenanceDashboard = () => {
@@ -447,6 +448,15 @@ const MaintenanceDashboard = () => {
                         <Refresh />
                     </IconButton>
                 </Tooltip>
+            </Box>
+
+            {/* === Cronômetro do Compressor Fixo (controle rápido) === */}
+            <Box sx={{ mb: 3 }}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={4}>
+                        <CompressorQuickCard />
+                    </Grid>
+                </Grid>
             </Box>
 
             {/* === Próximas Manutenções (topo, bem visível) === */}
