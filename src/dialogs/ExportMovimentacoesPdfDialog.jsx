@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -25,6 +25,7 @@ import {
   CalendarMonth as CalendarIcon,
   FilterList as FilterIcon,
   CheckCircle as CheckCircleIcon,
+  Search as SearchIcon,
 } from "@mui/icons-material";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -65,15 +66,43 @@ const firstDayOfMonthISO = () => {
 };
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function ExportMovimentacoesPdfDialog({ open, onClose }) {
+// Mesmo criterio de busca aplicado na tela (Cautelados.jsx): material, militar e quem realizou.
+const matchesSearch = (mov, search) =>
+  (mov.material_description?.toLowerCase() || "").includes(search) ||
+  (mov.user_name?.toLowerCase() || "").includes(search) ||
+  (mov.sender_name?.toLowerCase() || "").includes(search);
+
+// Slug simples para compor o nome do arquivo a partir do termo buscado.
+const slugify = (txt) =>
+  txt
+    .normalize("NFD")
+    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+
+export default function ExportMovimentacoesPdfDialog({ open, onClose, searchTerm = "" }) {
   const theme = useTheme();
   const [dataInicial, setDataInicial] = useState(firstDayOfMonthISO());
   const [dataFinal, setDataFinal] = useState(todayISO());
   const [selectedTypes, setSelectedTypes] = useState(() =>
     TIPOS.reduce((acc, t) => ({ ...acc, [t.value]: true }), {})
   );
+  const [aplicarBusca, setAplicarBusca] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
+
+  const buscaAtiva = searchTerm.trim();
+
+  // Ao reabrir o dialog, volta a respeitar a busca da tela por padrao.
+  useEffect(() => {
+    if (open) {
+      setAplicarBusca(true);
+      setError("");
+    }
+  }, [open]);
+
+  const filtrarPorBusca = aplicarBusca && !!buscaAtiva;
 
   const selecionados = useMemo(
     () => TIPOS.filter((t) => selectedTypes[t.value]),
@@ -124,17 +153,22 @@ export default function ExportMovimentacoesPdfDialog({ open, onClose }) {
       const snapshot = await getDocs(q);
 
       const tiposAtivos = new Set(selecionados.map((t) => t.value));
+      const termo = filtrarPorBusca ? buscaAtiva.toLowerCase() : null;
       const porTipo = {};
       snapshot.forEach((doc) => {
         const data = doc.data();
-        if (tiposAtivos.has(data.type)) {
-          (porTipo[data.type] ||= []).push(data);
-        }
+        if (!tiposAtivos.has(data.type)) return;
+        if (termo && !matchesSearch(data, termo)) return;
+        (porTipo[data.type] ||= []).push(data);
       });
 
       const totalRegistros = Object.values(porTipo).reduce((s, arr) => s + arr.length, 0);
       if (totalRegistros === 0) {
-        setError("Nenhuma movimentação encontrada para o período e tipos selecionados.");
+        setError(
+          termo
+            ? `Nenhuma movimentação encontrada para "${buscaAtiva}" no período e tipos selecionados.`
+            : "Nenhuma movimentação encontrada para o período e tipos selecionados."
+        );
         setGenerating(false);
         return;
       }
@@ -175,6 +209,27 @@ export default function ExportMovimentacoesPdfDialog({ open, onClose }) {
     doc.text(geradoTxt, pageWidth - marginX, 20, { align: "right" });
 
     let cursorY = 34;
+
+    // Faixa indicando que o relatorio esta restrito ao termo buscado na tela
+    if (filtrarPorBusca) {
+      doc.setFillColor(255, 243, 235);
+      doc.setDrawColor(...ORANGE);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(marginX, cursorY, pageWidth - marginX * 2, 8, 1.5, 1.5, "FD");
+      doc.setTextColor(...NAVY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`Filtro de busca: "${buscaAtiva}"`, marginX + 3, cursorY + 5.4);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(
+        "Somente registros correspondentes ao material, militar ou responsável buscado.",
+        pageWidth - marginX - 3,
+        cursorY + 5.4,
+        { align: "right" }
+      );
+      cursorY += 8 + 4;
+    }
 
     // ---- Uma secao por tipo, na ordem definida em TIPOS ----
     TIPOS.forEach((tipo) => {
@@ -258,7 +313,8 @@ export default function ExportMovimentacoesPdfDialog({ open, onClose }) {
       doc.text(`Página ${i} de ${totalPages}`, pageWidth - marginX, h - 5, { align: "right" });
     }
 
-    const nomeArquivo = `movimentacoes_${dataInicial}_a_${dataFinal}.pdf`;
+    const sufixoBusca = filtrarPorBusca ? `_${slugify(buscaAtiva)}` : "";
+    const nomeArquivo = `movimentacoes${sufixoBusca}_${dataInicial}_a_${dataFinal}.pdf`;
     doc.save(nomeArquivo);
   };
 
@@ -311,6 +367,50 @@ export default function ExportMovimentacoesPdfDialog({ open, onClose }) {
       </Box>
 
       <DialogContent sx={{ p: 3 }}>
+        {/* Busca ativa na tela — o relatorio respeita o termo por padrao */}
+        {buscaAtiva && (
+          <Box
+            sx={{
+              mb: 2.5,
+              p: 1.5,
+              borderRadius: 2,
+              border: "1px solid",
+              borderColor: aplicarBusca ? theme.palette.warning.main : "divider",
+              backgroundColor: aplicarBusca
+                ? alpha(theme.palette.warning.main, 0.1)
+                : "transparent",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <FormControlLabel
+              sx={{ m: 0, width: "100%", alignItems: "flex-start" }}
+              control={
+                <Checkbox
+                  checked={aplicarBusca}
+                  onChange={() => setAplicarBusca((prev) => !prev)}
+                  color="warning"
+                  sx={{ pt: 0 }}
+                />
+              }
+              label={
+                <Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <SearchIcon fontSize="small" color="warning" />
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      Exportar apenas os resultados de “{buscaAtiva}”
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {aplicarBusca
+                      ? "O PDF trará somente as movimentações exibidas na tela para esta busca."
+                      : "Desmarcado: o PDF trará todas as movimentações do período selecionado."}
+                  </Typography>
+                </Box>
+              }
+            />
+          </Box>
+        )}
+
         {/* Periodo */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
           <CalendarIcon fontSize="small" color="error" />

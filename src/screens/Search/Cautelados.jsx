@@ -870,6 +870,7 @@ export default function Cautelados() {
       <ExportMovimentacoesPdfDialog
         open={pdfDialogOpen}
         onClose={() => setPdfDialogOpen(false)}
+        searchTerm={searchTerm}
       />
 
       {/* Delete Confirmation Dialog */}
