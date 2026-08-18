@@ -113,6 +113,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const [categoriaId, setCategoriaId] = useState('');
     const [estoqueTotal, setEstoqueTotal] = useState(1);
     const [estoqueAtual, setEstoqueAtual] = useState(1);
+    const [maintenanceStatus, setMaintenanceStatus] = useState('operante');
     const [loading, setLoading] = useState(false);
     const [similarMaterials, setSimilarMaterials] = useState([]);
     const [errors, setErrors] = useState({});
@@ -147,12 +148,14 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                 setCategoriaId(material.categoria_id || '');
                 setEstoqueTotal(material.estoque_total ?? 1);
                 setEstoqueAtual(material.estoque_atual ?? 0);
+                setMaintenanceStatus(material.maintenance_status || 'operante');
                 setExistingImageUrl(material.image_url || null);
             } else {
                 setDescription('');
                 setCategoriaId('');
                 setEstoqueTotal(1);
                 setEstoqueAtual(1);
+                setMaintenanceStatus('operante');
                 setExistingImageUrl(null);
             }
         }
@@ -323,6 +326,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             categoria_id: categoriaId,
             estoque_total: Number(estoqueTotal),
             estoque_atual: Number(estoqueAtual),
+            maintenance_status: maintenanceStatus,
             ultima_movimentacao: serverTimestamp(),
             conferido_por: loggedUserName || null,
             ultima_conferencia: serverTimestamp(),
@@ -380,7 +384,6 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                 const materialsCollection = collection(db, 'materials');
                 const newDoc = await addDoc(materialsCollection, {
                     ...data,
-                    maintenance_status: "operante",
                     created_at: serverTimestamp(),
                     image_url: null,
                     image_storagePath: null,
@@ -785,7 +788,22 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     value={estoqueAtual}
                     onChange={(e) => setEstoqueAtual(e.target.value)}
                     InputProps={{ inputProps: { min: 0, max: estoqueTotal } }}
+                    sx={{ mb: 2 }}
                 />
+                <FormControl fullWidth variant="outlined" margin="dense">
+                    <InputLabel id="maintenance-status-label">Status</InputLabel>
+                    <Select
+                        labelId="maintenance-status-label"
+                        value={maintenanceStatus}
+                        label="Status"
+                        onChange={(e) => setMaintenanceStatus(e.target.value)}
+                    >
+                        <MenuItem value="operante">Operante</MenuItem>
+                        <MenuItem value="em_manutencao">Em Manutenção</MenuItem>
+                        <MenuItem value="inoperante">Inoperante</MenuItem>
+                    </Select>
+                    <FormHelperText>Status operacional do material</FormHelperText>
+                </FormControl>
             </DialogContent>
             <DialogActions sx={{ p: { xs: 2, sm: 3 }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
                 <Button onClick={onClose} disabled={loading} fullWidth={fullScreenDialog}>
