@@ -41,7 +41,13 @@ import { findBestTemplate } from '../utils/maintenanceTemplateMatcher';
 import { MAINTENANCE_TYPE_LABELS } from '../data/maintenanceTemplates';
 import { applySelectedMaintenances } from '../utils/seedMaintenances';
 import MaintenanceSuggestionDialog from './MaintenanceSuggestionDialog';
-import { limparCamposInoperancia } from '../utils/materialStatus';
+import {
+    getQtdInoperante,
+    montarPatchInoperancia,
+    derivarStatus,
+    getMaintenanceStatusLabel,
+    getMaintenanceStatusColor,
+} from '../utils/materialStatus';
 
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB (antes da compressão)
 const MAX_DIMENSION = 1200; // px
@@ -114,7 +120,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const [categoriaId, setCategoriaId] = useState('');
     const [estoqueTotal, setEstoqueTotal] = useState(1);
     const [estoqueAtual, setEstoqueAtual] = useState(1);
-    const [maintenanceStatus, setMaintenanceStatus] = useState('operante');
+    const [qtdInoperante, setQtdInoperante] = useState(0);
     const [loading, setLoading] = useState(false);
     const [similarMaterials, setSimilarMaterials] = useState([]);
     const [errors, setErrors] = useState({});
@@ -137,6 +143,10 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
     const isEditing = material != null;
 
+    const totalPreview = Number(estoqueTotal) || 0;
+    const qtdOperantePreview = Math.max(0, totalPreview - (Number(qtdInoperante) || 0));
+    const statusPreview = derivarStatus(qtdInoperante, totalPreview, material?.maintenance_status);
+
     useEffect(() => {
         if (open) {
             setErrors({});
@@ -149,14 +159,14 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                 setCategoriaId(material.categoria_id || '');
                 setEstoqueTotal(material.estoque_total ?? 1);
                 setEstoqueAtual(material.estoque_atual ?? 0);
-                setMaintenanceStatus(material.maintenance_status || 'operante');
+                setQtdInoperante(getQtdInoperante(material));
                 setExistingImageUrl(material.image_url || null);
             } else {
                 setDescription('');
                 setCategoriaId('');
                 setEstoqueTotal(1);
                 setEstoqueAtual(1);
-                setMaintenanceStatus('operante');
+                setQtdInoperante(0);
                 setExistingImageUrl(null);
             }
         }
@@ -327,9 +337,8 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             categoria_id: categoriaId,
             estoque_total: Number(estoqueTotal),
             estoque_atual: Number(estoqueAtual),
-            maintenance_status: maintenanceStatus,
-            // Ao voltar para operante, limpa o SEI/motivo da inoperancia antiga
-            ...(maintenanceStatus === 'operante' ? limparCamposInoperancia() : {}),
+            // qtd_inoperante + maintenance_status derivado (limpa SEI/motivo ao zerar)
+            ...montarPatchInoperancia({ estoque_total: Number(estoqueTotal) }, qtdInoperante, material?.maintenance_status),
             ultima_movimentacao: serverTimestamp(),
             conferido_por: loggedUserName || null,
             ultima_conferencia: serverTimestamp(),
@@ -793,20 +802,39 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     InputProps={{ inputProps: { min: 0, max: estoqueTotal } }}
                     sx={{ mb: 2 }}
                 />
-                <FormControl fullWidth variant="outlined" margin="dense">
-                    <InputLabel id="maintenance-status-label">Status</InputLabel>
-                    <Select
-                        labelId="maintenance-status-label"
-                        value={maintenanceStatus}
-                        label="Status"
-                        onChange={(e) => setMaintenanceStatus(e.target.value)}
-                    >
-                        <MenuItem value="operante">Operante</MenuItem>
-                        <MenuItem value="em_manutencao">Em Manutenção</MenuItem>
-                        <MenuItem value="inoperante">Inoperante</MenuItem>
-                    </Select>
-                    <FormHelperText>Status operacional do material</FormHelperText>
-                </FormControl>
+                <Box sx={{ mt: 1, p: 2, borderRadius: 2, border: 1, borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            Situação operacional
+                        </Typography>
+                        <Chip
+                            size="small"
+                            label={getMaintenanceStatusLabel(statusPreview)}
+                            color={getMaintenanceStatusColor(statusPreview)}
+                            sx={{ fontWeight: 600 }}
+                        />
+                    </Box>
+                    <TextField
+                        margin="dense"
+                        label="Unidades inoperantes"
+                        type="number"
+                        fullWidth
+                        variant="outlined"
+                        value={qtdInoperante}
+                        onChange={(e) => {
+                            const v = e.target.value === '' ? 0 : Number(e.target.value);
+                            setQtdInoperante(Math.max(0, Math.min(v, Number(estoqueTotal) || 0)));
+                        }}
+                        InputProps={{ inputProps: { min: 0, max: Number(estoqueTotal) || 0 } }}
+                        helperText={`${qtdOperantePreview} de ${Number(estoqueTotal) || 0} operante(s)`}
+                    />
+                    {(Number(estoqueTotal) || 0) > 0 && (
+                        <Box sx={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', bgcolor: 'action.hover', mt: 1 }}>
+                            <Box sx={{ flex: qtdOperantePreview, bgcolor: 'success.main', transition: 'flex 0.2s' }} />
+                            <Box sx={{ flex: Number(qtdInoperante) || 0, bgcolor: 'error.main', transition: 'flex 0.2s' }} />
+                        </Box>
+                    )}
+                </Box>
             </DialogContent>
             <DialogActions sx={{ p: { xs: 2, sm: 3 }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
                 <Button onClick={onClose} disabled={loading} fullWidth={fullScreenDialog}>

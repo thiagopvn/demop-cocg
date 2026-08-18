@@ -71,6 +71,15 @@ import {
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
 import { useDebounce } from '../../hooks/useDebounce';
+import {
+    getMaintenanceStatusLabel,
+    getMaintenanceStatusColor,
+    getQtdInoperante,
+    getQtdOperante,
+    getTotalUnidades,
+    STATUS_PARCIAL,
+    backfillStatusMateriais,
+} from '../../utils/materialStatus';
 const MaterialDialog = lazy(() => import('../../dialogs/MaterialDialog'));
 const MaintenanceDialog = lazy(() => import('../../dialogs/MaintenanceDialog'));
 const HistoricoDialog = lazy(() => import('../../dialogs/HistoricoDialog'));
@@ -243,6 +252,7 @@ const Material = () => {
     const [selectedViatura, setSelectedViatura] = useState(null);
     const [alocarQuantidade, setAlocarQuantidade] = useState(1);
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+    const [syncingStatus, setSyncingStatus] = useState(false);
     const [historicoOpen, setHistoricoOpen] = useState(false);
     const [historicoTarget, setHistoricoTarget] = useState(null);
 
@@ -578,10 +588,6 @@ const Material = () => {
         }
     };
 
-    const MAINTENANCE_STATUS_COLORS = { operante: 'success', em_manutencao: 'warning', inoperante: 'error' };
-    const MAINTENANCE_STATUS_LABELS = { operante: 'Operante', em_manutencao: 'Em Manutenção', inoperante: 'Inoperante' };
-    const getMaintenanceStatusColor = (status) => MAINTENANCE_STATUS_COLORS[status] || 'default';
-    const getMaintenanceStatusLabel = (status) => MAINTENANCE_STATUS_LABELS[status] || 'Desconhecido';
 
     const debouncedSearchTerm = useDebounce(searchTerm, 250);
 
@@ -638,7 +644,7 @@ const Material = () => {
 
         // Apply status filter
         if (filterStatus) {
-            result = result.filter(m => m.maintenance_status === filterStatus);
+            result = result.filter(m => (m.maintenance_status || 'operante') === filterStatus);
         }
 
         // Apply stock filter
@@ -771,6 +777,27 @@ const Material = () => {
     }, []);
 
     const isAdmin = userRole === 'admin' || userRole === 'admingeral';
+
+    // Normaliza qtd_inoperante/maintenance_status de materiais antigos, que
+    // ficaram como 'operante' mesmo tendo inoperancia registrada.
+    const handleSincronizarStatus = async () => {
+        setSyncingStatus(true);
+        try {
+            const { total, atualizados } = await backfillStatusMateriais();
+            setSnackbar({
+                open: true,
+                message: atualizados > 0
+                    ? `${atualizados} de ${total} materiais tiveram o status corrigido.`
+                    : `Nenhuma correção necessária (${total} materiais verificados).`,
+                severity: atualizados > 0 ? 'success' : 'info',
+            });
+        } catch (e) {
+            console.error('Erro ao sincronizar status:', e);
+            setSnackbar({ open: true, message: 'Erro ao sincronizar status dos materiais', severity: 'error' });
+        } finally {
+            setSyncingStatus(false);
+        }
+    };
     const isAdminGeral = userRole === 'admingeral';
 
     // Pré-computar datas de conferência uma vez para reutilizar em stats e uncheckedMaterials
@@ -917,6 +944,30 @@ const Material = () => {
                                 >
                                     Criar Manutenções Motomecanizados
                                 </Button>
+                            </Tooltip>
+                        )}
+                        {isAdmin && !isMobile && (
+                            <Tooltip title="Corrige materiais com inoperância registrada que ainda aparecem como operantes">
+                                <span>
+                                    <Button
+                                        variant="outlined"
+                                        color="warning"
+                                        startIcon={syncingStatus ? <CircularProgress size={16} color="inherit" /> : <Sync />}
+                                        onClick={handleSincronizarStatus}
+                                        disabled={syncingStatus}
+                                        sx={{
+                                            borderRadius: 2,
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            px: 2,
+                                            py: 1.5,
+                                            fontSize: '0.8rem',
+                                            '&:hover': { boxShadow: 2, transform: 'translateY(-2px)' },
+                                        }}
+                                    >
+                                        {syncingStatus ? 'Sincronizando...' : 'Sincronizar Status'}
+                                    </Button>
+                                </span>
                             </Tooltip>
                         )}
                         {isAdmin && isMobile && (
@@ -1236,6 +1287,7 @@ const Material = () => {
                             >
                                 <MenuItem value="">Todos</MenuItem>
                                 <MenuItem value="operante">Operante</MenuItem>
+                                <MenuItem value="parcialmente_inoperante">Parcialmente inoperante</MenuItem>
                                 <MenuItem value="em_manutencao">Em Manutenção</MenuItem>
                                 <MenuItem value="inoperante">Inoperante</MenuItem>
                             </Select>
@@ -1550,12 +1602,42 @@ const Material = () => {
                                                 )}
                                             </StyledTableCell>
                                             <StyledTableCell align="center">
-                                                <Chip
-                                                    label={getMaintenanceStatusLabel(material.maintenance_status)}
-                                                    color={getMaintenanceStatusColor(material.maintenance_status)}
-                                                    size="small"
-                                                    sx={{ minWidth: 90 }}
-                                                />
+                                                {(() => {
+                                                    const total = getTotalUnidades(material);
+                                                    const inop = getQtdInoperante(material);
+                                                    const oper = getQtdOperante(material);
+                                                    const status = material.maintenance_status || 'operante';
+                                                    const parcial = status === STATUS_PARCIAL;
+                                                    const chip = (
+                                                        <Chip
+                                                            label={parcial ? `${inop} de ${total} inop.` : getMaintenanceStatusLabel(status)}
+                                                            color={getMaintenanceStatusColor(status)}
+                                                            size="small"
+                                                            sx={{ minWidth: 90, fontWeight: 600 }}
+                                                        />
+                                                    );
+                                                    if (!parcial) return chip;
+                                                    return (
+                                                        <Tooltip title={`${oper} operante(s) · ${inop} inoperante(s) de ${total}`}>
+                                                            <Box sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, minWidth: 96 }}>
+                                                                {chip}
+                                                                <Box
+                                                                    sx={{
+                                                                        display: 'flex',
+                                                                        width: '100%',
+                                                                        height: 4,
+                                                                        borderRadius: 2,
+                                                                        overflow: 'hidden',
+                                                                        bgcolor: 'action.hover',
+                                                                    }}
+                                                                >
+                                                                    <Box sx={{ flex: oper, bgcolor: 'success.main' }} />
+                                                                    <Box sx={{ flex: inop, bgcolor: 'error.main' }} />
+                                                                </Box>
+                                                            </Box>
+                                                        </Tooltip>
+                                                    );
+                                                })()}
                                             </StyledTableCell>
                                             <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                 {(() => {

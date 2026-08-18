@@ -31,6 +31,7 @@ import db from '../firebase/db';
 import { verifyToken } from '../firebase/token';
 import { logAudit } from '../firebase/auditLog';
 import { getMaintenanceTypeLabel } from '../data/maintenanceTemplates';
+import { getQtdInoperante, montarPatchInoperancia, getTotalUnidades } from '../utils/materialStatus';
 
 const MaintenanceDialog = ({ open, onClose, material }) => {
     const theme = useTheme();
@@ -40,6 +41,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
         dueDate: '',
         description: '',
         markInoperant: false,
+        inoperantQuantity: 1,
         priority: 'media',
         estimatedDuration: '',
         requiredParts: [],
@@ -70,6 +72,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 dueDate: '',
                 description: '',
                 markInoperant: false,
+        inoperantQuantity: 1,
                 priority: 'media',
                 estimatedDuration: '',
                 requiredParts: [],
@@ -157,6 +160,8 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                 customRecurrenceDays: formData.recurrenceType === 'customizado' ? parseInt(formData.customRecurrenceDays) : null,
                 recurrenceEndDate: formData.recurrenceEndDate ? Timestamp.fromDate(new Date(formData.recurrenceEndDate)) : null,
                 recurrenceCount: 0,
+                // Quantas unidades esta manutencao cobre (usado ao concluir)
+                inoperantQuantity: formData.markInoperant ? Math.max(1, Number(formData.inoperantQuantity) || 1) : 0,
                 // Campo de lembrete
                 reminderDays: formData.reminderDays || 3
             };
@@ -188,8 +193,9 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
             // Atualizar status do material se necessário
             if (formData.markInoperant) {
                 const materialRef = doc(db, 'materials', material.id);
+                const unidades = Math.max(1, Number(formData.inoperantQuantity) || 1);
                 await updateDoc(materialRef, {
-                    maintenance_status: 'inoperante',
+                    ...montarPatchInoperancia(material, getQtdInoperante(material) + unidades),
                     last_maintenance_update: Timestamp.now()
                 });
             } else if (formData.maintenanceType === 'corretiva' || formData.maintenanceType === 'reparo') {
@@ -221,6 +227,7 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
             dueDate: '',
             description: '',
             markInoperant: false,
+        inoperantQuantity: 1,
             priority: 'media',
             estimatedDuration: '',
             requiredParts: [],
@@ -580,8 +587,22 @@ const MaintenanceDialog = ({ open, onClose, material }) => {
                                         color="warning"
                                     />
                                 }
-                                label="Marcar material como inoperante (material não poderá ser utilizado até conclusão)"
+                                label="Marcar unidades como inoperantes (não poderão ser utilizadas até a conclusão)"
                             />
+                            <Collapse in={formData.markInoperant}>
+                                <Box sx={{ pl: 4, pt: 1, maxWidth: 320 }}>
+                                    <TextField
+                                        label="Quantas unidades?"
+                                        type="number"
+                                        size="small"
+                                        fullWidth
+                                        value={formData.inoperantQuantity}
+                                        onChange={(e) => handleInputChange('inoperantQuantity', e.target.value)}
+                                        InputProps={{ inputProps: { min: 1, max: getTotalUnidades(material) || 1 } }}
+                                        helperText={`O material tem ${getTotalUnidades(material) || 0} unidade(s). Ao concluir, elas voltam a operante.`}
+                                    />
+                                </Box>
+                            </Collapse>
                         </Grid>
                     )}
                 </Grid>

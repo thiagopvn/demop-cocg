@@ -61,6 +61,7 @@ import PrivateRoute from "../../contexts/PrivateRoute";
 import MaterialSearch from "../../components/MaterialSearch";
 import UserSearch from "../../components/UserSearch";
 import db from "../../firebase/db";
+import { getQtdInoperante, montarPatchInoperancia } from '../../utils/materialStatus';
 import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, serverTimestamp, writeBatch } from "firebase/firestore";
 import { verifyToken } from "../../firebase/token";
 import { logAudit } from '../../firebase/auditLog';
@@ -395,12 +396,14 @@ export default function Movimentacao() {
                 estoque_viatura: Math.max(0, recebidoEstoqueViatura - qtdRec),
                 ultima_movimentacao: serverTimestamp(),
             };
+            const qtdInopAtual = getQtdInoperante(recebidoData);
             if (statusRecebido === 'operante') {
                 recebidoUpdate.estoque_atual = recebidoEstoqueAtual + qtdRec;
-                recebidoUpdate.maintenance_status = 'operante';
+                // Voltou operante: abate essas unidades da contagem de inoperantes
+                Object.assign(recebidoUpdate, montarPatchInoperancia(recebidoData, qtdInopAtual - qtdRec));
             } else {
-                // Inoperante: NÃO soma ao estoque_atual
-                recebidoUpdate.maintenance_status = 'inoperante';
+                // Inoperante: NÃO soma ao estoque_atual, apenas contabiliza as unidades
+                Object.assign(recebidoUpdate, montarPatchInoperancia(recebidoData, qtdInopAtual + qtdRec));
                 recebidoUpdate.inoperante_sei = numeroSeiTroca.trim();
                 recebidoUpdate.inoperante_motivo = motivoInoperancia.trim();
                 recebidoUpdate.inoperante_registrado_em = serverTimestamp();

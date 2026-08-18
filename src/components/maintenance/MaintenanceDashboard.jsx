@@ -204,7 +204,7 @@ const MaintenanceDashboard = () => {
             }
 
             // Volta a operante apenas se nao restar outra manutencao em aberto
-            await sincronizarStatusAposConclusao(maintenance?.materialId, maintenanceId, now);
+            await sincronizarStatusAposConclusao(maintenance?.materialId, maintenanceId, now, maintenance?.inoperantQuantity || 0);
 
             logAudit({
                 action: 'manutencao_complete',
