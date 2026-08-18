@@ -78,7 +78,6 @@ import {
     getQtdOperante,
     getTotalUnidades,
     STATUS_PARCIAL,
-    backfillStatusMateriais,
 } from '../../utils/materialStatus';
 const MaterialDialog = lazy(() => import('../../dialogs/MaterialDialog'));
 const MaintenanceDialog = lazy(() => import('../../dialogs/MaintenanceDialog'));
@@ -252,7 +251,6 @@ const Material = () => {
     const [selectedViatura, setSelectedViatura] = useState(null);
     const [alocarQuantidade, setAlocarQuantidade] = useState(1);
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-    const [syncingStatus, setSyncingStatus] = useState(false);
     const [historicoOpen, setHistoricoOpen] = useState(false);
     const [historicoTarget, setHistoricoTarget] = useState(null);
 
@@ -777,27 +775,6 @@ const Material = () => {
     }, []);
 
     const isAdmin = userRole === 'admin' || userRole === 'admingeral';
-
-    // Normaliza qtd_inoperante/maintenance_status de materiais antigos, que
-    // ficaram como 'operante' mesmo tendo inoperancia registrada.
-    const handleSincronizarStatus = async () => {
-        setSyncingStatus(true);
-        try {
-            const { total, atualizados } = await backfillStatusMateriais();
-            setSnackbar({
-                open: true,
-                message: atualizados > 0
-                    ? `${atualizados} de ${total} materiais tiveram o status corrigido.`
-                    : `Nenhuma correção necessária (${total} materiais verificados).`,
-                severity: atualizados > 0 ? 'success' : 'info',
-            });
-        } catch (e) {
-            console.error('Erro ao sincronizar status:', e);
-            setSnackbar({ open: true, message: 'Erro ao sincronizar status dos materiais', severity: 'error' });
-        } finally {
-            setSyncingStatus(false);
-        }
-    };
     const isAdminGeral = userRole === 'admingeral';
 
     // Pré-computar datas de conferência uma vez para reutilizar em stats e uncheckedMaterials
@@ -944,30 +921,6 @@ const Material = () => {
                                 >
                                     Criar Manutenções Motomecanizados
                                 </Button>
-                            </Tooltip>
-                        )}
-                        {isAdmin && !isMobile && (
-                            <Tooltip title="Corrige materiais com inoperância registrada que ainda aparecem como operantes">
-                                <span>
-                                    <Button
-                                        variant="outlined"
-                                        color="warning"
-                                        startIcon={syncingStatus ? <CircularProgress size={16} color="inherit" /> : <Sync />}
-                                        onClick={handleSincronizarStatus}
-                                        disabled={syncingStatus}
-                                        sx={{
-                                            borderRadius: 2,
-                                            textTransform: 'none',
-                                            fontWeight: 600,
-                                            px: 2,
-                                            py: 1.5,
-                                            fontSize: '0.8rem',
-                                            '&:hover': { boxShadow: 2, transform: 'translateY(-2px)' },
-                                        }}
-                                    >
-                                        {syncingStatus ? 'Sincronizando...' : 'Sincronizar Status'}
-                                    </Button>
-                                </span>
                             </Tooltip>
                         )}
                         {isAdmin && isMobile && (
