@@ -55,6 +55,7 @@ import UpcomingMaintenances from './UpcomingMaintenances';
 import NotificationSettings from './NotificationSettings';
 import CompressorQuickCard from '../compressor/CompressorQuickCard';
 import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
+import { sincronizarStatusAposConclusao } from '../../utils/materialStatus';
 
 const MaintenanceDashboard = () => {
     const theme = useTheme();
@@ -202,16 +203,8 @@ const MaintenanceDashboard = () => {
                 }
             }
 
-            // Material operante
-            if (maintenance?.materialId) {
-                try {
-                    await updateDoc(doc(db, 'materials', maintenance.materialId), {
-                        maintenance_status: 'operante',
-                        last_maintenance_update: now,
-                        last_maintenance_date: now
-                    });
-                } catch { /* ignore */ }
-            }
+            // Volta a operante apenas se nao restar outra manutencao em aberto
+            await sincronizarStatusAposConclusao(maintenance?.materialId, maintenanceId, now);
 
             logAudit({
                 action: 'manutencao_complete',

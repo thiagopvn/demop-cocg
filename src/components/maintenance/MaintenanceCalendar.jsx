@@ -55,6 +55,7 @@ import { createNextRecurrentMaintenance } from '../../services/maintenanceNotifi
 import { useDebounce } from '../../hooks/useDebounce';
 import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
 import CompressorPanel from '../compressor/CompressorPanel';
+import { sincronizarStatusAposConclusao } from '../../utils/materialStatus';
 
 const MaintenanceCalendar = () => {
     const navigate = useNavigate();
@@ -319,19 +320,8 @@ const MaintenanceCalendar = () => {
                 }
             }
 
-            // Atualizar status do material para operante
-            if (maintenance?.materialId) {
-                try {
-                    const materialRef = doc(db, 'materials', maintenance.materialId);
-                    await updateDoc(materialRef, {
-                        maintenance_status: 'operante',
-                        last_maintenance_update: now,
-                        last_maintenance_date: now
-                    });
-                } catch {
-                    console.log('Material não encontrado ou já atualizado');
-                }
-            }
+            // Volta a operante apenas se nao restar outra manutencao em aberto
+            await sincronizarStatusAposConclusao(maintenance?.materialId, maintenanceId, now);
 
             // Registrar no audit log
             logAudit({

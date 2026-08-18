@@ -100,6 +100,7 @@ import DevolucaoReceiptStrip from "../../components/DevolucaoReceiptStrip";
 import UpcomingMaintenances from "../../components/maintenance/UpcomingMaintenances";
 import CompressorQuickCard from "../../components/compressor/CompressorQuickCard";
 import { createNextRecurrentMaintenance } from "../../services/maintenanceNotificationService";
+import { sincronizarStatusAposConclusao } from "../../utils/materialStatus";
 
 // ==================== TASK TYPE CONFIG ====================
 
@@ -1242,15 +1243,8 @@ export default function Home() {
         }
       }
 
-      if (maintenance?.materialId) {
-        try {
-          await updateDoc(doc(db, 'materials', maintenance.materialId), {
-            maintenance_status: 'operante',
-            last_maintenance_update: now,
-            last_maintenance_date: now,
-          });
-        } catch { /* ignore */ }
-      }
+      // Volta a operante apenas se nao restar outra manutencao em aberto
+      await sincronizarStatusAposConclusao(maintenance?.materialId, maintenanceId, now);
 
       setCompleteDialogOpen(false);
       setCompletionData({ completionNotes: '', confirmedAsPlanned: false, maintenanceId: null, maintenance: null });

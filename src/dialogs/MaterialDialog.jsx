@@ -41,6 +41,7 @@ import { findBestTemplate } from '../utils/maintenanceTemplateMatcher';
 import { MAINTENANCE_TYPE_LABELS } from '../data/maintenanceTemplates';
 import { applySelectedMaintenances } from '../utils/seedMaintenances';
 import MaintenanceSuggestionDialog from './MaintenanceSuggestionDialog';
+import { limparCamposInoperancia } from '../utils/materialStatus';
 
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB (antes da compressão)
 const MAX_DIMENSION = 1200; // px
@@ -327,6 +328,8 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             estoque_total: Number(estoqueTotal),
             estoque_atual: Number(estoqueAtual),
             maintenance_status: maintenanceStatus,
+            // Ao voltar para operante, limpa o SEI/motivo da inoperancia antiga
+            ...(maintenanceStatus === 'operante' ? limparCamposInoperancia() : {}),
             ultima_movimentacao: serverTimestamp(),
             conferido_por: loggedUserName || null,
             ultima_conferencia: serverTimestamp(),
