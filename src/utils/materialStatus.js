@@ -60,24 +60,27 @@ export const derivarStatus = (qtdInoperante, total, statusAtual) => {
 };
 
 /** Campos de inoperancia gravados por Movimentacoes, limpos quando zera. */
-export const limparCamposInoperancia = () => ({
-    inoperante_sei: deleteField(),
-    inoperante_motivo: deleteField(),
-    inoperante_registrado_em: deleteField(),
-});
+export const CAMPOS_INOPERANCIA = ['inoperante_sei', 'inoperante_motivo', 'inoperante_registrado_em'];
+
+export const limparCamposInoperancia = () =>
+    Object.fromEntries(CAMPOS_INOPERANCIA.map(campo => [campo, deleteField()]));
 
 /**
  * Monta o patch que grava a nova quantidade inoperante e o status derivado.
  * Nao escreve no Firestore — devolve o objeto para quem chama (batch ou update).
+ *
+ * `paraCriacao` deve ser true quando o objeto vai para addDoc()/setDoc() sem
+ * merge: sentinelas deleteField() sao invalidas nesses casos, e o documento
+ * novo nao tem os campos de inoperancia para limpar de qualquer forma.
  */
-export const montarPatchInoperancia = (material, novaQtdInoperante, statusAtual) => {
+export const montarPatchInoperancia = (material, novaQtdInoperante, statusAtual, { paraCriacao = false } = {}) => {
     const total = getTotalUnidades(material);
     const qtd = Math.max(0, Math.min(Number(novaQtdInoperante) || 0, total || Infinity));
     const patch = {
         qtd_inoperante: qtd,
         maintenance_status: derivarStatus(qtd, total, statusAtual ?? material?.maintenance_status),
     };
-    if (qtd === 0) Object.assign(patch, limparCamposInoperancia());
+    if (qtd === 0 && !paraCriacao) Object.assign(patch, limparCamposInoperancia());
     return patch;
 };
 

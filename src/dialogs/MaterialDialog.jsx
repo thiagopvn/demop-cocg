@@ -337,8 +337,6 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             categoria_id: categoriaId,
             estoque_total: Number(estoqueTotal),
             estoque_atual: Number(estoqueAtual),
-            // qtd_inoperante + maintenance_status derivado (limpa SEI/motivo ao zerar)
-            ...montarPatchInoperancia({ estoque_total: Number(estoqueTotal) }, qtdInoperante, material?.maintenance_status),
             ultima_movimentacao: serverTimestamp(),
             conferido_por: loggedUserName || null,
             ultima_conferencia: serverTimestamp(),
@@ -349,6 +347,13 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
             if (isEditing && material?.id) {
                 savedDocId = material.id;
+
+                // qtd_inoperante + maintenance_status derivado (limpa SEI/motivo ao zerar)
+                Object.assign(data, montarPatchInoperancia(
+                    { estoque_total: Number(estoqueTotal) },
+                    qtdInoperante,
+                    material?.maintenance_status,
+                ));
 
                 // Handle image removal (without upload)
                 if (removeImage && !imageFile) {
@@ -396,6 +401,13 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                 const materialsCollection = collection(db, 'materials');
                 const newDoc = await addDoc(materialsCollection, {
                     ...data,
+                    // paraCriacao: addDoc nao aceita sentinelas deleteField()
+                    ...montarPatchInoperancia(
+                        { estoque_total: Number(estoqueTotal) },
+                        qtdInoperante,
+                        material?.maintenance_status,
+                        { paraCriacao: true },
+                    ),
                     created_at: serverTimestamp(),
                     image_url: null,
                     image_storagePath: null,
