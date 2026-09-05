@@ -135,7 +135,7 @@ const MaintenanceCalendar = () => {
     };
 
     const TYPE_ORDER = { diaria: 1, semanal: 2, mensal: 3, cada_90_dias: 3.5, trimestral: 4, cada_120_dias: 4.5, semestral: 5, cada_180_dias: 5.5, anual: 6, cada_365_dias: 6.5, corretiva: 7, reparo: 8 };
-    const STATUS_ORDER = { pendente: 1, em_andamento: 2, concluida: 3, cancelada: 4 };
+    const STATUS_ORDER = { pendente: 1, em_andamento: 2, pausada: 2.5, concluida: 3, cancelada: 4 };
     const PRIORITY_ORDER = { critica: 1, alta: 2, media: 3, baixa: 4 };
 
     const handleSort = (field) => {
@@ -312,7 +312,9 @@ const MaintenanceCalendar = () => {
                     completionNotes: finalNotes
                 };
                 const nextMaintenance = await createNextRecurrentMaintenance(completedMaintenance);
-                if (nextMaintenance) {
+                if (nextMaintenance?.paused) {
+                    nextDateMsg = ' | Material inoperante: recorrência pausada até voltar a operante';
+                } else if (nextMaintenance) {
                     const nextDate = nextMaintenance.dueDate?.toDate?.() || nextMaintenance.dueDate;
                     if (nextDate) {
                         nextDateMsg = ` | Próxima agendada para ${nextDate.toLocaleDateString('pt-BR')}`;
@@ -446,7 +448,8 @@ const MaintenanceCalendar = () => {
             pendente: { label: 'Pendente', color: 'warning' },
             em_andamento: { label: 'Em Andamento', color: 'info' },
             concluida: { label: 'Concluída', color: 'success' },
-            cancelada: { label: 'Cancelada', color: 'error' }
+            cancelada: { label: 'Cancelada', color: 'error' },
+            pausada: { label: 'Pausada (inoperante)', color: 'default' }
         };
         const config = statusConfig[status] || statusConfig.pendente;
         return <Chip label={config.label} color={config.color} size="small" />;
@@ -547,6 +550,7 @@ const MaintenanceCalendar = () => {
                             <MenuItem value="em_andamento">Em Andamento</MenuItem>
                             <MenuItem value="concluida">Concluída</MenuItem>
                             <MenuItem value="cancelada">Cancelada</MenuItem>
+                                <MenuItem value="pausada">Pausada (inoperante)</MenuItem>
                         </TextField>
                     </Grid>
                     <Grid item xs={6} sm={2.4}>
@@ -1018,6 +1022,7 @@ const MaintenanceCalendar = () => {
                                 <MenuItem value="em_andamento">Em Andamento</MenuItem>
                                 <MenuItem value="concluida">Concluída</MenuItem>
                                 <MenuItem value="cancelada">Cancelada</MenuItem>
+                                <MenuItem value="pausada">Pausada (inoperante)</MenuItem>
                             </TextField>
                         </Grid>
                         <Grid item xs={12}>

@@ -66,6 +66,7 @@ import {
 import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
 import MaterialSearch from "../../components/MaterialSearch";
+import MaterialLocalHint from "../../components/locais/MaterialLocalHint";
 import { useDebounce } from "../../hooks/useDebounce";
 import excelIcon from "../../assets/excel.svg";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
@@ -1278,6 +1279,8 @@ export default function ViaturaDetalhes() {
                                         />
                                     </Box>
                                 </Paper>
+
+                                <MaterialLocalHint materialId={materialToDesalocar.material_id} titulo="Guardar no DEMOP em" />
 
                                 <TextField
                                     label="Motivo da desalocacao (opcional)"

@@ -39,7 +39,8 @@ import {
     Checkbox,
     FormControl,
     Select,
-    InputLabel
+    InputLabel,
+    ListSubheader
 } from '@mui/material';
 import {
     Add,
@@ -66,7 +67,8 @@ import {
     ClearAll,
     History,
     Sync,
-    HideImage
+    HideImage,
+    Warehouse
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
@@ -82,6 +84,7 @@ import {
 const MaterialDialog = lazy(() => import('../../dialogs/MaterialDialog'));
 const MaintenanceDialog = lazy(() => import('../../dialogs/MaintenanceDialog'));
 const HistoricoDialog = lazy(() => import('../../dialogs/HistoricoDialog'));
+const MaterialLocalDialog = lazy(() => import('../../dialogs/MaterialLocalDialog'));
 import { deleteDoc, doc, collection, query, where, getDocs, orderBy, onSnapshot, addDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
@@ -91,6 +94,9 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { logAudit } from '../../firebase/auditLog';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { findDuplicateGroups } from '../../utils/materialSimilarity';
+import { useLocaisArmazenamento, useAlocacoesLocais } from '../../hooks/useLocais';
+import { resumirLocalizacao, alocacaoComoLocal, ordenarLocais, normalizarTexto, removerAlocacoesDoMaterial } from '../../services/localizacaoService';
+import LocalChip, { TipoLocalIcon } from '../../components/locais/LocalChip';
 const SeedMaintenancesDialog = lazy(() => import('../../dialogs/SeedMaintenancesDialog'));
 
 // Limite de itens por página
@@ -203,6 +209,10 @@ const StatCard = styled(Card)(({ theme }) => ({
 
 const Material = () => {
     const { materials, loading } = useMaterials();
+    // Locais de armazenamento (prateleiras/box/gavetas/armarios) e alocacoes por material — tempo real
+    const { locais, tipos: tiposLocais } = useLocaisArmazenamento();
+    const { porMaterial: alocacoesPorMaterial } = useAlocacoesLocais();
+    const [localDialogMaterial, setLocalDialogMaterial] = useState(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -268,6 +278,8 @@ const Material = () => {
     const [filterStatus, setFilterStatus] = useState('');
     const [filterEstoque, setFilterEstoque] = useState('');
     const [filterImagem, setFilterImagem] = useState('');
+    // '' | 'sem_local' | 'com_local' | 'tipo:<key>' | 'local:<id>'
+    const [filterLocal, setFilterLocal] = useState('');
 
     // Conference mode states
     const [conferenceMode, setConferenceMode] = useState(false);
@@ -545,6 +557,13 @@ const Material = () => {
                     await deleteDoc(doc(db, 'manutencoes', maintDoc.id));
                 }
 
+                // Remover o material dos locais de armazenamento
+                try {
+                    await removerAlocacoesDoMaterial(materialId);
+                } catch (e) {
+                    console.error('Erro ao limpar locais do material:', e);
+                }
+
                 // Excluir o material
                 await deleteDoc(doc(db, 'materials', materialId));
 
@@ -596,6 +615,7 @@ const Material = () => {
         setFilterStatus('');
         setFilterEstoque('');
         setFilterImagem('');
+        setFilterLocal('');
     }, [debouncedSearchTerm]);
 
     // Unique categories for filter dropdown
@@ -608,13 +628,14 @@ const Material = () => {
     }, [materials]);
 
     // Check if any filter is active
-    const hasActiveFilters = filterCategoria || filterStatus || filterEstoque || filterImagem;
+    const hasActiveFilters = filterCategoria || filterStatus || filterEstoque || filterImagem || filterLocal;
 
     const handleClearFilters = useCallback(() => {
         setFilterCategoria('');
         setFilterStatus('');
         setFilterEstoque('');
         setFilterImagem('');
+        setFilterLocal('');
     }, []);
 
     // Filtro otimizado - retorna todos os materiais filtrados e ordenados
@@ -623,11 +644,12 @@ const Material = () => {
         if (!debouncedSearchTerm || debouncedSearchTerm.trim().length === 0) {
             result = [...materials];
         } else {
-            const searchLower = debouncedSearchTerm.toLowerCase().trim();
+            const searchLower = normalizarTexto(debouncedSearchTerm);
             const keywords = searchLower.split(/\s+/).filter(k => k.length > 0);
 
             result = materials.filter(material => {
-                const text = `${material.description || ''} ${material.categoria || ''}`.toLowerCase();
+                const locaisTexto = (alocacoesPorMaterial.get(material.id) || []).map(a => a.local_nome || '').join(' ');
+                const text = normalizarTexto(`${material.description || ''} ${material.categoria || ''} ${locaisTexto}`);
                 for (const keyword of keywords) {
                     if (!text.includes(keyword)) return false;
                 }
@@ -652,6 +674,24 @@ const Material = () => {
             } else if (filterEstoque === 'em_estoque') {
                 result = result.filter(m => (m.estoque_atual || 0) > 0);
             }
+        }
+
+        // Apply storage location filter
+        if (filterLocal) {
+            result = result.filter(m => {
+                const alocs = alocacoesPorMaterial.get(m.id) || [];
+                if (filterLocal === 'sem_local') return resumirLocalizacao(m, alocs).semLocal > 0;
+                if (filterLocal === 'com_local') return alocs.length > 0;
+                if (filterLocal.startsWith('tipo:')) {
+                    const tipo = filterLocal.slice(5);
+                    return alocs.some(a => a.local_tipo === tipo);
+                }
+                if (filterLocal.startsWith('local:')) {
+                    const localId = filterLocal.slice(6);
+                    return alocs.some(a => a.local_id === localId);
+                }
+                return true;
+            });
         }
 
         // Apply image filter (admingeral only)
@@ -687,7 +727,7 @@ const Material = () => {
         }
 
         return result;
-    }, [materials, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque, filterImagem]);
+    }, [materials, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque, filterImagem, filterLocal, alocacoesPorMaterial]);
 
     // Materiais visíveis (limitados pelo visibleCount)
     const filteredMaterials = useMemo(() => {
@@ -826,6 +866,64 @@ const Material = () => {
         return findDuplicateGroups(materials);
     }, [materials, isAdminGeral]);
 
+    // Celula "Local no DEMOP": chips dos locais + alerta de unidades sem local / excedentes
+    const renderLocalCell = (material) => {
+        const alocs = alocacoesPorMaterial.get(material.id) || [];
+        const resumo = resumirLocalizacao(material, alocs);
+        const ordenadas = [...alocs].sort((a, b) => ordenarLocais(alocacaoComoLocal(a), alocacaoComoLocal(b)));
+        const visiveis = ordenadas.slice(0, 2);
+        const extras = ordenadas.length - visiveis.length;
+        const abrir = (e) => { e.stopPropagation(); setLocalDialogMaterial(material); };
+
+        if (ordenadas.length === 0) {
+            if (resumo.unidadesDemop === 0) {
+                return (
+                    <Tooltip title="Todas as unidades estão em viatura">
+                        <Typography variant="caption" color="text.disabled">só em viatura</Typography>
+                    </Tooltip>
+                );
+            }
+            return (
+                <Tooltip title="Clique para definir onde este material fica guardado">
+                    <Chip
+                        icon={<WarningAmber sx={{ fontSize: '0.9rem !important' }} />}
+                        label="Sem local"
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                        onClick={abrir}
+                        sx={{ fontWeight: 600, cursor: 'pointer', '&:hover': { bgcolor: alpha(theme.palette.warning.main, 0.12) } }}
+                    />
+                </Tooltip>
+            );
+        }
+
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.4 }}>
+                <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {visiveis.map(a => (
+                        <LocalChip key={a.id} local={alocacaoComoLocal(a)} quantidade={a.quantidade} onClick={abrir} sx={{ height: 22, fontSize: '0.7rem' }} />
+                    ))}
+                    {extras > 0 && (
+                        <Tooltip title={ordenadas.slice(2).map(a => `${a.local_nome} ×${a.quantidade}`).join(' · ')}>
+                            <Chip label={`+${extras}`} size="small" onClick={abrir} sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }} />
+                        </Tooltip>
+                    )}
+                </Box>
+                {resumo.semLocal > 0 && (
+                    <Tooltip title={`${resumo.semLocal} unidade(s) do DEMOP ainda sem local definido`}>
+                        <Chip label={`${resumo.semLocal} sem local`} size="small" color="warning" variant="outlined" onClick={abrir} sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, cursor: 'pointer' }} />
+                    </Tooltip>
+                )}
+                {resumo.excedente > 0 && (
+                    <Tooltip title={`${resumo.excedente} unidade(s) guardada(s) a mais do que existe no DEMOP — ajuste`}>
+                        <Chip label={`${resumo.excedente} a ajustar`} size="small" color="error" variant="outlined" onClick={abrir} sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, cursor: 'pointer' }} />
+                    </Tooltip>
+                )}
+            </Box>
+        );
+    };
+
     // Loading skeleton rows
     const renderLoadingSkeleton = () => (
         Array.from({ length: 5 }).map((_, index) => (
@@ -841,6 +939,9 @@ const Material = () => {
                 </StyledTableCell>
                 <StyledTableCell align="center">
                     <Skeleton variant="rectangular" height={24} width={50} />
+                </StyledTableCell>
+                <StyledTableCell align="center">
+                    <Skeleton variant="rectangular" height={24} width={90} />
                 </StyledTableCell>
                 <StyledTableCell>
                     <Skeleton variant="rectangular" height={24} width={80} />
@@ -1259,6 +1360,39 @@ const Material = () => {
                                 <MenuItem value="em_estoque">Em Estoque</MenuItem>
                             </Select>
                         </FormControl>
+                        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 190 } }}>
+                            <InputLabel id="filter-local-label">Local no DEMOP</InputLabel>
+                            <Select
+                                labelId="filter-local-label"
+                                value={filterLocal}
+                                label="Local no DEMOP"
+                                onChange={(e) => setFilterLocal(e.target.value)}
+                                sx={{ borderRadius: 2, fontSize: '0.85rem' }}
+                                MenuProps={{ PaperProps: { sx: { maxHeight: 420 } } }}
+                            >
+                                <MenuItem value="">Todos</MenuItem>
+                                <MenuItem value="sem_local">
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main', fontWeight: 600 }}>
+                                        <WarningAmber fontSize="small" /> Sem local definido
+                                    </Box>
+                                </MenuItem>
+                                <MenuItem value="com_local">Com local definido</MenuItem>
+                                {tiposLocais.map(t => [
+                                    <ListSubheader key={`h-${t.key}`} sx={{ lineHeight: '32px', fontWeight: 700, color: t.cor }}>
+                                        {t.plural || t.label}
+                                    </ListSubheader>,
+                                    <MenuItem key={`tipo-${t.key}`} value={`tipo:${t.key}`} sx={{ fontWeight: 600 }}>
+                                        <TipoLocalIcon tipo={t.key} sx={{ fontSize: 16, mr: 1, color: t.cor }} />
+                                        Qualquer {t.label.toLowerCase()}
+                                    </MenuItem>,
+                                    ...locais.filter(l => l.tipo === t.key).map(l => (
+                                        <MenuItem key={`local-${l.id}`} value={`local:${l.id}`} sx={{ pl: 4 }}>
+                                            {l.nome}{l.inoperantes ? ' · inoperantes' : ''}
+                                        </MenuItem>
+                                    )),
+                                ])}
+                            </Select>
+                        </FormControl>
                         {isAdminGeral && (
                             <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
                                 <InputLabel id="filter-imagem-label">Imagem</InputLabel>
@@ -1373,6 +1507,12 @@ const Material = () => {
                                         Estoque
                                     </TableSortLabel>
                                 </TableCell>
+                                <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                                        <Warehouse fontSize="small" />
+                                        Local no DEMOP
+                                    </Box>
+                                </TableCell>
                                 <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
                                         <DirectionsCar fontSize="small" />
@@ -1408,7 +1548,7 @@ const Material = () => {
                                 <>
                                     {renderLoadingSkeleton()}
                                     <TableRow>
-                                        <TableCell colSpan={conferenceMode ? 10 : 9} align="center" sx={{ py: 4 }}>
+                                        <TableCell colSpan={conferenceMode ? 11 : 10} align="center" sx={{ py: 4 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                                                 <CircularProgress size={24} />
                                                 <Typography variant="body2" color="text.secondary">
@@ -1420,7 +1560,7 @@ const Material = () => {
                                 </>
                             ) : filteredMaterials.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={conferenceMode ? 10 : 9} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={conferenceMode ? 11 : 10} align="center" sx={{ py: 6 }}>
                                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                             <Inventory sx={{ fontSize: 48, color: 'text.disabled' }} />
                                             <Typography variant="h6" color="text.secondary">
@@ -1528,6 +1668,9 @@ const Material = () => {
                                                         de {material.estoque_total || 0}
                                                     </Typography>
                                                 </Box>
+                                            </StyledTableCell>
+                                            <StyledTableCell align="center" sx={{ maxWidth: 220 }}>
+                                                {renderLocalCell(material)}
                                             </StyledTableCell>
                                             <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                                                 {(material.estoque_viatura || 0) > 0 ? (
@@ -1657,6 +1800,20 @@ const Material = () => {
                                             </StyledTableCell>
                                             <StyledTableCell align="right">
                                                 <Box sx={{ display: 'flex', gap: { xs: 0, sm: 0.5 } }}>
+                                                    <Tooltip title="Local no DEMOP (prateleira, box, gaveta, armário)">
+                                                        <IconButton
+                                                            onClick={() => setLocalDialogMaterial(material)}
+                                                            size="small"
+                                                            sx={{
+                                                                color: '#0d9488',
+                                                                '&:hover': {
+                                                                    backgroundColor: alpha('#0d9488', 0.1),
+                                                                },
+                                                            }}
+                                                        >
+                                                            <Warehouse fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                     <Tooltip title="Alocar em Viatura">
                                                         <IconButton
                                                             onClick={() => handleOpenAlocarDialog(material)}
@@ -1812,6 +1969,16 @@ const Material = () => {
                         loggedUserName={loggedUserName}
                         loggedUserId={loggedUserId}
                         materials={materials}
+                    />
+                )}
+
+                {localDialogMaterial && (
+                    <MaterialLocalDialog
+                        open={Boolean(localDialogMaterial)}
+                        onClose={() => setLocalDialogMaterial(null)}
+                        material={materials.find(m => m.id === localDialogMaterial.id) || localDialogMaterial}
+                        loggedUserId={loggedUserId}
+                        loggedUserName={loggedUserName}
                     />
                 )}
 

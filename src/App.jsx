@@ -42,6 +42,7 @@ const ViaturaDetalhes = lazyRetry(() => import('./screens/ViaturaDetalhes/Viatur
 const Atividades = lazyRetry(() => import('./screens/Atividades/Atividades'));
 const Perfil = lazyRetry(() => import('./screens/Perfil/Perfil'));
 const BensPatrimoniais = lazyRetry(() => import('./screens/BensPatrimoniais/BensPatrimoniais'));
+const Locais = lazyRetry(() => import('./screens/Locais/Locais'));
 
 const SuspenseFallback = (
   <Box
@@ -111,6 +112,11 @@ function App() {
           <Route path='/material' element={
             <PrivateRoute allowedRoles={['admin', 'admingeral', 'BensPatrimoniais']}>
               <Material />
+            </PrivateRoute>
+          } />
+          <Route path='/locais' element={
+            <PrivateRoute allowedRoles={['admin', 'admingeral', 'BensPatrimoniais']}>
+              <Locais />
             </PrivateRoute>
           } />
           <Route path='/viaturas' element={

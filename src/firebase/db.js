@@ -69,4 +69,12 @@ export const compressorManutencoesCollection = collection(db, 'compressor_manute
 export const bensViaturasCollection = collection(db, 'bens_viaturas');
 // ------------------------------------
 
+// --- LOCAIS DE ARMAZENAMENTO DO DEMOP (prateleiras, box, gavetas, armarios) ---
+// locais_armazenamento: cadastro de cada local fisico do DEMOP
+// material_locais: quantas unidades de cada material ficam guardadas em cada local
+//   (id deterministico `${material_id}_${local_id}`, uma linha por par)
+export const locaisArmazenamentoCollection = collection(db, 'locais_armazenamento');
+export const materialLocaisCollection = collection(db, 'material_locais');
+// ------------------------------------
+
 export default db;

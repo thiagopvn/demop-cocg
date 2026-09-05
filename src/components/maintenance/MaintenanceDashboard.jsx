@@ -195,7 +195,9 @@ const MaintenanceDashboard = () => {
             let nextDateMsg = '';
             if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
                 const nextMaint = await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
-                if (nextMaint) {
+                if (nextMaint?.paused) {
+                    nextDateMsg = ' | Material inoperante: recorrência pausada até voltar a operante';
+                } else if (nextMaint) {
                     const nextDate = nextMaint.dueDate?.toDate?.() || nextMaint.dueDate;
                     if (nextDate) {
                         nextDateMsg = ` | Próxima agendada para ${nextDate.toLocaleDateString('pt-BR')}`;

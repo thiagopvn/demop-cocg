@@ -3,7 +3,7 @@
  * Gerencia notificações do browser e verificação de manutenções próximas/atrasadas
  */
 
-import { collection, query, where, getDocs, Timestamp, orderBy, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, updateDoc, deleteField, Timestamp, orderBy, addDoc } from 'firebase/firestore';
 import db from '../firebase/db';
 
 // Chave para armazenar configurações no localStorage
@@ -453,7 +453,79 @@ export const checkAndNotifyMaintenances = async (forceCheck = false) => {
 };
 
 /**
- * Criar próxima manutenção recorrente
+ * Calcula a proxima data a partir de uma base e do tipo de recorrencia.
+ * Devolve null quando o tipo e desconhecido ou o customizado nao tem dias.
+ */
+export const calcularProximaData = (base, recurrenceType, customRecurrenceDays) => {
+    const nextDueDate = new Date(base);
+    switch (recurrenceType) {
+        case 'diaria':
+            nextDueDate.setDate(nextDueDate.getDate() + 1);
+            break;
+        case 'semanal':
+            nextDueDate.setDate(nextDueDate.getDate() + 7);
+            break;
+        case 'quinzenal':
+            nextDueDate.setDate(nextDueDate.getDate() + 15);
+            break;
+        case 'mensal':
+            nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+            break;
+        case 'bimestral':
+            nextDueDate.setMonth(nextDueDate.getMonth() + 2);
+            break;
+        case 'trimestral':
+            nextDueDate.setMonth(nextDueDate.getMonth() + 3);
+            break;
+        case 'semestral':
+            nextDueDate.setMonth(nextDueDate.getMonth() + 6);
+            break;
+        case 'anual':
+            nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+            break;
+        case 'cada_90_dias':
+            nextDueDate.setDate(nextDueDate.getDate() + 90);
+            break;
+        case 'cada_120_dias':
+            nextDueDate.setDate(nextDueDate.getDate() + 120);
+            break;
+        case 'cada_180_dias':
+            nextDueDate.setDate(nextDueDate.getDate() + 180);
+            break;
+        case 'cada_365_dias':
+            nextDueDate.setDate(nextDueDate.getDate() + 365);
+            break;
+        case 'customizado':
+            if (!customRecurrenceDays) return null;
+            nextDueDate.setDate(nextDueDate.getDate() + Number(customRecurrenceDays));
+            break;
+        default:
+            return null;
+    }
+    return nextDueDate;
+};
+
+/** Status usado quando o ciclo de recorrencia esta suspenso (material inoperante). */
+export const STATUS_MANUTENCAO_PAUSADA = 'pausada';
+export const MOTIVO_PAUSA_INOPERANTE = 'material_inoperante';
+
+const materialEstaInoperante = async (materialId) => {
+    if (!materialId) return false;
+    try {
+        const snap = await getDoc(doc(db, 'materials', materialId));
+        return snap.exists() && snap.data().maintenance_status === 'inoperante';
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Criar próxima manutenção recorrente.
+ *
+ * Se o material estiver 100% inoperante, a proxima ocorrencia e criada ja com
+ * status "pausada" (nao aparece como pendente/atrasada). Ela volta a "pendente"
+ * automaticamente quando o material voltar a operante (retomarRecorrenciasDoMaterial).
+ * O retorno traz `paused: true` nesse caso.
  */
 export const createNextRecurrentMaintenance = async (completedMaintenance) => {
     if (!completedMaintenance.isRecurrent || !completedMaintenance.recurrenceType) {
@@ -466,56 +538,8 @@ export const createNextRecurrentMaintenance = async (completedMaintenance) => {
             ? completedMaintenance.completedAt
             : completedMaintenance.completedAt?.toDate?.() || new Date();
 
-        const nextDueDate = new Date(completedAt);
-
-        // Calcular próxima data baseado no tipo de recorrência
-        switch (completedMaintenance.recurrenceType) {
-            case 'diaria':
-                nextDueDate.setDate(nextDueDate.getDate() + 1);
-                break;
-            case 'semanal':
-                nextDueDate.setDate(nextDueDate.getDate() + 7);
-                break;
-            case 'quinzenal':
-                nextDueDate.setDate(nextDueDate.getDate() + 15);
-                break;
-            case 'mensal':
-                nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-                break;
-            case 'bimestral':
-                nextDueDate.setMonth(nextDueDate.getMonth() + 2);
-                break;
-            case 'trimestral':
-                nextDueDate.setMonth(nextDueDate.getMonth() + 3);
-                break;
-            case 'semestral':
-                nextDueDate.setMonth(nextDueDate.getMonth() + 6);
-                break;
-            case 'anual':
-                nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
-                break;
-            case 'cada_90_dias':
-                nextDueDate.setDate(nextDueDate.getDate() + 90);
-                break;
-            case 'cada_120_dias':
-                nextDueDate.setDate(nextDueDate.getDate() + 120);
-                break;
-            case 'cada_180_dias':
-                nextDueDate.setDate(nextDueDate.getDate() + 180);
-                break;
-            case 'cada_365_dias':
-                nextDueDate.setDate(nextDueDate.getDate() + 365);
-                break;
-            case 'customizado':
-                if (completedMaintenance.customRecurrenceDays) {
-                    nextDueDate.setDate(nextDueDate.getDate() + completedMaintenance.customRecurrenceDays);
-                } else {
-                    return null;
-                }
-                break;
-            default:
-                return null;
-        }
+        const nextDueDate = calcularProximaData(completedAt, completedMaintenance.recurrenceType, completedMaintenance.customRecurrenceDays);
+        if (!nextDueDate) return null;
 
         // Verificar se não ultrapassou a data limite (se houver)
         if (completedMaintenance.recurrenceEndDate) {
@@ -527,6 +551,9 @@ export const createNextRecurrentMaintenance = async (completedMaintenance) => {
                 return null; // Recorrência terminou
             }
         }
+
+        // Material inoperante: nao renova o ciclo — deixa a proxima ocorrencia pausada
+        const pausada = await materialEstaInoperante(completedMaintenance.materialId);
 
         // Criar nova manutenção com referência à conclusão anterior
         const newMaintenance = {
@@ -541,7 +568,7 @@ export const createNextRecurrentMaintenance = async (completedMaintenance) => {
             estimatedDuration: completedMaintenance.estimatedDuration,
             requiredParts: completedMaintenance.requiredParts,
             estimatedCost: completedMaintenance.estimatedCost,
-            status: 'pendente',
+            status: pausada ? STATUS_MANUTENCAO_PAUSADA : 'pendente',
             isRecurrent: true,
             recurrenceType: completedMaintenance.recurrenceType,
             customRecurrenceDays: completedMaintenance.customRecurrenceDays,
@@ -554,14 +581,83 @@ export const createNextRecurrentMaintenance = async (completedMaintenance) => {
             createdAt: Timestamp.now(),
             createdBy: 'Sistema - Recorrência Automática'
         };
+        if (pausada) {
+            newMaintenance.pausada_motivo = MOTIVO_PAUSA_INOPERANTE;
+            newMaintenance.pausada_em = Timestamp.now();
+            newMaintenance.status_anterior = 'pendente';
+        }
 
         const docRef = await addDoc(collection(db, 'manutencoes'), newMaintenance);
 
-        return { id: docRef.id, ...newMaintenance };
+        return { id: docRef.id, ...newMaintenance, paused: pausada };
     } catch (error) {
         console.error('Erro ao criar manutenção recorrente:', error);
         return null;
     }
+};
+
+/**
+ * Pausa as manutencoes recorrentes PENDENTES de um material que ficou inoperante.
+ * Manutencoes corretivas (que marcam unidades inoperantes) e as em andamento
+ * continuam: elas sao o proprio conserto.
+ * @returns {Promise<number>} quantidade pausada
+ */
+export const pausarRecorrenciasDoMaterial = async (materialId) => {
+    if (!materialId) return 0;
+    const snap = await getDocs(query(
+        collection(db, 'manutencoes'),
+        where('materialId', '==', materialId),
+        where('status', '==', 'pendente'),
+        where('isRecurrent', '==', true),
+    ));
+    let pausadas = 0;
+    for (const d of snap.docs) {
+        const m = d.data();
+        if ((Number(m.inoperantQuantity) || 0) > 0) continue;
+        await updateDoc(d.ref, {
+            status: STATUS_MANUTENCAO_PAUSADA,
+            status_anterior: 'pendente',
+            pausada_motivo: MOTIVO_PAUSA_INOPERANTE,
+            pausada_em: Timestamp.now(),
+        });
+        pausadas += 1;
+    }
+    return pausadas;
+};
+
+/**
+ * Retoma as manutencoes pausadas de um material que voltou a operante.
+ * Se a data ja passou enquanto estava pausada, reprograma a partir de hoje
+ * usando a propria recorrencia (para nao renascer como "atrasada").
+ * @returns {Promise<number>} quantidade retomada
+ */
+export const retomarRecorrenciasDoMaterial = async (materialId) => {
+    if (!materialId) return 0;
+    const snap = await getDocs(query(
+        collection(db, 'manutencoes'),
+        where('materialId', '==', materialId),
+        where('status', '==', STATUS_MANUTENCAO_PAUSADA),
+    ));
+    const agora = new Date();
+    let retomadas = 0;
+    for (const d of snap.docs) {
+        const m = d.data();
+        const patch = {
+            status: m.status_anterior || 'pendente',
+            status_anterior: deleteField(),
+            pausada_motivo: deleteField(),
+            pausada_em: deleteField(),
+            retomada_em: Timestamp.now(),
+        };
+        const due = m.dueDate?.toDate?.() || (m.dueDate ? new Date(m.dueDate) : null);
+        if (due && due < agora) {
+            const proxima = calcularProximaData(agora, m.recurrenceType, m.customRecurrenceDays);
+            patch.dueDate = Timestamp.fromDate(proxima || new Date(agora.getTime() + 24 * 60 * 60 * 1000));
+        }
+        await updateDoc(d.ref, patch);
+        retomadas += 1;
+    }
+    return retomadas;
 };
 
 /**

@@ -58,8 +58,13 @@ Three roles with cascading permissions defined in `src/App.jsx` via `PrivateRout
 - `viaturas` - Vehicle registry
 - `movimentacoes` - Assignment/movement history (the core "cautela" records)
 - `rings` - Ring inventory
-- `manutencoes` - Scheduled maintenance tasks
+- `manutencoes` - Scheduled maintenance tasks (status `pausada` = recurrence suspended because the material is fully inoperante; resumes automatically)
 - `historico_manutencoes` - Completed maintenance history
+- `locais_armazenamento` - DEMOP storage locations (prateleira/box/gaveta/armário or custom `tipo`); one may be flagged `inoperantes: true`
+- `material_locais` - Units of each material per location, doc id `${material_id}_${local_id}` (see `src/services/localizacaoService.js`)
+
+### Storage Locations (Locais) — key rule
+A location allocation is the material's *home* inside the DEMOP: units that are not permanently in a vehicle (`unidadesDemop = estoque_total - estoque_viatura`). Cautela, devolução and reparo do NOT change `material_locais`; those flows only show "Guardar em / Retirar de" hints (`MaterialLocalHint`). Changes to `qtd_inoperante` must go through `aoAlterarInoperancia()` (`src/services/inoperanciaService.js`), which moves units to the inoperantes location and pauses/resumes recurrent maintenances.
 
 ### Context System (src/contexts/)
 - **MenuContext.jsx** (~876 lines) - Main layout wrapper: sidebar navigation, role-based menu filtering, mobile drawer, logout, maintenance notification badge, admin cleanup FAB

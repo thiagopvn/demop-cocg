@@ -45,6 +45,7 @@ import { query, collection, where, getDocs, doc, updateDoc, orderBy } from "fire
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 import { verifyToken } from "../../firebase/token";
+import MaterialLocalHint from "../../components/locais/MaterialLocalHint";
 import AnexosDialog from "../../dialogs/AnexosDialog";
 import { deleteMovimentacao } from "../../services/movimentacaoService";
 
@@ -569,6 +570,9 @@ export default function Inativos({ categorias = [] }) {
           <DialogContentText id="confirm-dialog-description">
             Tem certeza que deseja marcar o material <strong>"{selectedMovimentacao?.material_description}"</strong> como devolvido do reparo?
           </DialogContentText>
+          {selectedMovimentacao?.material && (
+            <MaterialLocalHint materialId={selectedMovimentacao.material} titulo="Guardar em" />
+          )}
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
           <Button

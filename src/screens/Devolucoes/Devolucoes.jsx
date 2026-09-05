@@ -1,9 +1,12 @@
 import UserSearch from "../../components/UserSearch";
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { verifyToken } from "../../firebase/token";
 import { logAudit } from "../../firebase/auditLog";
+import MaterialLocalHint from "../../components/locais/MaterialLocalHint";
+import { listarAlocacoesDoMaterial, descreverAlocacoes } from "../../services/localizacaoService";
+const MaterialLocalDialog = lazy(() => import("../../dialogs/MaterialLocalDialog"));
 import {
   Box,
   Typography,
@@ -360,6 +363,18 @@ export default function Devolucoes() {
   const [userCritery, setUserCritery] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, item: null });
+  const [localDialogMaterial, setLocalDialogMaterial] = useState(null);
+
+  // Abre o dialog de local do material a partir de uma movimentacao (carrega o material atual)
+  const abrirLocalDialog = async (materialId) => {
+    if (!materialId) return;
+    try {
+      const snap = await getDoc(doc(db, "materials", materialId));
+      if (snap.exists()) setLocalDialogMaterial({ id: snap.id, ...snap.data() });
+    } catch (e) {
+      console.error("Erro ao carregar material:", e);
+    }
+  };
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [devolvendo, setDevolvendo] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
@@ -466,9 +481,19 @@ export default function Devolucoes() {
         details: { quantidade: movimentacao.quantity, militar: movimentacao.user_name },
       });
 
+      // Onde guardar: orienta o admin com o local de casa do material
+      let ondeGuardar = "";
+      try {
+        const alocs = await listarAlocacoesDoMaterial(materialId);
+        const texto = descreverAlocacoes(alocs);
+        ondeGuardar = texto ? ` Guardar em: ${texto}.` : " Este material ainda não tem local definido no DEMOP.";
+      } catch {
+        ondeGuardar = "";
+      }
+
       setSnackbar({
         open: true,
-        message: `"${movimentacao.material_description}" devolvido com sucesso! Estoque atualizado.`,
+        message: `"${movimentacao.material_description}" devolvido com sucesso! Estoque atualizado.${ondeGuardar}`,
         severity: "success",
       });
     } catch (error) {
@@ -1000,6 +1025,18 @@ export default function Devolucoes() {
           )}
 
           {/* ═══════════════════ CONFIRM DIALOG ═══════════════════ */}
+          {localDialogMaterial && (
+            <Suspense fallback={null}>
+              <MaterialLocalDialog
+                open={Boolean(localDialogMaterial)}
+                onClose={() => setLocalDialogMaterial(null)}
+                material={localDialogMaterial}
+                loggedUserId={loggedUserId}
+                loggedUserName={loggedUserName}
+              />
+            </Suspense>
+          )}
+
           <Dialog
             open={confirmDialog.open}
             onClose={() => !devolvendo && setConfirmDialog({ open: false, item: null })}
@@ -1131,6 +1168,12 @@ export default function Devolucoes() {
                   >
                     A quantidade será adicionada de volta ao estoque atual do material.
                   </Alert>
+
+                  <MaterialLocalHint
+                    materialId={confirmDialog.item.material}
+                    titulo="Guardar em"
+                    onDefinir={() => abrirLocalDialog(confirmDialog.item.material)}
+                  />
                 </Box>
               )}
             </DialogContent>

@@ -25,7 +25,8 @@ import {
   AccountCircle,
   AccountBalance,
   DarkModeOutlined,
-  LightModeOutlined
+  LightModeOutlined,
+  WarehouseOutlined
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -87,6 +88,7 @@ function MenuContext({ children }) {
     { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: WarehouseOutlined, label: 'Locais', path: '/locais', id: 14, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },

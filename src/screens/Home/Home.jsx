@@ -619,7 +619,7 @@ export default function Home() {
     const filteredManutencoes = filterByDate(manutencoes, "dueDate");
     const now = new Date();
     const manutencoesVencidas = filteredManutencoes.filter((m) => {
-      if (m.status === "concluida" || m.status === "cancelada") return false;
+      if (m.status === "concluida" || m.status === "cancelada" || m.status === "pausada") return false;
       const d = toDate(m.dueDate);
       return d && d < now;
     });
@@ -1235,7 +1235,9 @@ export default function Home() {
       let nextDateMsg = '';
       if (maintenance?.isRecurrent && maintenance?.recurrenceType) {
         const nextMaint = await createNextRecurrentMaintenance({ ...maintenance, completedAt: nowDate, completionNotes: finalNotes });
-        if (nextMaint) {
+        if (nextMaint?.paused) {
+          nextDateMsg = ' | Material inoperante: recorrência pausada até voltar a operante';
+        } else if (nextMaint) {
           const nextDate = nextMaint.dueDate?.toDate?.() || nextMaint.dueDate;
           if (nextDate) {
             nextDateMsg = ` | Próxima agendada para ${nextDate.toLocaleDateString('pt-BR')}`;

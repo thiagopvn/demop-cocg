@@ -48,6 +48,7 @@ import {
     getMaintenanceStatusLabel,
     getMaintenanceStatusColor,
 } from '../utils/materialStatus';
+import { aoAlterarInoperancia } from '../services/inoperanciaService';
 
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB (antes da compressão)
 const MAX_DIMENSION = 1200; // px
@@ -366,6 +367,19 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
                 const materialDoc = doc(db, 'materials', material.id);
                 await updateDoc(materialDoc, data);
+
+                // Inoperancia mudou: leva/tira do local de inoperantes e pausa/retoma recorrencias
+                const qtdInopAntes = getQtdInoperante(material);
+                if (data.qtd_inoperante !== qtdInopAntes) {
+                    aoAlterarInoperancia({
+                        materialId: material.id,
+                        materialData: { ...material, estoque_total: data.estoque_total, qtd_inoperante: data.qtd_inoperante, maintenance_status: data.maintenance_status },
+                        qtdAntes: qtdInopAntes,
+                        qtdDepois: data.qtd_inoperante,
+                        userId: loggedUserId,
+                        userName: loggedUserName,
+                    }).catch(() => {});
+                }
 
                 // Sincronizar nome do material nas manutenções
                 if (description !== material.description) {

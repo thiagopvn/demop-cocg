@@ -65,6 +65,8 @@ import { getQtdInoperante, montarPatchInoperancia } from '../../utils/materialSt
 import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, serverTimestamp, writeBatch } from "firebase/firestore";
 import { verifyToken } from "../../firebase/token";
 import { logAudit } from '../../firebase/auditLog';
+import MaterialLocalHint from '../../components/locais/MaterialLocalHint';
+import { aoAlterarInoperancia } from '../../services/inoperanciaService';
 
 const STEPS = {
     entrada: ['Tipo', 'Material', 'Detalhes', 'Confirmar'],
@@ -535,6 +537,18 @@ export default function Movimentacao() {
             });
 
             await batch.commit();
+
+            // Efeitos da inoperancia: local de inoperantes (ex.: Prateleira 02) e ciclo de manutencao
+            if (recebidoUpdate.qtd_inoperante !== undefined && recebidoUpdate.qtd_inoperante !== qtdInopAtual) {
+                aoAlterarInoperancia({
+                    materialId: materialRecebido.id,
+                    materialData: { ...recebidoData, estoque_viatura: recebidoUpdate.estoque_viatura, qtd_inoperante: recebidoUpdate.qtd_inoperante, maintenance_status: recebidoUpdate.maintenance_status },
+                    qtdAntes: qtdInopAtual,
+                    qtdDepois: recebidoUpdate.qtd_inoperante,
+                    userId,
+                    userName,
+                }).catch(() => {});
+            }
 
             const auditDetails = {
                 tipo: 'troca',
@@ -1767,6 +1781,7 @@ export default function Movimentacao() {
                                                     {item.material.description}
                                                 </Typography>
                                                 <Chip label={`Qtd: ${item.quantidade}`} size="small" color="primary" sx={{ mt: 0.5 }} />
+                                                <MaterialLocalHint materialId={item.material.id} titulo="Retirar de" compact />
                                             </Box>
                                             <IconButton size="small" color="error" onClick={() => handleRemoveMaterial(item.material.id)}>
                                                 <DeleteIcon fontSize="small" />

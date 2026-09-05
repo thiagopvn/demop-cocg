@@ -68,6 +68,19 @@ service cloud.firestore {
       allow update: if isChefeOrAdminOrBens();
     }
 
+    // ============= LOCAIS DE ARMAZENAMENTO (prateleiras, box, gavetas, armários) =============
+    // Leitura: todos autenticados (chips de "onde guardar"). Escrita: admin/BensPatrimoniais.
+    match /locais_armazenamento/{docId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdminOrBens();
+    }
+
+    // ============= MATERIAL_LOCAIS (unidades de cada material por local do DEMOP) =============
+    match /material_locais/{docId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdminOrBens();
+    }
+
     // ============= MOVIMENTACOES (cautelas, saídas, reparos, entradas) =============
     // Leitura: todos autenticados.
     // Criação: admin/admingeral/BensPatrimoniais.

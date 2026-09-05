@@ -133,6 +133,23 @@ export async function sincronizarStatusAposConclusao(materialId, manutencaoConcl
         await updateDoc(materialRef, update);
     } catch (e) {
         console.error('Erro ao atualizar status do material:', e);
+        return;
+    }
+
+    // Efeitos da mudanca de inoperancia (local de inoperantes + ciclo de recorrencia).
+    // Import dinamico para evitar ciclo de modulos com os servicos.
+    if (novaQtd !== qtdAtual) {
+        try {
+            const { aoAlterarInoperancia } = await import('../services/inoperanciaService');
+            await aoAlterarInoperancia({
+                materialId,
+                materialData: { ...materialData, qtd_inoperante: novaQtd, maintenance_status: update.maintenance_status },
+                qtdAntes: qtdAtual,
+                qtdDepois: novaQtd,
+            });
+        } catch (e) {
+            console.error('Erro ao sincronizar efeitos da inoperancia:', e);
+        }
     }
 }
 
