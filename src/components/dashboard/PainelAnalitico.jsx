@@ -19,7 +19,9 @@ import {
     usePainelDados, calcularPainel, TIPOS_MOV, corTipo, labelTipo, SERIES_CLARO, SERIES_ESCURO, fmtNum, fmtData, fmtDataHora, csvMovimentacoes,
 } from './painelUtils';
 
-const FILTROS_INICIAIS = { periodo: '30', inicio: '', fim: '', tipos: [], categoria: '', militar: '', viatura: '', material: '', obm: '', busca: '' };
+const FILTROS_INICIAIS = { periodo: '30', inicio: '', fim: '', tipos: [], categoria: '', militar: '', viatura: '', material: '', obm: '', busca: '', statusMaterial: '', composicao: '' };
+const STATUS_LABEL = { operante: 'Operante', parcialmente_inoperante: 'Parcial', em_manutencao: 'Em manutenção', inoperante: 'Inoperante' };
+const COMPOSICAO_LABEL = { disponivel: 'Disponível no DEMOP', viatura: 'Em viaturas', inoperante: 'Inoperantes' };
 
 const ABAS = [
     { key: 'geral', label: 'Visão geral', icon: Insights },
@@ -74,6 +76,8 @@ export default function PainelAnalitico({ userRole }) {
     if (filtros.material) chipsAtivos.push({ chave: 'material', label: `Material: ${materials.find(m => m.id === filtros.material)?.description || '—'}`, limpar: () => setFiltro('material', '') });
     if (filtros.obm) chipsAtivos.push({ chave: 'obm', label: `OBM: ${filtros.obm}`, limpar: () => setFiltro('obm', '') });
     if (filtros.busca) chipsAtivos.push({ chave: 'busca', label: `Busca: ${filtros.busca}`, limpar: () => setFiltro('busca', '') });
+    if (filtros.statusMaterial) chipsAtivos.push({ chave: 'statusMaterial', label: `Status: ${STATUS_LABEL[filtros.statusMaterial] || filtros.statusMaterial}`, limpar: () => setFiltro('statusMaterial', '') });
+    if (filtros.composicao) chipsAtivos.push({ chave: 'composicao', label: `Estoque: ${COMPOSICAO_LABEL[filtros.composicao]}`, limpar: () => setFiltro('composicao', '') });
 
     const exportarCsv = () => {
         const csv = csvMovimentacoes(painel.movs, dados.usersById, dados.viaturasById);
@@ -289,10 +293,10 @@ function AbaGeral({ painel, filtros, setFiltro, alternar, theme, escuro, SERIES,
             </Grade>
 
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Materiais mais cautelados" subtitulo="Unidades cauteladas no período · clique para filtrar" altura={280}>
+                <ChartCard titulo="Materiais mais cautelados" subtitulo="Unidades cauteladas no período · clique para filtrar" altura={280} expandivel>
                     <ListaRanking itens={painel.topMateriais} cor={SERIES[0]} onClick={(i) => alternar('material', i.chave)} ativoChave={filtros.material} sufixo=" un." vazio="Nenhuma cautela no período" />
                 </ChartCard>
-                <ChartCard titulo="Militares que mais cautelaram" subtitulo="Cautelas no período · clique para filtrar" altura={280}>
+                <ChartCard titulo="Militares que mais cautelaram" subtitulo="Cautelas no período · clique para filtrar" altura={280} expandivel>
                     <ListaRanking itens={painel.topMilitares} cor={SERIES[6]} onClick={(i) => alternar('militar', i.chave)} ativoChave={filtros.militar} vazio="Nenhuma cautela no período" avatar={(i) => <UserAvatar src={dados.usersById.get(i.chave)?.foto_url} name={i.nome} role={dados.usersById.get(i.chave)?.role} size={24} />} />
                 </ChartCard>
                 <ChartCard titulo="Por categoria" subtitulo="Movimentações · clique para filtrar" altura={280}>
@@ -304,10 +308,10 @@ function AbaGeral({ painel, filtros, setFiltro, alternar, theme, escuro, SERIES,
                 <ChartCard titulo="Quando o depósito é mais movimentado" subtitulo="Dia da semana × hora do dia" altura={200}>
                     <MapaCalor matriz={painel.calor} maximo={painel.calorMax} cor={SERIES[0]} />
                 </ChartCard>
-                <ChartCard titulo="Viaturas mais apoiadas pelo DEMOP" subtitulo="Unidades enviadas/trocadas · clique para filtrar" altura={200}>
+                <ChartCard titulo="Viaturas mais apoiadas pelo DEMOP" subtitulo="Unidades enviadas/trocadas · clique para filtrar" altura={200} expandivel>
                     <ListaRanking itens={painel.topViaturas} cor={SERIES[1]} onClick={(i) => alternar('viatura', i.chave)} ativoChave={filtros.viatura} sufixo=" un." vazio="Nenhuma movimentação com viatura" maxItens={6} />
                 </ChartCard>
-                <ChartCard titulo="Últimas movimentações" subtitulo="Mais recentes dentro do filtro" altura={200}>
+                <ChartCard titulo="Últimas movimentações" subtitulo="Mais recentes dentro do filtro" altura={200} expandivel>
                     <TabelaCompacta
                         maxAltura={260}
                         colunas={[
@@ -358,11 +362,11 @@ function AbaCautelas({ painel, filtros, alternar, theme, SERIES, dados }) {
                         </ResponsiveContainer>
                     )}
                 </ChartCard>
-                <ChartCard titulo="Quem tem mais material em aberto" subtitulo="Cautelas ainda não devolvidas · clique para filtrar" altura={220}>
+                <ChartCard titulo="Quem tem mais material em aberto" subtitulo="Cautelas ainda não devolvidas · clique para filtrar" altura={220} expandivel>
                     <ListaRanking itens={painel.abertasPorMilitar} cor={SERIES[3]} onClick={(i) => alternar('militar', i.chave)} ativoChave={filtros.militar} maxItens={8} avatar={(i) => <UserAvatar src={dados.usersById.get(i.chave)?.foto_url} name={i.nome} role={dados.usersById.get(i.chave)?.role} size={24} />} />
                 </ChartCard>
             </Grade>
-            <ChartCard titulo="Cautelas em aberto" subtitulo={`${painel.abertasDetalhe.length} registro(s) · ordenadas da mais antiga para a mais recente`} altura={100} sx={{ mb: 2 }}>
+            <ChartCard titulo="Cautelas em aberto" subtitulo={`${painel.abertasDetalhe.length} registro(s) · ordenadas da mais antiga para a mais recente`} altura={100} sx={{ mb: 2 }} expandivel>
                 <TabelaCompacta
                     maxAltura={420}
                     colunas={[
@@ -404,11 +408,11 @@ function AbaMateriais({ painel, filtros, alternar, theme, SERIES, isMobile }) {
                 <KpiTile titulo="Estoque zerado" valor={painel.estoqueZerado.length} icon={WarningAmber} cor={SERIES[3]} ajuda="materiais sem unidade disponível" />
             </Grade>
             <Grade colunas={{ xs: 1, md: 2 }}>
-                <ChartCard titulo="Composição do estoque" subtitulo="Onde estão as unidades" altura={230}>
-                    <Donut theme={theme} dados={composicao} cores={coresComp} rotuloCentro="unidades" />
+                <ChartCard titulo="Composição do estoque" subtitulo="Onde estão as unidades · clique para filtrar os cards de materiais" altura={230}>
+                    <Donut theme={theme} dados={composicao} cores={coresComp} rotuloCentro="unidades" onClick={(d) => alternar('composicao', d.chave)} ativoChave={filtros.composicao || null} />
                 </ChartCard>
-                <ChartCard titulo="Status operacional" subtitulo="Materiais por situação" altura={230}>
-                    <Donut theme={theme} dados={painel.statusMateriais} cores={coresStatus} rotuloCentro="materiais" />
+                <ChartCard titulo="Status operacional" subtitulo="Materiais por situação · clique para filtrar os cards de materiais" altura={230}>
+                    <Donut theme={theme} dados={painel.statusMateriais} cores={coresStatus} rotuloCentro="materiais" onClick={(d) => alternar('statusMaterial', d.chave)} ativoChave={filtros.statusMaterial || null} />
                 </ChartCard>
             </Grade>
             <ChartCard titulo="Estoque por categoria" subtitulo="Disponível, em viatura e inoperante · clique na categoria para filtrar" altura={320} sx={{ mb: 2 }}>
@@ -428,16 +432,36 @@ function AbaMateriais({ painel, filtros, alternar, theme, SERIES, isMobile }) {
                 )}
             </ChartCard>
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Mais movimentados" subtitulo="Registros no período · clique para filtrar" altura={240}>
+                <ChartCard titulo="Mais movimentados" subtitulo={`Registros no período${filtros.statusMaterial || filtros.composicao ? ' · só materiais do filtro' : ''} · clique para filtrar`} altura={240} expandivel>
                     <ListaRanking itens={painel.materiaisMaisMovimentados} cor={SERIES[0]} onClick={(i) => alternar('material', i.chave)} ativoChave={filtros.material} />
                 </ChartCard>
-                <ChartCard titulo="Estoque zerado" subtitulo={`${painel.estoqueZerado.length} materiais sem unidade disponível`} altura={240}>
-                    <TabelaCompacta maxAltura={260} colunas={[{ chave: 'description', titulo: 'Material', largura: 220 }, { chave: 'categoria', titulo: 'Categoria' }, { chave: 'estoque_viatura', titulo: 'Em viatura', alinhar: 'right', render: (l) => l.estoque_viatura || 0 }]} linhas={painel.estoqueZerado} vazio="Nenhum material zerado" />
+                <ChartCard titulo="Estoque zerado" subtitulo={`${painel.estoqueZerado.length} materiais sem unidade disponível`} altura={240} expandivel>
+                    <TabelaCompacta maxAltura={260} colunas={[{ chave: 'description', titulo: 'Material', largura: 220 }, { chave: 'categoria', titulo: 'Categoria' }, { chave: 'maintenance_status', titulo: 'Status', render: (l) => <Selo texto={STATUS_LABEL[l.maintenance_status || 'operante']} cor={{ operante: 'success', parcialmente_inoperante: 'warning', em_manutencao: 'info', inoperante: 'error' }[l.maintenance_status || 'operante']} /> }, { chave: 'estoque_viatura', titulo: 'Em viatura', alinhar: 'right', render: (l) => l.estoque_viatura || 0 }]} linhas={painel.estoqueZerado} vazio="Nenhum material zerado" />
                 </ChartCard>
-                <ChartCard titulo="Sem conferência há +6 meses" subtitulo={`${painel.semConferencia.length} materiais precisam de revisão`} altura={240}>
-                    <TabelaCompacta maxAltura={260} colunas={[{ chave: 'description', titulo: 'Material', largura: 220 }, { chave: 'categoria', titulo: 'Categoria' }]} linhas={painel.semConferencia} vazio="Todos conferidos recentemente" />
+                <ChartCard titulo="Sem conferência há +6 meses" subtitulo={`${painel.semConferencia.length} materiais precisam de revisão`} altura={240} expandivel>
+                    <TabelaCompacta maxAltura={260} colunas={[{ chave: 'description', titulo: 'Material', largura: 220 }, { chave: 'categoria', titulo: 'Categoria' }, { chave: 'maintenance_status', titulo: 'Status', render: (l) => <Selo texto={STATUS_LABEL[l.maintenance_status || 'operante']} cor={{ operante: 'success', parcialmente_inoperante: 'warning', em_manutencao: 'info', inoperante: 'error' }[l.maintenance_status || 'operante']} /> }]} linhas={painel.semConferencia} vazio="Todos conferidos recentemente" />
                 </ChartCard>
             </Grade>
+            <ChartCard titulo="Materiais do filtro" subtitulo={`${painel.listaMateriais.length} materiais · status, estoque, onde estão guardados e movimentações no período · clique para filtrar`} altura={100} sx={{ mb: 2 }} expandivel>
+                <TabelaCompacta
+                    maxAltura={380}
+                    onLinha={(l) => alternar('material', l.id)}
+                    colunas={[
+                        { chave: 'description', titulo: 'Material', largura: 260 },
+                        { chave: 'categoria', titulo: 'Categoria' },
+                        { chave: 'status', titulo: 'Status', render: (l) => <Selo texto={STATUS_LABEL[l.status] || l.status} cor={{ operante: 'success', parcialmente_inoperante: 'warning', em_manutencao: 'info', inoperante: 'error' }[l.status] || 'default'} /> },
+                        { chave: 'total', titulo: 'Total', alinhar: 'right' },
+                        { chave: 'disponivel', titulo: 'Disponível', alinhar: 'right' },
+                        { chave: 'viatura', titulo: 'Em viatura', alinhar: 'right' },
+                        { chave: 'inoperante', titulo: 'Inoperantes', alinhar: 'right', render: (l) => l.inoperante > 0 ? <Selo texto={l.inoperante} cor="error" /> : '0' },
+                        { chave: 'locais', titulo: 'Onde está', largura: 260 },
+                        { chave: 'semLocal', titulo: 'Sem local', alinhar: 'right', render: (l) => l.semLocal > 0 ? <Selo texto={l.semLocal} cor="warning" /> : '0' },
+                        { chave: 'movimentacoes', titulo: 'Mov. no período', alinhar: 'right' },
+                    ]}
+                    linhas={painel.listaMateriais}
+                    vazio="Nenhum material no filtro"
+                />
+            </ChartCard>
         </>
     );
 }
@@ -459,7 +483,7 @@ function AbaViaturas({ painel, filtros, alternar, theme, SERIES }) {
                 <ChartCard titulo="Unidades por viatura" subtitulo="Materiais embarcados hoje · clique para filtrar" altura={300}>
                     <BarrasHorizontais theme={theme} dados={vs.slice(0, 15).map(v => ({ chave: v.id, nome: v.nome, valor: v.unidades }))} cor={SERIES[0]} onClick={(d) => alternar('viatura', d.chave)} ativoChave={filtros.viatura} altura={300} />
                 </ChartCard>
-                <ChartCard titulo="Materiais por viatura" subtitulo="Itens e unidades alocados hoje e apoio do DEMOP no período · clique para filtrar" altura={300}>
+                <ChartCard titulo="Materiais por viatura" subtitulo="Itens e unidades alocados hoje e apoio do DEMOP no período · clique para filtrar" altura={300} expandivel>
                     <TabelaCompacta
                         maxAltura={330}
                         onLinha={(l) => alternar('viatura', l.id)}
@@ -506,18 +530,18 @@ function AbaManutencao({ painel, theme, SERIES }) {
                         </ResponsiveContainer>
                     )}
                 </ChartCard>
-                <ChartCard titulo="Em aberto por tipo" altura={260}>
+                <ChartCard titulo="Em aberto por tipo" altura={260} expandivel>
                     <ListaRanking itens={painel.manPorTipo} cor={SERIES[6]} vazio="Nenhuma manutenção em aberto" />
                 </ChartCard>
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Atrasadas" subtitulo={`${painel.manAtrasadas.length} manutenções passaram da data`} altura={240}>
+                <ChartCard titulo="Atrasadas" subtitulo={`${painel.manAtrasadas.length} manutenções passaram da data`} altura={240} expandivel>
                     <TabelaCompacta maxAltura={280} colunas={[{ chave: 'materialDescription', titulo: 'Material', largura: 200 }, { chave: 'type', titulo: 'Tipo' }, { chave: 'dueDate', titulo: 'Prevista', render: (l) => <Selo texto={fmtData(l.dueDate?.toDate?.() || null)} cor="error" /> }]} linhas={painel.manAtrasadas} vazio="Nenhuma atrasada" />
                 </ChartCard>
-                <ChartCard titulo="Próximos 30 dias" altura={240}>
+                <ChartCard titulo="Próximos 30 dias" altura={240} expandivel>
                     <TabelaCompacta maxAltura={280} colunas={[{ chave: 'materialDescription', titulo: 'Material', largura: 200 }, { chave: 'type', titulo: 'Tipo' }, { chave: 'dueDate', titulo: 'Prevista', render: (l) => fmtData(l.dueDate?.toDate?.() || null) }]} linhas={painel.manProximas} vazio="Nada previsto" />
                 </ChartCard>
-                <ChartCard titulo="Materiais que mais exigem manutenção" subtitulo="Histórico de conclusões" altura={240}>
+                <ChartCard titulo="Materiais que mais exigem manutenção" subtitulo="Histórico de conclusões" altura={240} expandivel>
                     <ListaRanking itens={painel.materiaisComMaisManutencao} cor={SERIES[1]} vazio="Sem histórico" />
                 </ChartCard>
             </Grade>
@@ -535,16 +559,16 @@ function AbaMilitares({ painel, filtros, alternar, theme, SERIES, dados }) {
     return (
         <>
             <Grade colunas={{ xs: 2, md: 4 }}>
-                <KpiTile titulo="Militares com cautela" valor={painel.militares.length} icon={Groups} cor={SERIES[6]} ajuda="no histórico filtrado" />
-                <KpiTile titulo="Com material em aberto" valor={painel.militares.filter(m => m.abertas > 0).length} icon={Draw} cor={SERIES[3]} />
-                <KpiTile titulo="Com atraso (+30 dias)" valor={comAtraso} icon={WarningAmber} cor={SERIES[7]} />
+                <KpiTile titulo="Militares com cautela" valor={painel.militares.length} icon={Groups} cor={SERIES[6]} ajuda="no período" />
+                <KpiTile titulo="Com material em aberto" valor={painel.militares.filter(m => m.abertas > 0).length} icon={Draw} cor={SERIES[3]} ajuda="cautelas do período ainda não devolvidas" />
+                <KpiTile titulo="Com atraso (+30 dias)" valor={comAtraso} icon={WarningAmber} cor={SERIES[7]} ajuda="no período" />
                 <KpiTile titulo="OBMs atendidas" valor={painel.porOBM.length} icon={Warehouse} cor={SERIES[0]} ajuda="no período" />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
                 <ChartCard titulo="Cautelas por OBM" subtitulo="No período" altura={230}>
                     <Donut theme={theme} dados={painel.porOBM} cores={SERIES} rotuloCentro="cautelas" />
                 </ChartCard>
-                <ChartCard titulo="Ranking de militares" subtitulo={`${lista.length} militares · clique para filtrar todo o painel`} sx={{ gridColumn: { md: 'span 2' } }} altura={100}
+                <ChartCard titulo="Ranking de militares" subtitulo={`${lista.length} militares com cautela no período · clique para filtrar todo o painel`} sx={{ gridColumn: { md: 'span 2' } }} altura={100} expandivel
                     acao={<TextField size="small" placeholder="Buscar nome, RG ou OBM" value={busca} onChange={(e) => setBusca(e.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> } }} sx={{ width: { xs: 150, sm: 220 } }} />}
                 >
                     <TabelaCompacta
@@ -591,7 +615,7 @@ function AbaLocais({ painel, theme, SERIES }) {
                     <BarrasHorizontais theme={theme} dados={[...ocupados].sort((a, b) => b.unidades - a.unidades).slice(0, 15).map(l => ({ chave: l.id, nome: l.nome + (l.inoperantes ? ' (inoperantes)' : ''), valor: l.unidades }))} cor={SERIES[2]} altura={300} />
                 </ChartCard>
             </Grade>
-            <ChartCard titulo="Materiais sem local definido" subtitulo="Unidades do DEMOP ainda não guardadas em prateleira, box, gaveta ou armário" altura={100} sx={{ mb: 2 }}>
+            <ChartCard titulo="Materiais sem local definido" subtitulo="Unidades do DEMOP ainda não guardadas em prateleira, box, gaveta ou armário" altura={100} sx={{ mb: 2 }} expandivel>
                 <TabelaCompacta maxAltura={360} colunas={[{ chave: 'description', titulo: 'Material', largura: 240, render: (l) => l.m.description }, { chave: 'categoria', titulo: 'Categoria', render: (l) => l.m.categoria || '—' }, { chave: 'demop', titulo: 'No DEMOP', alinhar: 'right', render: (l) => l.r.unidadesDemop }, { chave: 'semLocal', titulo: 'Sem local', alinhar: 'right', render: (l) => <Selo texto={l.r.semLocal} cor="warning" /> }]} linhas={painel.semLocal.map((x, i) => ({ id: x.m.id || i, ...x }))} vazio="Todos os materiais têm local" />
             </ChartCard>
         </>

@@ -361,13 +361,34 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     ];
 
     // Materiais ------------------------------------------------------------
-    const materiaisFiltrados = materials.filter(m => {
+    const bateStatus = (m) => !filtros.statusMaterial || (m.maintenance_status || 'operante') === filtros.statusMaterial;
+    const bateComposicao = (m) => {
+        if (filtros.composicao === 'disponivel') return (Number(m.estoque_atual) || 0) > 0;
+        if (filtros.composicao === 'viatura') return (Number(m.estoque_viatura) || 0) > 0;
+        if (filtros.composicao === 'inoperante') return getQtdInoperante(m) > 0;
+        return true;
+    };
+    const materiaisBase = materials.filter(m => {
         if (filtros.categoria && (m.categoria || 'Sem categoria') !== filtros.categoria) return false;
         if (filtros.material && m.id !== filtros.material) return false;
         if (termos.length && !bate(m.description, m.categoria, locaisDoMaterial(m.id))) return false;
         return true;
     });
-    const estoque = materiaisFiltrados.reduce((acc, m) => {
+    const materiaisFiltrados = materiaisBase.filter(m => bateStatus(m) && bateComposicao(m));
+    // Status/composicao tambem restringem as movimentacoes usadas nos cards de materiais
+    const idsMateriaisFiltrados = new Set(materiaisFiltrados.map(m => m.id));
+    const restringePorMaterial = Boolean(filtros.statusMaterial || filtros.composicao);
+    const movsMateriais = restringePorMaterial ? movs.filter(m => idsMateriaisFiltrados.has(m.material)) : movs;
+    const listaMateriais = materiaisFiltrados.map(m => {
+        const r = resumirLocalizacao(m, alocacoesPorMaterial?.get(m.id) || []);
+        return {
+            id: m.id, description: m.description || '', categoria: m.categoria || '—', status: m.maintenance_status || 'operante',
+            total: getTotalUnidades(m), disponivel: Number(m.estoque_atual) || 0, viatura: Number(m.estoque_viatura) || 0, inoperante: getQtdInoperante(m),
+            locais: (alocacoesPorMaterial?.get(m.id) || []).map(a => `${a.local_nome} ×${a.quantidade}`).join(' · ') || '—', semLocal: r.semLocal,
+            movimentacoes: movsMateriais.filter(x => x.material === m.id).length,
+        };
+    }).sort((a, b) => b.movimentacoes - a.movimentacoes || a.description.localeCompare(b.description, 'pt-BR'));
+    const estoque = materiaisBase.filter(bateStatus).reduce((acc, m) => {
         const total = getTotalUnidades(m);
         const inop = getQtdInoperante(m);
         const viatura = Number(m.estoque_viatura) || 0;
@@ -375,7 +396,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         acc.total += total; acc.viatura += viatura; acc.disponivel += atual; acc.inoperante += inop;
         return acc;
     }, { total: 0, viatura: 0, disponivel: 0, inoperante: 0 });
-    const statusMateriais = contar(materiaisFiltrados, m => m.maintenance_status || 'operante', k => ({ operante: 'Operante', parcialmente_inoperante: 'Parcial', em_manutencao: 'Em manutenção', inoperante: 'Inoperante' }[k] || k));
+    const statusMateriais = contar(materiaisBase.filter(bateComposicao), m => m.maintenance_status || 'operante', k => ({ operante: 'Operante', parcialmente_inoperante: 'Parcial', em_manutencao: 'Em manutenção', inoperante: 'Inoperante' }[k] || k));
     const estoquePorCategoria = (() => {
         const mapa = new Map();
         for (const m of materiaisFiltrados) {
@@ -393,7 +414,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         .map(m => ({ m, r: resumirLocalizacao(m, alocacoesPorMaterial?.get(m.id) || []) }))
         .filter(x => x.r.semLocal > 0)
         .sort((a, b) => b.r.semLocal - a.r.semLocal);
-    const materiaisMaisMovimentados = contar(movs, m => m.material, (k, m) => m.material_description || 'Material').slice(0, 10);
+    const materiaisMaisMovimentados = contar(movsMateriais, m => m.material, (k, m) => m.material_description || 'Material').slice(0, 10);
     const semConferencia = materiaisFiltrados.filter(m => {
         const d = toDate(m.ultima_conferencia) || toDate(m.ultima_movimentacao);
         return !d || diasEntre(d, agora) > 180;
@@ -435,13 +456,16 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
             const u = usersById.get(m.user);
             if (!mapa.has(m.user)) mapa.set(m.user, { id: m.user, nome: u?.full_name || m.user_name || 'Militar', rg: u?.rg || u?.username || m.user_rg || '—', obm: u?.OBM || '—', foto: u?.foto_url || null, total: 0, periodo: 0, abertas: 0, atrasadas: 0, devolvidas: 0, somaDias: 0, nDias: 0, ultima: null });
             const r = mapa.get(m.user);
-            r.total += 1;
+            r.total += 1; // historico completo (fora do periodo)
             const d = toDate(m.date);
-            if (dentro(d, intervalo)) r.periodo += 1;
+            if (d && (!r.ultima || d > r.ultima)) r.ultima = d;
+            if (!dentro(d, intervalo)) continue; // demais indicadores respeitam o periodo do filtro
+            r.periodo += 1;
             if (m.status === 'cautelado') { r.abertas += 1; if (d && diasEntre(d, agora) > 30) r.atrasadas += 1; }
             if (m.status === 'devolvido') { r.devolvidas += 1; const rd = toDate(m.returned_date); if (d && rd) { r.somaDias += diasEntre(d, rd); r.nDias += 1; } }
-            if (d && (!r.ultima || d > r.ultima)) r.ultima = d;
         }
+        // So entram no ranking militares com cautela dentro do periodo (ou que batem com a busca)
+        for (const [id, r] of mapa) if (r.periodo === 0 && !(termos.length && bate(textoUsuario(usersById.get(id) || {}), r.nome, r.rg))) mapa.delete(id);
         if (termos.length) {
             for (const u of usersById.values()) {
                 if (mapa.has(u.id) || !bate(textoUsuario(u))) continue;
@@ -496,7 +520,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         },
         serie, porTipo, porCategoria, topMateriais, topMilitares, topViaturas, calor, calorMax,
         histDuracao, abertasDetalhe, abertasPorMilitar, funil,
-        statusMateriais, estoquePorCategoria, estoqueZerado, semLocal, materiaisMaisMovimentados, semConferencia,
+        statusMateriais, estoquePorCategoria, estoqueZerado, semLocal, materiaisMaisMovimentados, semConferencia, listaMateriais,
         viaturasResumo,
         manAbertas, manAtrasadas, manProximas, manPausadas, concluidasPeriodo, manPorTipo, manPorMes, materiaisComMaisManutencao,
         militares, porOBM,

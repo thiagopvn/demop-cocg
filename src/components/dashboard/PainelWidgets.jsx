@@ -1,5 +1,9 @@
-import { Box, Paper, Typography, Chip, Tooltip, Skeleton, alpha, useTheme, IconButton } from '@mui/material';
-import { TrendingUp, TrendingDown, TrendingFlat, InfoOutlined } from '@mui/icons-material';
+import { createContext, useContext, useState } from 'react';
+import { Box, Paper, Typography, Chip, Tooltip, Skeleton, alpha, useTheme, IconButton, Dialog, DialogTitle, DialogContent, useMediaQuery } from '@mui/material';
+import { TrendingUp, TrendingDown, TrendingFlat, InfoOutlined, OpenInFull, Close } from '@mui/icons-material';
+
+/** true quando o conteudo esta aberto na janela grande (tabelas e rankings mostram tudo). */
+export const ExpandidoContext = createContext(false);
 import { fmtNum } from './painelUtils';
 
 /* ------------------------------------------------------------------ */
@@ -73,8 +77,10 @@ export function KpiTile({ titulo, valor, anterior, sufixo = '', icon: Icon, cor,
 /* ------------------------------------------------------------------ */
 /* Cartao de grafico                                                    */
 /* ------------------------------------------------------------------ */
-export function ChartCard({ titulo, subtitulo, acao, children, altura, sx, ajuda }) {
+export function ChartCard({ titulo, subtitulo, acao, children, altura, sx, ajuda, expandivel = false }) {
     const theme = useTheme();
+    const cheio = useMediaQuery(theme.breakpoints.down('sm'));
+    const [aberto, setAberto] = useState(false);
     return (
         <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2.25 }, borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 1)}`, height: '100%', display: 'flex', flexDirection: 'column', minWidth: 0, ...sx }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1 }}>
@@ -89,9 +95,37 @@ export function ChartCard({ titulo, subtitulo, acao, children, altura, sx, ajuda
                     </Typography>
                     {subtitulo && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>{subtitulo}</Typography>}
                 </Box>
-                {acao}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                    {acao}
+                    {expandivel && (
+                        <Tooltip title="Abrir em tela grande">
+                            <IconButton size="small" onClick={() => setAberto(true)} aria-label={`Abrir ${titulo} em tela grande`} sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.08) } }}>
+                                <OpenInFull sx={{ fontSize: 16 }} />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Box>
             </Box>
             <Box sx={{ flex: 1, minHeight: altura || 240, width: '100%', minWidth: 0 }}>{children}</Box>
+
+            {expandivel && (
+                <Dialog open={aberto} onClose={() => setAberto(false)} maxWidth="lg" fullWidth fullScreen={cheio} PaperProps={{ sx: { borderRadius: { xs: 0, sm: 3 }, m: { xs: 0, sm: 4 }, width: { xs: '100%', sm: 'calc(100% - 64px)' }, maxWidth: { xs: '100%' }, height: { xs: '100%', sm: '90vh' }, maxHeight: { xs: '100%', sm: '90vh' } } }}>
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pr: 7, py: 1.75, borderBottom: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
+                        <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{titulo}</Typography>
+                            {subtitulo && <Typography variant="caption" color="text.secondary">{subtitulo}</Typography>}
+                        </Box>
+                        <IconButton onClick={() => setAberto(false)} aria-label="Fechar" sx={{ position: 'absolute', right: 12, top: 12, bgcolor: alpha(theme.palette.text.primary, 0.06), '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.12), color: 'error.main' } }}>
+                            <Close />
+                        </IconButton>
+                    </DialogTitle>
+                    <DialogContent sx={{ p: { xs: 1.5, sm: 2.5 }, display: 'flex', flexDirection: 'column' }}>
+                        <ExpandidoContext.Provider value>
+                            <Box sx={{ flex: 1, minHeight: 0 }}>{children}</Box>
+                        </ExpandidoContext.Provider>
+                    </DialogContent>
+                </Dialog>
+            )}
         </Paper>
     );
 }
@@ -169,8 +203,9 @@ export function MapaCalor({ matriz, maximo, cor }) {
 /* ------------------------------------------------------------------ */
 export function ListaRanking({ itens, cor, onClick, ativoChave, formato = fmtNum, sufixo = '', vazio, maxItens = 10, avatar }) {
     const theme = useTheme();
+    const expandido = useContext(ExpandidoContext);
     const c = cor || theme.palette.primary.main;
-    const lista = (itens || []).slice(0, maxItens);
+    const lista = (itens || []).slice(0, expandido ? 500 : maxItens);
     if (lista.length === 0) return <Vazio texto={vazio} altura={160} />;
     const max = Math.max(...lista.map(i => i.valor), 1);
     return (
@@ -206,9 +241,10 @@ export function ListaRanking({ itens, cor, onClick, ativoChave, formato = fmtNum
 /* ------------------------------------------------------------------ */
 export function TabelaCompacta({ colunas, linhas, vazio = 'Nada a mostrar', maxAltura = 360, onLinha }) {
     const theme = useTheme();
+    const expandido = useContext(ExpandidoContext);
     if (!linhas || linhas.length === 0) return <Vazio texto={vazio} altura={140} />;
     return (
-        <Box sx={{ overflow: 'auto', maxHeight: maxAltura, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
+        <Box sx={{ overflow: 'auto', maxHeight: expandido ? { xs: 'calc(100vh - 150px)', sm: 'calc(90vh - 150px)' } : maxAltura, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
             <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', minWidth: colunas.length * 92 }}>
                 <Box component="thead" sx={{ position: 'sticky', top: 0, zIndex: 1 }}>
                     <Box component="tr" sx={{ bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.25 : 0.08) }}>
