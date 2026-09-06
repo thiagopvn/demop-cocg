@@ -166,10 +166,12 @@ export function Vazio({ texto = 'Sem dados para os filtros escolhidos', altura =
 /* Mapa de calor dia da semana x hora                                   */
 /* ------------------------------------------------------------------ */
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-export function MapaCalor({ matriz, maximo, cor }) {
+export function MapaCalor({ matriz, maximo, cor, onClick, ativo }) {
     const theme = useTheme();
     const c = cor || theme.palette.primary.main;
     const horas = Array.from({ length: 24 }, (_, i) => i);
+    const temAtivo = ativo && (ativo.dia !== '' || ativo.hora !== '');
+    const celulaAtiva = (dia, h) => temAtivo && (ativo.dia === '' || Number(ativo.dia) === dia) && (ativo.hora === '' || Number(ativo.hora) === h);
     if (!maximo) return <Vazio />;
     return (
         <Box sx={{ overflowX: 'auto' }}>
@@ -182,8 +184,19 @@ export function MapaCalor({ matriz, maximo, cor }) {
                     <Box key={dia} sx={{ display: 'contents' }}>
                         <Typography variant="caption" sx={{ fontSize: '0.66rem', fontWeight: 700, color: 'text.secondary', lineHeight: '16px' }}>{DIAS[dia]}</Typography>
                         {linha.map((v, h) => (
-                            <Tooltip key={h} title={`${DIAS[dia]} ${h}h · ${v} movimentação(ões)`} enterDelay={200}>
-                                <Box sx={{ height: 16, borderRadius: '3px', bgcolor: v === 0 ? alpha(theme.palette.text.primary, 0.05) : alpha(c, 0.15 + 0.85 * (v / maximo)), transition: 'transform 0.1s', '&:hover': { transform: 'scale(1.25)', outline: `2px solid ${theme.palette.background.paper}` } }} />
+                            <Tooltip key={h} title={`${DIAS[dia]} ${h}h · ${v} movimentação(ões)${onClick ? ' · clique para filtrar' : ''}`} enterDelay={200}>
+                                <Box
+                                    role={onClick ? 'button' : undefined}
+                                    aria-label={onClick ? `${DIAS[dia]} ${h}h: ${v}` : undefined}
+                                    onClick={onClick ? () => onClick(dia, h) : undefined}
+                                    sx={{
+                                        height: 16, borderRadius: '3px', cursor: onClick ? 'pointer' : 'default',
+                                        bgcolor: v === 0 ? alpha(theme.palette.text.primary, 0.05) : alpha(c, 0.15 + 0.85 * (v / maximo)),
+                                        opacity: temAtivo && !celulaAtiva(dia, h) ? 0.3 : 1,
+                                        outline: celulaAtiva(dia, h) ? `2px solid ${theme.palette.secondary.main}` : 'none', outlineOffset: '-1px',
+                                        transition: 'transform 0.1s, opacity 0.15s', '&:hover': { transform: 'scale(1.25)', outline: `2px solid ${theme.palette.background.paper}` },
+                                    }}
+                                />
                             </Tooltip>
                         ))}
                     </Box>

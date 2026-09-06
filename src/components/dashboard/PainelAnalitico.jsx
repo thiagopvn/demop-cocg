@@ -8,7 +8,7 @@ import {
     Search, WarningAmber, PauseCircleOutline, EventAvailable, Draw, Speed, ReportProblem, Storage, ClearAll, Insights,
 } from '@mui/icons-material';
 import {
-    ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, LabelList,
+    ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, LabelList, ReferenceLine,
 } from 'recharts';
 import { useMaterials } from '../../contexts/MaterialContext';
 import { useLocaisArmazenamento, useAlocacoesLocais } from '../../hooks/useLocais';
@@ -16,10 +16,12 @@ import UserAvatar from '../UserAvatar';
 import { KpiTile, ChartCard, TooltipGrafico, Vazio, MapaCalor, ListaRanking, TabelaCompacta, Selo } from './PainelWidgets';
 import PainelFiltros from './PainelFiltros';
 import {
-    usePainelDados, calcularPainel, TIPOS_MOV, corTipo, labelTipo, SERIES_CLARO, SERIES_ESCURO, fmtNum, fmtData, fmtDataHora, csvMovimentacoes,
+    usePainelDados, calcularPainel, TIPOS_MOV, corTipo, labelTipo, SERIES_CLARO, SERIES_ESCURO, fmtNum, fmtData, fmtDataHora, csvMovimentacoes, DIAS_SEMANA, rotuloDataSel,
 } from './painelUtils';
 
-const FILTROS_INICIAIS = { periodo: '30', inicio: '', fim: '', tipos: [], categoria: '', militar: '', viatura: '', material: '', obm: '', busca: '', statusMaterial: '', composicao: '' };
+const FILTROS_INICIAIS = { periodo: '30', inicio: '', fim: '', tipos: [], categoria: '', militar: '', viatura: '', material: '', obm: '', busca: '', statusMaterial: '', composicao: '', diaSemana: '', hora: '', dataSel: '', etapa: '', faixaDevolucao: '', local: '', tipoLocal: '', mesManutencao: '', tipoManutencao: '' };
+const ETAPA_LABEL = { assinadas: 'Assinadas', devolvidas: 'Devolvidas' };
+const TIPO_MAN_LABEL = { preventiva: 'Preventiva', corretiva: 'Corretiva', inspecao: 'Inspeção', calibracao: 'Calibração', outro: 'Outro' };
 const STATUS_LABEL = { operante: 'Operante', parcialmente_inoperante: 'Parcial', em_manutencao: 'Em manutenção', inoperante: 'Inoperante' };
 const COMPOSICAO_LABEL = { disponivel: 'Disponível no DEMOP', viatura: 'Em viaturas', inoperante: 'Inoperantes' };
 
@@ -54,6 +56,7 @@ export default function PainelAnalitico({ userRole }) {
 
     const setFiltro = useCallback((chave, valor) => setFiltros(f => ({ ...f, [chave]: valor })), []);
     const alternar = useCallback((chave, valor) => setFiltros(f => ({ ...f, [chave]: f[chave] === valor ? '' : valor })), []);
+    const setVarios = useCallback((obj) => setFiltros(f => ({ ...f, ...obj })), []);
     const limpar = () => setFiltros(FILTROS_INICIAIS);
 
     const painel = useMemo(
@@ -78,6 +81,14 @@ export default function PainelAnalitico({ userRole }) {
     if (filtros.busca) chipsAtivos.push({ chave: 'busca', label: `Busca: ${filtros.busca}`, limpar: () => setFiltro('busca', '') });
     if (filtros.statusMaterial) chipsAtivos.push({ chave: 'statusMaterial', label: `Status: ${STATUS_LABEL[filtros.statusMaterial] || filtros.statusMaterial}`, limpar: () => setFiltro('statusMaterial', '') });
     if (filtros.composicao) chipsAtivos.push({ chave: 'composicao', label: `Estoque: ${COMPOSICAO_LABEL[filtros.composicao]}`, limpar: () => setFiltro('composicao', '') });
+    if (filtros.diaSemana !== '' || filtros.hora !== '') chipsAtivos.push({ chave: 'calor', label: `Momento: ${filtros.diaSemana !== '' ? DIAS_SEMANA[Number(filtros.diaSemana)] : ''}${filtros.hora !== '' ? ` ${filtros.hora}h` : ''}`.replace(': ', ': ').trim(), limpar: () => setVarios({ diaSemana: '', hora: '' }) });
+    if (filtros.dataSel) chipsAtivos.push({ chave: 'dataSel', label: rotuloDataSel(filtros.dataSel), limpar: () => setFiltro('dataSel', '') });
+    if (filtros.etapa) chipsAtivos.push({ chave: 'etapa', label: `Etapa: ${ETAPA_LABEL[filtros.etapa] || filtros.etapa}`, limpar: () => setFiltro('etapa', '') });
+    if (filtros.faixaDevolucao) chipsAtivos.push({ chave: 'faixaDevolucao', label: `Devolução: ${filtros.faixaDevolucao}`, limpar: () => setFiltro('faixaDevolucao', '') });
+    if (filtros.local) chipsAtivos.push({ chave: 'local', label: `Local: ${locais.find(l => l.id === filtros.local)?.nome || '—'}`, limpar: () => setFiltro('local', '') });
+    if (filtros.tipoLocal) chipsAtivos.push({ chave: 'tipoLocal', label: `Tipo de local: ${filtros.tipoLocal}`, limpar: () => setFiltro('tipoLocal', '') });
+    if (filtros.mesManutencao) chipsAtivos.push({ chave: 'mesManutencao', label: `Manutenção em: ${painel.manPorMes.find(x => x.chave === filtros.mesManutencao)?.rotulo || filtros.mesManutencao}`, limpar: () => setFiltro('mesManutencao', '') });
+    if (filtros.tipoManutencao) chipsAtivos.push({ chave: 'tipoManutencao', label: `Manutenção: ${TIPO_MAN_LABEL[filtros.tipoManutencao] || filtros.tipoManutencao}`, limpar: () => setFiltro('tipoManutencao', '') });
 
     const exportarCsv = () => {
         const csv = csvMovimentacoes(painel.movs, dados.usersById, dados.viaturasById);
@@ -124,7 +135,7 @@ export default function PainelAnalitico({ userRole }) {
         </Box>
     );
 
-    const props = { painel, filtros, setFiltro, alternar, dados, theme, escuro, SERIES, isMobile, materials, locais, porMaterial };
+    const props = { painel, filtros, setFiltro, setVarios, alternar, dados, theme, escuro, SERIES, isMobile, materials, locais, porMaterial };
     const abaKey = ABAS[aba].key;
 
     return (
@@ -247,7 +258,7 @@ function BarrasHorizontais({ dados, cor, onClick, ativoChave, theme, altura = 26
 /* ================================================================== */
 /* ABA: Visao geral                                                      */
 /* ================================================================== */
-function AbaGeral({ painel, filtros, setFiltro, alternar, theme, escuro, SERIES, dados }) {
+function AbaGeral({ painel, filtros, setFiltro, setVarios, alternar, theme, escuro, SERIES, dados }) {
     const k = painel.kpis;
     const tiposPresentes = TIPOS_MOV.filter(t => painel.serie.pontos.some(p => p[t.key]));
     const tempoMedioTxt = k.tempoMedio ? `${k.tempoMedio.toFixed(1)}` : '0';
@@ -263,10 +274,15 @@ function AbaGeral({ painel, filtros, setFiltro, alternar, theme, escuro, SERIES,
             </Grade>
 
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Movimentações ao longo do tempo" subtitulo={`Por ${painel.serie.gran === 'dia' ? 'dia' : painel.serie.gran === 'semana' ? 'semana' : 'mês'}, empilhadas por tipo`} sx={{ gridColumn: { md: 'span 2' } }} altura={280}>
-                    {painel.serie.pontos.length === 0 || painel.movs.length === 0 ? <Vazio altura={280} /> : (
+                <ChartCard titulo="Movimentações ao longo do tempo" subtitulo={`Por ${painel.serie.gran === 'dia' ? 'dia' : painel.serie.gran === 'semana' ? 'semana' : 'mês'}, empilhadas por tipo · clique em um ponto para filtrar`} sx={{ gridColumn: { md: 'span 2' } }} altura={280}>
+                    {painel.serie.pontos.length === 0 ? <Vazio altura={280} /> : (
                         <ResponsiveContainer width="100%" height={280}>
-                            <AreaChart data={painel.serie.pontos} margin={{ left: -18, right: 8, top: 8, bottom: 0 }}>
+                            <AreaChart
+                                data={painel.serie.pontos}
+                                margin={{ left: -18, right: 8, top: 8, bottom: 0 }}
+                                style={{ cursor: 'pointer' }}
+                                onClick={(e) => { const i = e?.activeTooltipIndex; if (i == null) return; const p = painel.serie.pontos[i]; if (p) alternar('dataSel', `${painel.serie.gran}:${p.chave}`); }}
+                            >
                                 <defs>
                                     {tiposPresentes.map(t => (
                                         <linearGradient key={t.key} id={`grad-${t.key}`} x1="0" y1="0" x2="0" y2="1">
@@ -280,6 +296,7 @@ function AbaGeral({ painel, filtros, setFiltro, alternar, theme, escuro, SERIES,
                                 <YAxis tick={eixoTick(theme)} axisLine={false} tickLine={false} allowDecimals={false} />
                                 <RTooltip content={<TooltipGrafico />} />
                                 <Legend iconType="square" iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+                                {filtros.dataSel && (() => { const p = painel.serie.pontos.find(x => `${painel.serie.gran}:${x.chave}` === filtros.dataSel); return p ? <ReferenceLine x={p.rotulo} stroke={theme.palette.secondary.main} strokeWidth={2} strokeDasharray="4 3" label={{ value: 'selecionado', position: 'top', fontSize: 10, fill: theme.palette.secondary.main }} /> : null; })()}
                                 {tiposPresentes.map(t => (
                                     <Area key={t.key} type="monotone" dataKey={t.key} name={t.label} stackId="1" stroke={corTipo(t.key, escuro)} strokeWidth={2} fill={`url(#grad-${t.key})`} dot={false} activeDot={{ r: 4 }} />
                                 ))}
@@ -305,15 +322,22 @@ function AbaGeral({ painel, filtros, setFiltro, alternar, theme, escuro, SERIES,
             </Grade>
 
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Quando o depósito é mais movimentado" subtitulo="Dia da semana × hora do dia" altura={200}>
-                    <MapaCalor matriz={painel.calor} maximo={painel.calorMax} cor={SERIES[0]} />
+                <ChartCard titulo="Quando o depósito é mais movimentado" subtitulo="Dia da semana × hora do dia · clique em um horário para filtrar" altura={200}>
+                    <MapaCalor
+                        matriz={painel.calor}
+                        maximo={painel.calorMax}
+                        cor={SERIES[0]}
+                        ativo={{ dia: filtros.diaSemana, hora: filtros.hora }}
+                        onClick={(dia, h) => setVarios(filtros.diaSemana === String(dia) && filtros.hora === String(h) ? { diaSemana: '', hora: '' } : { diaSemana: String(dia), hora: String(h) })}
+                    />
                 </ChartCard>
                 <ChartCard titulo="Viaturas mais apoiadas pelo DEMOP" subtitulo="Unidades enviadas/trocadas · clique para filtrar" altura={200} expandivel>
                     <ListaRanking itens={painel.topViaturas} cor={SERIES[1]} onClick={(i) => alternar('viatura', i.chave)} ativoChave={filtros.viatura} sufixo=" un." vazio="Nenhuma movimentação com viatura" maxItens={6} />
                 </ChartCard>
-                <ChartCard titulo="Últimas movimentações" subtitulo="Mais recentes dentro do filtro" altura={200} expandivel>
+                <ChartCard titulo="Últimas movimentações" subtitulo="Mais recentes dentro do filtro · clique para filtrar pelo material" altura={200} expandivel>
                     <TabelaCompacta
                         maxAltura={260}
+                        onLinha={(l) => l.materialId && alternar('material', l.materialId)}
                         colunas={[
                             { chave: 'data', titulo: 'Quando', render: (l) => <Typography variant="caption" sx={{ fontWeight: 600 }}>{fmtDataHora(l.data)}</Typography> },
                             { chave: 'tipo', titulo: 'Tipo', render: (l) => <Selo texto={l.tipoLabel} cor={corTipo(l.tipo, escuro)} /> },
@@ -332,7 +356,7 @@ function AbaGeral({ painel, filtros, setFiltro, alternar, theme, escuro, SERIES,
 /* ================================================================== */
 /* ABA: Cautelas                                                         */
 /* ================================================================== */
-function AbaCautelas({ painel, filtros, alternar, theme, SERIES, dados }) {
+function AbaCautelas({ painel, filtros, setFiltro, alternar, theme, SERIES, dados }) {
     const k = painel.kpis;
     return (
         <>
@@ -344,10 +368,10 @@ function AbaCautelas({ painel, filtros, alternar, theme, SERIES, dados }) {
                 <KpiTile titulo="Tempo médio" valor={k.tempoMedio ? k.tempoMedio.toFixed(1) : '0'} sufixo="dias" formato={(v) => v} icon={Speed} cor={SERIES[6]} ajuda="até a devolução" />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Funil das cautelas" subtitulo="Feitas → assinadas → devolvidas (no período)" altura={220}>
-                    <BarrasHorizontais theme={theme} dados={painel.funil} cor={SERIES[0]} altura={200} />
+                <ChartCard titulo="Funil das cautelas" subtitulo="Feitas → assinadas → devolvidas (no período) · clique para filtrar" altura={220}>
+                    <BarrasHorizontais theme={theme} dados={painel.funil} cor={SERIES[0]} altura={200} onClick={(d) => (d.chave === 'todas' ? setFiltro('etapa', '') : alternar('etapa', d.chave))} ativoChave={filtros.etapa || null} />
                 </ChartCard>
-                <ChartCard titulo="Tempo até a devolução" subtitulo="Cautelas devolvidas no período, por faixa" altura={220}>
+                <ChartCard titulo="Tempo até a devolução" subtitulo="Cautelas devolvidas no período, por faixa · clique para filtrar" altura={220}>
                     {painel.histDuracao.every(h => h.valor === 0) ? <Vazio altura={200} /> : (
                         <ResponsiveContainer width="100%" height={220}>
                             <BarChart data={painel.histDuracao} margin={{ left: -20, right: 8, top: 16, bottom: 0 }}>
@@ -355,7 +379,8 @@ function AbaCautelas({ painel, filtros, alternar, theme, SERIES, dados }) {
                                 <XAxis dataKey="nome" tick={eixoTick(theme)} axisLine={false} tickLine={false} interval={0} />
                                 <YAxis tick={eixoTick(theme)} axisLine={false} tickLine={false} allowDecimals={false} />
                                 <RTooltip content={<TooltipGrafico />} cursor={{ fill: alpha(theme.palette.text.primary, 0.04) }} />
-                                <Bar dataKey="valor" name="Cautelas" fill={SERIES[2]} radius={[4, 4, 0, 0]} maxBarSize={40}>
+                                <Bar dataKey="valor" name="Cautelas" fill={SERIES[2]} radius={[4, 4, 0, 0]} maxBarSize={40} onClick={(d) => alternar('faixaDevolucao', d.nome)} cursor="pointer">
+                                    {painel.histDuracao.map((h) => <Cell key={h.nome} fill={SERIES[2]} opacity={filtros.faixaDevolucao && filtros.faixaDevolucao !== h.nome ? 0.35 : 1} />)}
                                     <LabelList dataKey="valor" position="top" style={{ fontSize: 11, fill: theme.palette.text.secondary, fontWeight: 700 }} />
                                 </Bar>
                             </BarChart>
@@ -366,9 +391,10 @@ function AbaCautelas({ painel, filtros, alternar, theme, SERIES, dados }) {
                     <ListaRanking itens={painel.abertasPorMilitar} cor={SERIES[3]} onClick={(i) => alternar('militar', i.chave)} ativoChave={filtros.militar} maxItens={8} avatar={(i) => <UserAvatar src={dados.usersById.get(i.chave)?.foto_url} name={i.nome} role={dados.usersById.get(i.chave)?.role} size={24} />} />
                 </ChartCard>
             </Grade>
-            <ChartCard titulo="Cautelas em aberto" subtitulo={`${painel.abertasDetalhe.length} registro(s) · ordenadas da mais antiga para a mais recente`} altura={100} sx={{ mb: 2 }} expandivel>
+            <ChartCard titulo="Cautelas em aberto" subtitulo={`${painel.abertasDetalhe.length} registro(s) · ordenadas da mais antiga para a mais recente · clique para filtrar pelo militar`} altura={100} sx={{ mb: 2 }} expandivel>
                 <TabelaCompacta
                     maxAltura={420}
+                    onLinha={(l) => l.militarId && alternar('militar', l.militarId)}
                     colunas={[
                         { chave: 'militar', titulo: 'Militar', render: (l) => <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><UserAvatar src={dados.usersById.get(l.militarId)?.foto_url} name={l.militar} role={dados.usersById.get(l.militarId)?.role} size={22} /><span>{l.militar}</span></Box> },
                         { chave: 'material', titulo: 'Material', largura: 240 },
@@ -504,7 +530,7 @@ function AbaViaturas({ painel, filtros, alternar, theme, SERIES }) {
 /* ================================================================== */
 /* ABA: Manutencao                                                       */
 /* ================================================================== */
-function AbaManutencao({ painel, theme, SERIES }) {
+function AbaManutencao({ painel, filtros, alternar, theme, SERIES }) {
     return (
         <>
             <Grade colunas={{ xs: 2, sm: 3, md: 5 }}>
@@ -515,7 +541,7 @@ function AbaManutencao({ painel, theme, SERIES }) {
                 <KpiTile titulo="Concluídas no período" valor={painel.concluidasPeriodo.length} icon={AssignmentReturn} cor={SERIES[2]} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Agendadas × concluídas" subtitulo="Últimos 12 meses" sx={{ gridColumn: { md: 'span 2' } }} altura={260}>
+                <ChartCard titulo="Agendadas × concluídas" subtitulo="Últimos 12 meses · clique em um mês para filtrar" sx={{ gridColumn: { md: 'span 2' } }} altura={260}>
                     {painel.manPorMes.length === 0 ? <Vazio /> : (
                         <ResponsiveContainer width="100%" height={260}>
                             <BarChart data={painel.manPorMes} margin={{ left: -20, right: 8, top: 8, bottom: 0 }} barGap={2}>
@@ -524,25 +550,29 @@ function AbaManutencao({ painel, theme, SERIES }) {
                                 <YAxis tick={eixoTick(theme)} axisLine={false} tickLine={false} allowDecimals={false} />
                                 <RTooltip content={<TooltipGrafico />} cursor={{ fill: alpha(theme.palette.text.primary, 0.04) }} />
                                 <Legend iconType="square" iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                                <Bar dataKey="agendadas" name="Agendadas" fill={SERIES[0]} radius={[4, 4, 0, 0]} maxBarSize={28} />
-                                <Bar dataKey="concluidas" name="Concluídas" fill={SERIES[2]} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                                <Bar dataKey="agendadas" name="Agendadas" fill={SERIES[0]} radius={[4, 4, 0, 0]} maxBarSize={28} onClick={(d) => alternar('mesManutencao', d.chave)} cursor="pointer">
+                                    {painel.manPorMes.map((x) => <Cell key={x.chave} fill={SERIES[0]} opacity={filtros.mesManutencao && filtros.mesManutencao !== x.chave ? 0.35 : 1} />)}
+                                </Bar>
+                                <Bar dataKey="concluidas" name="Concluídas" fill={SERIES[2]} radius={[4, 4, 0, 0]} maxBarSize={28} onClick={(d) => alternar('mesManutencao', d.chave)} cursor="pointer">
+                                    {painel.manPorMes.map((x) => <Cell key={x.chave} fill={SERIES[2]} opacity={filtros.mesManutencao && filtros.mesManutencao !== x.chave ? 0.35 : 1} />)}
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     )}
                 </ChartCard>
-                <ChartCard titulo="Em aberto por tipo" altura={260} expandivel>
-                    <ListaRanking itens={painel.manPorTipo} cor={SERIES[6]} vazio="Nenhuma manutenção em aberto" />
+                <ChartCard titulo="Em aberto por tipo" subtitulo="Clique para filtrar" altura={260} expandivel>
+                    <ListaRanking itens={painel.manPorTipo} cor={SERIES[6]} vazio="Nenhuma manutenção em aberto" onClick={(i) => alternar('tipoManutencao', i.chave)} ativoChave={filtros.tipoManutencao || null} />
                 </ChartCard>
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Atrasadas" subtitulo={`${painel.manAtrasadas.length} manutenções passaram da data`} altura={240} expandivel>
-                    <TabelaCompacta maxAltura={280} colunas={[{ chave: 'materialDescription', titulo: 'Material', largura: 200 }, { chave: 'type', titulo: 'Tipo' }, { chave: 'dueDate', titulo: 'Prevista', render: (l) => <Selo texto={fmtData(l.dueDate?.toDate?.() || null)} cor="error" /> }]} linhas={painel.manAtrasadas} vazio="Nenhuma atrasada" />
+                <ChartCard titulo="Atrasadas" subtitulo={`${painel.manAtrasadas.length} manutenções passaram da data · clique para filtrar pelo material`} altura={240} expandivel>
+                    <TabelaCompacta maxAltura={280} onLinha={(l) => l.materialId && alternar('material', l.materialId)} colunas={[{ chave: 'materialDescription', titulo: 'Material', largura: 200 }, { chave: 'type', titulo: 'Tipo' }, { chave: 'dueDate', titulo: 'Prevista', render: (l) => <Selo texto={fmtData(l.dueDate?.toDate?.() || null)} cor="error" /> }]} linhas={painel.manAtrasadas} vazio="Nenhuma atrasada" />
                 </ChartCard>
-                <ChartCard titulo="Próximos 30 dias" altura={240} expandivel>
-                    <TabelaCompacta maxAltura={280} colunas={[{ chave: 'materialDescription', titulo: 'Material', largura: 200 }, { chave: 'type', titulo: 'Tipo' }, { chave: 'dueDate', titulo: 'Prevista', render: (l) => fmtData(l.dueDate?.toDate?.() || null) }]} linhas={painel.manProximas} vazio="Nada previsto" />
+                <ChartCard titulo="Próximos 30 dias" subtitulo="Clique para filtrar pelo material" altura={240} expandivel>
+                    <TabelaCompacta maxAltura={280} onLinha={(l) => l.materialId && alternar('material', l.materialId)} colunas={[{ chave: 'materialDescription', titulo: 'Material', largura: 200 }, { chave: 'type', titulo: 'Tipo' }, { chave: 'dueDate', titulo: 'Prevista', render: (l) => fmtData(l.dueDate?.toDate?.() || null) }]} linhas={painel.manProximas} vazio="Nada previsto" />
                 </ChartCard>
-                <ChartCard titulo="Materiais que mais exigem manutenção" subtitulo="Histórico de conclusões" altura={240} expandivel>
-                    <ListaRanking itens={painel.materiaisComMaisManutencao} cor={SERIES[1]} vazio="Sem histórico" />
+                <ChartCard titulo="Materiais que mais exigem manutenção" subtitulo="Histórico de conclusões · clique para filtrar" altura={240} expandivel>
+                    <ListaRanking itens={painel.materiaisComMaisManutencao} cor={SERIES[1]} vazio="Sem histórico" onClick={(i) => alternar('material', i.chave)} ativoChave={filtros.material || null} />
                 </ChartCard>
             </Grade>
         </>
@@ -565,8 +595,8 @@ function AbaMilitares({ painel, filtros, alternar, theme, SERIES, dados }) {
                 <KpiTile titulo="OBMs atendidas" valor={painel.porOBM.length} icon={Warehouse} cor={SERIES[0]} ajuda="no período" />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Cautelas por OBM" subtitulo="No período" altura={230}>
-                    <Donut theme={theme} dados={painel.porOBM} cores={SERIES} rotuloCentro="cautelas" />
+                <ChartCard titulo="Cautelas por OBM" subtitulo="No período · clique para filtrar" altura={230}>
+                    <Donut theme={theme} dados={painel.porOBM} cores={SERIES} rotuloCentro="cautelas" onClick={(d) => alternar('obm', d.chave)} ativoChave={filtros.obm || null} />
                 </ChartCard>
                 <ChartCard titulo="Ranking de militares" subtitulo={`${lista.length} militares com cautela no período · clique para filtrar todo o painel`} sx={{ gridColumn: { md: 'span 2' } }} altura={100} expandivel
                     acao={<TextField size="small" placeholder="Buscar nome, RG ou OBM" value={busca} onChange={(e) => setBusca(e.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> } }} sx={{ width: { xs: 150, sm: 220 } }} />}
@@ -596,23 +626,25 @@ function AbaMilitares({ painel, filtros, alternar, theme, SERIES, dados }) {
 /* ================================================================== */
 /* ABA: Locais                                                           */
 /* ================================================================== */
-function AbaLocais({ painel, theme, SERIES }) {
+function AbaLocais({ painel, filtros, alternar, theme, SERIES }) {
     const ocupados = painel.unidadesPorLocal.filter(l => l.unidades > 0);
-    const totalGuardado = ocupados.reduce((s, l) => s + l.unidades, 0);
+    // KPIs respeitam o local / tipo de local clicado; os graficos continuam mostrando todos para permitir trocar a selecao
+    const selecionados = ocupados.filter(l => (!filtros.local || l.id === filtros.local) && (!filtros.tipoLocal || (l.tipoLabel || l.tipo) === filtros.tipoLocal));
+    const totalGuardado = selecionados.reduce((s, l) => s + l.unidades, 0);
     return (
         <>
             <Grade colunas={{ xs: 2, md: 4 }}>
                 <KpiTile titulo="Locais cadastrados" valor={painel.unidadesPorLocal.length} icon={Warehouse} />
-                <KpiTile titulo="Locais em uso" valor={ocupados.length} icon={Storage} cor={SERIES[2]} />
+                <KpiTile titulo="Locais em uso" valor={selecionados.length} icon={Storage} cor={SERIES[2]} />
                 <KpiTile titulo="Unidades alocadas no DEMOP" valor={totalGuardado} icon={Inventory2} cor={SERIES[0]} ajuda="unidades com prateleira, box, gaveta ou armário definido" />
                 <KpiTile titulo="Unidades sem local" valor={painel.kpis.totalSemLocal} icon={WarningAmber} cor={SERIES[3]} ajuda={`${painel.semLocal.length} materiais`} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Por tipo de local" subtitulo="Unidades alocadas no DEMOP" altura={230}>
-                    <Donut theme={theme} dados={painel.unidadesPorTipoLocal} cores={SERIES} rotuloCentro="unidades" />
+                <ChartCard titulo="Por tipo de local" subtitulo="Unidades alocadas no DEMOP · clique para filtrar" altura={230}>
+                    <Donut theme={theme} dados={painel.unidadesPorTipoLocal} cores={SERIES} rotuloCentro="unidades" onClick={(d) => alternar('tipoLocal', d.chave)} ativoChave={filtros.tipoLocal || null} />
                 </ChartCard>
-                <ChartCard titulo="Locais mais ocupados" subtitulo="Unidades por local" sx={{ gridColumn: { md: 'span 2' } }} altura={300}>
-                    <BarrasHorizontais theme={theme} dados={[...ocupados].sort((a, b) => b.unidades - a.unidades).slice(0, 15).map(l => ({ chave: l.id, nome: l.nome + (l.inoperantes ? ' (inoperantes)' : ''), valor: l.unidades }))} cor={SERIES[2]} altura={300} />
+                <ChartCard titulo="Locais mais ocupados" subtitulo="Unidades por local · clique para filtrar" sx={{ gridColumn: { md: 'span 2' } }} altura={300}>
+                    <BarrasHorizontais theme={theme} dados={[...ocupados].sort((a, b) => b.unidades - a.unidades).slice(0, 15).map(l => ({ chave: l.id, nome: l.nome + (l.inoperantes ? ' (inoperantes)' : ''), valor: l.unidades }))} cor={SERIES[2]} altura={300} onClick={(d) => alternar('local', d.chave)} ativoChave={filtros.local || null} />
                 </ChartCard>
             </Grade>
             <ChartCard titulo="Materiais sem local definido" subtitulo="Unidades do DEMOP ainda não guardadas em prateleira, box, gaveta ou armário" altura={100} sx={{ mb: 2 }} expandivel>

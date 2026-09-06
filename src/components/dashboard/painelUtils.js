@@ -109,8 +109,21 @@ export const granularidade = ({ inicio, fim }, datas) => {
     return 'mes';
 };
 
-const chaveDia = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const inicioSemana = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; };
+export const chaveDia = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const inicioSemana = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; };
+export const chaveMes = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+/** Chave de agrupamento de uma data numa granularidade (dia | semana | mes). */
+export const chaveNaGranularidade = (d, gran) => (gran === 'dia' ? chaveDia(d) : gran === 'semana' ? chaveDia(inicioSemana(d)) : chaveMes(d));
+export const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+export const FAIXAS_DEVOLUCAO = [['Mesmo dia', 0, 0], ['1-3 dias', 1, 3], ['4-7 dias', 4, 7], ['8-15 dias', 8, 15], ['16-30 dias', 16, 30], ['+30 dias', 31, Infinity]];
+/** Rotulo legivel de um filtro de data vindo do grafico de linha (gran:chave). */
+export const rotuloDataSel = (dataSel) => {
+    if (!dataSel) return '';
+    const [gran, chave] = dataSel.split(':');
+    if (gran === 'mes') { const [y, m] = chave.split('-'); return `Mês: ${new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}`; }
+    const [, m, d] = chave.split('-');
+    return gran === 'semana' ? `Semana de ${d}/${m}` : `Dia: ${d}/${m}`;
+};
 
 /**
  * Serie temporal de movimentacoes por tipo, preenchendo buracos com zero.
@@ -279,7 +292,35 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     const locaisDoMaterial = (materialId) => (alocacoesPorMaterial?.get(materialId) || []).map(a => a.local_nome || '').join(' ');
     const textoUsuario = (u) => (u ? `${u.full_name || ''} ${u.username || ''} ${u.rg || ''} ${u.OBM || ''} ${u.email || ''}` : '');
 
+    // Filtros que agem sobre os materiais (status, composicao, local) ------
+    const locaisById = new Map((locais || []).map(l => [l.id, l]));
+    const bateStatus = (m) => !filtros.statusMaterial || (m.maintenance_status || 'operante') === filtros.statusMaterial;
+    const bateComposicao = (m) => {
+        if (filtros.composicao === 'disponivel') return (Number(m.estoque_atual) || 0) > 0;
+        if (filtros.composicao === 'viatura') return (Number(m.estoque_viatura) || 0) > 0;
+        if (filtros.composicao === 'inoperante') return getQtdInoperante(m) > 0;
+        return true;
+    };
+    const bateLocal = (m) => {
+        if (!filtros.local && !filtros.tipoLocal) return true;
+        const alocs = (alocacoesPorMaterial?.get(m.id) || []).filter(a => (Number(a.quantidade) || 0) > 0);
+        if (filtros.local && !alocs.some(a => a.local_id === filtros.local)) return false;
+        if (filtros.tipoLocal && !alocs.some(a => { const l = locaisById.get(a.local_id); return l && (l.tipo_label || l.tipo) === filtros.tipoLocal; })) return false;
+        return true;
+    };
+    const materiaisBase = materials.filter(m => {
+        if (filtros.categoria && (m.categoria || 'Sem categoria') !== filtros.categoria) return false;
+        if (filtros.material && m.id !== filtros.material) return false;
+        if (termos.length && !bate(m.description, m.categoria, locaisDoMaterial(m.id))) return false;
+        return true;
+    });
+    const materiaisFiltrados = materiaisBase.filter(m => bateStatus(m) && bateComposicao(m) && bateLocal(m));
+    const idsMateriaisFiltrados = new Set(materiaisFiltrados.map(m => m.id));
+    // Quando um filtro de material esta ativo (status, composicao, local), todo o painel passa a olhar so esses materiais
+    const restringePorMaterial = Boolean(filtros.statusMaterial || filtros.composicao || filtros.local || filtros.tipoLocal);
+
     const passaFiltrosSemPeriodo = (m) => {
+        if (restringePorMaterial && !idsMateriaisFiltrados.has(m.material)) return false;
         if (filtros.tipos.length && !filtros.tipos.includes(m.type)) return false;
         if (filtros.categoria && (m.categoria || 'Sem categoria') !== filtros.categoria) return false;
         if (filtros.militar && m.user !== filtros.militar) return false;
@@ -304,7 +345,40 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         return true;
     };
 
-    const movsBase = movimentacoes.filter(passaFiltrosSemPeriodo);
+    // Filtros vindos de cliques em graficos de tempo/etapa. Cada grafico e calculado
+    // ignorando o proprio filtro (para continuar mostrando todas as opcoes) e aplicando os demais.
+    const faixaSel = FAIXAS_DEVOLUCAO.find(f => f[0] === filtros.faixaDevolucao);
+    const extras = {
+        calor: (m) => {
+            if (filtros.diaSemana === '' && filtros.hora === '') return true;
+            const d = toDate(m.date); if (!d) return false;
+            if (filtros.diaSemana !== '' && d.getDay() !== Number(filtros.diaSemana)) return false;
+            if (filtros.hora !== '' && d.getHours() !== Number(filtros.hora)) return false;
+            return true;
+        },
+        data: (m) => {
+            if (!filtros.dataSel) return true;
+            const [gran, chave] = filtros.dataSel.split(':');
+            const d = toDate(m.date); return Boolean(d) && chaveNaGranularidade(d, gran) === chave;
+        },
+        etapa: (m) => {
+            if (!filtros.etapa) return true;
+            if (m.type !== 'cautela') return false;
+            if (filtros.etapa === 'assinadas') return Boolean(m.signed);
+            if (filtros.etapa === 'devolvidas') return m.status === 'devolvido';
+            return true;
+        },
+        faixa: (m) => {
+            if (!faixaSel) return true;
+            if (m.type !== 'cautela' || !m.returned_date) return false;
+            const n = diasEntre(toDate(m.date), toDate(m.returned_date));
+            return Number.isFinite(n) && n >= faixaSel[1] && n <= faixaSel[2];
+        },
+    };
+    const passaExtras = (m, exceto) => Object.keys(extras).every(k => k === exceto || extras[k](m));
+
+    const movsBase = movimentacoes.filter(m => passaFiltrosSemPeriodo(m) && passaExtras(m));
+    const movsSem = (exceto) => movimentacoes.filter(m => passaFiltrosSemPeriodo(m) && passaExtras(m, exceto) && dentro(toDate(m.date), intervalo));
     const movs = movsBase.filter(m => dentro(toDate(m.date), intervalo));
     const movsAnt = anterior ? movsBase.filter(m => dentro(toDate(m.date), anterior)) : [];
 
@@ -321,7 +395,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     const unidadesEmReparo = emReparo.reduce((s, m) => s + (Number(m.quantity) || 0), 0);
 
     // Serie temporal ------------------------------------------------------
-    const serie = serieTemporal(movs, intervalo);
+    const serie = serieTemporal(filtros.dataSel ? movsSem('data') : movs, intervalo);
 
     // Composicoes --------------------------------------------------------
     const porTipo = contar(movs, m => m.type, k => labelTipo(k));
@@ -333,7 +407,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     // Mapa de calor dia da semana x hora --------------------------------
     const calor = Array.from({ length: 7 }, () => Array(24).fill(0));
     let calorMax = 0;
-    for (const m of movs) {
+    for (const m of (filtros.diaSemana !== '' || filtros.hora !== '') ? movsSem('calor') : movs) {
         const d = toDate(m.date);
         if (!d) continue;
         calor[d.getDay()][d.getHours()] += 1;
@@ -341,44 +415,28 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     }
 
     // Cautelas: tempo de devolucao ----------------------------------------
-    const duracoes = movsBase
+    const baseDuracoes = faixaSel ? movimentacoes.filter(m => passaFiltrosSemPeriodo(m) && passaExtras(m, 'faixa')) : movsBase;
+    const duracoes = baseDuracoes
         .filter(m => m.type === 'cautela' && m.returned_date && dentro(toDate(m.returned_date), intervalo))
         .map(m => diasEntre(toDate(m.date), toDate(m.returned_date)))
         .filter(n => Number.isFinite(n));
     const tempoMedio = duracoes.length ? duracoes.reduce((a, b) => a + b, 0) / duracoes.length : 0;
-    const faixas = [['Mesmo dia', 0, 0], ['1-3 dias', 1, 3], ['4-7 dias', 4, 7], ['8-15 dias', 8, 15], ['16-30 dias', 16, 30], ['+30 dias', 31, Infinity]];
-    const histDuracao = faixas.map(([nome, a, b]) => ({ nome, valor: duracoes.filter(n => n >= a && n <= b).length }));
+    const histDuracao = FAIXAS_DEVOLUCAO.map(([nome, a, b]) => ({ nome, valor: duracoes.filter(n => n >= a && n <= b).length }));
 
     const abertasDetalhe = abertas.map(m => {
         const d = toDate(m.date);
         return { id: m.id, material: m.material_description || '—', militar: nomeMilitar(m, usersById), militarId: m.user, quantidade: m.quantity || 0, data: d, dias: d ? diasEntre(d, agora) : 0, assinada: Boolean(m.signed) };
     }).sort((a, b) => b.dias - a.dias);
     const abertasPorMilitar = contar(abertas, m => m.user || m.user_name, (k, m) => nomeMilitar(m, usersById));
+    const cautelasFunil = (filtros.etapa ? movsSem('etapa') : movs).filter(m => m.type === 'cautela');
     const funil = [
-        { nome: 'Cautelas', valor: cautelasPeriodo.length },
-        { nome: 'Assinadas', valor: cautelasPeriodo.filter(m => m.signed).length },
-        { nome: 'Devolvidas', valor: cautelasPeriodo.filter(m => m.status === 'devolvido').length },
+        { chave: 'todas', nome: 'Cautelas', valor: cautelasFunil.length },
+        { chave: 'assinadas', nome: 'Assinadas', valor: cautelasFunil.filter(m => m.signed).length },
+        { chave: 'devolvidas', nome: 'Devolvidas', valor: cautelasFunil.filter(m => m.status === 'devolvido').length },
     ];
 
     // Materiais ------------------------------------------------------------
-    const bateStatus = (m) => !filtros.statusMaterial || (m.maintenance_status || 'operante') === filtros.statusMaterial;
-    const bateComposicao = (m) => {
-        if (filtros.composicao === 'disponivel') return (Number(m.estoque_atual) || 0) > 0;
-        if (filtros.composicao === 'viatura') return (Number(m.estoque_viatura) || 0) > 0;
-        if (filtros.composicao === 'inoperante') return getQtdInoperante(m) > 0;
-        return true;
-    };
-    const materiaisBase = materials.filter(m => {
-        if (filtros.categoria && (m.categoria || 'Sem categoria') !== filtros.categoria) return false;
-        if (filtros.material && m.id !== filtros.material) return false;
-        if (termos.length && !bate(m.description, m.categoria, locaisDoMaterial(m.id))) return false;
-        return true;
-    });
-    const materiaisFiltrados = materiaisBase.filter(m => bateStatus(m) && bateComposicao(m));
-    // Status/composicao tambem restringem as movimentacoes usadas nos cards de materiais
-    const idsMateriaisFiltrados = new Set(materiaisFiltrados.map(m => m.id));
-    const restringePorMaterial = Boolean(filtros.statusMaterial || filtros.composicao);
-    const movsMateriais = restringePorMaterial ? movs.filter(m => idsMateriaisFiltrados.has(m.material)) : movs;
+    const movsMateriais = movs;
     const listaMateriais = materiaisFiltrados.map(m => {
         const r = resumirLocalizacao(m, alocacoesPorMaterial?.get(m.id) || []);
         return {
@@ -433,20 +491,31 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     }).sort((a, b) => b.unidades - a.unidades);
 
     // Manutencao ----------------------------------------------------------
-    const manAbertas = manutencoes.filter(m => m.status === 'pendente' || m.status === 'em_andamento');
+    // Manutencoes seguem os filtros de material (material, categoria, status, local, busca) e os cliques de mes/tipo
+    const idsMateriaisBase = new Set(materiaisFiltrados.map(m => m.id));
+    const filtraMaterialMan = Boolean(filtros.material || filtros.categoria || restringePorMaterial || termos.length);
+    const bateMan = (item, { ignorarTipo = false, ignorarMes = false, campoData } = {}) => {
+        if (filtraMaterialMan && !idsMateriaisBase.has(item.materialId)) return false;
+        if (!ignorarTipo && filtros.tipoManutencao && (item.type || 'outro') !== filtros.tipoManutencao) return false;
+        if (!ignorarMes && filtros.mesManutencao) { const d = toDate(item[campoData]); if (!d || chaveMes(d) !== filtros.mesManutencao) return false; }
+        return true;
+    };
+    const manutencoesF = manutencoes.filter(m => bateMan(m, { campoData: 'createdAt' }));
+    const historicoF = historico.filter(h => bateMan(h, { campoData: 'completedAt' }));
+    const manAbertas = manutencoesF.filter(m => m.status === 'pendente' || m.status === 'em_andamento');
     const manAtrasadas = manAbertas.filter(m => { const d = toDate(m.dueDate); return d && d < agora; });
     const manProximas = manAbertas.filter(m => { const d = toDate(m.dueDate); return d && d >= agora && diasEntre(agora, d) <= 30; }).sort((a, b) => toDate(a.dueDate) - toDate(b.dueDate));
-    const manPausadas = manutencoes.filter(m => m.status === 'pausada');
-    const concluidasPeriodo = historico.filter(h => dentro(toDate(h.completedAt), intervalo));
-    const manPorTipo = contar(manAbertas, m => m.type || 'outro');
+    const manPausadas = manutencoesF.filter(m => m.status === 'pausada');
+    const concluidasPeriodo = historicoF.filter(h => dentro(toDate(h.completedAt), intervalo));
+    const manPorTipo = contar(manutencoes.filter(m => (m.status === 'pendente' || m.status === 'em_andamento') && bateMan(m, { ignorarTipo: true, campoData: 'createdAt' })), m => m.type || 'outro');
     const manPorMes = (() => {
         const mapa = new Map();
-        const add = (d, campo) => { if (!d) return; const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; if (!mapa.has(k)) mapa.set(k, { chave: k, rotulo: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }), concluidas: 0, agendadas: 0 }); mapa.get(k)[campo] += 1; };
-        historico.forEach(h => add(toDate(h.completedAt), 'concluidas'));
-        manutencoes.forEach(m => add(toDate(m.createdAt), 'agendadas'));
+        const add = (d, campo) => { if (!d) return; const k = chaveMes(d); if (!mapa.has(k)) mapa.set(k, { chave: k, rotulo: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }), concluidas: 0, agendadas: 0 }); mapa.get(k)[campo] += 1; };
+        historico.filter(h => bateMan(h, { ignorarMes: true, campoData: 'completedAt' })).forEach(h => add(toDate(h.completedAt), 'concluidas'));
+        manutencoes.filter(m => bateMan(m, { ignorarMes: true, campoData: 'createdAt' })).forEach(m => add(toDate(m.createdAt), 'agendadas'));
         return [...mapa.values()].sort((a, b) => a.chave.localeCompare(b.chave)).slice(-12);
     })();
-    const materiaisComMaisManutencao = contar(historico, h => h.materialId, (k, h) => h.materialDescription || 'Material').slice(0, 8);
+    const materiaisComMaisManutencao = contar(historicoF, h => h.materialId, (k, h) => h.materialDescription || 'Material').slice(0, 8);
 
     // Militares -----------------------------------------------------------
     const militares = (() => {
@@ -497,7 +566,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
 
     // Recentes ------------------------------------------------------------
     const recentes = [...movs].sort((a, b) => (toDate(b.date) || 0) - (toDate(a.date) || 0)).slice(0, 12).map(m => ({
-        id: m.id, tipo: m.type, tipoLabel: labelTipo(m.type), material: m.material_description || '—', militar: nomeMilitar(m, usersById), viatura: m.viatura ? nomeViatura(m, viaturasById) : null, quantidade: m.quantity || 0, data: toDate(m.date), status: STATUS_MOV[m.status] || m.status || '—', quem: m.sender_name || '—',
+        id: m.id, materialId: m.material, militarId: m.user, tipo: m.type, tipoLabel: labelTipo(m.type), material: m.material_description || '—', militar: nomeMilitar(m, usersById), viatura: m.viatura ? nomeViatura(m, viaturasById) : null, quantidade: m.quantity || 0, data: toDate(m.date), status: STATUS_MOV[m.status] || m.status || '—', quem: m.sender_name || '—',
     }));
 
     return {
