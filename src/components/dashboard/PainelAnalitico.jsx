@@ -384,7 +384,7 @@ function AbaGeral({ painel, filtros, setFiltro, alternar, theme, escuro, SERIES,
                 <ChartCard titulo="Quando o depósito é mais movimentado" subtitulo="Dia da semana × hora do dia" altura={200}>
                     <MapaCalor matriz={painel.calor} maximo={painel.calorMax} cor={SERIES[0]} />
                 </ChartCard>
-                <ChartCard titulo="Viaturas mais atendidas" subtitulo="Unidades enviadas/trocadas · clique para filtrar" altura={200}>
+                <ChartCard titulo="Viaturas mais apoiadas pelo DEMOP" subtitulo="Unidades enviadas/trocadas · clique para filtrar" altura={200}>
                     <ListaRanking itens={painel.topViaturas} cor={SERIES[1]} onClick={(i) => alternar('viatura', i.chave)} ativoChave={filtros.viatura} sufixo=" un." vazio="Nenhuma movimentação com viatura" maxItens={6} />
                 </ChartCard>
                 <ChartCard titulo="Últimas movimentações" subtitulo="Mais recentes dentro do filtro" altura={200}>
