@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.cbmerj.gocg.demop",
+      "sha256_cert_fingerprints": [
+        "D2:38:3E:66:54:0D:24:79:A8:CE:04:FB:95:8A:85:02:CF:FD:07:B7:0E:B7:AE:A1:08:95:CF:0F:0C:6D:E7:A3"
+      ]
+    }
+  }
+]
