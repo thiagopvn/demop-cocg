@@ -292,19 +292,20 @@ export default function LocalConteudoDialog({
                         renderOption={(props, o) => {
                             const { key, ...rest } = props;
                             return (
-                                <li key={key} {...rest}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>{o.material.description}</Typography>
-                                            <Typography variant="caption" color="text.secondary">{o.material.categoria || 'Sem categoria'} · DEMOP {o.resumo.unidadesDemop}</Typography>
+                                <li key={key} {...rest} style={{ ...rest.style, alignItems: 'flex-start' }}>
+                                    <Box sx={{ width: '100%', minWidth: 0 }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word' }}>{o.material.description}</Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.4 }}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>{o.material.categoria || 'Sem categoria'} · DEMOP {o.resumo.unidadesDemop}</Typography>
+                                            {o.jaAqui && <Chip label="já aqui" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />}
+                                            {o.resumo.semLocal > 0 && <Chip label={`${o.resumo.semLocal} sem local`} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }} />}
                                         </Box>
-                                        {o.jaAqui && <Chip label="já aqui" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />}
-                                        {o.resumo.semLocal > 0 && <Chip label={`${o.resumo.semLocal} sem local`} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }} />}
                                     </Box>
                                 </li>
                             );
                         }}
                         renderInput={(params) => <TextField {...params} label="Material" placeholder="Buscar material..." />}
+                        slotProps={{ listbox: { sx: { maxHeight: { xs: 220, sm: 320 } } } }}
                         sx={{ flex: 1, minWidth: 220 }}
                         disabled={busy}
                         noOptionsText="Nenhum material com unidades no DEMOP"

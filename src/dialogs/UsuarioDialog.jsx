@@ -21,6 +21,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
+import AvatarUpload from "../components/AvatarUpload";
 import { verifyToken } from "../firebase/token";
 const OBM = [
     "1º GBM",
@@ -243,6 +244,18 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
 
             <DialogContent sx={{ padding: { xs: '16px', sm: '24px' } }}>
                 <div style={{ display: 'grid', gap: '20px' }}>
+                    {editMode && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                            <AvatarUpload
+                                src={editData?.foto_url}
+                                name={data.full_name || data.username}
+                                role={data.role}
+                                size={96}
+                                onChange={(file) => setData(prev => ({ ...prev, fotoFile: file }))}
+                            />
+                            <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>Foto do militar (opcional)</span>
+                        </div>
+                    )}
                     {errors.general && (
                         <Alert severity="error" onClose={() => setErrors(prev => { const { general: _general, ...rest } = prev; return rest; })}>
                             {errors.general}

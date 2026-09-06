@@ -1019,7 +1019,7 @@ export default function ViaturaDetalhes() {
                                 onClick={handleExportExcel}
                                 sx={{
                                     position: 'fixed',
-                                    bottom: { xs: 16, sm: 24 },
+                                    bottom: { xs: 'calc(var(--demop-bottom-nav, 0px) + 16px)', md: 24 },
                                     right: { xs: 16, sm: 24 },
                                     backgroundColor: '#4caf50',
                                     '&:hover': { backgroundColor: '#388e3c' }

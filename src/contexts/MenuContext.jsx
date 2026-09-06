@@ -5,8 +5,6 @@ import brasao from '../assets/brasao.png';
 import "./context.css";
 import {
   Logout,
-  Menu,
-  Close,
   Inventory,
   Search,
   ChevronLeft,
@@ -26,7 +24,8 @@ import {
   AccountBalance,
   DarkModeOutlined,
   LightModeOutlined,
-  WarehouseOutlined
+  WarehouseOutlined,
+  NotificationsNoneOutlined
 } from '@mui/icons-material';
 import {
   Dialog,
@@ -56,7 +55,8 @@ import {
   alpha,
   Paper,
   Snackbar,
-  Alert
+  Alert,
+  ButtonBase
 } from '@mui/material';
 import { collection, getDocs, writeBatch, query, where, Timestamp, onSnapshot as firestoreOnSnapshot } from 'firebase/firestore';
 import db from '../firebase/db';
@@ -64,6 +64,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { verifyToken } from '../firebase/token';
 import { checkAndNotifyMaintenances } from '../services/maintenanceNotificationService';
 import { useThemeContext } from './ThemeContext';
+import useCurrentUser from '../hooks/useCurrentUser';
+import UserAvatar, { ROLE_COLORS, ROLE_LABELS } from '../components/UserAvatar';
+import MobileBottomNav, { ALTURA_BARRA } from '../components/navigation/MobileBottomNav';
+import ProfileSheet from '../components/navigation/ProfileSheet';
 const ChangePasswordDialog = lazy(() => import('../dialogs/ChangePasswordDialog'));
 
 function MenuContext({ children }) {
@@ -72,8 +76,12 @@ function MenuContext({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(true);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // Estado do menu lateral (desktop) persiste entre telas
+  const [drawerOpen, setDrawerOpen] = useState(() => {
+    try { return localStorage.getItem('drawerOpen') !== 'false'; } catch { return true; }
+  });
+  const [profileOpen, setProfileOpen] = useState(false);
+  const currentUser = useCurrentUser();
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState('');
@@ -203,8 +211,18 @@ function MenuContext({ children }) {
 
   const handleNavigation = useCallback((path) => {
     navigate(path);
-    setMobileOpen(false);
+    setProfileOpen(false);
   }, [navigate]);
+
+  const toggleDrawer = useCallback(() => {
+    setDrawerOpen((prev) => {
+      try { localStorage.setItem('drawerOpen', String(!prev)); } catch { /* sem storage */ }
+      return !prev;
+    });
+  }, []);
+
+  const podeVerManutencao = userRole && userRole !== 'user' && userRole !== 'chefe';
+  const nomeExibicao = currentUser.fullName || userName;
 
   const handleOpenCleanupDialog = () => {
     setCleanupDialogOpen(true);
@@ -337,9 +355,9 @@ function MenuContext({ children }) {
             }}
           />
         )}
-        {!mobileOpen && (
+        {(
           <IconButton
-            onClick={() => setDrawerOpen(!drawerOpen)}
+            onClick={toggleDrawer}
             sx={{ 
               color: 'rgba(255,255,255,0.7)',
               display: { xs: 'none', md: 'flex' },
@@ -360,74 +378,59 @@ function MenuContext({ children }) {
       </Box>
 
       {/* User Info */}
-      {drawerOpen && (
+      {drawerOpen ? (
         <Fade in={drawerOpen} timeout={400}>
-          <Box
+          <ButtonBase
+            onClick={() => handleNavigation('/perfil')}
             sx={{
-              p: 2,
               mx: 2,
               my: 1,
-              borderRadius: 2,
+              p: 1.5,
+              borderRadius: 2.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              textAlign: 'left',
               background: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,255,255,0.08)',
+              transition: 'all 0.2s ease',
+              '&:hover': { background: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.18)' },
             }}
           >
-            <Typography 
-              variant="subtitle2" 
-              sx={{ 
-                color: 'rgba(255,255,255,0.6)',
-                fontSize: '0.75rem',
-                mb: 0.5
-              }}
-            >
-              Usuário logado
-            </Typography>
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                color: '#fff',
-                fontWeight: 600,
-                mb: 1
-              }}
-            >
-              {userName}
-            </Typography>
-            {userRole && (
-              <Chip
-                label={
-                  userRole === 'admingeral' ? 'Admin Geral' :
-                  userRole === 'admin' ? 'Administrador' :
-                  userRole === 'chefe' ? 'Chefe de Guarnição' :
-                  userRole === 'BensPatrimoniais' ? 'Bens Patrimoniais' : 'Usuário'
-                }
-                size="small"
-                sx={{
-                  backgroundColor:
-                    userRole === 'admingeral' ? 'rgba(211, 47, 47, 0.2)' :
-                    userRole === 'admin' ? 'rgba(255, 107, 53, 0.2)' :
-                    userRole === 'chefe' ? 'rgba(34, 197, 94, 0.2)' :
-                    userRole === 'BensPatrimoniais' ? 'rgba(168, 85, 247, 0.2)' :
-                    'rgba(96, 165, 250, 0.2)',
-                  color:
-                    userRole === 'admingeral' ? '#d32f2f' :
-                    userRole === 'admin' ? '#ff6b35' :
-                    userRole === 'chefe' ? '#22c55e' :
-                    userRole === 'BensPatrimoniais' ? '#a855f7' :
-                    '#60a5fa',
-                  border: `1px solid ${
-                    userRole === 'admingeral' ? '#d32f2f' :
-                    userRole === 'admin' ? '#ff6b35' :
-                    userRole === 'chefe' ? '#22c55e' :
-                    userRole === 'BensPatrimoniais' ? '#a855f7' :
-                    '#60a5fa'
-                  }`,
-                  fontSize: '0.7rem',
-                  height: 22
-                }}
-              />
-            )}
-          </Box>
+            <Box sx={{ p: '2px', borderRadius: '50%', background: `linear-gradient(135deg, #ff6b35 0%, ${ROLE_COLORS[userRole] || '#60a5fa'} 100%)`, flexShrink: 0 }}>
+              <UserAvatar src={currentUser.fotoUrl} name={nomeExibicao} role={userRole} size={44} sx={{ border: '2px solid #1e3a5f' }} />
+            </Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="body2" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1.2 }} noWrap>
+                {nomeExibicao}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.55)', display: 'block', lineHeight: 1.2 }} noWrap>
+                @{userName}
+              </Typography>
+              {userRole && (
+                <Chip
+                  label={ROLE_LABELS[userRole] || 'Usuário'}
+                  size="small"
+                  sx={{
+                    mt: 0.5,
+                    height: 20,
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    backgroundColor: alpha(ROLE_COLORS[userRole] || '#60a5fa', 0.2),
+                    color: ROLE_COLORS[userRole] || '#60a5fa',
+                    border: `1px solid ${alpha(ROLE_COLORS[userRole] || '#60a5fa', 0.6)}`,
+                  }}
+                />
+              )}
+            </Box>
+          </ButtonBase>
         </Fade>
+      ) : (
+        <Tooltip title={nomeExibicao || ''} placement="right" arrow>
+          <ButtonBase onClick={() => handleNavigation('/perfil')} sx={{ mx: 'auto', my: 1.5, borderRadius: '50%' }}>
+            <UserAvatar src={currentUser.fotoUrl} name={nomeExibicao} role={userRole} size={40} sx={{ border: '2px solid rgba(255,255,255,0.2)' }} />
+          </ButtonBase>
+        </Tooltip>
       )}
 
       {/* Navigation */}
@@ -624,7 +627,7 @@ function MenuContext({ children }) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100dvh', backgroundColor: 'background.default' }}>
-      {/* Mobile App Bar */}
+      {/* Mobile App Bar (estilo app) */}
       <Box
         sx={{
           display: { xs: 'flex', md: 'none' },
@@ -632,35 +635,56 @@ function MenuContext({ children }) {
           top: 0,
           left: 0,
           right: 0,
-          height: 64,
-          backgroundColor: 'rgba(30,58,95,0.98)',
+          height: 'calc(56px + env(safe-area-inset-top, 0px))',
+          pt: 'env(safe-area-inset-top, 0px)',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          px: 2,
-          paddingTop: 'env(safe-area-inset-top, 0px)',
-          zIndex: 1300,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+          gap: 1,
+          px: 1.5,
+          zIndex: 1250,
+          bgcolor: (theme) => alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.85 : 0.9),
+          backdropFilter: 'saturate(180%) blur(18px)',
+          WebkitBackdropFilter: 'saturate(180%) blur(18px)',
+          borderBottom: (theme) => `1px solid ${alpha(theme.palette.divider, 1)}`,
         }}
       >
-        <IconButton
-          onClick={() => setMobileOpen(!mobileOpen)}
-          sx={{ color: '#fff' }}
+        <ButtonBase
+          onClick={() => setProfileOpen(true)}
+          aria-label="Abrir perfil"
+          sx={{ borderRadius: '50%', p: '2px', background: `linear-gradient(135deg, #ff6b35 0%, ${ROLE_COLORS[userRole] || '#60a5fa'} 100%)`, transition: 'transform 0.15s ease', '&:active': { transform: 'scale(0.94)' } }}
         >
-          {mobileOpen ? <Close /> : <Menu />}
-        </IconButton>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar src={brasao} sx={{ width: 36, height: 36 }} />
-          <Typography variant="h6" sx={{ color: '#fff', fontWeight: 600 }}>
+          <UserAvatar src={currentUser.fotoUrl} name={nomeExibicao} role={userRole} size={34} sx={{ border: (theme) => `2px solid ${theme.palette.background.paper}` }} />
+        </ButtonBase>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 0 }}>
+          <Avatar src={brasao} sx={{ width: 30, height: 30 }} />
+          <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 800, letterSpacing: '0.04em', fontSize: '1.05rem' }}>
             DEMOP
           </Typography>
         </Box>
-        <IconButton
-          onClick={toggleMode}
-          aria-label={mode === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
-          sx={{ color: 'rgba(255,255,255,0.85)' }}
-        >
-          {mode === 'dark' ? <LightModeOutlined /> : <DarkModeOutlined />}
-        </IconButton>
+        {podeVerManutencao ? (
+          <IconButton
+            onClick={() => handleNavigation('/manutencao')}
+            aria-label="Manutenções"
+            sx={{ color: 'text.secondary' }}
+          >
+            <Badge
+              badgeContent={maintenanceBadge.total}
+              color={maintenanceBadge.overdue > 0 ? 'error' : 'warning'}
+              max={99}
+              invisible={!maintenanceBadge.total}
+              sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', height: 16, minWidth: 16, padding: '0 4px', fontWeight: 700 } }}
+            >
+              <NotificationsNoneOutlined />
+            </Badge>
+          </IconButton>
+        ) : (
+          <IconButton
+            onClick={toggleMode}
+            aria-label={mode === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+            sx={{ color: 'text.secondary' }}
+          >
+            {mode === 'dark' ? <LightModeOutlined /> : <DarkModeOutlined />}
+          </IconButton>
+        )}
       </Box>
 
       {/* Desktop Drawer */}
@@ -682,31 +706,13 @@ function MenuContext({ children }) {
         {drawer}
       </Drawer>
 
-      {/* Mobile Drawer */}
-      <Drawer
-        variant="temporary"
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        ModalProps={{ keepMounted: true }}
-        sx={{
-          display: { xs: 'block', md: 'none' },
-          '& .MuiDrawer-paper': {
-            width: 280,
-            boxSizing: 'border-box',
-            border: 'none',
-          },
-        }}
-      >
-        {drawer}
-      </Drawer>
-
       {/* Main Content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           minWidth: 0,
-          mt: { xs: '64px', md: 0 },
+          mt: { xs: 'calc(56px + env(safe-area-inset-top, 0px))', md: 0 },
           transition: 'margin 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           position: 'relative',
           minHeight: '100dvh',
@@ -719,7 +725,7 @@ function MenuContext({ children }) {
           <LinearProgress 
             sx={{ 
               position: 'fixed',
-              top: { xs: 64, md: 0 },
+              top: { xs: 'calc(56px + env(safe-area-inset-top, 0px))', md: 0 },
               left: { md: drawerWidth },
               right: 0,
               zIndex: 1400,
@@ -733,8 +739,8 @@ function MenuContext({ children }) {
         )}
 
         {/* Page Content */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: { xs: 1, sm: 2, md: 4 }, pb: { xs: 'calc(12px + env(safe-area-inset-bottom, 0px))', sm: 3, md: 4 } }}>
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</Box>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: { xs: 1, sm: 2, md: 4 }, pb: { xs: 2, sm: 3, md: 4 } }}>
+          <Box className="page-enter" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</Box>
         </Box>
 
         {/* Footer Moderno */}
@@ -742,8 +748,9 @@ function MenuContext({ children }) {
           component="footer"
           sx={{
             mt: 'auto',
-            py: 3,
+            py: { xs: 2, md: 3 },
             px: { xs: 2, sm: 4 },
+            pb: { xs: `calc(${ALTURA_BARRA + 20}px + env(safe-area-inset-bottom, 0px))`, md: 3 },
             borderTop: '1px solid',
             borderColor: 'divider',
             background: (theme) => theme.palette.mode === 'dark'
@@ -890,8 +897,8 @@ function MenuContext({ children }) {
               onClick={handleOpenCleanupDialog}
               sx={{
                 position: 'fixed',
-                bottom: 24,
-                right: 24,
+                bottom: { xs: `calc(${ALTURA_BARRA + 16}px + env(safe-area-inset-bottom, 0px))`, md: 24 },
+                right: { xs: 16, md: 24 },
                 backgroundColor: '#ef4444',
                 color: '#fff',
                 boxShadow: '0 8px 24px rgba(239,68,68,0.3)',
@@ -907,6 +914,26 @@ function MenuContext({ children }) {
           </Tooltip>
         </Zoom>
       )}
+
+      {/* Navegacao mobile: barra inferior + folha de perfil */}
+      <MobileBottomNav
+        items={menuItems}
+        activePath={location.pathname}
+        onNavigate={handleNavigation}
+        maintenanceBadge={maintenanceBadge}
+        mode={mode}
+        toggleMode={toggleMode}
+      />
+      <ProfileSheet
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        user={{ ...currentUser, role: userRole || currentUser.role, username: userName || currentUser.username }}
+        mode={mode}
+        toggleMode={toggleMode}
+        onChangePassword={() => setChangePasswordOpen(true)}
+        onLogout={handleOpenDialog}
+        onNavigate={handleNavigation}
+      />
 
       {/* Logout Dialog */}
       <Dialog
@@ -972,6 +999,7 @@ function MenuContext({ children }) {
         autoHideDuration={4000}
         onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ bottom: { xs: `calc(${ALTURA_BARRA + 12}px + env(safe-area-inset-bottom, 0px))`, md: 24 } }}
       >
         <Alert
           onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}

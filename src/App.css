@@ -68,8 +68,10 @@ body {
 
 /* Media queries para mobile */
 @media screen and (max-width: 767px) {
+    /* No celular a barra superior ja e compensada pelo layout (MenuContext) */
     .root-protected {
-        padding: 70px 12px 16px 12px;
+        padding: 8px 4px 16px 4px;
+        min-height: auto;
     }
 
     .search {
@@ -87,7 +89,7 @@ body {
 
 @media screen and (max-width: 480px) {
     .root-protected {
-        padding: 68px 8px 12px 8px;
+        padding: 4px 0 12px 0;
     }
 }
 
@@ -109,4 +111,29 @@ body {
 
 .table::-webkit-scrollbar-thumb:hover {
     background: #152a45;
+}
+
+/* Entrada suave de cada tela (apenas opacidade: nao cria containing block para elementos fixed) */
+.page-enter {
+    animation: pageIn 220ms ease-out both;
+}
+
+@keyframes pageIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-enter { animation: none; }
+}
+
+/* Altura da barra de navegacao inferior (celular/tablet); 0 no desktop (menu lateral) */
+:root {
+    --demop-bottom-nav: 0px;
+}
+
+@media screen and (max-width: 899.95px) {
+    :root {
+        --demop-bottom-nav: calc(64px + env(safe-area-inset-bottom, 0px));
+    }
 }

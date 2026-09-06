@@ -202,13 +202,15 @@ export default function MaterialLocalDialog({ open, onClose, material, loggedUse
         const info = getTipoInfo(option.tipo, option.tipo_label);
         return (
             <li key={key} {...rest}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                    <TipoLocalIcon tipo={option.tipo} sx={{ fontSize: 18, color: info.cor }} />
-                    <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>{option.nome}</Typography>
-                    {option.inoperantes && <Chip label="inoperantes" size="small" color="error" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />}
-                    {option.observacao && (
-                        <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 140 }}>{option.observacao}</Typography>
-                    )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', minWidth: 0 }}>
+                    <TipoLocalIcon tipo={option.tipo} sx={{ fontSize: 18, color: info.cor, flexShrink: 0 }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>{option.nome}</Typography>
+                        {option.observacao && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2, wordBreak: 'break-word' }}>{option.observacao}</Typography>
+                        )}
+                    </Box>
+                    {option.inoperantes && <Chip label="inoperantes" size="small" color="error" variant="outlined" sx={{ height: 18, fontSize: '0.6rem', flexShrink: 0 }} />}
                 </Box>
             </li>
         );

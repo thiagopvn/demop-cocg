@@ -43,6 +43,7 @@ import {
   getDoc,
   orderBy,
   onSnapshot,
+  serverTimestamp,
 } from "firebase/firestore";
 import db from "../../firebase/db";
 import { callCreateUserAccount, callDeleteUserAccount, callResetUserPassword } from '../../firebase/functions';
@@ -55,6 +56,8 @@ import AddIcon from "@mui/icons-material/Add";
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import { useDebounce } from "../../hooks/useDebounce";
+import UserAvatar from "../../components/UserAvatar";
+import { compressAvatar, uploadImageFile, deleteStorageFile } from "../../utils/imageUpload";
 
 export default function Usuario() {
   const [allUsers, setAllUsers] = useState([]);
@@ -325,6 +328,24 @@ export default function Usuario() {
         telefone: data.telefone,
         OBM: data.OBM,
       };
+
+      // Foto do militar: undefined = sem mudanca, null = remover, File = nova
+      if (data.fotoFile !== undefined) {
+        const anterior = editData?.foto_storagePath;
+        if (data.fotoFile === null) {
+          updateData.foto_url = null;
+          updateData.foto_storagePath = null;
+          await deleteStorageFile(anterior);
+        } else {
+          const comprimida = await compressAvatar(data.fotoFile, 512);
+          const storagePath = `usuarios/${data.id}/avatar_${Date.now()}.jpg`;
+          const { downloadURL } = await uploadImageFile(comprimida, storagePath);
+          updateData.foto_url = downloadURL;
+          updateData.foto_storagePath = storagePath;
+          if (anterior && anterior !== storagePath) await deleteStorageFile(anterior);
+        }
+        updateData.foto_atualizada_em = serverTimestamp();
+      }
 
       await updateDoc(userDocRef, updateData);
       logAudit({
@@ -653,7 +674,13 @@ export default function Usuario() {
                     <TableRow key={user.id} sx={{ opacity: user.ativo === false ? 0.5 : 1 }}>
                       <TableCell sx={{ textAlign: "center" }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                          {user.username}
+                          <UserAvatar src={user.foto_url} name={user.full_name || user.username} role={user.role} size={30} />
+                          <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+                            <Box component="span" sx={{ display: 'block', fontWeight: 600, lineHeight: 1.2 }}>{user.username}</Box>
+                            {user.full_name && (
+                              <Box component="span" sx={{ display: 'block', fontSize: '0.72rem', color: 'text.secondary', lineHeight: 1.2, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.full_name}</Box>
+                            )}
+                          </Box>
                           {user.ativo === false && (
                             <Chip label="Inativo" size="small" color="error" variant="outlined" sx={{ fontSize: '0.7rem', height: 20 }} />
                           )}

@@ -8,7 +8,6 @@ import {
   Chip,
   Snackbar,
   Alert,
-  Avatar,
   Divider,
   IconButton,
   CircularProgress,
@@ -26,7 +25,9 @@ import {
   Cancel,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import AvatarUpload from "../../components/AvatarUpload";
+import { compressAvatar, uploadImageFile, deleteStorageFile } from "../../utils/imageUpload";
 import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
 import MenuContext from "../../contexts/MenuContext";
@@ -38,13 +39,6 @@ const roleConfig = {
   chefe: { label: "Chefe de Guarnição", color: "#2e7d32" },
   user: { label: "Usuário", color: "#1976d2" },
 };
-
-function getInitials(fullName) {
-  if (!fullName) return "?";
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function formatDate(value) {
   if (!value) return "---";
@@ -73,11 +67,47 @@ export default function Perfil() {
     telefone: "",
   });
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [fotoUploading, setFotoUploading] = useState(false);
+  const [fotoProgress, setFotoProgress] = useState(0);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
+
+  // Foto de perfil: envia na hora (como numa rede social). null = remover.
+  const handleFotoChange = async (file) => {
+    if (!userId) return;
+    setFotoUploading(true);
+    setFotoProgress(0);
+    try {
+      const userRef = doc(db, "users", userId);
+      const anterior = userData?.foto_storagePath;
+      if (file === null) {
+        await updateDoc(userRef, { foto_url: null, foto_storagePath: null, foto_atualizada_em: serverTimestamp() });
+        await deleteStorageFile(anterior);
+        setUserData((prev) => ({ ...prev, foto_url: null, foto_storagePath: null }));
+        setSnackbar({ open: true, message: "Foto removida.", severity: "success" });
+        return;
+      }
+      const comprimida = await compressAvatar(file, 512);
+      const storagePath = `usuarios/${userId}/avatar_${Date.now()}.jpg`;
+      const { downloadURL } = await uploadImageFile(comprimida, storagePath, setFotoProgress);
+      await updateDoc(userRef, { foto_url: downloadURL, foto_storagePath: storagePath, foto_atualizada_em: serverTimestamp() });
+      if (anterior && anterior !== storagePath) await deleteStorageFile(anterior);
+      setUserData((prev) => ({ ...prev, foto_url: downloadURL, foto_storagePath: storagePath }));
+      setSnackbar({ open: true, message: "Foto de perfil atualizada!", severity: "success" });
+    } catch (error) {
+      console.error("Erro ao atualizar foto:", error);
+      const msg = error?.code === "storage/unauthorized"
+        ? "Sem permissão para enviar a foto. Verifique as regras do Storage."
+        : "Não foi possível atualizar a foto. Tente novamente.";
+      setSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setFotoUploading(false);
+      setFotoProgress(0);
+    }
+  };
 
   // Load user data from JWT + Firestore
   useEffect(() => {
@@ -261,20 +291,16 @@ export default function Perfil() {
                     px: 3,
                   }}
                 >
-                  <Avatar
-                    sx={{
-                      width: { xs: 96, sm: 112 },
-                      height: { xs: 96, sm: 112 },
-                      fontSize: { xs: "2rem", sm: "2.5rem" },
-                      fontWeight: 700,
-                      bgcolor: rc.color,
-                      border: "4px solid #fff",
-                      boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-                      mb: 2,
-                    }}
-                  >
-                    {getInitials(userData.full_name)}
-                  </Avatar>
+                  <AvatarUpload
+                    src={userData.foto_url}
+                    name={userData.full_name || userData.username}
+                    role={role}
+                    size={112}
+                    onChange={handleFotoChange}
+                    uploading={fotoUploading}
+                    progress={fotoProgress}
+                    sx={{ mb: 2 }}
+                  />
 
                   <Typography
                     variant="h5"

@@ -26,8 +26,13 @@ service cloud.firestore {
       allow read: if isAuth();
       allow create: if isAdminOrBens()
         && (isAdminGeral() || request.resource.data.role != 'admingeral');
-      allow update: if isAdminOrBens()
-        && (isAdminGeral() || (resource.data.role != 'admingeral' && request.resource.data.role != 'admingeral'));
+      allow update: if (isAdminOrBens()
+        && (isAdminGeral() || (resource.data.role != 'admingeral' && request.resource.data.role != 'admingeral')))
+        // O próprio militar pode editar apenas dados de perfil (nome, contato e foto).
+        || (isAuth()
+            && request.auth.token.firestoreId == userId
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['full_name', 'full_name_lower', 'email', 'telefone', 'foto_url', 'foto_storagePath', 'foto_atualizada_em']));
       allow delete: if isAdminOrBens()
         && (isAdminGeral() || resource.data.role != 'admingeral');
     }

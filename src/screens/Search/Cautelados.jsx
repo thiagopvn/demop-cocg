@@ -823,7 +823,7 @@ export default function Cautelados() {
           onClick={() => setPdfDialogOpen(true)}
           sx={{
             position: 'fixed',
-            bottom: { xs: 130, sm: 148 },
+            bottom: { xs: 'calc(var(--demop-bottom-nav, 0px) + 76px)', md: 148 },
             right: { xs: 16, sm: 24 },
             background: 'linear-gradient(45deg, #d32f2f 30%, #ef5350 90%)',
             boxShadow: 3,
@@ -850,7 +850,7 @@ export default function Cautelados() {
             )}
             sx={{
               position: 'fixed',
-              bottom: { xs: 70, sm: 80 },
+              bottom: { xs: 'calc(var(--demop-bottom-nav, 0px) + 16px)', md: 80 },
               right: { xs: 16, sm: 24 },
               background: 'linear-gradient(45deg, #4caf50 30%, #81c784 90%)',
               boxShadow: 3,

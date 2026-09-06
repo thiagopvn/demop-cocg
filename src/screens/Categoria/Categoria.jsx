@@ -341,7 +341,7 @@ export default function Categoria() {
                             sx={{
                                 opacity: 0.9,
                                 position: 'fixed',
-                                bottom: { xs: 20, sm: 50 },
+                                bottom: { xs: 'calc(var(--demop-bottom-nav, 0px) + 16px)', md: 50 },
                                 left: { xs: 20, sm: 50 },
                             }}
                             onClick={() => handleOpenSaveDialog()}

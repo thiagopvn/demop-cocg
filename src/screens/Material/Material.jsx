@@ -2235,7 +2235,7 @@ const Material = () => {
             {conferenceMode && (
                 <Paper sx={{
                     position: 'fixed',
-                    bottom: 0,
+                    bottom: 'var(--demop-bottom-nav, 0px)',
                     left: 0,
                     right: 0,
                     p: { xs: 1.5, sm: 2 },
