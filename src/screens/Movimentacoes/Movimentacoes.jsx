@@ -296,8 +296,17 @@ export default function Movimentacao() {
                     userId,
                     userName,
                     targetCollection: 'movimentacoes',
+                    targetId: itemMaterial.material.id,
                     targetName: itemMaterial.material.description,
-                    details: { tipo: 'cautela', quantidade: itemMaterial.quantidade, militar: userSelected?.full_name },
+                    details: {
+                        tipo: 'cautela',
+                        material: itemMaterial.material.description,
+                        materialId: itemMaterial.material.id,
+                        quantidade: itemMaterial.quantidade,
+                        militar: userSelected?.full_name,
+                        militarId: userSelected?.id,
+                        observacoes: observacoes || undefined,
+                    },
                 });
             }
 
@@ -556,9 +565,12 @@ export default function Movimentacao() {
                 recebido: { material: materialRecebido.description, quantidade: qtdRec, status: statusRecebido },
                 viatura: `${trocaViaturaSelected.prefixo || ''} - ${trocaViaturaSelected.description || ''}`,
                 militar: userSelected.full_name,
+                militarId: userSelected.id,
+                materialIds: [materialEnviado.id, materialRecebido.id],
             };
             if (statusRecebido === 'inoperante') {
                 auditDetails.sei = numeroSeiTroca.trim();
+                auditDetails.motivo = motivoInoperancia.trim();
             }
             logAudit({
                 action: 'movimentacao_create',
@@ -757,12 +769,21 @@ export default function Movimentacao() {
                 userId,
                 userName,
                 targetCollection: 'movimentacoes',
+                targetId: materialSelected.id,
                 targetName: materialSelected.description,
                 details: {
                     tipo: tipoMovimentacao,
+                    subtipo: tipoMovimentacao === 'saída' ? saidaSubtipo : undefined,
+                    material: materialSelected.description,
+                    materialId: materialSelected.id,
                     quantidade: qtd,
                     militar: userSelected?.full_name,
+                    militarId: userSelected?.id,
                     viatura: saidaViaturaSelected ? `${saidaViaturaSelected.prefixo} - ${saidaViaturaSelected.description}` : undefined,
+                    local_reparo: tipoMovimentacao === 'reparo' ? localReparo : undefined,
+                    sei: tipoMovimentacao === 'reparo' ? numeroSei : undefined,
+                    motivo: tipoMovimentacao === 'reparo' ? motivoReparo : undefined,
+                    observacoes: observacoes || undefined,
                 },
             });
 

@@ -365,6 +365,21 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     data.image_storagePath = null;
                 }
 
+                // Registro do que mudou (para o historico do material)
+                const camposComparados = [
+                    ['description', material.description, data.description],
+                    ['categoria', material.categoria, data.categoria],
+                    ['estoque_total', material.estoque_total, data.estoque_total],
+                    ['estoque_atual', material.estoque_atual, data.estoque_atual],
+                    ['qtd_inoperante', getQtdInoperante(material), data.qtd_inoperante],
+                    ['maintenance_status', material.maintenance_status || 'operante', data.maintenance_status],
+                ];
+                if (removeImage && !imageFile) camposComparados.push(['image', 'com foto', 'sem foto']);
+                if (imageFile) camposComparados.push(['image', material.image_url ? 'foto anterior' : 'sem foto', 'nova foto']);
+                const alteracoes = camposComparados
+                    .filter(([, de, para]) => String(de ?? '') !== String(para ?? ''))
+                    .map(([campo, de, para]) => ({ campo, de: de ?? null, para: para ?? null }));
+
                 const materialDoc = doc(db, 'materials', material.id);
                 await updateDoc(materialDoc, data);
 
@@ -408,13 +423,21 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     targetCollection: 'materials',
                     targetId: material.id,
                     targetName: description,
-                    details: { categoria: data.categoria, estoque_total: data.estoque_total, estoque_atual: data.estoque_atual },
+                    details: {
+                        categoria: data.categoria,
+                        estoque_total: data.estoque_total,
+                        estoque_atual: data.estoque_atual,
+                        alteracoes,
+                        conferencia: alteracoes.length === 0 ? 'salvo sem alterações (conferência)' : undefined,
+                    },
                 });
                 incrementTaskProgress(loggedUserId, loggedUserName);
             } else {
                 const materialsCollection = collection(db, 'materials');
                 const newDoc = await addDoc(materialsCollection, {
                     ...data,
+                    created_by: loggedUserId || null,
+                    created_by_nome: loggedUserName || null,
                     // paraCriacao: addDoc nao aceita sentinelas deleteField()
                     ...montarPatchInoperancia(
                         { estoque_total: Number(estoqueTotal) },

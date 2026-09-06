@@ -476,9 +476,19 @@ export default function Devolucoes() {
         userId: loggedUserId,
         userName: loggedUserName,
         targetCollection: 'movimentacoes',
-        targetId: movimentacao.id,
+        targetId: materialId,
         targetName: movimentacao.material_description,
-        details: { quantidade: movimentacao.quantity, militar: movimentacao.user_name },
+        details: {
+          tipo: includeReparo ? 'reparo' : 'cautela',
+          material: movimentacao.material_description,
+          materialId,
+          movimentacaoId: movimentacao.id,
+          quantidade: movimentacao.quantity,
+          militar: movimentacao.user_name,
+          militarId: movimentacao.user || undefined,
+          recebido_por: loggedUserName,
+          data_cautela: movimentacao.date?.toDate ? movimentacao.date.toDate().toLocaleDateString('pt-BR') : undefined,
+        },
       });
 
       // Onde guardar: orienta o admin com o local de casa do material

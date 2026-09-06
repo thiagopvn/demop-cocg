@@ -41,11 +41,12 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import db from "../../firebase/db";
-import { query, collection, where, getDocs, doc, updateDoc, orderBy } from "firebase/firestore";
+import { query, collection, where, getDocs, doc, updateDoc, orderBy, serverTimestamp } from "firebase/firestore";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
 import excelIcon from "../../assets/excel.svg";
 import { verifyToken } from "../../firebase/token";
 import MaterialLocalHint from "../../components/locais/MaterialLocalHint";
+import { logAudit } from "../../firebase/auditLog";
 import AnexosDialog from "../../dialogs/AnexosDialog";
 import { deleteMovimentacao } from "../../services/movimentacaoService";
 
@@ -83,6 +84,7 @@ export default function Inativos({ categorias = [] }) {
   const [selectedMovimentacao, setSelectedMovimentacao] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [username, setUsername] = useState("");
+  const [loggedUserId, setLoggedUserId] = useState(null);
   const [anexosDialogOpen, setAnexosDialogOpen] = useState(false);
   const [selectedMovForAnexos, setSelectedMovForAnexos] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -126,6 +128,7 @@ export default function Inativos({ categorias = [] }) {
         if (payload) {
           setUserRole(payload.role);
           setUsername(payload.username || "");
+          setLoggedUserId(payload.userId || null);
         }
       });
     }
@@ -157,7 +160,26 @@ export default function Inativos({ categorias = [] }) {
     try {
       const movimentacaoRef = doc(db, "movimentacoes", selectedMovimentacao.id);
       await updateDoc(movimentacaoRef, {
-        status: "devolvidaDeReparo"
+        status: "devolvidaDeReparo",
+        returned_date: serverTimestamp(),
+      });
+
+      logAudit({
+        action: 'reparo_devolucao',
+        userId: loggedUserId,
+        userName: username,
+        targetCollection: 'movimentacoes',
+        targetId: selectedMovimentacao.material,
+        targetName: selectedMovimentacao.material_description,
+        details: {
+          material: selectedMovimentacao.material_description,
+          materialId: selectedMovimentacao.material,
+          movimentacaoId: selectedMovimentacao.id,
+          quantidade: selectedMovimentacao.quantity,
+          local_reparo: selectedMovimentacao.repairLocation || undefined,
+          sei: selectedMovimentacao.seiNumber || undefined,
+          recebido_por: username,
+        },
       });
 
       setMovimentacoes(prev =>

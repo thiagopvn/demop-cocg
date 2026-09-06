@@ -759,6 +759,7 @@ export default function Usuario() {
             <ListItemIcon><InfoIcon sx={{ color: '#2196f3' }} /></ListItemIcon>
             <ListItemText>Ver informações</ListItemText>
           </MenuItem>
+          {userRole === "admingeral" && (
           <MenuItem
             onClick={() => {
               handleOpenHistorico(menuUser);
@@ -768,6 +769,7 @@ export default function Usuario() {
             <ListItemIcon><HistoryIcon sx={{ color: '#9c27b0' }} /></ListItemIcon>
             <ListItemText>Histórico</ListItemText>
           </MenuItem>
+          )}
           {(userRole === "admin" || userRole === "admingeral") && (
             <MenuItem
               onClick={() => {

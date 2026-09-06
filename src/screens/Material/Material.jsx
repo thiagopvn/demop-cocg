@@ -515,7 +515,10 @@ const Material = () => {
                 targetId: materialToAlocar.id,
                 targetName: materialToAlocar.description,
                 details: {
+                    material: materialToAlocar.description,
+                    materialId: materialToAlocar.id,
                     viatura: selectedViatura.prefixo ? `${selectedViatura.prefixo} - ${selectedViatura.description}` : selectedViatura.description,
+                    viaturaId: selectedViatura.id,
                     quantidade: alocarQuantidade,
                 },
             });
@@ -1843,7 +1846,8 @@ const Material = () => {
                                                             <Edit fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
-                                                    <Tooltip title="Histórico">
+                                                    {isAdminGeral && (
+                                                    <Tooltip title="Histórico completo (admin geral)">
                                                         <IconButton
                                                             onClick={() => { setHistoricoTarget({ id: material.id, name: material.description }); setHistoricoOpen(true); }}
                                                             size="small"
@@ -1857,6 +1861,7 @@ const Material = () => {
                                                             <History fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
+                                                    )}
                                                     <Tooltip title="Excluir Material">
                                                         <IconButton
                                                             onClick={() => handleDeleteMaterial(material.id)}
@@ -2559,6 +2564,7 @@ const Material = () => {
                         onClose={() => { setHistoricoOpen(false); setHistoricoTarget(null); }}
                         targetId={historicoTarget?.id}
                         targetName={historicoTarget?.name}
+                        tipo="material"
                     />
                 </Suspense>
             )}

@@ -65,12 +65,16 @@ import {
     PlaylistAddCheck,
     AccountBalance,
     LocationOn,
+    Warehouse,
+    AssignmentReturn,
+    Groups,
     StickyNote2,
 } from '@mui/icons-material';
 import { collection, query, orderBy, onSnapshot, where, Timestamp, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
 import { ACTION_LABELS, ACTION_COLORS, logAudit } from '../../firebase/auditLog';
+import { descreverLog, textoBuscaLog } from '../../utils/auditDescriptions';
 import { reconcileTaskProgress } from '../../firebase/taskProgress';
 import { useDebounce } from '../../hooks/useDebounce';
 import MenuContext from '../../contexts/MenuContext';
@@ -123,7 +127,15 @@ const ACTION_ICONS = {
     material_delete: Delete,
     material_allocate: LocalShipping,
     movimentacao_create: SwapHoriz,
-    devolucao_create: SwapHoriz,
+    devolucao_create: AssignmentReturn,
+    reparo_devolucao: AssignmentReturn,
+    viatura_material_update: LocalShipping,
+    viatura_material_remove: LocalShipping,
+    material_local_set: Warehouse,
+    material_local_move: Warehouse,
+    local_create: Warehouse,
+    local_update: Warehouse,
+    local_delete: Warehouse,
     user_create: PersonAdd,
     user_update: Edit,
     user_delete: Delete,
@@ -344,11 +356,7 @@ export default function Atividades() {
 
         if (debouncedSearch) {
             const search = debouncedSearch.toLowerCase();
-            result = result.filter(log =>
-                (log.userName || '').toLowerCase().includes(search) ||
-                (log.targetName || '').toLowerCase().includes(search) ||
-                (ACTION_LABELS[log.action] || '').toLowerCase().includes(search)
-            );
+            result = result.filter(log => textoBuscaLog(log).includes(search));
         }
 
         // Ordenacao
@@ -570,24 +578,6 @@ export default function Atividades() {
         return <Icon fontSize="small" />;
     };
 
-    const renderDetailsText = (log) => {
-        if (!log.details) return null;
-        const parts = [];
-        if (log.details.tipo) parts.push(`Tipo: ${log.details.tipo}`);
-        if (log.details.quantidade) parts.push(`Qtd: ${log.details.quantidade}`);
-        if (log.details.viatura) parts.push(`Viatura: ${log.details.viatura}`);
-        if (log.details.militar) parts.push(`Militar: ${log.details.militar}`);
-        if (log.details.categoria) parts.push(`Categoria: ${log.details.categoria}`);
-        if (log.details.estoque_total) parts.push(`Estoque total: ${log.details.estoque_total}`);
-        if (log.details.estoque_atual !== undefined) parts.push(`Estoque atual: ${log.details.estoque_atual}`);
-        if (log.details.role) parts.push(`Role: ${log.details.role}`);
-        if (log.details.prioridade) parts.push(`Prioridade: ${log.details.prioridade}`);
-        if (log.details.recorrente) parts.push(`Recorrente: ${log.details.recorrente}`);
-        if (log.details.data_prevista) parts.push(`Data prevista: ${log.details.data_prevista}`);
-        if (log.details.o_que_foi_feito) parts.push(`Realizado: ${log.details.o_que_foi_feito}`);
-        if (log.details.descricao) parts.push(`Descrição: ${log.details.descricao}`);
-        return parts.length > 0 ? parts.join(' | ') : null;
-    };
 
     return (
         <PrivateRoute allowedRoles={['admingeral']}>
@@ -967,112 +957,154 @@ export default function Atividades() {
                             ) : (
                                 <StyledTableContainer>
                                     <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                                        <Table sx={{ minWidth: 650 }}>
+                                        <Table sx={{ minWidth: 1100 }} size="small">
                                             <StyledTableHead>
                                                 <TableRow>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                                                         <TableSortLabel
                                                             active={sortField === 'timestamp'}
                                                             direction={sortField === 'timestamp' ? sortDirection : 'desc'}
                                                             onClick={() => handleSort('timestamp')}
                                                             sx={{ color: 'white !important', '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' } }}
                                                         >
-                                                            Data/Hora
+                                                            Data / Hora
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                                                         <TableSortLabel
                                                             active={sortField === 'userName'}
                                                             direction={sortField === 'userName' ? sortDirection : 'asc'}
                                                             onClick={() => handleSort('userName')}
                                                             sx={{ color: 'white !important', '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' } }}
                                                         >
-                                                            Militar
+                                                            Quem fez
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem' }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                                                         <TableSortLabel
                                                             active={sortField === 'action'}
                                                             direction={sortField === 'action' ? sortDirection : 'asc'}
                                                             onClick={() => handleSort('action')}
                                                             sx={{ color: 'white !important', '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' } }}
                                                         >
-                                                            Acao
+                                                            Ação
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', display: { xs: 'none', sm: 'table-cell' } }}>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', minWidth: 320 }}>
+                                                        O que aconteceu
+                                                    </TableCell>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                                                         <TableSortLabel
                                                             active={sortField === 'targetName'}
                                                             direction={sortField === 'targetName' ? sortDirection : 'asc'}
                                                             onClick={() => handleSort('targetName')}
                                                             sx={{ color: 'white !important', '& .MuiTableSortLabel-icon': { color: 'rgba(255,255,255,0.7) !important' } }}
                                                         >
-                                                            Item Afetado
+                                                            Item
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', display: { xs: 'none', sm: 'table-cell' } }}>
-                                                        Detalhes
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                                        Militar / Viatura
+                                                    </TableCell>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', textAlign: 'center' }}>
+                                                        Qtd
+                                                    </TableCell>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.8rem' }}>
+                                                        Mais detalhes
                                                     </TableCell>
                                                 </TableRow>
                                             </StyledTableHead>
                                             <TableBody>
-                                                {filteredLogs.slice(0, 200).map((log) => (
-                                                    <StyledTableRow key={log.id}>
-                                                        <StyledTableCell>
-                                                            <Typography variant="body2" sx={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                                                                {formatDate(log.timestamp)}
-                                                            </Typography>
-                                                        </StyledTableCell>
-                                                        <StyledTableCell>
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                                <Box sx={{
-                                                                    width: 28, height: 28, borderRadius: '50%',
-                                                                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                    color: 'primary.main', fontWeight: 700, fontSize: '0.75rem',
-                                                                }}>
-                                                                    {(log.userName || '?')[0].toUpperCase()}
-                                                                </Box>
-                                                                <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.85rem' }}>
-                                                                    {log.userName || 'Desconhecido'}
+                                                {filteredLogs.slice(0, 200).map((log) => {
+                                                    const desc = descreverLog(log);
+                                                    const data = log.timestamp?.toDate?.();
+                                                    const cor = ACTION_COLORS[log.action] || '#666';
+                                                    return (
+                                                        <StyledTableRow key={log.id} sx={{ verticalAlign: 'top' }}>
+                                                            <StyledTableCell sx={{ whiteSpace: 'nowrap' }}>
+                                                                <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                                                                    {data ? data.toLocaleDateString('pt-BR') : '-'}
                                                                 </Typography>
-                                                            </Box>
-                                                        </StyledTableCell>
-                                                        <StyledTableCell>
-                                                            <Chip
-                                                                icon={getActionIcon(log.action)}
-                                                                label={ACTION_LABELS[log.action] || log.action}
-                                                                size="small"
-                                                                sx={{
-                                                                    backgroundColor: alpha(ACTION_COLORS[log.action] || '#666', 0.1),
-                                                                    color: ACTION_COLORS[log.action] || '#666',
-                                                                    fontWeight: 600,
-                                                                    fontSize: '0.75rem',
-                                                                    '& .MuiChip-icon': {
-                                                                        color: ACTION_COLORS[log.action] || '#666',
-                                                                    },
-                                                                }}
-                                                            />
-                                                        </StyledTableCell>
-                                                        <StyledTableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                                                            <Typography variant="body2" sx={{ fontSize: '0.85rem', maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                {log.targetName || '-'}
-                                                            </Typography>
-                                                        </StyledTableCell>
-                                                        <StyledTableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                                                            {(() => {
-                                                                const text = renderDetailsText(log);
-                                                                return text ? (
-                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                                                        {text}
+                                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                                                    {data ? data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+                                                                </Typography>
+                                                            </StyledTableCell>
+                                                            <StyledTableCell>
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                    <Box sx={{
+                                                                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                                                                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        color: 'primary.main', fontWeight: 700, fontSize: '0.75rem',
+                                                                    }}>
+                                                                        {(log.userName || '?')[0].toUpperCase()}
+                                                                    </Box>
+                                                                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                                                                        {log.userName || 'Desconhecido'}
                                                                     </Typography>
+                                                                </Box>
+                                                            </StyledTableCell>
+                                                            <StyledTableCell>
+                                                                <Chip
+                                                                    icon={getActionIcon(log.action)}
+                                                                    label={ACTION_LABELS[log.action] || log.action}
+                                                                    size="small"
+                                                                    sx={{
+                                                                        backgroundColor: alpha(cor, 0.1),
+                                                                        color: cor,
+                                                                        fontWeight: 600,
+                                                                        fontSize: '0.72rem',
+                                                                        '& .MuiChip-icon': { color: cor },
+                                                                    }}
+                                                                />
+                                                            </StyledTableCell>
+                                                            <StyledTableCell>
+                                                                <Typography variant="body2" sx={{ fontSize: '0.82rem', lineHeight: 1.45, minWidth: 300 }}>
+                                                                    {desc.frase}
+                                                                </Typography>
+                                                            </StyledTableCell>
+                                                            <StyledTableCell>
+                                                                <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                    {log.targetName || '-'}
+                                                                </Typography>
+                                                                {log.targetCollection && (
+                                                                    <Typography variant="caption" color="text.disabled">{log.targetCollection}</Typography>
+                                                                )}
+                                                            </StyledTableCell>
+                                                            <StyledTableCell>
+                                                                {desc.envolvido ? (
+                                                                    <Chip
+                                                                        icon={log.details?.viatura && desc.envolvido === log.details.viatura ? <LocalShipping sx={{ fontSize: '0.9rem !important' }} /> : <Groups sx={{ fontSize: '0.9rem !important' }} />}
+                                                                        label={desc.envolvido}
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                        sx={{ fontSize: '0.72rem', fontWeight: 600, maxWidth: 220 }}
+                                                                    />
                                                                 ) : (
                                                                     <Typography variant="caption" color="text.disabled">-</Typography>
-                                                                );
-                                                            })()}
-                                                        </StyledTableCell>
-                                                    </StyledTableRow>
-                                                ))}
+                                                                )}
+                                                            </StyledTableCell>
+                                                            <StyledTableCell align="center">
+                                                                {desc.quantidade != null && desc.quantidade !== '' ? (
+                                                                    <Chip label={desc.quantidade} size="small" sx={{ fontWeight: 800, minWidth: 40, bgcolor: alpha(cor, 0.12), color: cor }} />
+                                                                ) : (
+                                                                    <Typography variant="caption" color="text.disabled">-</Typography>
+                                                                )}
+                                                            </StyledTableCell>
+                                                            <StyledTableCell>
+                                                                {desc.extras.length > 0 ? (
+                                                                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', maxWidth: 360 }}>
+                                                                        {desc.extras.map((x) => (
+                                                                            <Chip key={x.label} label={`${x.label}: ${x.value}`} size="small" sx={{ height: 20, fontSize: '0.68rem', maxWidth: 340 }} />
+                                                                        ))}
+                                                                    </Box>
+                                                                ) : (
+                                                                    <Typography variant="caption" color="text.disabled">-</Typography>
+                                                                )}
+                                                            </StyledTableCell>
+                                                        </StyledTableRow>
+                                                    );
+                                                })}
                                             </TableBody>
                                         </Table>
                                     </Box>

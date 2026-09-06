@@ -67,6 +67,7 @@ import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
 import MaterialSearch from "../../components/MaterialSearch";
 import MaterialLocalHint from "../../components/locais/MaterialLocalHint";
+import { logAudit } from "../../firebase/auditLog";
 import { useDebounce } from "../../hooks/useDebounce";
 import excelIcon from "../../assets/excel.svg";
 import { exportarMovimentacoes } from "../../firebase/xlsx";
@@ -310,6 +311,23 @@ export default function ViaturaDetalhes() {
 
             await updateDoc(doc(db, "viaturas", id), { ultima_movimentacao: serverTimestamp() });
 
+            logAudit({
+                action: 'material_allocate',
+                userId,
+                userName,
+                targetCollection: 'viatura_materiais',
+                targetId: selectedMaterial.id,
+                targetName: selectedMaterial.description,
+                details: {
+                    material: selectedMaterial.description,
+                    materialId: selectedMaterial.id,
+                    viatura: viatura?.prefixo ? `${viatura.prefixo} - ${viatura.description || ''}` : (viatura?.description || id),
+                    viaturaId: id,
+                    quantidade,
+                    origem: 'tela da viatura',
+                },
+            });
+
             setSnackbar({ open: true, message: "Material alocado com sucesso!", severity: "success" });
             setAlocarDialogOpen(false);
             setSelectedMaterial(null);
@@ -386,6 +404,24 @@ export default function ViaturaDetalhes() {
 
             await updateDoc(doc(db, "viaturas", id), { ultima_movimentacao: serverTimestamp() });
 
+            logAudit({
+                action: 'viatura_material_update',
+                userId,
+                userName,
+                targetCollection: 'viatura_materiais',
+                targetId: materialToEdit.material_id,
+                targetName: materialToEdit.material_description,
+                details: {
+                    material: materialToEdit.material_description,
+                    materialId: materialToEdit.material_id,
+                    viatura: viatura?.prefixo ? `${viatura.prefixo} - ${viatura.description || ''}` : (viatura?.description || id),
+                    viaturaId: id,
+                    de: materialToEdit.quantidade,
+                    para: novaQtd,
+                    quantidade: Math.abs(diferenca),
+                },
+            });
+
             setSnackbar({ open: true, message: "Quantidade atualizada com sucesso!", severity: "success" });
             setEditDialogOpen(false);
             setMaterialToEdit(null);
@@ -424,6 +460,23 @@ export default function ViaturaDetalhes() {
             }
 
             await updateDoc(doc(db, "viaturas", id), { ultima_movimentacao: serverTimestamp() });
+
+            logAudit({
+                action: 'viatura_material_remove',
+                userId,
+                userName,
+                targetCollection: 'viatura_materiais',
+                targetId: materialToDesalocar.material_id,
+                targetName: materialToDesalocar.material_description,
+                details: {
+                    material: materialToDesalocar.material_description,
+                    materialId: materialToDesalocar.material_id,
+                    viatura: viatura?.prefixo ? `${viatura.prefixo} - ${viatura.description || ''}` : (viatura?.description || id),
+                    viaturaId: id,
+                    quantidade: materialToDesalocar.quantidade,
+                    motivo: motivoDesalocacao || undefined,
+                },
+            });
 
             setSnackbar({ open: true, message: "Material desalocado com sucesso!", severity: "success" });
             setDesalocarDialogOpen(false);
