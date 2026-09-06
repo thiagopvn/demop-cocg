@@ -9,6 +9,7 @@ export default defineConfig({
     // PWA: manifesto + service worker (base do app Android via TWA)
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: null,
       includeAssets: ['icons/*.png', '.well-known/assetlinks.json'],
       manifest: {
         id: '/',
