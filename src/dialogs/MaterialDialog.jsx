@@ -434,6 +434,9 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                         qtdDepois: data.qtd_inoperante,
                         userId: loggedUserId,
                         userName: loggedUserName,
+                        sincronizarMovimentacoes: true,
+                        origem: 'edicao',
+                        motivo: 'Inoperância registrada na edição do material',
                     }).catch(() => {});
                 }
 

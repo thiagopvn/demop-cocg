@@ -423,7 +423,27 @@ export async function definirQuantidadeNoLocal({ material, local, quantidade, us
         targetName: material.description,
         details: { local: local.nome, de: anterior, para: qtd, motivo: motivo || null },
     });
-    return { anterior, atual: qtd };
+    const inoperancia = await aplicarHookLocalInoperantes({ material, locais: [local], userId, userName });
+    return { anterior, atual: qtd, inoperancia };
+}
+
+/**
+ * Depois de gravar em material_locais: se algum dos locais envolvidos e o de
+ * inoperantes, a quantidade inoperante do material passa a refletir o que esta la
+ * (e vice-versa). Import dinamico para evitar ciclo com inoperanciaService.
+ */
+async function aplicarHookLocalInoperantes({ material, locais, userId, userName }) {
+    const inop = (locais || []).find(l => l?.inoperantes);
+    if (!inop || !material?.id) return null;
+    try {
+        const snap = await getDoc(doc(db, 'material_locais', idAlocacao(material.id, inop.id)));
+        const unidades = snap.exists() ? Number(snap.data().quantidade) || 0 : 0;
+        const { aplicarInoperanciaPeloLocal } = await import('./inoperanciaService');
+        return await aplicarInoperanciaPeloLocal({ material, unidadesNoLocalInoperantes: unidades, localNome: inop.nome, userId, userName });
+    } catch (e) {
+        console.error('Erro ao sincronizar inoperância pela prateleira:', e);
+        return null;
+    }
 }
 
 /** Soma `quantidade` unidades num local (cria a linha se nao existir). */
@@ -475,7 +495,8 @@ export async function moverEntreLocais({ material, deLocal, paraLocal, quantidad
         targetName: material.description,
         details: { de: deLocal.nome, para: paraLocal.nome, quantidade: mover, motivo: motivo || null },
     });
-    return { movidas: mover };
+    const inoperancia = await aplicarHookLocalInoperantes({ material, locais: [deLocal, paraLocal], userId, userName });
+    return { movidas: mover, inoperancia };
 }
 
 /** Remove todas as linhas de um material (usado ao excluir o material). */

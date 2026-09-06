@@ -708,6 +708,14 @@ export default function Movimentacao() {
 
             updateData.estoque_total = newEstoqueTotal;
             updateData.estoque_atual = newEstoqueAtual;
+            if (tipoMovimentacao === 'reparo') {
+                // Inoperante: conta nas unidades inoperantes do material (status derivado)
+                Object.assign(
+                    updateData,
+                    montarPatchInoperancia(materialSelected, getQtdInoperante(materialSelected) + qtd, materialSelected.maintenance_status),
+                    { inoperante_sei: numeroSei || '', inoperante_motivo: motivoReparo || '', inoperante_registrado_em: serverTimestamp() },
+                );
+            }
             if (tipoMovimentacao === 'saída' && saidaSubtipo === 'viatura') {
                 updateData.estoque_viatura = estoqueViatura;
             }
@@ -716,6 +724,19 @@ export default function Movimentacao() {
             const materialDocRef = doc(db, "materials", materialSelected.id);
             await updateDoc(materialDocRef, updateData);
             await addDoc(collection(db, "movimentacoes"), movementData);
+
+            if (tipoMovimentacao === 'reparo') {
+                // Leva as unidades para a prateleira de inoperantes e pausa recorrencias
+                aoAlterarInoperancia({
+                    materialId: materialSelected.id,
+                    materialData: { ...materialSelected, estoque_atual: newEstoqueAtual, qtd_inoperante: updateData.qtd_inoperante, maintenance_status: updateData.maintenance_status },
+                    qtdAntes: getQtdInoperante(materialSelected),
+                    qtdDepois: updateData.qtd_inoperante,
+                    userId,
+                    userName,
+                    sincronizarMovimentacoes: false,
+                }).catch(() => {});
+            }
 
             // Se saída para viatura, criar/atualizar viatura_materiais
             if (tipoMovimentacao === 'saída' && saidaSubtipo === 'viatura' && saidaViaturaSelected) {

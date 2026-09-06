@@ -6,6 +6,7 @@ import { verifyToken } from "../../firebase/token";
 import { logAudit } from "../../firebase/auditLog";
 import MaterialLocalHint from "../../components/locais/MaterialLocalHint";
 import { listarAlocacoesDoMaterial, descreverAlocacoes } from "../../services/localizacaoService";
+import { aposRetornoDeReparo } from "../../services/inoperanciaService";
 const MaterialLocalDialog = lazy(() => import("../../dialogs/MaterialLocalDialog"));
 import {
   Box,
@@ -463,6 +464,11 @@ export default function Devolucoes() {
         const quantidadeAtual = materialData.estoque_atual || 0;
         const novaQuantidade = quantidadeAtual + quantidadeDevolvida;
         await updateDoc(docRefMaterial, { estoque_atual: novaQuantidade });
+
+        // Retorno de reparo: deixa de ser inoperante, sai da prateleira de inoperantes
+        if (includeReparo) {
+          await aposRetornoDeReparo({ movimentacao, userId: loggedUserId, userName: loggedUserName, estoqueJaRestaurado: true });
+        }
       }
 
       setMovimentacoes((prev) =>

@@ -39,6 +39,7 @@ import {
     moverEntreLocais,
 } from '../services/localizacaoService';
 import { TipoLocalIcon } from '../components/locais/LocalChip';
+import { descreverInoperanciaPeloLocal } from '../services/inoperanciaService';
 
 /**
  * Conteudo de um local: quais materiais estao guardados nele, com acoes rapidas.
@@ -138,7 +139,7 @@ export default function LocalConteudoDialog({
         }
         executar(
             () => adicionarNoLocal({ material: novoMaterial.material, local, quantidade: qtd, ...user }),
-            `${qtd} un. de "${novoMaterial.material.description}" guardada(s) em ${local.nome}.`
+            (r) => [`${qtd} un. de "${novoMaterial.material.description}" guardada(s) em ${local.nome}.`, descreverInoperanciaPeloLocal(r?.inoperancia)].filter(Boolean).join(' · ')
         ).then(() => { setNovoMaterial(null); setNovaQtd(1); });
     };
 
@@ -152,7 +153,7 @@ export default function LocalConteudoDialog({
         }
         executar(
             () => definirQuantidadeNoLocal({ material: linha.material, local, quantidade: nova, ...user }),
-            nova === 0 ? `"${linha.material.description}" removido de ${local.nome}.` : `"${linha.material.description}": ${nova} un.`
+            (r) => [nova === 0 ? `"${linha.material.description}" removido de ${local.nome}.` : `"${linha.material.description}": ${nova} un.`, descreverInoperanciaPeloLocal(r?.inoperancia)].filter(Boolean).join(' · ')
         );
     };
 
@@ -162,7 +163,7 @@ export default function LocalConteudoDialog({
         if (qtd <= 0) return;
         executar(
             () => moverEntreLocais({ material: moverDe.material, deLocal: local, paraLocal: moverPara, quantidade: qtd, ...user }),
-            `${qtd} un. de "${moverDe.material.description}" movida(s) para ${moverPara.nome}.`
+            (r) => [`${qtd} un. de "${moverDe.material.description}" movida(s) para ${moverPara.nome}.`, descreverInoperanciaPeloLocal(r?.inoperancia)].filter(Boolean).join(' · ')
         ).then(() => { setMoverDe(null); setMoverPara(null); });
     };
 

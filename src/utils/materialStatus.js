@@ -146,6 +146,9 @@ export async function sincronizarStatusAposConclusao(materialId, manutencaoConcl
                 materialData: { ...materialData, qtd_inoperante: novaQtd, maintenance_status: update.maintenance_status },
                 qtdAntes: qtdAtual,
                 qtdDepois: novaQtd,
+                sincronizarMovimentacoes: true,
+                origem: 'manutencao',
+                motivo: 'Manutenção concluída',
             });
         } catch (e) {
             console.error('Erro ao sincronizar efeitos da inoperancia:', e);

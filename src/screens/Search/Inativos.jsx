@@ -47,6 +47,7 @@ import excelIcon from "../../assets/excel.svg";
 import { verifyToken } from "../../firebase/token";
 import MaterialLocalHint from "../../components/locais/MaterialLocalHint";
 import { logAudit } from "../../firebase/auditLog";
+import { aposRetornoDeReparo } from "../../services/inoperanciaService";
 import AnexosDialog from "../../dialogs/AnexosDialog";
 import { deleteMovimentacao } from "../../services/movimentacaoService";
 
@@ -162,7 +163,12 @@ export default function Inativos({ categorias = [] }) {
       await updateDoc(movimentacaoRef, {
         status: "devolvidaDeReparo",
         returned_date: serverTimestamp(),
+        devolvido_por: loggedUserId || null,
+        devolvido_por_nome: username || null,
       });
+
+      // Volta ao estoque disponivel, deixa de ser inoperante e sai da prateleira de inoperantes
+      await aposRetornoDeReparo({ movimentacao: selectedMovimentacao, userId: loggedUserId, userName: username, estoqueJaRestaurado: false });
 
       logAudit({
         action: 'reparo_devolucao',

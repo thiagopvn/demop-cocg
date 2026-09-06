@@ -46,6 +46,7 @@ import {
     getTipoInfo,
 } from '../services/localizacaoService';
 import LocalChip, { TipoLocalIcon } from '../components/locais/LocalChip';
+import { descreverInoperanciaPeloLocal } from '../services/inoperanciaService';
 
 const Tile = ({ label, value, color, icon, destaque }) => (
     <Box
@@ -148,7 +149,7 @@ export default function MaterialLocalDialog({ open, onClose, material, loggedUse
         }
         executar(
             () => adicionarNoLocal({ material, local: novoLocal, quantidade: qtd, ...user }),
-            `${qtd} un. guardada(s) em ${novoLocal.nome}.`
+            (r) => [`${qtd} un. guardada(s) em ${novoLocal.nome}.`, descreverInoperanciaPeloLocal(r?.inoperancia)].filter(Boolean).join(' · ')
         ).then(() => setNovoLocal(null));
     };
 
@@ -163,7 +164,7 @@ export default function MaterialLocalDialog({ open, onClose, material, loggedUse
         const local = alocacaoComoLocal(aloc);
         executar(
             () => definirQuantidadeNoLocal({ material, local, quantidade: nova, ...user }),
-            nova === 0 ? `Removido de ${local.nome}.` : `${local.nome}: ${nova} un.`
+            (r) => [nova === 0 ? `Removido de ${local.nome}.` : `${local.nome}: ${nova} un.`, descreverInoperanciaPeloLocal(r?.inoperancia)].filter(Boolean).join(' · ')
         );
     };
 
@@ -174,7 +175,7 @@ export default function MaterialLocalDialog({ open, onClose, material, loggedUse
         const deLocal = alocacaoComoLocal(moverDe);
         executar(
             () => moverEntreLocais({ material, deLocal, paraLocal: moverPara, quantidade: qtd, ...user }),
-            `${qtd} un. movida(s) de ${deLocal.nome} para ${moverPara.nome}.`
+            (r) => [`${qtd} un. movida(s) de ${deLocal.nome} para ${moverPara.nome}.`, descreverInoperanciaPeloLocal(r?.inoperancia)].filter(Boolean).join(' · ')
         ).then(() => { setMoverDe(null); setMoverPara(null); });
     };
 
