@@ -453,7 +453,7 @@ function AbaViaturas({ painel, filtros, alternar, theme, SERIES }) {
         <>
             <Grade colunas={{ xs: 2, md: 4 }}>
                 <KpiTile titulo="Viaturas" valor={vs.length} icon={DirectionsCar} cor={SERIES[0]} />
-                <KpiTile titulo="Unidades embarcadas" valor={totalUnidades} icon={Inventory2} cor={SERIES[2]} ajuda="materiais alocados em viaturas" />
+                <KpiTile titulo="Alocados em viatura" valor={totalUnidades} icon={Inventory2} cor={SERIES[2]} ajuda="materiais alocados em viaturas" />
                 <KpiTile titulo="Conferência vencida" valor={semConf} icon={WarningAmber} cor={SERIES[7]} ajuda="mais de 30 dias ou nunca" />
                 <KpiTile titulo="Movimentações c/ viatura" valor={painel.topViaturas.reduce((s, v) => s + v.valor, 0)} icon={Timeline} cor={SERIES[1]} ajuda="unidades no período" />
             </Grade>
