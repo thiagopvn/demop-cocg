@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import {
-    Box, Paper, Typography, Chip, Button, IconButton, Tabs, Tab, TextField, Autocomplete, MenuItem, Select, FormControl, InputLabel,
-    Tooltip, SwipeableDrawer, Divider, Badge, Skeleton, Alert, alpha, useTheme, useMediaQuery, InputAdornment, ToggleButtonGroup, ToggleButton,
+    Box, Paper, Typography, Chip, Button, IconButton, Tabs, Tab, TextField,
+    Tooltip, SwipeableDrawer, Divider, Badge, Skeleton, Alert, alpha, useTheme, useMediaQuery, InputAdornment,
 } from '@mui/material';
 import {
     Assignment, AssignmentReturn, Inventory2, DirectionsCar, Build, Warehouse, Groups, Timeline, FilterList, Refresh, Download, Close,
@@ -14,8 +14,9 @@ import { useMaterials } from '../../contexts/MaterialContext';
 import { useLocaisArmazenamento, useAlocacoesLocais } from '../../hooks/useLocais';
 import UserAvatar from '../UserAvatar';
 import { KpiTile, ChartCard, TooltipGrafico, Vazio, MapaCalor, ListaRanking, TabelaCompacta, Selo } from './PainelWidgets';
+import PainelFiltros from './PainelFiltros';
 import {
-    usePainelDados, calcularPainel, PERIODOS, TIPOS_MOV, corTipo, labelTipo, SERIES_CLARO, SERIES_ESCURO, fmtNum, fmtData, fmtDataHora, csvMovimentacoes,
+    usePainelDados, calcularPainel, TIPOS_MOV, corTipo, labelTipo, SERIES_CLARO, SERIES_ESCURO, fmtNum, fmtData, fmtDataHora, csvMovimentacoes,
 } from './painelUtils';
 
 const FILTROS_INICIAIS = { periodo: '30', inicio: '', fim: '', tipos: [], categoria: '', militar: '', viatura: '', material: '', obm: '', busca: '' };
@@ -60,7 +61,7 @@ export default function PainelAnalitico({ userRole }) {
 
     // Opcoes dos filtros ---------------------------------------------------
     const categorias = useMemo(() => [...new Set(materials.map(m => m.categoria || 'Sem categoria'))].sort((a, b) => a.localeCompare(b, 'pt-BR')), [materials]);
-    const militares = useMemo(() => [...dados.users].filter(u => u.full_name).sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt-BR')), [dados.users]);
+    const militares = useMemo(() => [...dados.users].filter(u => u.full_name).sort((a, b) => { const na = /^\d/.test(a.full_name) ? 1 : 0; const nb = /^\d/.test(b.full_name) ? 1 : 0; return na - nb || a.full_name.localeCompare(b.full_name, 'pt-BR'); }), [dados.users]);
     const viaturasOpc = useMemo(() => [...dados.viaturas].sort((a, b) => (a.prefixo || '').localeCompare(b.prefixo || '')), [dados.viaturas]);
     const obms = useMemo(() => [...new Set(dados.users.map(u => u.OBM).filter(Boolean))].sort(), [dados.users]);
     const materiaisOpc = useMemo(() => [...materials].sort((a, b) => (a.description || '').localeCompare(b.description || '', 'pt-BR')), [materials]);
@@ -86,89 +87,8 @@ export default function PainelAnalitico({ userRole }) {
     const periodoRotulo = painel.intervalo.inicio ? `${fmtData(painel.intervalo.inicio)} a ${fmtData(painel.intervalo.fim)}` : 'todo o histórico';
 
     /* ---------------- Controles de filtro ---------------- */
-    const controles = (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(6, minmax(0, 1fr))' }, gap: 1.25, alignItems: 'center' }}>
-            <FormControl size="small" sx={{ gridColumn: { md: 'span 1' } }}>
-                <InputLabel>Período</InputLabel>
-                <Select label="Período" value={filtros.periodo} onChange={(e) => setFiltro('periodo', e.target.value)} sx={{ borderRadius: 2 }}>
-                    {PERIODOS.map(p => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
-                </Select>
-            </FormControl>
-            {filtros.periodo === 'custom' && (
-                <>
-                    <TextField size="small" type="date" label="De" value={filtros.inicio} onChange={(e) => setFiltro('inicio', e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                    <TextField size="small" type="date" label="Até" value={filtros.fim} onChange={(e) => setFiltro('fim', e.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-                </>
-            )}
-            <FormControl size="small">
-                <InputLabel>Categoria</InputLabel>
-                <Select label="Categoria" value={filtros.categoria} onChange={(e) => setFiltro('categoria', e.target.value)} sx={{ borderRadius: 2 }} MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}>
-                    <MenuItem value="">Todas</MenuItem>
-                    {categorias.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-                </Select>
-            </FormControl>
-            <Autocomplete
-                size="small"
-                options={militares}
-                getOptionLabel={(u) => u.full_name || ''}
-                value={militares.find(u => u.id === filtros.militar) || null}
-                onChange={(_, v) => setFiltro('militar', v?.id || '')}
-                renderInput={(p) => <TextField {...p} label="Militar" placeholder="Nome" />}
-                renderOption={(props, u) => { const { key, ...rest } = props; return <li key={key} {...rest}><UserAvatar src={u.foto_url} name={u.full_name} role={u.role} size={24} sx={{ mr: 1 }} /><Box><Typography variant="body2">{u.full_name}</Typography><Typography variant="caption" color="text.secondary">{u.OBM || ''}</Typography></Box></li>; }}
-                noOptionsText="Nenhum militar"
-            />
-            <Autocomplete
-                size="small"
-                options={viaturasOpc}
-                getOptionLabel={(v) => (v.prefixo ? `${v.prefixo} - ${v.description || ''}` : v.description || '')}
-                value={viaturasOpc.find(v => v.id === filtros.viatura) || null}
-                onChange={(_, v) => setFiltro('viatura', v?.id || '')}
-                renderInput={(p) => <TextField {...p} label="Viatura" />}
-                noOptionsText="Nenhuma viatura"
-            />
-            <Autocomplete
-                size="small"
-                options={materiaisOpc}
-                getOptionLabel={(m) => m.description || ''}
-                value={materiaisOpc.find(m => m.id === filtros.material) || null}
-                onChange={(_, v) => setFiltro('material', v?.id || '')}
-                renderInput={(p) => <TextField {...p} label="Material" />}
-                noOptionsText="Nenhum material"
-            />
-            <FormControl size="small">
-                <InputLabel>OBM</InputLabel>
-                <Select label="OBM" value={filtros.obm} onChange={(e) => setFiltro('obm', e.target.value)} sx={{ borderRadius: 2 }}>
-                    <MenuItem value="">Todas</MenuItem>
-                    {obms.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
-                </Select>
-            </FormControl>
-            <Box sx={{ gridColumn: { xs: '1', md: 'span 3' }, display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', mr: 0.5 }}>Tipo:</Typography>
-                {TIPOS_MOV.map(t => {
-                    const ativo = filtros.tipos.includes(t.key);
-                    const c = corTipo(t.key, escuro);
-                    return (
-                        <Chip
-                            key={t.key}
-                            label={t.label}
-                            size="small"
-                            onClick={() => setFiltro('tipos', ativo ? filtros.tipos.filter(x => x !== t.key) : [...filtros.tipos, t.key])}
-                            icon={<Box sx={{ width: 10, height: 10, borderRadius: '3px', bgcolor: c, ml: '6px !important' }} />}
-                            sx={{ fontWeight: 600, bgcolor: ativo ? alpha(c, 0.18) : 'transparent', border: `1px solid ${ativo ? c : alpha(theme.palette.divider, 1)}`, color: ativo ? c : 'text.secondary' }}
-                        />
-                    );
-                })}
-            </Box>
-            <TextField
-                size="small"
-                placeholder="Buscar em material, militar, viatura, observação..."
-                value={filtros.busca}
-                onChange={(e) => setFiltro('busca', e.target.value)}
-                sx={{ gridColumn: { xs: '1', md: 'span 3' } }}
-                slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>, endAdornment: filtros.busca ? <InputAdornment position="end"><IconButton size="small" onClick={() => setFiltro('busca', '')}><Close fontSize="small" /></IconButton></InputAdornment> : null } }}
-            />
-        </Box>
-    );
+    const propsFiltros = { filtros, setFiltro, categorias, militares, viaturas: viaturasOpc, materiais: materiaisOpc, obms, escuro };
+    const controles = <PainelFiltros {...propsFiltros} />;
 
     const cabecalho = (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
@@ -208,7 +128,7 @@ export default function PainelAnalitico({ userRole }) {
             {cabecalho}
 
             {!isMobile && (
-                <Paper elevation={0} sx={{ p: 2, mb: 1.5, borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 1)}`, position: 'sticky', top: 0, zIndex: 5, bgcolor: alpha(theme.palette.background.paper, 0.95), backdropFilter: 'blur(10px)' }}>
+                <Paper elevation={0} sx={{ px: 2, py: 1.5, mb: 1.5, borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 1)}`, position: 'sticky', top: 8, zIndex: 5, bgcolor: alpha(theme.palette.background.paper, 0.92), backdropFilter: 'blur(12px)', boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.06)}` }}>
                     {controles}
                 </Paper>
             )}
@@ -251,7 +171,7 @@ export default function PainelAnalitico({ userRole }) {
                     <IconButton size="small" onClick={() => setFiltrosAbertos(false)}><Close /></IconButton>
                 </Box>
                 <Divider />
-                <Box sx={{ p: 2, overflowY: 'auto' }}>{controles}</Box>
+                <Box sx={{ p: 2, overflowY: 'auto' }}><PainelFiltros {...propsFiltros} empilhado /></Box>
                 <Box sx={{ px: 2 }}><Button fullWidth variant="contained" onClick={() => setFiltrosAbertos(false)} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>Aplicar</Button></Box>
             </SwipeableDrawer>
             {userRole === 'admingeral' && null}
