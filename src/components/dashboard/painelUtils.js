@@ -433,7 +433,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         for (const m of movsBase) {
             if (m.type !== 'cautela' || !m.user) continue;
             const u = usersById.get(m.user);
-            if (!mapa.has(m.user)) mapa.set(m.user, { id: m.user, nome: u?.full_name || m.user_name || 'Militar', obm: u?.OBM || '—', foto: u?.foto_url || null, total: 0, periodo: 0, abertas: 0, atrasadas: 0, devolvidas: 0, somaDias: 0, nDias: 0, ultima: null });
+            if (!mapa.has(m.user)) mapa.set(m.user, { id: m.user, nome: u?.full_name || m.user_name || 'Militar', rg: u?.rg || u?.username || m.user_rg || '—', obm: u?.OBM || '—', foto: u?.foto_url || null, total: 0, periodo: 0, abertas: 0, atrasadas: 0, devolvidas: 0, somaDias: 0, nDias: 0, ultima: null });
             const r = mapa.get(m.user);
             r.total += 1;
             const d = toDate(m.date);
@@ -445,7 +445,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         if (termos.length) {
             for (const u of usersById.values()) {
                 if (mapa.has(u.id) || !bate(textoUsuario(u))) continue;
-                mapa.set(u.id, { id: u.id, nome: u.full_name || u.username || 'Militar', obm: u.OBM || '—', foto: u.foto_url || null, total: 0, periodo: 0, abertas: 0, atrasadas: 0, devolvidas: 0, somaDias: 0, nDias: 0, ultima: null });
+                mapa.set(u.id, { id: u.id, nome: u.full_name || u.username || 'Militar', rg: u.rg || u.username || '—', obm: u.OBM || '—', foto: u.foto_url || null, total: 0, periodo: 0, abertas: 0, atrasadas: 0, devolvidas: 0, somaDias: 0, nDias: 0, ultima: null });
             }
         }
         return [...mapa.values()].map(r => ({ ...r, tempoMedio: r.nDias ? r.somaDias / r.nDias : null })).sort((a, b) => b.periodo - a.periodo || b.total - a.total);

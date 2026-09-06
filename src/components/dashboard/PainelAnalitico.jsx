@@ -530,7 +530,7 @@ function AbaManutencao({ painel, theme, SERIES }) {
 /* ================================================================== */
 function AbaMilitares({ painel, filtros, alternar, theme, SERIES, dados }) {
     const [busca, setBusca] = useState('');
-    const lista = painel.militares.filter(m => !busca || m.nome.toLowerCase().includes(busca.toLowerCase()) || (m.obm || '').toLowerCase().includes(busca.toLowerCase()));
+    const lista = painel.militares.filter(m => !busca || m.nome.toLowerCase().includes(busca.toLowerCase()) || (m.obm || '').toLowerCase().includes(busca.toLowerCase()) || String(m.rg || '').includes(busca.trim()));
     const comAtraso = painel.militares.filter(m => m.atrasadas > 0).length;
     return (
         <>
@@ -545,13 +545,14 @@ function AbaMilitares({ painel, filtros, alternar, theme, SERIES, dados }) {
                     <Donut theme={theme} dados={painel.porOBM} cores={SERIES} rotuloCentro="cautelas" />
                 </ChartCard>
                 <ChartCard titulo="Ranking de militares" subtitulo={`${lista.length} militares · clique para filtrar todo o painel`} sx={{ gridColumn: { md: 'span 2' } }} altura={100}
-                    acao={<TextField size="small" placeholder="Buscar nome ou OBM" value={busca} onChange={(e) => setBusca(e.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> } }} sx={{ width: { xs: 150, sm: 220 } }} />}
+                    acao={<TextField size="small" placeholder="Buscar nome, RG ou OBM" value={busca} onChange={(e) => setBusca(e.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> } }} sx={{ width: { xs: 150, sm: 220 } }} />}
                 >
                     <TabelaCompacta
                         maxAltura={480}
                         onLinha={(l) => alternar('militar', l.id)}
                         colunas={[
                             { chave: 'nome', titulo: 'Militar', largura: 240, render: (l) => <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: filtros.militar === l.id ? 800 : 500 }}><UserAvatar src={l.foto} name={l.nome} role={dados.usersById.get(l.id)?.role} size={24} /><span>{l.nome}</span></Box> },
+                            { chave: 'rg', titulo: 'RG' },
                             { chave: 'obm', titulo: 'OBM' },
                             { chave: 'periodo', titulo: 'Cautelas no período', alinhar: 'right' },
                             { chave: 'total', titulo: 'Total histórico', alinhar: 'right' },
