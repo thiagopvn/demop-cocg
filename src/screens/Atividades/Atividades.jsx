@@ -80,6 +80,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
 import { useTheme } from '@mui/material/styles';
+import UserAvatar from '../../components/UserAvatar';
 
 const StyledTableContainer = styled(Card)(({ theme }) => ({
     borderRadius: theme.spacing(1.5),
@@ -251,6 +252,29 @@ export default function Atividades() {
         fetchUserData();
     }, []);
 
+    // Cadastro dos militares (foto, nome completo, RG e papel) para identificar quem fez cada acao
+    const [usersById, setUsersById] = useState(new Map());
+    useEffect(() => {
+        if (userRole !== 'admingeral') return undefined;
+        const unsub = onSnapshot(collection(db, 'users'), (snap) => {
+            const mapa = new Map();
+            snap.forEach((d) => mapa.set(d.id, { id: d.id, ...d.data() }));
+            setUsersById(mapa);
+        }, (err) => console.error('Erro ao carregar militares:', err));
+        return () => unsub();
+    }, [userRole]);
+    const infoMilitar = (userId, fallback) => {
+        const u = usersById.get(userId);
+        return {
+            nome: u?.full_name || fallback || 'Desconhecido',
+            secundario: u
+                ? [u.rg ? `RG ${u.rg}` : null, u.username && u.username !== u.full_name ? `@${u.username}` : null].filter(Boolean).join(' · ')
+                : (fallback ? `@${fallback}` : ''),
+            foto: u?.foto_url || null,
+            role: u?.role,
+        };
+    };
+
     // Reconciliar progresso das tarefas ativas ao abrir a tela
     useEffect(() => {
         if (userRole !== 'admingeral') return;
@@ -329,9 +353,9 @@ export default function Atividades() {
                 users.set(log.userId, log.userName);
             }
         });
-        return Array.from(users.entries()).map(([id, name]) => ({ id, name }))
+        return Array.from(users.entries()).map(([id, name]) => ({ id, name: usersById.get(id)?.full_name || name }))
             .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    }, [logs]);
+    }, [logs, usersById]);
 
     // Acoes unicas
     const uniqueActions = useMemo(() => {
@@ -356,7 +380,7 @@ export default function Atividades() {
 
         if (debouncedSearch) {
             const search = debouncedSearch.toLowerCase();
-            result = result.filter(log => textoBuscaLog(log).includes(search));
+            result = result.filter(log => (textoBuscaLog(log) + ' ' + String(usersById.get(log.userId)?.full_name || '').toLowerCase() + ' ' + String(usersById.get(log.userId)?.rg || '')).includes(search));
         }
 
         // Ordenacao
@@ -369,7 +393,7 @@ export default function Atividades() {
                     return dir * (tA - tB);
                 }
                 case 'userName':
-                    return dir * (a.userName || '').localeCompare(b.userName || '', 'pt-BR');
+                    return dir * (usersById.get(a.userId)?.full_name || a.userName || '').localeCompare(usersById.get(b.userId)?.full_name || b.userName || '', 'pt-BR');
                 case 'action':
                     return dir * (ACTION_LABELS[a.action] || '').localeCompare(ACTION_LABELS[b.action] || '', 'pt-BR');
                 case 'targetName':
@@ -380,7 +404,7 @@ export default function Atividades() {
         });
 
         return result;
-    }, [logs, filterUser, filterAction, debouncedSearch, sortField, sortDirection]);
+    }, [logs, usersById, filterUser, filterAction, debouncedSearch, sortField, sortDirection]);
 
     // Estatisticas por usuario
     const userStats = useMemo(() => {
@@ -778,19 +802,15 @@ export default function Atividades() {
                                                 {userStats.map((stat) => (
                                                     <StyledTableRow key={stat.userId}>
                                                         <StyledTableCell>
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                                                <Box sx={{
-                                                                    width: 36, height: 36, borderRadius: '50%',
-                                                                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                    color: 'primary.main', fontWeight: 700, fontSize: '0.85rem',
-                                                                }}>
-                                                                    {(stat.userName || '?')[0].toUpperCase()}
+                                                            {(() => { const m = infoMilitar(stat.userId, stat.userName); return (
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                                                                    <UserAvatar src={m.foto} name={m.nome} role={m.role} size={38} />
+                                                                    <Box sx={{ minWidth: 0 }}>
+                                                                        <Typography variant="body2" fontWeight={700} sx={{ lineHeight: 1.2 }} noWrap>{m.nome}</Typography>
+                                                                        {m.secundario && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }} noWrap>{m.secundario}</Typography>}
+                                                                    </Box>
                                                                 </Box>
-                                                                <Typography variant="body2" fontWeight={600}>
-                                                                    {stat.userName}
-                                                                </Typography>
-                                                            </Box>
+                                                            ); })()}
                                                         </StyledTableCell>
                                                         <StyledTableCell align="center">
                                                             <Chip
@@ -1030,19 +1050,15 @@ export default function Atividades() {
                                                                 </Typography>
                                                             </StyledTableCell>
                                                             <StyledTableCell>
-                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                                    <Box sx={{
-                                                                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                                                                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                        color: 'primary.main', fontWeight: 700, fontSize: '0.75rem',
-                                                                    }}>
-                                                                        {(log.userName || '?')[0].toUpperCase()}
+                                                                {(() => { const m = infoMilitar(log.userId, log.userName); return (
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                                                        <UserAvatar src={m.foto} name={m.nome} role={m.role} size={30} />
+                                                                        <Box sx={{ minWidth: 0 }}>
+                                                                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.82rem', whiteSpace: 'nowrap', lineHeight: 1.2 }}>{m.nome}</Typography>
+                                                                            {m.secundario && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem', lineHeight: 1.2, whiteSpace: 'nowrap' }}>{m.secundario}</Typography>}
+                                                                        </Box>
                                                                     </Box>
-                                                                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                                                                        {log.userName || 'Desconhecido'}
-                                                                    </Typography>
-                                                                </Box>
+                                                                ); })()}
                                                             </StyledTableCell>
                                                             <StyledTableCell>
                                                                 <Chip
