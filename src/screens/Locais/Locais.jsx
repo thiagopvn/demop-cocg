@@ -74,6 +74,12 @@ const MaterialLocalDialog = lazy(() => import('../../dialogs/MaterialLocalDialog
 
 const StatCard = styled(Card)(({ theme }) => ({
     padding: theme.spacing(2),
+    [theme.breakpoints.down('sm')]: {
+        padding: theme.spacing(1.25, 1.5),
+        flex: '0 0 auto',
+        minWidth: 190,
+        '& .MuiTypography-h6': { fontSize: '1.15rem' },
+    },
     borderRadius: theme.spacing(1.5),
     border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
     background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
@@ -266,7 +272,7 @@ export default function Locais() {
                 </Box>
 
                 {/* Stats */}
-                <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <Box sx={{ display: 'flex', gap: { xs: 1, sm: 2 }, mb: { xs: 2, sm: 3 }, overflowX: { xs: 'auto', sm: 'visible' }, pb: { xs: 0.5, sm: 0 } }}>
                     <StatCard>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', display: 'flex' }}><Warehouse /></Box>

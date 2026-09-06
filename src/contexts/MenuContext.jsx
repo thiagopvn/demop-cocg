@@ -68,6 +68,7 @@ import useCurrentUser from '../hooks/useCurrentUser';
 import UserAvatar, { ROLE_COLORS, ROLE_LABELS } from '../components/UserAvatar';
 import MobileBottomNav, { ALTURA_BARRA } from '../components/navigation/MobileBottomNav';
 import ProfileSheet from '../components/navigation/ProfileSheet';
+import InstallPrompt from '../components/InstallPrompt';
 const ChangePasswordDialog = lazy(() => import('../dialogs/ChangePasswordDialog'));
 
 function MenuContext({ children }) {
@@ -891,6 +892,7 @@ function MenuContext({ children }) {
       {/* Admin Cleanup FAB */}
       {userRole === "admingeral" && (
         <Zoom in timeout={300}>
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
           <Tooltip title="Limpar Movimentações Antigas" arrow>
             <Fab
               size="medium"
@@ -912,6 +914,7 @@ function MenuContext({ children }) {
               <DeleteIcon />
             </Fab>
           </Tooltip>
+          </Box>
         </Zoom>
       )}
 
@@ -933,7 +936,9 @@ function MenuContext({ children }) {
         onChangePassword={() => setChangePasswordOpen(true)}
         onLogout={handleOpenDialog}
         onNavigate={handleNavigation}
+        onCleanup={userRole === 'admingeral' ? handleOpenCleanupDialog : null}
       />
+      <InstallPrompt />
 
       {/* Logout Dialog */}
       <Dialog

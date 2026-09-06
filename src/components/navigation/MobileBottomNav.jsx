@@ -8,6 +8,9 @@ const MAX_NA_BARRA = 4;
 
 export const ALTURA_BARRA = 64;
 
+const ROTULO_CURTO = { Dashboard: 'Início', 'Movimentação': 'Movimentar', 'Bens Patrimoniais': 'Bens' };
+const rotulo = (label) => ROTULO_CURTO[label] || label;
+
 const BADGE_SX = {
     '& .MuiBadge-badge': { fontSize: '0.6rem', height: 16, minWidth: 16, padding: '0 4px', fontWeight: 700 },
 };
@@ -122,7 +125,7 @@ export default function MobileBottomNav({ items, activePath, onNavigate, mainten
                     <Tab
                         key={item.path}
                         icon={item.icon}
-                        label={item.label === 'Dashboard' ? 'Início' : item.label}
+                        label={rotulo(item.label)}
                         active={activePath === item.path}
                         onClick={() => navegar(item.path)}
                         badge={badgeDe(item)}
@@ -187,7 +190,7 @@ export default function MobileBottomNav({ items, activePath, onNavigate, mainten
                                     gap: 1,
                                     p: 1.5,
                                     borderRadius: 3,
-                                    border: `1px solid ${ativo ? alpha(cor, 0.5) : alpha(theme.palette.divider, 1)}`,
+                                    border: `1px solid ${ativo ? alpha(cor, 0.5) : alpha(theme.palette.text.primary, 0.08)}`,
                                     bgcolor: ativo ? alpha(cor, 0.1) : alpha(theme.palette.text.primary, 0.025),
                                     transition: 'transform 0.15s ease, background-color 0.2s ease',
                                     '&:active': { transform: 'scale(0.96)' },

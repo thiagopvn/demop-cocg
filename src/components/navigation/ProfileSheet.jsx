@@ -1,5 +1,5 @@
 import { Box, Typography, SwipeableDrawer, ButtonBase, Chip, Switch, Divider, alpha, useTheme } from '@mui/material';
-import { AccountCircle, LockOutlined, Logout, DarkModeOutlined, ChevronRight } from '@mui/icons-material';
+import { AccountCircle, LockOutlined, Logout, DarkModeOutlined, ChevronRight, DeleteSweepOutlined } from '@mui/icons-material';
 import UserAvatar, { ROLE_COLORS, ROLE_LABELS } from '../UserAvatar';
 
 function Linha({ icon, label, sublabel, onClick, cor, trailing, danger }) {
@@ -37,7 +37,7 @@ function Linha({ icon, label, sublabel, onClick, cor, trailing, danger }) {
 /**
  * Folha inferior com o militar logado e as acoes de conta (perfil, senha, tema, sair).
  */
-export default function ProfileSheet({ open, onClose, user, mode, toggleMode, onChangePassword, onLogout, onNavigate }) {
+export default function ProfileSheet({ open, onClose, user, mode, toggleMode, onChangePassword, onLogout, onNavigate, onCleanup }) {
     const theme = useTheme();
     const cor = ROLE_COLORS[user?.role] || ROLE_COLORS.user;
     const nome = user?.fullName || user?.username || 'Usuário';
@@ -95,6 +95,9 @@ export default function ProfileSheet({ open, onClose, user, mode, toggleMode, on
                     trailing={<Switch checked={mode === 'dark'} onChange={toggleMode} onClick={(e) => e.stopPropagation()} size="small" />}
                 />
                 <Linha icon={LockOutlined} label="Alterar senha" cor="#ff9800" onClick={() => { onClose(); onChangePassword(); }} />
+                {onCleanup && (
+                    <Linha icon={DeleteSweepOutlined} label="Limpar movimentações antigas" sublabel="Devolvidas/descartadas há mais de 2 anos" cor={theme.palette.error.main} onClick={() => { onClose(); onCleanup(); }} />
+                )}
                 <Divider sx={{ my: 0.75, mx: 1 }} />
                 <Linha icon={Logout} label="Sair do sistema" danger onClick={() => { onClose(); onLogout(); }} trailing={<span />} />
             </Box>

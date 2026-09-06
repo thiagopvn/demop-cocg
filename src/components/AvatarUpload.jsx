@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, IconButton, Tooltip, CircularProgress, Typography, Menu, MenuItem, ListItemIcon, ListItemText, alpha } from '@mui/material';
+import { Box, IconButton, Tooltip, CircularProgress, Typography, Menu, MenuItem, ListItemIcon, ListItemText, alpha, useMediaQuery } from '@mui/material';
 import { PhotoCamera, Collections, Delete, Edit, ContentPaste } from '@mui/icons-material';
 import UserAvatar from './UserAvatar';
 import { validarImagem } from '../utils/imageUpload';
@@ -21,6 +21,7 @@ export default function AvatarUpload({ src, name, role, size = 112, onChange, up
     const [menuAnchor, setMenuAnchor] = useState(null);
     const fileRef = useRef(null);
     const cameraRef = useRef(null);
+    const temMouse = useMediaQuery('(hover: hover) and (pointer: fine)');
 
     useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
@@ -147,7 +148,7 @@ export default function AvatarUpload({ src, name, role, size = 112, onChange, up
                     <ListItemIcon><Collections fontSize="small" /></ListItemIcon>
                     <ListItemText>Escolher da galeria</ListItemText>
                 </MenuItem>
-                {permitirColar && (
+                {permitirColar && temMouse && (
                     <MenuItem onClick={colarDaAreaDeTransferencia}>
                         <ListItemIcon><ContentPaste fontSize="small" /></ListItemIcon>
                         <ListItemText primary="Colar da área de transferência" secondary="Win+Shift+S e depois Ctrl+V" />
@@ -167,7 +168,7 @@ export default function AvatarUpload({ src, name, role, size = 112, onChange, up
             {erro && (
                 <Typography variant="caption" sx={{ color: 'error.main', mt: 1, fontWeight: 600, textAlign: 'center' }}>{erro}</Typography>
             )}
-            {permitirColar && !erro && (
+            {permitirColar && temMouse && !erro && (
                 <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, textAlign: 'center' }}>Dica: capture com Win+Shift+S e pressione Ctrl+V</Typography>
             )}
         </Box>

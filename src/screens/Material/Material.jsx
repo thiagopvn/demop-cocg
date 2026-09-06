@@ -189,13 +189,24 @@ const StatsContainer = styled(Box)(({ theme }) => ({
     gap: theme.spacing(2),
     marginBottom: theme.spacing(3),
     [theme.breakpoints.down('sm')]: {
-        flexDirection: 'column',
         gap: theme.spacing(1),
+        marginBottom: theme.spacing(2),
+        overflowX: 'auto',
+        paddingBottom: theme.spacing(0.5),
+        scrollSnapType: 'x proximity',
+        WebkitOverflowScrolling: 'touch',
+        '& > *': { scrollSnapAlign: 'start' },
     },
 }));
 
 const StatCard = styled(Card)(({ theme }) => ({
     padding: theme.spacing(2),
+    [theme.breakpoints.down('sm')]: {
+        padding: theme.spacing(1.25, 1.5),
+        flex: '0 0 auto',
+        minWidth: 168,
+        '& .MuiTypography-h6, & .MuiTypography-h5': { fontSize: '1.15rem' },
+    },
     borderRadius: theme.spacing(1.5),
     background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
     border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
@@ -1070,7 +1081,7 @@ const Material = () => {
 
                 {/* Statistics Cards */}
                 <StatsContainer>
-                    <StatCard sx={{ flex: 1, minWidth: { xs: 0, sm: 200 } }}>
+                    <StatCard sx={{ flex: 1, minWidth: { xs: 168, sm: 200 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Box sx={{
                                 p: 1.5,
@@ -1092,7 +1103,7 @@ const Material = () => {
                     </StatCard>
                     
                     {stats.lowStock > 0 && (
-                        <StatCard sx={{ flex: 1, minWidth: { xs: 0, sm: 200 } }}>
+                        <StatCard sx={{ flex: 1, minWidth: { xs: 168, sm: 200 } }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Box sx={{
                                     p: 1.5,
@@ -1117,7 +1128,7 @@ const Material = () => {
                     {isAdminGeral && duplicateGroups.length > 0 && (
                         <StatCard
                             sx={{
-                                flex: 1, minWidth: { xs: 0, sm: 200 }, cursor: 'pointer',
+                                flex: 1, minWidth: { xs: 168, sm: 200 }, cursor: 'pointer',
                                 background: `linear-gradient(135deg, ${alpha('#ff9800', 0.08)} 0%, ${alpha('#e65100', 0.03)} 100%)`,
                                 border: `1px solid ${alpha('#ff9800', 0.15)}`,
                                 '&:hover': {
@@ -1151,7 +1162,7 @@ const Material = () => {
                     {isAdminGeral && stats.semImagem > 0 && (
                         <StatCard
                             sx={{
-                                flex: 1, minWidth: { xs: 0, sm: 200 }, cursor: 'pointer',
+                                flex: 1, minWidth: { xs: 168, sm: 200 }, cursor: 'pointer',
                                 background: `linear-gradient(135deg, ${alpha('#7b1fa2', 0.08)} 0%, ${alpha('#4a148c', 0.03)} 100%)`,
                                 border: `1px solid ${alpha('#7b1fa2', 0.15)}`,
                                 ...(filterImagem === 'sem_imagem' && {
@@ -1189,7 +1200,7 @@ const Material = () => {
                     {isAdmin && stats.semConferencia > 0 && (
                         <StatCard
                             sx={{
-                                flex: 1, minWidth: { xs: 0, sm: 200 }, cursor: 'pointer',
+                                flex: 1, minWidth: { xs: 168, sm: 200 }, cursor: 'pointer',
                                 background: `linear-gradient(135deg, ${alpha('#ef5350', 0.08)} 0%, ${alpha('#c62828', 0.03)} 100%)`,
                                 border: `1px solid ${alpha('#ef5350', 0.15)}`,
                                 '&:hover': {
