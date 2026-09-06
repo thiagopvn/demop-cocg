@@ -448,20 +448,18 @@ function AbaMateriais({ painel, filtros, alternar, theme, SERIES, isMobile }) {
 function AbaViaturas({ painel, filtros, alternar, theme, SERIES }) {
     const vs = painel.viaturasResumo;
     const totalUnidades = vs.reduce((s, v) => s + v.unidades, 0);
-    const semConf = vs.filter(v => v.diasConferencia === null || v.diasConferencia > 30).length;
     return (
         <>
-            <Grade colunas={{ xs: 2, md: 4 }}>
+            <Grade colunas={{ xs: 2, md: 3 }}>
                 <KpiTile titulo="Viaturas" valor={vs.length} icon={DirectionsCar} cor={SERIES[0]} />
-                <KpiTile titulo="Alocados em viatura" valor={totalUnidades} icon={Inventory2} cor={SERIES[2]} ajuda="materiais alocados em viaturas" />
-                <KpiTile titulo="Conferência vencida" valor={semConf} icon={WarningAmber} cor={SERIES[7]} ajuda="mais de 30 dias ou nunca" />
-                <KpiTile titulo="Movimentações c/ viatura" valor={painel.topViaturas.reduce((s, v) => s + v.valor, 0)} icon={Timeline} cor={SERIES[1]} ajuda="unidades no período" />
+                <KpiTile titulo="Alocados em viatura" valor={totalUnidades} icon={Inventory2} cor={SERIES[2]} ajuda={`em ${vs.filter(v => v.unidades > 0).length} viatura(s)`} />
+                <KpiTile titulo="Apoio do DEMOP" valor={painel.topViaturas.reduce((s, v) => s + v.valor, 0)} icon={Timeline} cor={SERIES[1]} ajuda="unidades enviadas/trocadas no período" />
             </Grade>
             <Grade colunas={{ xs: 1, md: 2 }}>
                 <ChartCard titulo="Unidades por viatura" subtitulo="Materiais embarcados hoje · clique para filtrar" altura={300}>
                     <BarrasHorizontais theme={theme} dados={vs.slice(0, 15).map(v => ({ chave: v.id, nome: v.nome, valor: v.unidades }))} cor={SERIES[0]} onClick={(d) => alternar('viatura', d.chave)} ativoChave={filtros.viatura} altura={300} />
                 </ChartCard>
-                <ChartCard titulo="Situação das conferências" subtitulo="Dias desde a última conferência de cada viatura" altura={300}>
+                <ChartCard titulo="Materiais por viatura" subtitulo="Itens e unidades alocados hoje e apoio do DEMOP no período · clique para filtrar" altura={300}>
                     <TabelaCompacta
                         maxAltura={330}
                         onLinha={(l) => alternar('viatura', l.id)}
@@ -469,8 +467,7 @@ function AbaViaturas({ painel, filtros, alternar, theme, SERIES }) {
                             { chave: 'nome', titulo: 'Viatura', largura: 220 },
                             { chave: 'itens', titulo: 'Itens', alinhar: 'right' },
                             { chave: 'unidades', titulo: 'Unid.', alinhar: 'right' },
-                            { chave: 'ultimaConferencia', titulo: 'Última conferência', render: (l) => fmtData(l.ultimaConferencia) },
-                            { chave: 'diasConferencia', titulo: 'Situação', render: (l) => l.diasConferencia === null ? <Selo texto="Nunca" cor="error" /> : l.diasConferencia > 30 ? <Selo texto={`${l.diasConferencia} d`} cor="error" /> : l.diasConferencia > 15 ? <Selo texto={`${l.diasConferencia} d`} cor="warning" /> : <Selo texto={`${l.diasConferencia} d`} cor="success" /> },
+                            { chave: 'movimentacoes', titulo: 'Apoios no período', alinhar: 'right', render: (l) => l.movimentacoes > 0 ? <Selo texto={l.movimentacoes} cor="primary" /> : '0' },
                         ]}
                         linhas={vs}
                     />
