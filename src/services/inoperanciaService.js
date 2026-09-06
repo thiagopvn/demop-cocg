@@ -29,7 +29,7 @@ import { pausarRecorrenciasDoMaterial, retomarRecorrenciasDoMaterial } from './m
  *     materiais mostra e o que bloqueia o ciclo de manutencao programada.
  *  2. Uma movimentacao `type: 'reparo'` com `status: 'emReparo'` — o que a aba
  *     Pesquisa > Inoperantes lista.
- *  3. As unidades guardadas no local marcado como "inoperantes" (ex.: Prateleira 02).
+ *  3. As unidades guardadas no local marcado como "inoperantes" (ex.: Prateleira 03).
  *
  * Qualquer entrada (movimentacao, edicao do material, troca, prateleira, conclusao
  * de manutencao, retorno de reparo) chama uma funcao daqui, que propaga para as outras.

@@ -45,6 +45,7 @@ import {
     ReportProblem,
     Inventory,
     AutoAwesome,
+    Flag,
     PlaylistAddCheck,
     AddLocationAlt,
     Tune,
@@ -61,6 +62,7 @@ import {
     resumirLocalizacao,
     seedLocaisPadrao,
     excluirLocal,
+    definirLocalInoperantes,
     normalizarTexto,
     LOCAIS_PADRAO,
 } from '../../services/localizacaoService';
@@ -216,6 +218,19 @@ export default function Locais() {
         }
     };
 
+    const handleDefinirInoperantes = async (local) => {
+        if (!local) return;
+        try {
+            const r = await definirLocalInoperantes(local.id, user);
+            const partes = [`${local.nome} agora é o local de inoperantes.`];
+            if (r.anteriores.length > 0) partes.push(`${r.anteriores.join(', ')} deixou de ser.`);
+            if (r.transferidos > 0) partes.push(`${r.transferidos} un. transferida(s) para cá.`);
+            notificar(partes.join(' '));
+        } catch (e) {
+            notificar(e?.message || 'Erro ao definir local de inoperantes.', 'error');
+        }
+    };
+
     const abrirMenu = (e, local) => { e.stopPropagation(); setMenu({ anchor: e.currentTarget, local }); };
     const fecharMenu = () => setMenu({ anchor: null, local: null });
 
@@ -348,7 +363,7 @@ export default function Locais() {
                                 <Warehouse sx={{ fontSize: 56, color: 'text.disabled', mb: 1 }} />
                                 <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 700 }}>Nenhum local cadastrado</Typography>
                                 <Typography variant="body2" color="text.disabled" sx={{ mb: 2.5, maxWidth: 520, mx: 'auto' }}>
-                                    Crie os locais do DEMOP de uma vez ({descricaoPadrao}; a Prateleira 02 fica marcada como local de inoperantes) ou cadastre um a um.
+                                    Crie os locais do DEMOP de uma vez ({descricaoPadrao}; a Prateleira 03 fica marcada como local de inoperantes) ou cadastre um a um.
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
                                     <Button variant="contained" color="secondary" startIcon={seeding ? <CircularProgress size={16} color="inherit" /> : <AutoAwesome />} onClick={handleSeed} disabled={seeding} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>
@@ -488,6 +503,12 @@ export default function Locais() {
                     <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
                     <ListItemText>Editar</ListItemText>
                 </MenuItem>
+                {!menu.local?.inoperantes && (
+                    <MenuItem onClick={() => { const l = menu.local; fecharMenu(); handleDefinirInoperantes(l); }}>
+                        <ListItemIcon><Flag fontSize="small" color="error" /></ListItemIcon>
+                        <ListItemText primary="Definir como local de inoperantes" secondary="Transfere o papel e o conteúdo do atual" />
+                    </MenuItem>
+                )}
                 <MenuItem onClick={() => { setConfirmExcluir(menu.local); fecharMenu(); }} sx={{ color: 'error.main' }}>
                     <ListItemIcon><Delete fontSize="small" color="error" /></ListItemIcon>
                     <ListItemText>Excluir</ListItemText>

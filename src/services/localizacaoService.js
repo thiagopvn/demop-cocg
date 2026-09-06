@@ -38,14 +38,14 @@ export const TIPOS_PADRAO = [
     { key: 'armario', label: 'Armário', plural: 'Armários', sigla: 'Arm.', cor: '#0d9488' },
 ];
 
-/** Faixas criadas pelo botao "Criar locais padrao". Prateleira 02 e a de inoperantes. */
+/** Faixas criadas pelo botao "Criar locais padrao". Prateleira 03 e a de inoperantes. */
 export const LOCAIS_PADRAO = [
     { tipo: 'prateleira', de: 1, ate: 14 },
     { tipo: 'box', de: 1, ate: 7 },
     { tipo: 'gaveta', de: 1, ate: 24 },
     { tipo: 'armario', de: 1, ate: 4 },
 ];
-export const LOCAL_INOPERANTES_PADRAO = { tipo: 'prateleira', numero: 2 };
+export const LOCAL_INOPERANTES_PADRAO = { tipo: 'prateleira', numero: 3 };
 
 const CORES_EXTRA = ['#0891b2', '#be185d', '#65a30d', '#b45309', '#4f46e5', '#475569'];
 
@@ -253,7 +253,7 @@ export async function criarLocais(itens, { userId, userName } = {}) {
     return { criados, ignorados };
 }
 
-/** Cria as prateleiras, box, gavetas e armarios padrao (Prateleira 02 = inoperantes). */
+/** Cria as prateleiras, box, gavetas e armarios padrao (Prateleira 03 = inoperantes). */
 export async function seedLocaisPadrao(user) {
     const itens = [];
     for (const faixa of LOCAIS_PADRAO) {
@@ -304,6 +304,11 @@ export async function atualizarLocal(localId, { tipoLabel, numero, observacao, i
     };
     await updateDoc(ref, patch);
 
+    // Passou a ser o local de inoperantes: o anterior deixa de ser e seu conteudo migra para ca.
+    if (inoperantes && !atual.inoperantes) {
+        await definirLocalInoperantes(localId, { userId, userName }, { jaMarcado: true });
+    }
+
     // Mantem a denormalizacao das alocacoes coerente com o novo nome.
     if (nome !== atual.nome || tipoKey !== atual.tipo || Boolean(inoperantes) !== Boolean(atual.inoperantes)) {
         const alocSnap = await getDocs(query(collection(db, 'material_locais'), where('local_id', '==', localId)));
@@ -330,6 +335,77 @@ export async function atualizarLocal(localId, { tipoLabel, numero, observacao, i
         details: { de: atual.nome, para: nome, inoperantes: Boolean(inoperantes) },
     });
     return { ...atual, ...patch, id: localId };
+}
+
+/**
+ * Define qual local e o de inoperantes. So pode existir um: os demais perdem a marca
+ * e tudo que estava guardado neles migra para o novo (somando por material), para que
+ * as regras de inoperancia continuem valendo sem interrupcao.
+ * @returns {{ local: object, transferidos: number, anteriores: string[] }}
+ */
+export async function definirLocalInoperantes(localId, { userId, userName } = {}, { jaMarcado = false } = {}) {
+    const novoRef = doc(db, 'locais_armazenamento', localId);
+    const novoSnap = await getDoc(novoRef);
+    if (!novoSnap.exists()) throw new Error('Local não encontrado.');
+    const novo = { id: localId, ...novoSnap.data() };
+
+    const anterioresSnap = await getDocs(query(collection(db, 'locais_armazenamento'), where('inoperantes', '==', true)));
+    const anteriores = anterioresSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => l.id !== localId);
+
+    const batch = writeBatch(db);
+    if (!jaMarcado) {
+        batch.update(novoRef, { inoperantes: true, updated_at: serverTimestamp(), updated_by: userId || null, updated_by_nome: userName || null });
+    }
+    novo.inoperantes = true;
+
+    let transferidos = 0;
+    for (const antigo of anteriores) {
+        batch.update(doc(db, 'locais_armazenamento', antigo.id), { inoperantes: false, updated_at: serverTimestamp(), updated_by: userId || null, updated_by_nome: userName || null });
+        const alocSnap = await getDocs(query(collection(db, 'material_locais'), where('local_id', '==', antigo.id)));
+        for (const a of alocSnap.docs) {
+            const dados = a.data();
+            const qtd = Number(dados.quantidade) || 0;
+            if (qtd <= 0) { batch.delete(a.ref); continue; }
+            const destinoRef = doc(db, 'material_locais', idAlocacao(dados.material_id, localId));
+            const destinoSnap = await getDoc(destinoRef);
+            const jaLa = destinoSnap.exists() ? Number(destinoSnap.data().quantidade) || 0 : 0;
+            batch.set(destinoRef, {
+                material_id: dados.material_id,
+                material_description: dados.material_description || '',
+                categoria: dados.categoria || '',
+                ...camposLocal(novo),
+                quantidade: jaLa + qtd,
+                updated_at: serverTimestamp(),
+                updated_by: userId || null,
+                updated_by_nome: userName || null,
+                ...(destinoSnap.exists() ? {} : { created_at: serverTimestamp() }),
+            }, { merge: true });
+            batch.delete(a.ref);
+            transferidos += qtd;
+        }
+    }
+
+    // Alocacoes que ja estavam no novo local ganham a marca denormalizada
+    const noNovoSnap = await getDocs(query(collection(db, 'material_locais'), where('local_id', '==', localId)));
+    noNovoSnap.docs.forEach(d => batch.update(d.ref, { local_inoperantes: true }));
+
+    await batch.commit();
+
+    logAudit({
+        action: 'local_update',
+        userId,
+        userName,
+        targetCollection: 'locais_armazenamento',
+        targetId: localId,
+        targetName: novo.nome,
+        details: {
+            inoperantes: true,
+            motivo: 'Definido como local de inoperantes',
+            anteriores: anteriores.map(a => a.nome),
+            unidades_transferidas: transferidos,
+        },
+    });
+    return { local: novo, transferidos, anteriores: anteriores.map(a => a.nome) };
 }
 
 /** Exclui um local vazio. Lanca erro se ainda houver material guardado nele. */

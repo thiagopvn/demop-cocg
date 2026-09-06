@@ -547,7 +547,7 @@ export default function Movimentacao() {
 
             await batch.commit();
 
-            // Efeitos da inoperancia: local de inoperantes (ex.: Prateleira 02) e ciclo de manutencao
+            // Efeitos da inoperancia: local de inoperantes (ex.: Prateleira 03) e ciclo de manutencao
             if (recebidoUpdate.qtd_inoperante !== undefined && recebidoUpdate.qtd_inoperante !== qtdInopAtual) {
                 aoAlterarInoperancia({
                     materialId: materialRecebido.id,
