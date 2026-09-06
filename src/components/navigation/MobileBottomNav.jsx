@@ -92,6 +92,9 @@ export default function MobileBottomNav({ items, activePath, onNavigate, mainten
         onNavigate(path);
     };
 
+    // Enquanto o papel do usuario nao foi resolvido nao ha itens: nao desenha a barra vazia
+    if (items.length === 0) return null;
+
     return (
         <>
             <Box

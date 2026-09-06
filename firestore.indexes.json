@@ -4,76 +4,174 @@
       "collectionGroup": "historico_manutencoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "materialId", "order": "ASCENDING" },
-        { "fieldPath": "completedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "materialId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "completedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "manutencoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "dueDate", "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dueDate",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "manutencoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isRecurrent", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "isRecurrent",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "manutencoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "dueDate", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "dueDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "alertas_conferencia",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "lido", "order": "ASCENDING" },
-        { "fieldPath": "data_alerta", "order": "DESCENDING" }
+        {
+          "fieldPath": "lido",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data_alerta",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "movimentacoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "user", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "signed", "order": "ASCENDING" }
+        {
+          "fieldPath": "user",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "signed",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "movimentacoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "user", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "user",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "movimentacoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "user", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "signed", "order": "ASCENDING" }
+        {
+          "fieldPath": "user",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "signed",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "viatura_materiais",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "viatura_id", "order": "ASCENDING" },
-        { "fieldPath": "material_id", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "viatura_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "material_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "manutencoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "materialId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isRecurrent",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "manutencoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "materialId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     }
   ],
