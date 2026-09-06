@@ -1,0 +1,481 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import db from '../../firebase/db';
+import { getTotalUnidades, getQtdInoperante } from '../../utils/materialStatus';
+import { resumirLocalizacao } from '../../services/localizacaoService';
+
+/* ------------------------------------------------------------------ */
+/* Paleta (referencia validada para daltonismo, claro e escuro)        */
+/* ------------------------------------------------------------------ */
+export const SERIES_CLARO = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+export const SERIES_ESCURO = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
+
+/** Cada tipo de movimentacao tem um slot fixo (cor segue a entidade, nunca a posicao). */
+export const TIPOS_MOV = [
+    { key: 'cautela', label: 'Cautela', slot: 0 },
+    { key: 'entrada', label: 'Entrada', slot: 2 },
+    { key: 'saída', label: 'Saída', slot: 1 },
+    { key: 'reparo', label: 'Inoperante/Reparo', slot: 7 },
+    { key: 'troca', label: 'Troca c/ viatura', slot: 6 },
+];
+export const corTipo = (key, escuro) => {
+    const t = TIPOS_MOV.find(x => x.key === key);
+    const paleta = escuro ? SERIES_ESCURO : SERIES_CLARO;
+    return paleta[t ? t.slot : 4];
+};
+export const labelTipo = (key) => TIPOS_MOV.find(x => x.key === key)?.label || key || '—';
+
+export const STATUS_MOV = {
+    cautelado: 'Em aberto',
+    devolvido: 'Devolvido',
+    emEstoque: 'Entrada',
+    descartado: 'Saída concluída',
+    emReparo: 'Em reparo',
+    devolvidaDeReparo: 'Voltou do reparo',
+};
+
+/* ------------------------------------------------------------------ */
+/* Datas                                                               */
+/* ------------------------------------------------------------------ */
+export const toDate = (v) => {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    if (typeof v.toDate === 'function') return v.toDate();
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+};
+
+export const PERIODOS = [
+    { value: '7', label: '7 dias' },
+    { value: '30', label: '30 dias' },
+    { value: '90', label: '90 dias' },
+    { value: '365', label: '12 meses' },
+    { value: 'ano', label: 'Este ano' },
+    { value: 'tudo', label: 'Tudo' },
+    { value: 'custom', label: 'Personalizado' },
+];
+
+/** Devolve { inicio, fim } do periodo (fim exclusivo) ou nulls para "tudo". */
+export const intervaloDoPeriodo = (periodo, customInicio, customFim) => {
+    const fim = new Date();
+    fim.setHours(23, 59, 59, 999);
+    if (periodo === 'tudo') return { inicio: null, fim: null };
+    if (periodo === 'custom') {
+        const i = customInicio ? new Date(customInicio + 'T00:00:00') : null;
+        const f = customFim ? new Date(customFim + 'T23:59:59') : fim;
+        return { inicio: i, fim: f };
+    }
+    if (periodo === 'ano') {
+        return { inicio: new Date(fim.getFullYear(), 0, 1), fim };
+    }
+    const dias = parseInt(periodo, 10) || 30;
+    const inicio = new Date();
+    inicio.setHours(0, 0, 0, 0);
+    inicio.setDate(inicio.getDate() - (dias - 1));
+    return { inicio, fim };
+};
+
+/** Periodo imediatamente anterior, com a mesma duracao (para comparar). */
+export const intervaloAnterior = ({ inicio, fim }) => {
+    if (!inicio || !fim) return null;
+    const dur = fim - inicio;
+    return { inicio: new Date(inicio.getTime() - dur - 1), fim: new Date(inicio.getTime() - 1) };
+};
+
+export const dentro = (data, { inicio, fim }) => {
+    if (!data) return false;
+    if (inicio && data < inicio) return false;
+    if (fim && data > fim) return false;
+    return true;
+};
+
+export const fmtData = (d) => (d ? d.toLocaleDateString('pt-BR') : '—');
+export const fmtDataHora = (d) => (d ? `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '—');
+export const fmtNum = (n) => new Intl.NumberFormat('pt-BR').format(Number(n) || 0);
+export const diasEntre = (a, b) => Math.max(0, Math.round((b - a) / 86400000));
+
+/** Escolhe a granularidade da serie temporal pelo tamanho do intervalo. */
+export const granularidade = ({ inicio, fim }, datas) => {
+    let i = inicio;
+    let f = fim || new Date();
+    if (!i) {
+        const ordenadas = datas.filter(Boolean).sort((a, b) => a - b);
+        i = ordenadas[0] || new Date();
+    }
+    const dias = diasEntre(i, f);
+    if (dias <= 45) return 'dia';
+    if (dias <= 200) return 'semana';
+    return 'mes';
+};
+
+const chaveDia = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const inicioSemana = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; };
+
+/**
+ * Serie temporal de movimentacoes por tipo, preenchendo buracos com zero.
+ * @returns [{ chave, rotulo, data, total, cautela, entrada, ... }]
+ */
+export const serieTemporal = (movs, intervalo) => {
+    const datas = movs.map(m => toDate(m.date));
+    const gran = granularidade(intervalo, datas);
+    const chaveDe = (d) => {
+        if (gran === 'dia') return chaveDia(d);
+        if (gran === 'semana') return chaveDia(inicioSemana(d));
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    };
+    const rotuloDe = (chave) => {
+        if (gran === 'mes') {
+            const [y, m] = chave.split('-');
+            return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        }
+        const [, m, d] = chave.split('-');
+        return `${d}/${m}${gran === 'semana' ? '' : ''}`;
+    };
+
+    const mapa = new Map();
+    for (const m of movs) {
+        const d = toDate(m.date);
+        if (!d) continue;
+        const k = chaveDe(d);
+        if (!mapa.has(k)) mapa.set(k, { chave: k, rotulo: rotuloDe(k), total: 0 });
+        const linha = mapa.get(k);
+        linha.total += 1;
+        linha[m.type] = (linha[m.type] || 0) + 1;
+    }
+
+    // Preenche buracos
+    let i = intervalo.inicio ? new Date(intervalo.inicio) : (datas.filter(Boolean).sort((a, b) => a - b)[0] || new Date());
+    const f = intervalo.fim || new Date();
+    i = new Date(i); i.setHours(0, 0, 0, 0);
+    if (gran === 'semana') i = inicioSemana(i);
+    if (gran === 'mes') i = new Date(i.getFullYear(), i.getMonth(), 1);
+    let guarda = 0;
+    while (i <= f && guarda < 400) {
+        const k = chaveDe(i);
+        if (!mapa.has(k)) mapa.set(k, { chave: k, rotulo: rotuloDe(k), total: 0 });
+        if (gran === 'dia') i.setDate(i.getDate() + 1);
+        else if (gran === 'semana') i.setDate(i.getDate() + 7);
+        else i.setMonth(i.getMonth() + 1);
+        guarda += 1;
+    }
+    return { gran, pontos: [...mapa.values()].sort((a, b) => a.chave.localeCompare(b.chave)) };
+};
+
+export const contar = (lista, chaveFn, rotuloFn = (k) => k) => {
+    const mapa = new Map();
+    for (const item of lista) {
+        const k = chaveFn(item);
+        if (k === null || k === undefined || k === '') continue;
+        if (!mapa.has(k)) mapa.set(k, { chave: k, nome: rotuloFn(k, item), valor: 0 });
+        mapa.get(k).valor += 1;
+    }
+    return [...mapa.values()].sort((a, b) => b.valor - a.valor);
+};
+
+export const somar = (lista, chaveFn, valorFn, rotuloFn = (k) => k) => {
+    const mapa = new Map();
+    for (const item of lista) {
+        const k = chaveFn(item);
+        if (k === null || k === undefined || k === '') continue;
+        if (!mapa.has(k)) mapa.set(k, { chave: k, nome: rotuloFn(k, item), valor: 0 });
+        mapa.get(k).valor += Number(valorFn(item)) || 0;
+    }
+    return [...mapa.values()].sort((a, b) => b.valor - a.valor);
+};
+
+/* ------------------------------------------------------------------ */
+/* Dados                                                               */
+/* ------------------------------------------------------------------ */
+
+const docsDe = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+/**
+ * Carrega, uma vez, tudo que o painel precisa. `recarregar()` refaz a leitura.
+ * Materiais e locais chegam por props (contextos em tempo real).
+ */
+export function usePainelDados() {
+    const [dados, setDados] = useState({ movimentacoes: [], users: [], viaturas: [], viaturaMateriais: [], manutencoes: [], historico: [], conferencias: [] });
+    const [loading, setLoading] = useState(true);
+    const [erro, setErro] = useState(null);
+    const [versao, setVersao] = useState(0);
+
+    const recarregar = useCallback(() => setVersao(v => v + 1), []);
+
+    useEffect(() => {
+        let cancelado = false;
+        setLoading(true);
+        (async () => {
+            try {
+                const [mov, users, viaturas, vm, man, hist, conf] = await Promise.all([
+                    getDocs(collection(db, 'movimentacoes')),
+                    getDocs(collection(db, 'users')),
+                    getDocs(collection(db, 'viaturas')),
+                    getDocs(query(collection(db, 'viatura_materiais'), where('status', '==', 'alocado'))),
+                    getDocs(collection(db, 'manutencoes')),
+                    getDocs(collection(db, 'historico_manutencoes')),
+                    getDocs(collection(db, 'conferencias_viaturas')).catch(() => ({ docs: [] })),
+                ]);
+                if (cancelado) return;
+                setDados({
+                    movimentacoes: docsDe(mov),
+                    users: docsDe(users),
+                    viaturas: docsDe(viaturas),
+                    viaturaMateriais: docsDe(vm),
+                    manutencoes: docsDe(man),
+                    historico: docsDe(hist),
+                    conferencias: docsDe(conf),
+                });
+                setErro(null);
+            } catch (e) {
+                console.error('Erro ao carregar o painel:', e);
+                if (!cancelado) setErro('Não foi possível carregar os dados do painel.');
+            } finally {
+                if (!cancelado) setLoading(false);
+            }
+        })();
+        return () => { cancelado = true; };
+    }, [versao]);
+
+    const usersById = useMemo(() => new Map(dados.users.map(u => [u.id, u])), [dados.users]);
+    const viaturasById = useMemo(() => new Map(dados.viaturas.map(v => [v.id, v])), [dados.viaturas]);
+
+    return { ...dados, usersById, viaturasById, loading, erro, recarregar };
+}
+
+/** Nome exibivel do militar de uma movimentacao (nunca o RG). */
+export const nomeMilitar = (mov, usersById) => {
+    const u = mov.user ? usersById?.get(mov.user) : null;
+    return u?.full_name || mov.user_name || (mov.user ? 'Militar' : '—');
+};
+
+export const nomeViatura = (mov, viaturasById) => {
+    const v = mov.viatura ? viaturasById?.get(mov.viatura) : null;
+    if (v) return v.prefixo ? `${v.prefixo} - ${v.description || ''}`.trim() : (v.description || '—');
+    return mov.viatura_description || '—';
+};
+
+/* ------------------------------------------------------------------ */
+/* Indicadores                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Aplica os filtros e calcula todos os indicadores do painel.
+ * Tudo puro: recebe arrays, devolve numeros e listas prontas para os graficos.
+ */
+export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial, filtros }) {
+    const { movimentacoes, usersById, viaturasById, viaturaMateriais, manutencoes, historico, viaturas } = dados;
+    const intervalo = intervaloDoPeriodo(filtros.periodo, filtros.inicio, filtros.fim);
+    const anterior = intervaloAnterior(intervalo);
+    const agora = new Date();
+
+    const passaFiltrosSemPeriodo = (m) => {
+        if (filtros.tipos.length && !filtros.tipos.includes(m.type)) return false;
+        if (filtros.categoria && (m.categoria || 'Sem categoria') !== filtros.categoria) return false;
+        if (filtros.militar && m.user !== filtros.militar) return false;
+        if (filtros.viatura && m.viatura !== filtros.viatura) return false;
+        if (filtros.material && m.material !== filtros.material) return false;
+        if (filtros.obm) {
+            const u = m.user ? usersById.get(m.user) : null;
+            if ((u?.OBM || '') !== filtros.obm) return false;
+        }
+        if (filtros.busca) {
+            const t = filtros.busca.toLowerCase();
+            const alvo = `${m.material_description || ''} ${nomeMilitar(m, usersById)} ${nomeViatura(m, viaturasById)} ${m.categoria || ''} ${m.observacoes || ''}`.toLowerCase();
+            if (!alvo.includes(t)) return false;
+        }
+        return true;
+    };
+
+    const movsBase = movimentacoes.filter(passaFiltrosSemPeriodo);
+    const movs = movsBase.filter(m => dentro(toDate(m.date), intervalo));
+    const movsAnt = anterior ? movsBase.filter(m => dentro(toDate(m.date), anterior)) : [];
+
+    // KPIs de fluxo (periodo) --------------------------------------------
+    const cautelasPeriodo = movs.filter(m => m.type === 'cautela');
+    const cautelasAnt = movsAnt.filter(m => m.type === 'cautela');
+    const devolucoesPeriodo = movsBase.filter(m => (m.status === 'devolvido' || m.status === 'devolvidaDeReparo') && dentro(toDate(m.returned_date), intervalo));
+    const devolucoesAnt = anterior ? movsBase.filter(m => (m.status === 'devolvido' || m.status === 'devolvidaDeReparo') && dentro(toDate(m.returned_date), anterior)) : [];
+
+    // KPIs de situacao (agora, respeitando filtros de entidade) ----------
+    const abertas = movsBase.filter(m => m.type === 'cautela' && m.status === 'cautelado');
+    const pendentesAssinatura = abertas.filter(m => !m.signed);
+    const emReparo = movsBase.filter(m => m.type === 'reparo' && m.status === 'emReparo');
+    const unidadesEmReparo = emReparo.reduce((s, m) => s + (Number(m.quantity) || 0), 0);
+
+    // Serie temporal ------------------------------------------------------
+    const serie = serieTemporal(movs, intervalo);
+
+    // Composicoes --------------------------------------------------------
+    const porTipo = contar(movs, m => m.type, k => labelTipo(k));
+    const porCategoria = contar(movs, m => m.categoria || 'Sem categoria');
+    const topMateriais = somar(cautelasPeriodo, m => m.material, m => Number(m.quantity) || 1, (k, m) => m.material_description || 'Material').slice(0, 10);
+    const topMilitares = contar(cautelasPeriodo, m => m.user || m.user_name, (k, m) => nomeMilitar(m, usersById)).slice(0, 10);
+    const topViaturas = somar(movs.filter(m => m.viatura), m => m.viatura, m => Number(m.quantity) || 1, (k, m) => nomeViatura(m, viaturasById)).slice(0, 10);
+
+    // Mapa de calor dia da semana x hora --------------------------------
+    const calor = Array.from({ length: 7 }, () => Array(24).fill(0));
+    let calorMax = 0;
+    for (const m of movs) {
+        const d = toDate(m.date);
+        if (!d) continue;
+        calor[d.getDay()][d.getHours()] += 1;
+        calorMax = Math.max(calorMax, calor[d.getDay()][d.getHours()]);
+    }
+
+    // Cautelas: tempo de devolucao ----------------------------------------
+    const duracoes = movsBase
+        .filter(m => m.type === 'cautela' && m.returned_date && dentro(toDate(m.returned_date), intervalo))
+        .map(m => diasEntre(toDate(m.date), toDate(m.returned_date)))
+        .filter(n => Number.isFinite(n));
+    const tempoMedio = duracoes.length ? duracoes.reduce((a, b) => a + b, 0) / duracoes.length : 0;
+    const faixas = [['Mesmo dia', 0, 0], ['1-3 dias', 1, 3], ['4-7 dias', 4, 7], ['8-15 dias', 8, 15], ['16-30 dias', 16, 30], ['+30 dias', 31, Infinity]];
+    const histDuracao = faixas.map(([nome, a, b]) => ({ nome, valor: duracoes.filter(n => n >= a && n <= b).length }));
+
+    const abertasDetalhe = abertas.map(m => {
+        const d = toDate(m.date);
+        return { id: m.id, material: m.material_description || '—', militar: nomeMilitar(m, usersById), militarId: m.user, quantidade: m.quantity || 0, data: d, dias: d ? diasEntre(d, agora) : 0, assinada: Boolean(m.signed) };
+    }).sort((a, b) => b.dias - a.dias);
+    const abertasPorMilitar = contar(abertas, m => m.user || m.user_name, (k, m) => nomeMilitar(m, usersById));
+    const funil = [
+        { nome: 'Cautelas', valor: cautelasPeriodo.length },
+        { nome: 'Assinadas', valor: cautelasPeriodo.filter(m => m.signed).length },
+        { nome: 'Devolvidas', valor: cautelasPeriodo.filter(m => m.status === 'devolvido').length },
+    ];
+
+    // Materiais ------------------------------------------------------------
+    const materiaisFiltrados = filtros.categoria ? materials.filter(m => (m.categoria || 'Sem categoria') === filtros.categoria) : materials;
+    const estoque = materiaisFiltrados.reduce((acc, m) => {
+        const total = getTotalUnidades(m);
+        const inop = getQtdInoperante(m);
+        const viatura = Number(m.estoque_viatura) || 0;
+        const atual = Number(m.estoque_atual) || 0;
+        acc.total += total; acc.viatura += viatura; acc.disponivel += atual; acc.inoperante += inop;
+        return acc;
+    }, { total: 0, viatura: 0, disponivel: 0, inoperante: 0 });
+    const statusMateriais = contar(materiaisFiltrados, m => m.maintenance_status || 'operante', k => ({ operante: 'Operante', parcialmente_inoperante: 'Parcial', em_manutencao: 'Em manutenção', inoperante: 'Inoperante' }[k] || k));
+    const estoquePorCategoria = (() => {
+        const mapa = new Map();
+        for (const m of materiaisFiltrados) {
+            const k = m.categoria || 'Sem categoria';
+            if (!mapa.has(k)) mapa.set(k, { nome: k, disponivel: 0, viatura: 0, inoperante: 0 });
+            const l = mapa.get(k);
+            l.disponivel += Math.max(0, (Number(m.estoque_atual) || 0) - 0);
+            l.viatura += Number(m.estoque_viatura) || 0;
+            l.inoperante += getQtdInoperante(m);
+        }
+        return [...mapa.values()].sort((a, b) => (b.disponivel + b.viatura + b.inoperante) - (a.disponivel + a.viatura + a.inoperante)).slice(0, 12);
+    })();
+    const estoqueZerado = materiaisFiltrados.filter(m => (Number(m.estoque_atual) || 0) === 0 && getTotalUnidades(m) > 0);
+    const semLocal = materiaisFiltrados
+        .map(m => ({ m, r: resumirLocalizacao(m, alocacoesPorMaterial?.get(m.id) || []) }))
+        .filter(x => x.r.semLocal > 0)
+        .sort((a, b) => b.r.semLocal - a.r.semLocal);
+    const materiaisMaisMovimentados = contar(movs, m => m.material, (k, m) => m.material_description || 'Material').slice(0, 10);
+    const semConferencia = materiaisFiltrados.filter(m => {
+        const d = toDate(m.ultima_conferencia) || toDate(m.ultima_movimentacao);
+        return !d || diasEntre(d, agora) > 180;
+    });
+
+    // Viaturas ------------------------------------------------------------
+    const viaturasResumo = viaturas.map(v => {
+        const itens = viaturaMateriais.filter(x => x.viatura_id === v.id);
+        const unidades = itens.reduce((s, x) => s + (Number(x.quantidade) || 0), 0);
+        const conf = toDate(v.ultima_conferencia);
+        return { id: v.id, nome: v.prefixo ? `${v.prefixo} - ${v.description || ''}`.trim() : (v.description || v.id), itens: itens.length, unidades, ultimaConferencia: conf, diasConferencia: conf ? diasEntre(conf, agora) : null, movimentacoes: movs.filter(m => m.viatura === v.id).length };
+    }).sort((a, b) => b.unidades - a.unidades);
+
+    // Manutencao ----------------------------------------------------------
+    const manAbertas = manutencoes.filter(m => m.status === 'pendente' || m.status === 'em_andamento');
+    const manAtrasadas = manAbertas.filter(m => { const d = toDate(m.dueDate); return d && d < agora; });
+    const manProximas = manAbertas.filter(m => { const d = toDate(m.dueDate); return d && d >= agora && diasEntre(agora, d) <= 30; }).sort((a, b) => toDate(a.dueDate) - toDate(b.dueDate));
+    const manPausadas = manutencoes.filter(m => m.status === 'pausada');
+    const concluidasPeriodo = historico.filter(h => dentro(toDate(h.completedAt), intervalo));
+    const manPorTipo = contar(manAbertas, m => m.type || 'outro');
+    const manPorMes = (() => {
+        const mapa = new Map();
+        const add = (d, campo) => { if (!d) return; const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; if (!mapa.has(k)) mapa.set(k, { chave: k, rotulo: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }), concluidas: 0, agendadas: 0 }); mapa.get(k)[campo] += 1; };
+        historico.forEach(h => add(toDate(h.completedAt), 'concluidas'));
+        manutencoes.forEach(m => add(toDate(m.createdAt), 'agendadas'));
+        return [...mapa.values()].sort((a, b) => a.chave.localeCompare(b.chave)).slice(-12);
+    })();
+    const materiaisComMaisManutencao = contar(historico, h => h.materialId, (k, h) => h.materialDescription || 'Material').slice(0, 8);
+
+    // Militares -----------------------------------------------------------
+    const militares = (() => {
+        const mapa = new Map();
+        for (const m of movsBase) {
+            if (m.type !== 'cautela' || !m.user) continue;
+            const u = usersById.get(m.user);
+            if (!mapa.has(m.user)) mapa.set(m.user, { id: m.user, nome: u?.full_name || m.user_name || 'Militar', obm: u?.OBM || '—', foto: u?.foto_url || null, total: 0, periodo: 0, abertas: 0, atrasadas: 0, devolvidas: 0, somaDias: 0, nDias: 0, ultima: null });
+            const r = mapa.get(m.user);
+            r.total += 1;
+            const d = toDate(m.date);
+            if (dentro(d, intervalo)) r.periodo += 1;
+            if (m.status === 'cautelado') { r.abertas += 1; if (d && diasEntre(d, agora) > 30) r.atrasadas += 1; }
+            if (m.status === 'devolvido') { r.devolvidas += 1; const rd = toDate(m.returned_date); if (d && rd) { r.somaDias += diasEntre(d, rd); r.nDias += 1; } }
+            if (d && (!r.ultima || d > r.ultima)) r.ultima = d;
+        }
+        return [...mapa.values()].map(r => ({ ...r, tempoMedio: r.nDias ? r.somaDias / r.nDias : null })).sort((a, b) => b.periodo - a.periodo || b.total - a.total);
+    })();
+    const porOBM = contar(cautelasPeriodo, m => (usersById.get(m.user)?.OBM || 'Sem OBM'));
+
+    // Locais --------------------------------------------------------------
+    const unidadesPorLocal = (() => {
+        const mapa = new Map();
+        for (const l of locais) mapa.set(l.id, { id: l.id, nome: l.nome, tipo: l.tipo, tipoLabel: l.tipo_label, inoperantes: Boolean(l.inoperantes), unidades: 0, materiais: 0 });
+        for (const [, lista] of alocacoesPorMaterial || []) {
+            for (const a of lista) {
+                const l = mapa.get(a.local_id);
+                if (!l) continue;
+                l.unidades += Number(a.quantidade) || 0;
+                l.materiais += 1;
+            }
+        }
+        return [...mapa.values()];
+    })();
+    const unidadesPorTipoLocal = somar(unidadesPorLocal, l => l.tipoLabel || l.tipo, l => l.unidades);
+    const totalSemLocal = semLocal.reduce((s, x) => s + x.r.semLocal, 0);
+
+    // Recentes ------------------------------------------------------------
+    const recentes = [...movs].sort((a, b) => (toDate(b.date) || 0) - (toDate(a.date) || 0)).slice(0, 12).map(m => ({
+        id: m.id, tipo: m.type, tipoLabel: labelTipo(m.type), material: m.material_description || '—', militar: nomeMilitar(m, usersById), viatura: m.viatura ? nomeViatura(m, viaturasById) : null, quantidade: m.quantity || 0, data: toDate(m.date), status: STATUS_MOV[m.status] || m.status || '—', quem: m.sender_name || '—',
+    }));
+
+    return {
+        intervalo,
+        movs,
+        kpis: {
+            movimentacoes: { valor: movs.length, anterior: anterior ? movsAnt.length : null },
+            cautelas: { valor: cautelasPeriodo.length, anterior: anterior ? cautelasAnt.length : null },
+            devolucoes: { valor: devolucoesPeriodo.length, anterior: anterior ? devolucoesAnt.length : null },
+            abertas: abertas.length,
+            pendentesAssinatura: pendentesAssinatura.length,
+            emReparo: emReparo.length,
+            unidadesEmReparo,
+            materiais: materiaisFiltrados.length,
+            estoque,
+            manAtrasadas: manAtrasadas.length,
+            manProximas: manProximas.length,
+            totalSemLocal,
+            tempoMedio,
+        },
+        serie, porTipo, porCategoria, topMateriais, topMilitares, topViaturas, calor, calorMax,
+        histDuracao, abertasDetalhe, abertasPorMilitar, funil,
+        statusMateriais, estoquePorCategoria, estoqueZerado, semLocal, materiaisMaisMovimentados, semConferencia,
+        viaturasResumo,
+        manAbertas, manAtrasadas, manProximas, manPausadas, concluidasPeriodo, manPorTipo, manPorMes, materiaisComMaisManutencao,
+        militares, porOBM,
+        unidadesPorLocal, unidadesPorTipoLocal,
+        recentes,
+    };
+}
+
+/** CSV das movimentacoes filtradas (separador ; para o Excel em pt-BR). */
+export const csvMovimentacoes = (movs, usersById, viaturasById) => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const linhas = [['Data', 'Tipo', 'Material', 'Quantidade', 'Militar', 'Viatura', 'Situação', 'Registrado por', 'Devolvido em', 'Observações']];
+    for (const m of movs) {
+        linhas.push([fmtDataHora(toDate(m.date)), labelTipo(m.type), m.material_description || '', m.quantity ?? '', nomeMilitar(m, usersById), m.viatura ? nomeViatura(m, viaturasById) : '', STATUS_MOV[m.status] || m.status || '', m.sender_name || '', fmtDataHora(toDate(m.returned_date)), m.observacoes || '']);
+    }
+    return '﻿' + linhas.map(l => l.map(esc).join(';')).join('\r\n');
+};

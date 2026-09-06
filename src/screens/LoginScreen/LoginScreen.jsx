@@ -346,13 +346,13 @@ export default function LoginScreen() {
                 </Typography>
               </Box>
               <Typography sx={{ color: "text.secondary", fontSize: "0.92rem", mb: 3.5 }}>
-                Entre com o seu RG, usuário ou e-mail e a senha cadastrada.
+                Entre com o seu RG e a senha cadastrada.
               </Typography>
 
               <TextField
                 fullWidth
-                label="RG, Usuário ou E-mail"
-                placeholder="Ex.: 12345678"
+                label="RG"
+                placeholder="Digite o seu RG"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyDown={handleKeyPress}
