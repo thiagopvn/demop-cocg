@@ -604,11 +604,11 @@ function AbaLocais({ painel, theme, SERIES }) {
             <Grade colunas={{ xs: 2, md: 4 }}>
                 <KpiTile titulo="Locais cadastrados" valor={painel.unidadesPorLocal.length} icon={Warehouse} />
                 <KpiTile titulo="Locais em uso" valor={ocupados.length} icon={Storage} cor={SERIES[2]} />
-                <KpiTile titulo="Unidades guardadas" valor={totalGuardado} icon={Inventory2} cor={SERIES[0]} />
+                <KpiTile titulo="Unidades alocadas no DEMOP" valor={totalGuardado} icon={Inventory2} cor={SERIES[0]} ajuda="unidades com prateleira, box, gaveta ou armário definido" />
                 <KpiTile titulo="Unidades sem local" valor={painel.kpis.totalSemLocal} icon={WarningAmber} cor={SERIES[3]} ajuda={`${painel.semLocal.length} materiais`} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
-                <ChartCard titulo="Por tipo de local" subtitulo="Unidades guardadas" altura={230}>
+                <ChartCard titulo="Por tipo de local" subtitulo="Unidades alocadas no DEMOP" altura={230}>
                     <Donut theme={theme} dados={painel.unidadesPorTipoLocal} cores={SERIES} rotuloCentro="unidades" />
                 </ChartCard>
                 <ChartCard titulo="Locais mais ocupados" subtitulo="Unidades por local" sx={{ gridColumn: { md: 'span 2' } }} altura={300}>
