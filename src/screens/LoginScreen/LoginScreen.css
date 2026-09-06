@@ -1,182 +1,24 @@
-/* Reset e configurações globais para a tela de login */
+/* Tela de login */
 .root-login {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
 }
 
-/* Configurações específicas para o container principal */
 .root-login * {
     box-sizing: border-box;
 }
 
-/* Animações personalizadas para elementos flutuantes */
-@keyframes breathe {
-    0%, 100% {
-        transform: scale(1) rotate(0deg);
-        opacity: 0.6;
-    }
-    50% {
-        transform: scale(1.05) rotate(2deg);
-        opacity: 0.8;
-    }
+@keyframes loginFadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: none; }
 }
 
-@keyframes gradientShift {
-    0%, 100% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
+@keyframes loginSlideUp {
+    from { opacity: 0; transform: translateY(24px) scale(0.98); }
+    to { opacity: 1; transform: none; }
 }
 
-/* Efeitos de partículas para o fundo */
-.root-login::before {
-    animation: gradientShift 15s ease infinite;
-}
-
-/* Estilos para campos de entrada com animação suave */
-.MuiTextField-root .MuiOutlinedInput-root {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.MuiTextField-root .MuiOutlinedInput-root:focus-within {
-    transform: translateY(-1px);
-}
-
-/* Animação de foco para labels */
-.MuiInputLabel-root {
-    transition: all 0.2s ease-in-out !important;
-}
-
-/* Estilização do botão com efeito de ondulação */
-.MuiButton-root {
-    position: relative;
-    overflow: hidden;
-}
-
-.MuiButton-root::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.MuiButton-root:hover::before {
-    width: 300px;
-    height: 300px;
-}
-
-/* Configurações responsivas aprimoradas */
-@media (max-width: 1024px) {
-    .root-login {
-        padding: 1.5rem !important;
-    }
-    
-    .card-login {
-        max-width: 420px !important;
-    }
-}
-
-@media (max-width: 768px) {
-    .root-login {
-        padding: 1rem !important;
-        min-height: 100vh;
-        min-height: 100dvh; /* Suporte para altura dinâmica em dispositivos móveis */
-    }
-    
-    .card-login {
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 2.5rem 2rem 2rem 2rem !important;
-        border-radius: 24px !important;
-    }
-    
-    /* Ajuste da logo no modal em dispositivos móveis */
-    .card-login img[alt="bolacha"] {
-        width: 70px !important;
-    }
-    
-    /* Ajuste do FAB em dispositivos móveis */
-    .MuiFab-root {
-        bottom: 20px !important;
-        right: 20px !important;
-        transform: scale(0.9) !important;
-    }
-}
-
-@media (max-width: 480px) {
-    .root-login {
-        padding: 0.5rem !important;
-    }
-    
-    .card-login {
-        padding: 2rem 1.5rem 1.5rem 1.5rem !important;
-        border-radius: 20px !important;
-    }
-    
-    .card-login img[alt="bolacha"] {
-        width: 60px !important;
-    }
-    
-    /* Ajuste da tipografia em telas muito pequenas */
-    .MuiTypography-h4 {
-        font-size: 1.8rem !important;
-    }
-    
-    .MuiButton-root {
-        padding: 14px 20px !important;
-        font-size: 1rem !important;
-    }
-}
-
-/* Suporte para modo landscape em dispositivos móveis */
-@media (max-height: 600px) and (orientation: landscape) {
-    .root-login {
-        padding: 1rem !important;
-    }
-    
-    .card-login {
-        padding: 2rem !important;
-        margin-top: 1rem !important;
-    }
-    
-    .card-login img[alt="bolacha"] {
-        width: 50px !important;
-    }
-}
-
-/* Melhoria da acessibilidade */
 @media (prefers-reduced-motion: reduce) {
-    .root-login *,
-    .root-login *::before,
-    .root-login *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
+    .root-login * { animation: none !important; }
 }
-
-/* Suporte para tema escuro do sistema */
-@media (prefers-color-scheme: dark) {
-    .root-login {
-        background: linear-gradient(135deg, #0a0e1a 0%, #1a202c 30%, #2d3748 70%, #4a5568 100%) !important;
-    }
-}
-
-/* Configurações para alta resolução */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    .bolacha img {
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
-    }
-}
-
