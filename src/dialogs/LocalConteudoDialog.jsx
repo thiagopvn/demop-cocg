@@ -231,12 +231,12 @@ export default function LocalConteudoDialog({
                                             <IconButton size="small" disabled={busy} onClick={() => handleSetQtd(linha, qtd - 1)}><Remove fontSize="small" /></IconButton>
                                             <Chip label={qtd} size="small" sx={{ fontWeight: 800, minWidth: 40, bgcolor: alpha(cor, 0.12), color: cor }} />
                                             <Tooltip title={linha.resumo.semLocal > 0 ? 'Guardar +1' : 'Sem unidades sem local'}>
-                                                <span><IconButton size="small" disabled={busy || linha.resumo.semLocal <= 0} onClick={() => handleSetQtd(linha, qtd + 1)}><Add fontSize="small" /></IconButton></span>
+                                                <span><IconButton aria-label="Guardar +1" size="small" disabled={busy || linha.resumo.semLocal <= 0} onClick={() => handleSetQtd(linha, qtd + 1)}><Add fontSize="small" /></IconButton></span>
                                             </Tooltip>
                                         </Box>
                                         <Tooltip title="Mover para outro local">
                                             <span>
-                                                <IconButton size="small" color={movendo ? 'primary' : 'default'} disabled={busy || locais.length < 2} onClick={() => { setMoverDe(movendo ? null : linha); setMoverPara(null); setMoverQtd(qtd); }}>
+                                                <IconButton aria-label="Mover para outro local" size="small" color={movendo ? 'primary' : 'default'} disabled={busy || locais.length < 2} onClick={() => { setMoverDe(movendo ? null : linha); setMoverPara(null); setMoverQtd(qtd); }}>
                                                     <SwapHoriz fontSize="small" />
                                                 </IconButton>
                                             </span>
@@ -247,7 +247,7 @@ export default function LocalConteudoDialog({
                                             </Tooltip>
                                         )}
                                         <Tooltip title="Remover deste local">
-                                            <span><IconButton size="small" color="error" disabled={busy} onClick={() => handleSetQtd(linha, 0)}><Delete fontSize="small" /></IconButton></span>
+                                            <span><IconButton aria-label="Remover deste local" size="small" color="error" disabled={busy} onClick={() => handleSetQtd(linha, 0)}><Delete fontSize="small" /></IconButton></span>
                                         </Tooltip>
                                     </Box>
                                     <Collapse in={movendo}>

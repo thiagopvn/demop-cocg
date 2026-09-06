@@ -329,7 +329,7 @@ export default function MaterialLocalDialog({ open, onClose, material, loggedUse
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
                                             <Tooltip title="Tirar 1">
                                                 <span>
-                                                    <IconButton size="small" disabled={busy || qtd <= 0} onClick={() => handleSetQtd(aloc, qtd - 1)}>
+                                                    <IconButton aria-label="Tirar 1" size="small" disabled={busy || qtd <= 0} onClick={() => handleSetQtd(aloc, qtd - 1)}>
                                                         <Remove fontSize="small" />
                                                     </IconButton>
                                                 </span>
@@ -352,7 +352,7 @@ export default function MaterialLocalDialog({ open, onClose, material, loggedUse
                                             />
                                             <Tooltip title={resumo.semLocal > 0 ? 'Guardar +1' : 'Não há unidades sem local'}>
                                                 <span>
-                                                    <IconButton size="small" disabled={busy || resumo.semLocal <= 0} onClick={() => handleSetQtd(aloc, qtd + 1)}>
+                                                    <IconButton aria-label="Guardar +1" size="small" disabled={busy || resumo.semLocal <= 0} onClick={() => handleSetQtd(aloc, qtd + 1)}>
                                                         <Add fontSize="small" />
                                                     </IconButton>
                                                 </span>
@@ -360,14 +360,14 @@ export default function MaterialLocalDialog({ open, onClose, material, loggedUse
                                         </Box>
                                         <Tooltip title="Mover para outro local">
                                             <span>
-                                                <IconButton size="small" color={movendo ? 'primary' : 'default'} disabled={busy || locais.length < 2} onClick={() => abrirMover(aloc)}>
+                                                <IconButton aria-label="Mover para outro local" size="small" color={movendo ? 'primary' : 'default'} disabled={busy || locais.length < 2} onClick={() => abrirMover(aloc)}>
                                                     <SwapHoriz fontSize="small" />
                                                 </IconButton>
                                             </span>
                                         </Tooltip>
                                         <Tooltip title="Remover deste local">
                                             <span>
-                                                <IconButton size="small" color="error" disabled={busy} onClick={() => handleSetQtd(aloc, 0)}>
+                                                <IconButton aria-label="Remover deste local" size="small" color="error" disabled={busy} onClick={() => handleSetQtd(aloc, 0)}>
                                                     <Delete fontSize="small" />
                                                 </IconButton>
                                             </span>
