@@ -5,6 +5,7 @@ import {
     DialogContent,
     DialogActions,
     Button,
+    Tooltip,
     TextField,
     Select,
     MenuItem,
@@ -26,6 +27,7 @@ import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import CollectionsIcon from '@mui/icons-material/Collections';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
@@ -208,6 +210,11 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const handleImageSelect = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        await processarImagem(file);
+    };
+
+    const processarImagem = async (file) => {
+        if (!file) return;
 
         // Validação robusta: alguns navegadores mobile não definem file.type para fotos da câmera
         const isImage = (file.type && file.type.startsWith('image/')) ||
@@ -244,6 +251,40 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             reader.readAsDataURL(processedFile);
         } catch {
             setErrors(prev => ({ ...prev, image: 'Erro ao processar imagem. Tente outra.' }));
+        }
+    };
+
+    // Ctrl+V com uma captura (Win+Shift+S) enquanto o dialogo esta aberto
+    useEffect(() => {
+        if (!open) return undefined;
+        const onPaste = (e) => {
+            const item = Array.from(e.clipboardData?.items || []).find(i => i.kind === 'file' && i.type.startsWith('image/'));
+            if (!item) return;
+            const file = item.getAsFile();
+            if (!file) return;
+            e.preventDefault();
+            processarImagem(new File([file], `colada_${Date.now()}.png`, { type: file.type || 'image/png' }));
+        };
+        window.addEventListener('paste', onPaste);
+        return () => window.removeEventListener('paste', onPaste);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+
+    const handlePasteClick = async () => {
+        try {
+            if (!navigator.clipboard?.read) throw new Error('unsupported');
+            const itens = await navigator.clipboard.read();
+            for (const item of itens) {
+                const tipo = item.types.find(t => t.startsWith('image/'));
+                if (tipo) {
+                    const blob = await item.getType(tipo);
+                    await processarImagem(new File([blob], `colada_${Date.now()}.png`, { type: tipo }));
+                    return;
+                }
+            }
+            setErrors(prev => ({ ...prev, image: 'Não há imagem na área de transferência. Capture com Win+Shift+S e tente de novo.' }));
+        } catch {
+            setErrors(prev => ({ ...prev, image: 'Não foi possível ler a área de transferência. Com a imagem copiada, pressione Ctrl+V.' }));
         }
     };
 
@@ -643,6 +684,17 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                             >
                                 Galeria
                             </Button>
+                            <Tooltip title="Capture com Win+Shift+S e clique aqui (ou pressione Ctrl+V)">
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={<ContentPasteIcon />}
+                                    onClick={handlePasteClick}
+                                    sx={{ textTransform: 'none', fontSize: '0.8rem' }}
+                                >
+                                    Colar
+                                </Button>
+                            </Tooltip>
                             {currentImage && (
                                 <Button
                                     variant="outlined"
@@ -656,7 +708,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                                 </Button>
                             )}
                             <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
-                                Comprimida automaticamente.
+                                Comprimida automaticamente. Ctrl+V cola uma captura.
                             </Typography>
                         </Box>
                     </Box>
