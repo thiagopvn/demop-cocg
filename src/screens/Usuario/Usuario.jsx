@@ -539,13 +539,13 @@ export default function Usuario() {
             )}
           </Box>
 
-          {/* Estatisticas (clique filtra) */}
+          {/* Estatisticas (clique filtra) - cartoes por funcao so para o admingeral */}
           {isAdmin && (
             <Box sx={{ display: "flex", gap: { xs: 1, sm: 1.5 }, mb: 2.5, overflowX: { xs: "auto", sm: "visible" }, pb: { xs: 0.5, sm: 0 } }}>
               {cartaoEstatistica("Todos", estatisticas.total, theme.palette.primary.main, !filtroPapel && filtroStatus === "todos", () => { setFiltroPapel(""); setFiltroStatus("todos"); }, <GroupsIcon fontSize="small" />)}
               {cartaoEstatistica("Ativos", estatisticas.ativos, theme.palette.success.main, filtroStatus === "ativos", () => setFiltroStatus(filtroStatus === "ativos" ? "todos" : "ativos"), <CheckCircleIcon fontSize="small" />)}
               {cartaoEstatistica("Inativos", estatisticas.inativos, theme.palette.error.main, filtroStatus === "inativos", () => setFiltroStatus(filtroStatus === "inativos" ? "todos" : "inativos"), <BlockIcon fontSize="small" />)}
-              {ORDEM_PAPEIS.filter((r) => estatisticas.porPapel[r]).map((r) =>
+              {isAdminGeral && ORDEM_PAPEIS.filter((r) => estatisticas.porPapel[r]).map((r) =>
                 <Box key={r} sx={{ display: "contents" }}>
                   {cartaoEstatistica(ROLE_LABELS[r], estatisticas.porPapel[r], ROLE_COLORS[r], filtroPapel === r, () => setFiltroPapel(filtroPapel === r ? "" : r), <ShieldIcon fontSize="small" />)}
                 </Box>
