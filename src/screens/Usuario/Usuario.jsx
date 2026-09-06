@@ -944,6 +944,7 @@ export default function Usuario() {
           onClose={() => { setHistoricoOpen(false); setHistoricoTarget(null); }}
           targetId={historicoTarget?.id}
           targetName={historicoTarget?.name}
+          tipo="usuario"
         />
       </MenuContext>
     </PrivateRoute>

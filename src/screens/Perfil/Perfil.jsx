@@ -299,6 +299,7 @@ export default function Perfil() {
                     onChange={handleFotoChange}
                     uploading={fotoUploading}
                     progress={fotoProgress}
+                    permitirColar
                     sx={{ mb: 2 }}
                   />
 

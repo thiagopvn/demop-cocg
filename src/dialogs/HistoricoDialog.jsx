@@ -44,6 +44,7 @@ const CATEGORIAS = {
     viatura: { label: 'Viaturas', cor: '#00bcd4', icon: DirectionsCar },
     manutencao: { label: 'Manutenções', cor: '#9c27b0', icon: Build },
     local: { label: 'Locais no DEMOP', cor: '#0d9488', icon: Warehouse },
+    executadas: { label: 'Ações que executou', cor: '#1e3a5f', icon: Person },
     outro: { label: 'Outros', cor: '#607d8b', icon: TimelineIcon },
 };
 
@@ -264,12 +265,82 @@ async function carregarEventosDoMaterial(materialId, logs) {
     return eventos;
 }
 
+/**
+ * Eventos retroativos de um militar: cautelas que recebeu (com assinatura e devolucao),
+ * cadastro e acoes que ele proprio executou no sistema.
+ */
+async function carregarEventosDoUsuario(userId) {
+    const eventos = [];
+    const [movSnap, userSnap, feitosSnap] = await Promise.all([
+        getDocs(query(collection(db, 'movimentacoes'), where('user', '==', userId))),
+        getDoc(doc(db, 'users', userId)),
+        getDocs(query(collection(db, 'audit_logs'), where('userId', '==', userId), orderBy('timestamp', 'desc'))).catch((e) => { console.error('Erro ao buscar ações do usuário:', e); return null; }),
+    ]);
+
+    if (userSnap.exists()) {
+        const u = userSnap.data();
+        const criado = toDate(u.created_at);
+        if (criado) {
+            eventos.push({ id: 'user-created', data: criado, categoria: 'cadastro', icon: Person, titulo: 'Usuário cadastrado', descricao: `${u.full_name || u.username}${u.username ? ` (@${u.username})` : ''}${u.role ? ` · papel: ${u.role}` : ''}${u.OBM ? ` · OBM: ${u.OBM}` : ''}`, autor: u.created_by_nome || null, extras: [], origem: 'users' });
+        }
+        const foto = toDate(u.foto_atualizada_em);
+        if (foto) {
+            eventos.push({ id: 'user-foto', data: foto, categoria: 'cadastro', icon: Edit, titulo: u.foto_url ? 'Foto de perfil atualizada' : 'Foto de perfil removida', descricao: u.foto_url ? 'Nova foto definida no perfil' : 'Foto removida do perfil', autor: null, extras: [], origem: 'users' });
+        }
+    }
+
+    movSnap.docs.forEach(d => {
+        const mv = d.data();
+        const qtd = mv.quantity != null ? `${mv.quantity} un.` : '';
+        const material = mv.material_description || 'material';
+        const data = toDate(mv.date);
+        const tipo = mv.type;
+        if (data) {
+            let titulo = 'Movimentação';
+            let descricao;
+            if (tipo === 'cautela') {
+                titulo = 'Recebeu cautela';
+                descricao = `${qtd} de ${material} — situação: ${STATUS_MOV_LABEL[mv.status] || mv.status || '—'}${mv.signed ? ' · assinada' : ' · sem assinatura'}`;
+            } else if (tipo === 'saída') {
+                titulo = mv.subtype === 'viatura' ? 'Responsável por envio à viatura' : 'Responsável por saída (consumo)';
+                descricao = `${qtd} de ${material}${mv.viatura_description ? ` para ${mv.viatura_description}` : ''}`;
+            } else if (tipo === 'troca') {
+                titulo = 'Militar da troca com viatura';
+                descricao = `${material}${mv.viatura_description ? ` — viatura ${mv.viatura_description}` : ''}`;
+            } else {
+                descricao = `${TIPO_MOV_LABEL[tipo] || tipo || 'Movimentação'} de ${qtd} de ${material}`;
+            }
+            if (mv.observacoes) descricao += ` · Obs.: ${mv.observacoes}`;
+            eventos.push({ id: `umov-${d.id}`, data, categoria: 'movimentacao', icon: SwapHoriz, titulo, descricao, autor: mv.sender_name || null, extras: [], origem: 'movimentacoes' });
+        }
+        const assinada = toDate(mv.signed_date);
+        if (assinada) {
+            eventos.push({ id: `usig-${d.id}`, data: assinada, categoria: 'movimentacao', icon: Edit, titulo: 'Assinou a cautela', descricao: `Confirmou o recebimento de ${qtd} de ${material}`, autor: mv.user_name || null, extras: [], origem: 'movimentacoes' });
+        }
+        const devolvida = toDate(mv.returned_date);
+        if (devolvida) {
+            eventos.push({ id: `udev-${d.id}`, data: devolvida, categoria: 'movimentacao', icon: AssignmentReturn, titulo: mv.status === 'devolvidaDeReparo' ? 'Retorno de reparo' : 'Devolveu material', descricao: `${qtd} de ${material}${mv.user_acknowledged_return ? ' · ciente da devolução' : ''}`, autor: mv.user_name || null, extras: [], origem: 'movimentacoes' });
+        }
+    });
+
+    if (feitosSnap) {
+        feitosSnap.docs.forEach(d => {
+            const log = { id: d.id, ...d.data() };
+            if (log.targetId === userId) return; // ja aparece como acao sobre o usuario
+            const ev = eventoDeLog(log);
+            eventos.push({ ...ev, id: `feito-${d.id}`, categoria: 'executadas', icon: ev.icon, titulo: `${ACTION_LABELS[log.action] || log.action}`, origem: 'auditoria (executou)' });
+        });
+    }
+
+    return eventos;
+}
+
 /** Logs de auditoria cujo conteudo ja vem, com mais dados, das colecoes operacionais. */
 const LOGS_COBERTOS_POR_DOCUMENTOS = new Set(['movimentacao_create', 'devolucao_create', 'material_allocate', 'viatura_material_remove']);
 
 const fmtHora = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 const fmtDia = (d) => d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-const chaveDia = (d) => d.toISOString().slice(0, 10);
+const chaveDia = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /**
  * Historico completo de um item. Para `tipo="material"` junta a auditoria com os
@@ -301,7 +372,7 @@ export default function HistoricoDialog({ open, onClose, targetId, targetName, t
                     logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 } catch (e) {
                     console.error('Erro ao buscar auditoria:', e);
-                    if (tipo !== 'material') throw e;
+                    if (tipo === 'generico') throw e;
                     setErro('A auditoria não pôde ser carregada (verifique permissão e índice). Mostrando apenas os registros operacionais.');
                 }
 
@@ -311,6 +382,9 @@ export default function HistoricoDialog({ open, onClose, targetId, targetName, t
 
                 if (tipo === 'material') {
                     const retro = await carregarEventosDoMaterial(targetId, logs);
+                    lista = lista.concat(retro);
+                } else if (tipo === 'usuario') {
+                    const retro = await carregarEventosDoUsuario(targetId);
                     lista = lista.concat(retro);
                 }
 

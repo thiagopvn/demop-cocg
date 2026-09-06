@@ -244,16 +244,17 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
 
             <DialogContent sx={{ padding: { xs: '16px', sm: '24px' } }}>
                 <div style={{ display: 'grid', gap: '20px' }}>
-                    {editMode && (
+                    {editMode && loggedUser?.role === "admingeral" && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                             <AvatarUpload
                                 src={editData?.foto_url}
                                 name={data.full_name || data.username}
                                 role={data.role}
                                 size={96}
+                                permitirColar
                                 onChange={(file) => setData(prev => ({ ...prev, fotoFile: file }))}
                             />
-                            <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>Foto do militar (opcional)</span>
+                            <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>Foto do militar (somente admin geral) — tirar, escolher ou colar</span>
                         </div>
                     )}
                     {errors.general && (
