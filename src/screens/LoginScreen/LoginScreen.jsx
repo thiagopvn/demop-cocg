@@ -266,21 +266,8 @@ export default function LoginScreen() {
                 </Box>
               </Box>
 
-              <Typography
-                sx={{
-                  display: { xs: "none", md: "block" },
-                  mt: 6,
-                  fontWeight: 800,
-                  fontSize: "2rem",
-                  lineHeight: 1.15,
-                  maxWidth: 520,
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Controle de cautela, estoque e manutenção em um só lugar.
-              </Typography>
 
-              <Box sx={{ display: { xs: "none", md: "grid" }, gridTemplateColumns: "1fr 1fr", gap: 2, mt: 4, maxWidth: 620 }}>
+              <Box sx={{ display: { xs: "none", md: "grid" }, gridTemplateColumns: "1fr 1fr", gap: 2, mt: 6, maxWidth: 620 }}>
                 {DESTAQUES.map((d) => {
                   const Icon = d.icon;
                   return (

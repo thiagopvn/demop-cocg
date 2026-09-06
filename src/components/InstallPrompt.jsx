@@ -90,7 +90,7 @@ export default function InstallPrompt() {
                     left: { xs: 10, sm: 'auto' },
                     right: { xs: 10, sm: 24 },
                     bottom: { xs: `calc(${ALTURA_BARRA + 12}px + env(safe-area-inset-bottom, 0px))`, md: 24 },
-                    zIndex: 1240,
+                    zIndex: 1150,
                     maxWidth: 420,
                     p: 1.75,
                     borderRadius: 3,
