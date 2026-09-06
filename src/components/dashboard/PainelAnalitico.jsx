@@ -19,7 +19,9 @@ import {
     usePainelDados, calcularPainel, TIPOS_MOV, corTipo, labelTipo, SERIES_CLARO, SERIES_ESCURO, fmtNum, fmtData, fmtDataHora, csvMovimentacoes, DIAS_SEMANA, rotuloDataSel,
 } from './painelUtils';
 
-const FILTROS_INICIAIS = { periodo: '30', inicio: '', fim: '', tipos: [], categoria: '', militar: '', viatura: '', material: '', obm: '', busca: '', statusMaterial: '', composicao: '', diaSemana: '', hora: '', dataSel: '', etapa: '', faixaDevolucao: '', local: '', tipoLocal: '', mesManutencao: '', tipoManutencao: '' };
+const FILTROS_INICIAIS = { periodo: '30', inicio: '', fim: '', tipos: [], categoria: '', militar: '', viatura: '', material: '', obm: '', busca: '', statusMaterial: '', composicao: '', diaSemana: '', hora: '', dataSel: '', etapa: '', faixaDevolucao: '', local: '', tipoLocal: '', mesManutencao: '', tipoManutencao: '', situacao: '', zerado: '', comLocal: '', semLocal: '', situacaoMan: '' };
+const SITUACAO_LABEL = { abertas: 'Cautelas em aberto', semAssinatura: 'Cautelas sem assinatura', emReparo: 'Inoperantes (em reparo)', comViatura: 'Com viatura', atrasadas: 'Cautelas com +30 dias' };
+const SITUACAO_MAN_LABEL = { abertas: 'Em aberto', atrasadas: 'Atrasadas', proximas: 'Próximos 30 dias', pausadas: 'Pausadas', concluidas: 'Concluídas no período' };
 const ETAPA_LABEL = { assinadas: 'Assinadas', devolvidas: 'Devolvidas' };
 const TIPO_MAN_LABEL = { preventiva: 'Preventiva', corretiva: 'Corretiva', inspecao: 'Inspeção', calibracao: 'Calibração', outro: 'Outro' };
 const STATUS_LABEL = { operante: 'Operante', parcialmente_inoperante: 'Parcial', em_manutencao: 'Em manutenção', inoperante: 'Inoperante' };
@@ -88,6 +90,11 @@ export default function PainelAnalitico({ userRole }) {
     if (filtros.local) chipsAtivos.push({ chave: 'local', label: `Local: ${locais.find(l => l.id === filtros.local)?.nome || '—'}`, limpar: () => setFiltro('local', '') });
     if (filtros.tipoLocal) chipsAtivos.push({ chave: 'tipoLocal', label: `Tipo de local: ${filtros.tipoLocal}`, limpar: () => setFiltro('tipoLocal', '') });
     if (filtros.mesManutencao) chipsAtivos.push({ chave: 'mesManutencao', label: `Manutenção em: ${painel.manPorMes.find(x => x.chave === filtros.mesManutencao)?.rotulo || filtros.mesManutencao}`, limpar: () => setFiltro('mesManutencao', '') });
+    if (filtros.situacao) chipsAtivos.push({ chave: 'situacao', label: `Situação: ${SITUACAO_LABEL[filtros.situacao] || filtros.situacao}`, limpar: () => setFiltro('situacao', '') });
+    if (filtros.zerado) chipsAtivos.push({ chave: 'zerado', label: 'Estoque zerado', limpar: () => setFiltro('zerado', '') });
+    if (filtros.comLocal) chipsAtivos.push({ chave: 'comLocal', label: 'Com local definido', limpar: () => setFiltro('comLocal', '') });
+    if (filtros.semLocal) chipsAtivos.push({ chave: 'semLocal', label: 'Sem local definido', limpar: () => setFiltro('semLocal', '') });
+    if (filtros.situacaoMan) chipsAtivos.push({ chave: 'situacaoMan', label: `Manutenção: ${SITUACAO_MAN_LABEL[filtros.situacaoMan] || filtros.situacaoMan}`, limpar: () => setFiltro('situacaoMan', '') });
     if (filtros.tipoManutencao) chipsAtivos.push({ chave: 'tipoManutencao', label: `Manutenção: ${TIPO_MAN_LABEL[filtros.tipoManutencao] || filtros.tipoManutencao}`, limpar: () => setFiltro('tipoManutencao', '') });
 
     const exportarCsv = () => {
@@ -265,12 +272,12 @@ function AbaGeral({ painel, filtros, setFiltro, setVarios, alternar, theme, escu
     return (
         <>
             <Grade colunas={{ xs: 2, sm: 3, md: 4, lg: 6 }}>
-                <KpiTile titulo="Movimentações" valor={k.movimentacoes.valor} anterior={k.movimentacoes.anterior} icon={Timeline} ajuda="no período" />
-                <KpiTile titulo="Cautelas feitas" valor={k.cautelas.valor} anterior={k.cautelas.anterior} icon={Assignment} cor={SERIES[0]} ajuda="no período" />
-                <KpiTile titulo="Devoluções" valor={k.devolucoes.valor} anterior={k.devolucoes.anterior} icon={AssignmentReturn} cor={SERIES[2]} ajuda="no período" />
-                <KpiTile titulo="Cautelas em aberto" valor={k.abertas} icon={Draw} cor={SERIES[3]} ajuda={`${k.pendentesAssinatura} sem assinatura`} onClick={() => setFiltro('tipos', ['cautela'])} />
-                <KpiTile titulo="Inoperantes" valor={k.emReparo} icon={ReportProblem} cor={SERIES[7]} ajuda={`${fmtNum(k.unidadesEmReparo)} unidades`} onClick={() => setFiltro('tipos', ['reparo'])} />
-                <KpiTile titulo="Tempo médio de devolução" valor={tempoMedioTxt} sufixo="dias" formato={(v) => v} icon={Speed} cor={SERIES[6]} ajuda="cautelas devolvidas no período" />
+                <KpiTile titulo="Movimentações" valor={k.movimentacoes.valor} anterior={k.movimentacoes.anterior} icon={Timeline} ajuda="no período · clique para ver todos os tipos" onClick={() => setVarios({ tipos: [], etapa: '', situacao: '' })} />
+                <KpiTile titulo="Cautelas feitas" valor={k.cautelas.valor} anterior={k.cautelas.anterior} icon={Assignment} cor={SERIES[0]} ajuda="no período · clique para filtrar" onClick={() => setVarios(filtros.tipos.length === 1 && filtros.tipos[0] === 'cautela' && !filtros.etapa && !filtros.situacao ? { tipos: [] } : { tipos: ['cautela'], etapa: '', situacao: '' })} ativo={filtros.tipos.length === 1 && filtros.tipos[0] === 'cautela' && !filtros.etapa && !filtros.situacao} />
+                <KpiTile titulo="Devoluções" valor={k.devolucoes.valor} anterior={k.devolucoes.anterior} icon={AssignmentReturn} cor={SERIES[2]} ajuda="no período · clique para filtrar" onClick={() => alternar('etapa', 'devolvidas')} ativo={filtros.etapa === 'devolvidas'} />
+                <KpiTile titulo="Cautelas em aberto" valor={k.abertas} icon={Draw} cor={SERIES[3]} ajuda={`${k.pendentesAssinatura} sem assinatura · clique para filtrar`} onClick={() => alternar('situacao', 'abertas')} ativo={filtros.situacao === 'abertas'} />
+                <KpiTile titulo="Inoperantes" valor={k.emReparo} icon={ReportProblem} cor={SERIES[7]} ajuda={`${fmtNum(k.unidadesEmReparo)} unidades · clique para filtrar`} onClick={() => alternar('situacao', 'emReparo')} ativo={filtros.situacao === 'emReparo'} />
+                <KpiTile titulo="Tempo médio de devolução" valor={tempoMedioTxt} sufixo="dias" formato={(v) => v} icon={Speed} cor={SERIES[6]} ajuda="cautelas devolvidas no período · clique para filtrar" onClick={() => alternar('etapa', 'devolvidas')} ativo={filtros.etapa === 'devolvidas'} />
             </Grade>
 
             <Grade colunas={{ xs: 1, md: 3 }}>
@@ -356,16 +363,16 @@ function AbaGeral({ painel, filtros, setFiltro, setVarios, alternar, theme, escu
 /* ================================================================== */
 /* ABA: Cautelas                                                         */
 /* ================================================================== */
-function AbaCautelas({ painel, filtros, setFiltro, alternar, theme, SERIES, dados }) {
+function AbaCautelas({ painel, filtros, setFiltro, setVarios, alternar, theme, SERIES, dados }) {
     const k = painel.kpis;
     return (
         <>
             <Grade colunas={{ xs: 2, sm: 3, md: 5 }}>
-                <KpiTile titulo="Cautelas no período" valor={k.cautelas.valor} anterior={k.cautelas.anterior} icon={Assignment} cor={SERIES[0]} />
-                <KpiTile titulo="Devolvidas no período" valor={k.devolucoes.valor} anterior={k.devolucoes.anterior} icon={AssignmentReturn} cor={SERIES[2]} />
-                <KpiTile titulo="Em aberto agora" valor={k.abertas} icon={Draw} cor={SERIES[3]} ajuda="independente do período" />
-                <KpiTile titulo="Sem assinatura" valor={k.pendentesAssinatura} icon={WarningAmber} cor={SERIES[7]} ajuda="militar ainda não assinou" />
-                <KpiTile titulo="Tempo médio" valor={k.tempoMedio ? k.tempoMedio.toFixed(1) : '0'} sufixo="dias" formato={(v) => v} icon={Speed} cor={SERIES[6]} ajuda="até a devolução" />
+                <KpiTile titulo="Cautelas no período" valor={k.cautelas.valor} anterior={k.cautelas.anterior} icon={Assignment} cor={SERIES[0]} ajuda="clique para ver só cautelas" onClick={() => setVarios(filtros.tipos.length === 1 && filtros.tipos[0] === 'cautela' && !filtros.etapa && !filtros.situacao ? { tipos: [] } : { tipos: ['cautela'], etapa: '', situacao: '' })} ativo={filtros.tipos.length === 1 && filtros.tipos[0] === 'cautela' && !filtros.etapa && !filtros.situacao} />
+                <KpiTile titulo="Devolvidas no período" valor={k.devolucoes.valor} anterior={k.devolucoes.anterior} icon={AssignmentReturn} cor={SERIES[2]} ajuda="clique para filtrar" onClick={() => alternar('etapa', 'devolvidas')} ativo={filtros.etapa === 'devolvidas'} />
+                <KpiTile titulo="Em aberto agora" valor={k.abertas} icon={Draw} cor={SERIES[3]} ajuda="independente do período · clique para filtrar" onClick={() => alternar('situacao', 'abertas')} ativo={filtros.situacao === 'abertas'} />
+                <KpiTile titulo="Sem assinatura" valor={k.pendentesAssinatura} icon={WarningAmber} cor={SERIES[7]} ajuda="militar ainda não assinou · clique para filtrar" onClick={() => alternar('situacao', 'semAssinatura')} ativo={filtros.situacao === 'semAssinatura'} />
+                <KpiTile titulo="Tempo médio" valor={k.tempoMedio ? k.tempoMedio.toFixed(1) : '0'} sufixo="dias" formato={(v) => v} icon={Speed} cor={SERIES[6]} ajuda="até a devolução · clique para ver as devolvidas" onClick={() => alternar('etapa', 'devolvidas')} ativo={filtros.etapa === 'devolvidas'} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
                 <ChartCard titulo="Funil das cautelas" subtitulo="Feitas → assinadas → devolvidas (no período) · clique para filtrar" altura={220}>
@@ -414,7 +421,7 @@ function AbaCautelas({ painel, filtros, setFiltro, alternar, theme, SERIES, dado
 /* ================================================================== */
 /* ABA: Materiais                                                        */
 /* ================================================================== */
-function AbaMateriais({ painel, filtros, alternar, theme, SERIES, isMobile }) {
+function AbaMateriais({ painel, filtros, alternar, setVarios, theme, SERIES, isMobile }) {
     const e = painel.kpis.estoque;
     const composicao = [
         { chave: 'disponivel', nome: 'Disponível no DEMOP', valor: e.disponivel },
@@ -426,12 +433,12 @@ function AbaMateriais({ painel, filtros, alternar, theme, SERIES, isMobile }) {
     return (
         <>
             <Grade colunas={{ xs: 2, sm: 3, md: 6 }}>
-                <KpiTile titulo="Materiais" valor={painel.kpis.materiais} icon={Inventory2} ajuda={filtros.categoria || 'todas as categorias'} />
-                <KpiTile titulo="Unidades no total" valor={e.total} icon={Storage} cor={SERIES[6]} />
-                <KpiTile titulo="Disponíveis" valor={e.disponivel} icon={Inventory2} cor={SERIES[2]} ajuda="no DEMOP" />
-                <KpiTile titulo="Em viaturas" valor={e.viatura} icon={DirectionsCar} cor={SERIES[0]} />
-                <KpiTile titulo="Inoperantes" valor={e.inoperante} icon={ReportProblem} cor={SERIES[7]} />
-                <KpiTile titulo="Estoque zerado" valor={painel.estoqueZerado.length} icon={WarningAmber} cor={SERIES[3]} ajuda="materiais sem unidade disponível" />
+                <KpiTile titulo="Materiais" valor={painel.kpis.materiais} icon={Inventory2} ajuda={`${filtros.categoria || 'todas as categorias'} · clique para ver todos`} onClick={() => setVarios({ statusMaterial: '', composicao: '', zerado: '', local: '', tipoLocal: '', comLocal: '', semLocal: '', situacaoMan: '' })} />
+                <KpiTile titulo="Unidades no total" valor={e.total} icon={Storage} cor={SERIES[6]} ajuda="clique para ver todo o estoque" onClick={() => setVarios({ composicao: '', zerado: '' })} />
+                <KpiTile titulo="Disponíveis" valor={e.disponivel} icon={Inventory2} cor={SERIES[2]} ajuda="no DEMOP · clique para filtrar" onClick={() => alternar('composicao', 'disponivel')} ativo={filtros.composicao === 'disponivel'} />
+                <KpiTile titulo="Em viaturas" valor={e.viatura} icon={DirectionsCar} cor={SERIES[0]} ajuda="clique para filtrar" onClick={() => alternar('composicao', 'viatura')} ativo={filtros.composicao === 'viatura'} />
+                <KpiTile titulo="Inoperantes" valor={e.inoperante} icon={ReportProblem} cor={SERIES[7]} ajuda="clique para filtrar" onClick={() => alternar('composicao', 'inoperante')} ativo={filtros.composicao === 'inoperante'} />
+                <KpiTile titulo="Estoque zerado" valor={painel.estoqueZerado.length} icon={WarningAmber} cor={SERIES[3]} ajuda="materiais sem unidade disponível · clique para filtrar" onClick={() => alternar('zerado', '1')} ativo={Boolean(filtros.zerado)} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 2 }}>
                 <ChartCard titulo="Composição do estoque" subtitulo="Onde estão as unidades · clique para filtrar os cards de materiais" altura={230}>
@@ -495,15 +502,15 @@ function AbaMateriais({ painel, filtros, alternar, theme, SERIES, isMobile }) {
 /* ================================================================== */
 /* ABA: Viaturas                                                         */
 /* ================================================================== */
-function AbaViaturas({ painel, filtros, alternar, theme, SERIES }) {
+function AbaViaturas({ painel, filtros, alternar, setFiltro, theme, SERIES }) {
     const vs = painel.viaturasResumo;
     const totalUnidades = vs.reduce((s, v) => s + v.unidades, 0);
     return (
         <>
             <Grade colunas={{ xs: 2, md: 3 }}>
-                <KpiTile titulo="Viaturas" valor={vs.length} icon={DirectionsCar} cor={SERIES[0]} />
-                <KpiTile titulo="Alocados em viatura" valor={totalUnidades} icon={Inventory2} cor={SERIES[2]} ajuda={`em ${vs.filter(v => v.unidades > 0).length} viatura(s)`} />
-                <KpiTile titulo="Apoio do DEMOP" valor={painel.topViaturas.reduce((s, v) => s + v.valor, 0)} icon={Timeline} cor={SERIES[1]} ajuda="unidades enviadas/trocadas no período" />
+                <KpiTile titulo="Viaturas" valor={vs.length} icon={DirectionsCar} cor={SERIES[0]} ajuda="clique para ver todas" onClick={() => setFiltro('viatura', '')} />
+                <KpiTile titulo="Alocados em viatura" valor={totalUnidades} icon={Inventory2} cor={SERIES[2]} ajuda={`em ${vs.filter(v => v.unidades > 0).length} viatura(s) · clique para filtrar`} onClick={() => alternar('composicao', 'viatura')} ativo={filtros.composicao === 'viatura'} />
+                <KpiTile titulo="Apoio do DEMOP" valor={painel.topViaturas.reduce((s, v) => s + v.valor, 0)} icon={Timeline} cor={SERIES[1]} ajuda="unidades enviadas/trocadas no período · clique para filtrar" onClick={() => alternar('situacao', 'comViatura')} ativo={filtros.situacao === 'comViatura'} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 2 }}>
                 <ChartCard titulo="Unidades por viatura" subtitulo="Materiais embarcados hoje · clique para filtrar" altura={300}>
@@ -534,11 +541,11 @@ function AbaManutencao({ painel, filtros, alternar, theme, SERIES }) {
     return (
         <>
             <Grade colunas={{ xs: 2, sm: 3, md: 5 }}>
-                <KpiTile titulo="Em aberto" valor={painel.manAbertas.length} icon={Build} cor={SERIES[6]} />
-                <KpiTile titulo="Atrasadas" valor={painel.manAtrasadas.length} icon={WarningAmber} cor={SERIES[7]} />
-                <KpiTile titulo="Próximos 30 dias" valor={painel.manProximas.length} icon={EventAvailable} cor={SERIES[3]} />
-                <KpiTile titulo="Pausadas" valor={painel.manPausadas.length} icon={PauseCircleOutline} ajuda="material inoperante" />
-                <KpiTile titulo="Concluídas no período" valor={painel.concluidasPeriodo.length} icon={AssignmentReturn} cor={SERIES[2]} />
+                <KpiTile titulo="Em aberto" valor={painel.manAbertas.length} icon={Build} cor={SERIES[6]} ajuda="clique para filtrar" onClick={() => alternar('situacaoMan', 'abertas')} ativo={filtros.situacaoMan === 'abertas'} />
+                <KpiTile titulo="Atrasadas" valor={painel.manAtrasadas.length} icon={WarningAmber} cor={SERIES[7]} ajuda="clique para filtrar" onClick={() => alternar('situacaoMan', 'atrasadas')} ativo={filtros.situacaoMan === 'atrasadas'} />
+                <KpiTile titulo="Próximos 30 dias" valor={painel.manProximas.length} icon={EventAvailable} cor={SERIES[3]} ajuda="clique para filtrar" onClick={() => alternar('situacaoMan', 'proximas')} ativo={filtros.situacaoMan === 'proximas'} />
+                <KpiTile titulo="Pausadas" valor={painel.manPausadas.length} icon={PauseCircleOutline} ajuda="material inoperante · clique para filtrar" onClick={() => alternar('situacaoMan', 'pausadas')} ativo={filtros.situacaoMan === 'pausadas'} />
+                <KpiTile titulo="Concluídas no período" valor={painel.concluidasPeriodo.length} icon={AssignmentReturn} cor={SERIES[2]} ajuda="clique para filtrar" onClick={() => alternar('situacaoMan', 'concluidas')} ativo={filtros.situacaoMan === 'concluidas'} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
                 <ChartCard titulo="Agendadas × concluídas" subtitulo="Últimos 12 meses · clique em um mês para filtrar" sx={{ gridColumn: { md: 'span 2' } }} altura={260}>
@@ -582,17 +589,17 @@ function AbaManutencao({ painel, filtros, alternar, theme, SERIES }) {
 /* ================================================================== */
 /* ABA: Militares                                                        */
 /* ================================================================== */
-function AbaMilitares({ painel, filtros, alternar, theme, SERIES, dados }) {
+function AbaMilitares({ painel, filtros, alternar, setFiltro, theme, SERIES, dados }) {
     const [busca, setBusca] = useState('');
     const lista = painel.militares.filter(m => !busca || m.nome.toLowerCase().includes(busca.toLowerCase()) || (m.obm || '').toLowerCase().includes(busca.toLowerCase()) || String(m.rg || '').includes(busca.trim()));
     const comAtraso = painel.militares.filter(m => m.atrasadas > 0).length;
     return (
         <>
             <Grade colunas={{ xs: 2, md: 4 }}>
-                <KpiTile titulo="Militares com cautela" valor={painel.militares.length} icon={Groups} cor={SERIES[6]} ajuda="no período" />
-                <KpiTile titulo="Com material em aberto" valor={painel.militares.filter(m => m.abertas > 0).length} icon={Draw} cor={SERIES[3]} ajuda="cautelas do período ainda não devolvidas" />
-                <KpiTile titulo="Com atraso (+30 dias)" valor={comAtraso} icon={WarningAmber} cor={SERIES[7]} ajuda="no período" />
-                <KpiTile titulo="OBMs atendidas" valor={painel.porOBM.length} icon={Warehouse} cor={SERIES[0]} ajuda="no período" />
+                <KpiTile titulo="Militares com cautela" valor={painel.militares.length} icon={Groups} cor={SERIES[6]} ajuda="no período · clique para ver todos" onClick={() => setFiltro('situacao', '')} />
+                <KpiTile titulo="Com material em aberto" valor={painel.militares.filter(m => m.abertas > 0).length} icon={Draw} cor={SERIES[3]} ajuda="cautelas do período ainda não devolvidas · clique para filtrar" onClick={() => alternar('situacao', 'abertas')} ativo={filtros.situacao === 'abertas'} />
+                <KpiTile titulo="Com atraso (+30 dias)" valor={comAtraso} icon={WarningAmber} cor={SERIES[7]} ajuda="no período · clique para filtrar" onClick={() => alternar('situacao', 'atrasadas')} ativo={filtros.situacao === 'atrasadas'} />
+                <KpiTile titulo="OBMs atendidas" valor={painel.porOBM.length} icon={Warehouse} cor={SERIES[0]} ajuda="no período · clique para ver todas" onClick={() => setFiltro('obm', '')} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
                 <ChartCard titulo="Cautelas por OBM" subtitulo="No período · clique para filtrar" altura={230}>
@@ -626,7 +633,7 @@ function AbaMilitares({ painel, filtros, alternar, theme, SERIES, dados }) {
 /* ================================================================== */
 /* ABA: Locais                                                           */
 /* ================================================================== */
-function AbaLocais({ painel, filtros, alternar, theme, SERIES }) {
+function AbaLocais({ painel, filtros, alternar, setVarios, theme, SERIES }) {
     const ocupados = painel.unidadesPorLocal.filter(l => l.unidades > 0);
     // KPIs respeitam o local / tipo de local clicado; os graficos continuam mostrando todos para permitir trocar a selecao
     const selecionados = ocupados.filter(l => (!filtros.local || l.id === filtros.local) && (!filtros.tipoLocal || (l.tipoLabel || l.tipo) === filtros.tipoLocal));
@@ -634,10 +641,10 @@ function AbaLocais({ painel, filtros, alternar, theme, SERIES }) {
     return (
         <>
             <Grade colunas={{ xs: 2, md: 4 }}>
-                <KpiTile titulo="Locais cadastrados" valor={painel.unidadesPorLocal.length} icon={Warehouse} />
-                <KpiTile titulo="Locais em uso" valor={selecionados.length} icon={Storage} cor={SERIES[2]} />
-                <KpiTile titulo="Unidades alocadas no DEMOP" valor={totalGuardado} icon={Inventory2} cor={SERIES[0]} ajuda="unidades com prateleira, box, gaveta ou armário definido" />
-                <KpiTile titulo="Unidades sem local" valor={painel.kpis.totalSemLocal} icon={WarningAmber} cor={SERIES[3]} ajuda={`${painel.semLocal.length} materiais`} />
+                <KpiTile titulo="Locais cadastrados" valor={painel.unidadesPorLocal.length} icon={Warehouse} ajuda="clique para ver todos" onClick={() => setVarios({ local: '', tipoLocal: '', comLocal: '', semLocal: '' })} />
+                <KpiTile titulo="Locais em uso" valor={selecionados.length} icon={Storage} cor={SERIES[2]} ajuda="clique para ver os materiais com local" onClick={() => alternar('comLocal', '1')} ativo={Boolean(filtros.comLocal)} />
+                <KpiTile titulo="Unidades alocadas no DEMOP" valor={totalGuardado} icon={Inventory2} cor={SERIES[0]} ajuda="unidades com prateleira, box, gaveta ou armário definido · clique para filtrar" onClick={() => alternar('comLocal', '1')} ativo={Boolean(filtros.comLocal)} />
+                <KpiTile titulo="Unidades sem local" valor={painel.kpis.totalSemLocal} icon={WarningAmber} cor={SERIES[3]} ajuda={`${painel.semLocal.length} materiais · clique para filtrar`} onClick={() => alternar('semLocal', '1')} ativo={Boolean(filtros.semLocal)} />
             </Grade>
             <Grade colunas={{ xs: 1, md: 3 }}>
                 <ChartCard titulo="Por tipo de local" subtitulo="Unidades alocadas no DEMOP · clique para filtrar" altura={230}>

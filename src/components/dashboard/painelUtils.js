@@ -314,10 +314,36 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         if (termos.length && !bate(m.description, m.categoria, locaisDoMaterial(m.id))) return false;
         return true;
     });
-    const materiaisFiltrados = materiaisBase.filter(m => bateStatus(m) && bateComposicao(m) && bateLocal(m));
+    // KPIs de manutencao: materiais que tem manutencao naquela situacao
+    const manAbertasTodas = manutencoes.filter(x => x.status === 'pendente' || x.status === 'em_andamento');
+    const manNaSituacao = (item, situacao, ehHistorico) => {
+        if (situacao === 'concluidas') return ehHistorico && dentro(toDate(item.completedAt), intervalo);
+        if (ehHistorico) return false;
+        const aberto = item.status === 'pendente' || item.status === 'em_andamento';
+        const d = toDate(item.dueDate);
+        if (situacao === 'abertas') return aberto;
+        if (situacao === 'pausadas') return item.status === 'pausada';
+        if (situacao === 'atrasadas') return aberto && Boolean(d) && d < agora;
+        if (situacao === 'proximas') return aberto && Boolean(d) && d >= agora && diasEntre(agora, d) <= 30;
+        return true;
+    };
+    const idsSituacaoMan = filtros.situacaoMan
+        ? new Set([...manutencoes.filter(x => manNaSituacao(x, filtros.situacaoMan, false)), ...historico.filter(h => manNaSituacao(h, filtros.situacaoMan, true))].map(x => x.materialId))
+        : null;
+    const bateKpiMaterial = (m) => {
+        if (filtros.zerado && !((Number(m.estoque_atual) || 0) === 0 && getTotalUnidades(m) > 0)) return false;
+        if (filtros.comLocal || filtros.semLocal) {
+            const alocs = alocacoesPorMaterial?.get(m.id) || [];
+            if (filtros.comLocal && alocs.reduce((t, a) => t + (Number(a.quantidade) || 0), 0) <= 0) return false;
+            if (filtros.semLocal && resumirLocalizacao(m, alocs).semLocal <= 0) return false;
+        }
+        if (idsSituacaoMan && !idsSituacaoMan.has(m.id)) return false;
+        return true;
+    };
+    const materiaisFiltrados = materiaisBase.filter(m => bateStatus(m) && bateComposicao(m) && bateLocal(m) && bateKpiMaterial(m));
     const idsMateriaisFiltrados = new Set(materiaisFiltrados.map(m => m.id));
-    // Quando um filtro de material esta ativo (status, composicao, local), todo o painel passa a olhar so esses materiais
-    const restringePorMaterial = Boolean(filtros.statusMaterial || filtros.composicao || filtros.local || filtros.tipoLocal);
+    // Quando um filtro de material esta ativo (status, composicao, local, KPI), todo o painel passa a olhar so esses materiais
+    const restringePorMaterial = Boolean(filtros.statusMaterial || filtros.composicao || filtros.local || filtros.tipoLocal || filtros.zerado || filtros.comLocal || filtros.semLocal || filtros.situacaoMan);
 
     const passaFiltrosSemPeriodo = (m) => {
         if (restringePorMaterial && !idsMateriaisFiltrados.has(m.material)) return false;
@@ -367,6 +393,16 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
             if (filtros.etapa === 'assinadas') return Boolean(m.signed);
             if (filtros.etapa === 'devolvidas') return m.status === 'devolvido';
             return true;
+        },
+        situacao: (m) => {
+            switch (filtros.situacao) {
+                case 'abertas': return m.type === 'cautela' && m.status === 'cautelado';
+                case 'semAssinatura': return m.type === 'cautela' && m.status === 'cautelado' && !m.signed;
+                case 'emReparo': return m.type === 'reparo' && m.status === 'emReparo';
+                case 'comViatura': return Boolean(m.viatura);
+                case 'atrasadas': { if (m.type !== 'cautela' || m.status !== 'cautelado') return false; const d = toDate(m.date); return Boolean(d) && diasEntre(d, agora) > 30; }
+                default: return true;
+            }
         },
         faixa: (m) => {
             if (!faixaSel) return true;
@@ -493,9 +529,11 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     // Manutencao ----------------------------------------------------------
     // Manutencoes seguem os filtros de material (material, categoria, status, local, busca) e os cliques de mes/tipo
     const idsMateriaisBase = new Set(materiaisFiltrados.map(m => m.id));
-    const filtraMaterialMan = Boolean(filtros.material || filtros.categoria || restringePorMaterial || termos.length);
+    // (a situacao clicada nos KPIs de manutencao nao restringe as proprias manutencoes pelos materiais, para os numeros baterem)
+    const filtraMaterialMan = Boolean(filtros.material || filtros.categoria || filtros.statusMaterial || filtros.composicao || filtros.local || filtros.tipoLocal || filtros.zerado || filtros.comLocal || filtros.semLocal || termos.length);
     const bateMan = (item, { ignorarTipo = false, ignorarMes = false, campoData } = {}) => {
         if (filtraMaterialMan && !idsMateriaisBase.has(item.materialId)) return false;
+        if (filtros.situacaoMan && !manNaSituacao(item, filtros.situacaoMan, campoData === 'completedAt')) return false;
         if (!ignorarTipo && filtros.tipoManutencao && (item.type || 'outro') !== filtros.tipoManutencao) return false;
         if (!ignorarMes && filtros.mesManutencao) { const d = toDate(item[campoData]); if (!d || chaveMes(d) !== filtros.mesManutencao) return false; }
         return true;
@@ -507,7 +545,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     const manProximas = manAbertas.filter(m => { const d = toDate(m.dueDate); return d && d >= agora && diasEntre(agora, d) <= 30; }).sort((a, b) => toDate(a.dueDate) - toDate(b.dueDate));
     const manPausadas = manutencoesF.filter(m => m.status === 'pausada');
     const concluidasPeriodo = historicoF.filter(h => dentro(toDate(h.completedAt), intervalo));
-    const manPorTipo = contar(manutencoes.filter(m => (m.status === 'pendente' || m.status === 'em_andamento') && bateMan(m, { ignorarTipo: true, campoData: 'createdAt' })), m => m.type || 'outro');
+    const manPorTipo = contar(manAbertasTodas.filter(m => bateMan(m, { ignorarTipo: true, campoData: 'createdAt' })), m => m.type || 'outro');
     const manPorMes = (() => {
         const mapa = new Map();
         const add = (d, campo) => { if (!d) return; const k = chaveMes(d); if (!mapa.has(k)) mapa.set(k, { chave: k, rotulo: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }), concluidas: 0, agendadas: 0 }); mapa.get(k)[campo] += 1; };
