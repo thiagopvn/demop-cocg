@@ -89,6 +89,7 @@ export const dentro = (data, { inicio, fim }) => {
     return true;
 };
 
+export const normalizar = (t = '') => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 export const fmtData = (d) => (d ? d.toLocaleDateString('pt-BR') : '—');
 export const fmtDataHora = (d) => (d ? `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '—');
 export const fmtNum = (n) => new Intl.NumberFormat('pt-BR').format(Number(n) || 0);
@@ -268,6 +269,16 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     const anterior = intervaloAnterior(intervalo);
     const agora = new Date();
 
+    // Busca livre: sem acentos, varias palavras (todas precisam bater)
+    const termos = normalizar(filtros.busca || '').split(/\s+/).filter(Boolean);
+    const bate = (...partes) => {
+        if (termos.length === 0) return true;
+        const alvo = normalizar(partes.filter(Boolean).join(' '));
+        return termos.every(t => alvo.includes(t));
+    };
+    const locaisDoMaterial = (materialId) => (alocacoesPorMaterial?.get(materialId) || []).map(a => a.local_nome || '').join(' ');
+    const textoUsuario = (u) => (u ? `${u.full_name || ''} ${u.username || ''} ${u.rg || ''} ${u.OBM || ''} ${u.email || ''}` : '');
+
     const passaFiltrosSemPeriodo = (m) => {
         if (filtros.tipos.length && !filtros.tipos.includes(m.type)) return false;
         if (filtros.categoria && (m.categoria || 'Sem categoria') !== filtros.categoria) return false;
@@ -278,10 +289,17 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
             const u = m.user ? usersById.get(m.user) : null;
             if ((u?.OBM || '') !== filtros.obm) return false;
         }
-        if (filtros.busca) {
-            const t = filtros.busca.toLowerCase();
-            const alvo = `${m.material_description || ''} ${nomeMilitar(m, usersById)} ${nomeViatura(m, viaturasById)} ${m.categoria || ''} ${m.observacoes || ''}`.toLowerCase();
-            if (!alvo.includes(t)) return false;
+        if (termos.length) {
+            const u = m.user ? usersById.get(m.user) : null;
+            const ok = bate(
+                m.material_description, m.categoria, m.observacoes,
+                nomeMilitar(m, usersById), m.user_name, m.user_rg, textoUsuario(u),
+                nomeViatura(m, viaturasById), m.viatura_description,
+                m.sender_name, labelTipo(m.type), STATUS_MOV[m.status] || m.status,
+                m.repairLocation, m.seiNumber, m.motivoReparo,
+                locaisDoMaterial(m.material),
+            );
+            if (!ok) return false;
         }
         return true;
     };
@@ -343,7 +361,12 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     ];
 
     // Materiais ------------------------------------------------------------
-    const materiaisFiltrados = filtros.categoria ? materials.filter(m => (m.categoria || 'Sem categoria') === filtros.categoria) : materials;
+    const materiaisFiltrados = materials.filter(m => {
+        if (filtros.categoria && (m.categoria || 'Sem categoria') !== filtros.categoria) return false;
+        if (filtros.material && m.id !== filtros.material) return false;
+        if (termos.length && !bate(m.description, m.categoria, locaisDoMaterial(m.id))) return false;
+        return true;
+    });
     const estoque = materiaisFiltrados.reduce((acc, m) => {
         const total = getTotalUnidades(m);
         const inop = getQtdInoperante(m);
@@ -377,7 +400,11 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     });
 
     // Viaturas ------------------------------------------------------------
-    const viaturasResumo = viaturas.map(v => {
+    const viaturasResumo = viaturas.filter(v => {
+        if (filtros.viatura && v.id !== filtros.viatura) return false;
+        if (termos.length && !bate(v.prefixo, v.description) && !movs.some(m => m.viatura === v.id)) return false;
+        return true;
+    }).map(v => {
         const itens = viaturaMateriais.filter(x => x.viatura_id === v.id);
         const unidades = itens.reduce((s, x) => s + (Number(x.quantidade) || 0), 0);
         const conf = toDate(v.ultima_conferencia);
@@ -415,6 +442,12 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
             if (m.status === 'devolvido') { r.devolvidas += 1; const rd = toDate(m.returned_date); if (d && rd) { r.somaDias += diasEntre(d, rd); r.nDias += 1; } }
             if (d && (!r.ultima || d > r.ultima)) r.ultima = d;
         }
+        if (termos.length) {
+            for (const u of usersById.values()) {
+                if (mapa.has(u.id) || !bate(textoUsuario(u))) continue;
+                mapa.set(u.id, { id: u.id, nome: u.full_name || u.username || 'Militar', obm: u.OBM || '—', foto: u.foto_url || null, total: 0, periodo: 0, abertas: 0, atrasadas: 0, devolvidas: 0, somaDias: 0, nDias: 0, ultima: null });
+            }
+        }
         return [...mapa.values()].map(r => ({ ...r, tempoMedio: r.nDias ? r.somaDias / r.nDias : null })).sort((a, b) => b.periodo - a.periodo || b.total - a.total);
     })();
     const porOBM = contar(cautelasPeriodo, m => (usersById.get(m.user)?.OBM || 'Sem OBM'));
@@ -422,8 +455,10 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     // Locais --------------------------------------------------------------
     const unidadesPorLocal = (() => {
         const mapa = new Map();
-        for (const l of locais) mapa.set(l.id, { id: l.id, nome: l.nome, tipo: l.tipo, tipoLabel: l.tipo_label, inoperantes: Boolean(l.inoperantes), unidades: 0, materiais: 0 });
-        for (const [, lista] of alocacoesPorMaterial || []) {
+        const idsMateriais = new Set(materiaisFiltrados.map(m => m.id));
+        for (const l of locais) mapa.set(l.id, { id: l.id, nome: l.nome, tipo: l.tipo, tipoLabel: l.tipo_label, inoperantes: Boolean(l.inoperantes), unidades: 0, materiais: 0, bateNome: !termos.length || bate(l.nome, l.tipo_label, l.observacao) });
+        for (const [materialId, lista] of alocacoesPorMaterial || []) {
+            if (termos.length && !idsMateriais.has(materialId)) continue;
             for (const a of lista) {
                 const l = mapa.get(a.local_id);
                 if (!l) continue;
@@ -431,7 +466,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
                 l.materiais += 1;
             }
         }
-        return [...mapa.values()];
+        return [...mapa.values()].filter(l => !termos.length || l.bateNome || l.unidades > 0);
     })();
     const unidadesPorTipoLocal = somar(unidadesPorLocal, l => l.tipoLabel || l.tipo, l => l.unidades);
     const totalSemLocal = semLocal.reduce((s, x) => s + x.r.semLocal, 0);
