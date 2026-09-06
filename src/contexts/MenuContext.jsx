@@ -289,8 +289,8 @@ function MenuContext({ children }) {
   const drawer = (
     <Box
       sx={{
-        height: '100dvh',
-        maxHeight: '100dvh',
+        height: '100%',
+        minHeight: '100%',
         display: 'flex',
         flexDirection: 'column',
         background: 'linear-gradient(180deg, #1e3a5f 0%, #1e3a5f 100%)',
@@ -701,6 +701,12 @@ function MenuContext({ children }) {
             border: 'none',
             transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             overflowX: 'hidden',
+            position: 'fixed',
+            top: 0,
+            bottom: 0,
+            height: '100%',
+            backgroundColor: '#1e3a5f',
+            backgroundImage: 'none',
           },
         }}
       >
