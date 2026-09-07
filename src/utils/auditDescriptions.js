@@ -36,7 +36,20 @@ const CAMPO_LABELS = {
     rg: 'RG',
     OBM: 'OBM',
     username: 'Username',
+    foto: 'Foto',
+    prefixo: 'Prefixo',
+    ativo: 'Acesso',
 };
+
+const PAPEL_LABELS = { admingeral: 'Admin Geral', admin: 'Administrador', chefe: 'Chefe de Guarnição', BensPatrimoniais: 'Bens Patrimoniais', user: 'Usuário' };
+const papel = (r) => (r ? PAPEL_LABELS[r] || r : '');
+/** Lista "Campo: de → para" a partir de details.alteracoes (campo/de/para). */
+const listarAlteracoes = (alts) => alts.map(a => {
+    const de = a.campo === 'role' ? papel(a.de) : formatarValor(a.de);
+    const para = a.campo === 'role' ? papel(a.para) : formatarValor(a.para);
+    if (a.campo === 'foto') return `Foto ${a.para === 'removida' ? 'removida' : a.de === 'sem foto' ? 'adicionada' : 'trocada'}`;
+    return `${labelCampo(a.campo)} ${de} → ${para}`;
+}).join('; ');
 
 const IGNORAR_EXTRAS = new Set([
     'material', 'materialId', 'militar', 'militarId', 'quantidade', 'viatura', 'tipo', 'subtipo',
@@ -169,10 +182,36 @@ export function descreverLog(log) {
             out.frase = `Concluiu manutenção de ${material}${d.o_que_foi_feito ? `: ${d.o_que_foi_feito}` : ''}`;
             break;
         case 'user_create':
-            out.frase = `Criou o usuário ${alvo}${d.username ? ` (@${d.username})` : ''}${d.role ? ` como ${d.role}` : ''}`;
+            out.frase = `Criou o usuário ${alvo}${d.username ? ` (@${d.username})` : ''}${d.role ? ` como ${papel(d.role)}` : ''}${d.rg ? ` · RG ${d.rg}` : ''}${d.OBM ? ` · ${d.OBM}` : ''}`;
             break;
-        case 'user_update':
-            out.frase = `Editou o usuário ${alvo}${d.role ? ` (${d.role})` : ''}`;
+        case 'user_update': {
+            const alts = Array.isArray(d.alteracoes) ? d.alteracoes : [];
+            out.frase = alts.length > 0
+                ? `Editou o usuário ${alvo}: ${listarAlteracoes(alts)}`
+                : `Editou o usuário ${alvo}${d.role ? ` (${papel(d.role)})` : ''} sem alterar dados`;
+            break;
+        }
+        case 'viatura_create':
+            out.frase = `Criou a viatura ${alvo}`;
+            break;
+        case 'viatura_update': {
+            const alts = Array.isArray(d.alteracoes) ? d.alteracoes : [];
+            out.frase = alts.length > 0 ? `Editou a viatura ${alvo}: ${listarAlteracoes(alts)}` : `Editou a viatura ${alvo}`;
+            break;
+        }
+        case 'viatura_delete':
+            out.frase = `Excluiu a viatura ${alvo}`;
+            break;
+        case 'categoria_create':
+            out.frase = `Criou a categoria ${alvo}`;
+            break;
+        case 'categoria_update': {
+            const alts = Array.isArray(d.alteracoes) ? d.alteracoes : [];
+            out.frase = alts.length > 0 ? `Editou a categoria: ${listarAlteracoes(alts)}` : `Editou a categoria ${alvo}`;
+            break;
+        }
+        case 'categoria_delete':
+            out.frase = `Excluiu a categoria ${alvo}`;
             break;
         case 'user_delete':
             out.frase = `Excluiu o usuário ${alvo}`;
@@ -185,6 +224,22 @@ export function descreverLog(log) {
             break;
         case 'user_activate':
             out.frase = `Reativou o acesso de ${alvo}`;
+            break;
+        case 'perfil_update': {
+            const alts = Array.isArray(d.alteracoes) ? d.alteracoes : [];
+            out.frase = alts.length > 0
+                ? 'Editou o próprio perfil: ' + listarAlteracoes(alts)
+                : 'Editou o próprio perfil';
+            break;
+        }
+        case 'perfil_foto_update':
+            out.frase = `Trocou a própria foto de perfil${d.primeira ? ' (primeira foto)' : ''}`;
+            break;
+        case 'perfil_foto_remove':
+            out.frase = 'Removeu a própria foto de perfil';
+            break;
+        case 'perfil_senha_change':
+            out.frase = d.forcada ? 'Definiu a nova senha no primeiro acesso' : 'Alterou a própria senha';
             break;
         case 'tarefa_create':
             out.frase = `Criou a missão "${alvo}"${d.priority ? ` (prioridade ${d.priority})` : ''}`;

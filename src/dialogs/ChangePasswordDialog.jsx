@@ -13,6 +13,8 @@ import {
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
 import { callChangeOwnPassword } from "../firebase/functions";
+import { verifyToken } from "../firebase/token";
+import { logAudit } from "../firebase/auditLog";
 
 export default function ChangePasswordDialog({ open, onClose, forced = false }) {
     const [currentPassword, setCurrentPassword] = useState("");
@@ -53,6 +55,13 @@ export default function ChangePasswordDialog({ open, onClose, forced = false }) 
         setLoading(true);
         try {
             await callChangeOwnPassword(forced ? null : currentPassword, newPassword);
+            // Auditoria: quem trocou a propria senha (nunca grava a senha)
+            try {
+                const decoded = await verifyToken(localStorage.getItem("token"));
+                if (decoded?.userId) {
+                    logAudit({ action: "perfil_senha_change", userId: decoded.userId, userName: decoded.username || "", targetCollection: "users", targetId: decoded.userId, targetName: decoded.username || "", details: { forcada: Boolean(forced) } });
+                }
+            } catch { /* nao bloqueia a troca de senha */ }
             setCurrentPassword("");
             setNewPassword("");
             setConfirmPassword("");

@@ -204,7 +204,7 @@ export default function Usuario() {
         userName,
         targetCollection: 'users',
         targetName: data.full_name,
-        details: { role: data.role, username: data.username },
+        details: { role: data.role, username: data.username, rg: data.rg, OBM: data.OBM },
       });
       setDialogOpen(false);
       // Listener em tempo real atualiza automaticamente
@@ -316,6 +316,13 @@ export default function Usuario() {
       }
 
       await updateDoc(userDocRef, updateData);
+      // Auditoria detalhada: o que mudou (nome, papel, RG, OBM, contato, foto...)
+      const alteracoes = ["username", "full_name", "email", "role", "rg", "telefone", "OBM"]
+        .filter((campo) => String(editData?.[campo] ?? "") !== String(data[campo] ?? ""))
+        .map((campo) => ({ campo, de: editData?.[campo] ?? "", para: data[campo] ?? "" }));
+      if (data.fotoFile !== undefined) {
+        alteracoes.push({ campo: "foto", de: editData?.foto_url ? "com foto" : "sem foto", para: data.fotoFile === null ? "removida" : "nova foto" });
+      }
       logAudit({
         action: 'user_update',
         userId,
@@ -323,7 +330,7 @@ export default function Usuario() {
         targetCollection: 'users',
         targetId: data.id,
         targetName: data.full_name,
-        details: { role: data.role, username: data.username },
+        details: { role: data.role, username: data.username, alteracoes },
       });
 
       setEditDialogOpen(false);

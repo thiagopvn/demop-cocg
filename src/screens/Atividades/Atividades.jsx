@@ -141,6 +141,10 @@ const ACTION_ICONS = {
     user_update: Edit,
     user_delete: Delete,
     user_password_reset: LockReset,
+    perfil_update: Edit,
+    perfil_foto_update: Edit,
+    perfil_foto_remove: Delete,
+    perfil_senha_change: LockReset,
     viatura_create: LocalShipping,
     viatura_update: Edit,
     viatura_delete: Delete,
@@ -443,6 +447,10 @@ export default function Atividades() {
                 case 'user_update':
                 case 'user_delete':
                 case 'user_password_reset':
+                case 'perfil_update':
+                case 'perfil_foto_update':
+                case 'perfil_foto_remove':
+                case 'perfil_senha_change':
                     s.usuarios++; break;
                 case 'viatura_create':
                 case 'viatura_update':

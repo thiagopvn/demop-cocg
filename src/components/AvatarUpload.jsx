@@ -118,6 +118,7 @@ export default function AvatarUpload({ src, name, role, size = 112, onChange, up
                         <IconButton
                             size="small"
                             disabled={disabled || uploading}
+                            aria-label={mostrando ? 'Trocar foto' : 'Adicionar foto'}
                             onClick={(e) => setMenuAnchor(e.currentTarget)}
                             sx={{
                                 position: 'absolute',

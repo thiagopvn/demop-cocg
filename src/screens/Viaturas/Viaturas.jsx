@@ -336,6 +336,10 @@ export default function Viaturas() {
                 description_lower: data.description.toLowerCase(),
                 ultima_movimentacao: new Date(),
             });
+            const alteracoes = [
+                ['prefixo', editData?.prefixo || '', data.prefixo.toUpperCase()],
+                ['description', editData?.description || '', data.description],
+            ].filter(([, de, para]) => de !== para).map(([campo, de, para]) => ({ campo, de, para }));
             logAudit({
                 action: 'viatura_update',
                 userId: loggedUserId,
@@ -343,6 +347,7 @@ export default function Viaturas() {
                 targetCollection: 'viaturas',
                 targetId: data.id,
                 targetName: `${data.prefixo.toUpperCase()} - ${data.description}`,
+                details: { alteracoes },
             });
             filter("");
             setDialogEditOpen(false);

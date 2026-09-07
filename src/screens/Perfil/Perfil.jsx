@@ -30,6 +30,7 @@ import AvatarUpload from "../../components/AvatarUpload";
 import { compressAvatar, uploadImageFile, deleteStorageFile } from "../../utils/imageUpload";
 import db from "../../firebase/db";
 import { verifyToken } from "../../firebase/token";
+import { logAudit } from "../../firebase/auditLog";
 import MenuContext from "../../contexts/MenuContext";
 import ChangePasswordDialog from "../../dialogs/ChangePasswordDialog";
 
@@ -85,6 +86,7 @@ export default function Perfil() {
       const anterior = userData?.foto_storagePath;
       if (file === null) {
         await updateDoc(userRef, { foto_url: null, foto_storagePath: null, foto_atualizada_em: serverTimestamp() });
+        logAudit({ action: "perfil_foto_remove", userId, userName: userData?.username || "", targetCollection: "users", targetId: userId, targetName: userData?.full_name || userData?.username || "", details: {} });
         await deleteStorageFile(anterior);
         setUserData((prev) => ({ ...prev, foto_url: null, foto_storagePath: null }));
         setSnackbar({ open: true, message: "Foto removida.", severity: "success" });
@@ -94,6 +96,7 @@ export default function Perfil() {
       const storagePath = `usuarios/${userId}/avatar_${Date.now()}.jpg`;
       const { downloadURL } = await uploadImageFile(comprimida, storagePath, setFotoProgress);
       await updateDoc(userRef, { foto_url: downloadURL, foto_storagePath: storagePath, foto_atualizada_em: serverTimestamp() });
+      logAudit({ action: "perfil_foto_update", userId, userName: userData?.username || "", targetCollection: "users", targetId: userId, targetName: userData?.full_name || userData?.username || "", details: { primeira: !anterior } });
       if (anterior && anterior !== storagePath) await deleteStorageFile(anterior);
       setUserData((prev) => ({ ...prev, foto_url: downloadURL, foto_storagePath: storagePath }));
       setSnackbar({ open: true, message: "Foto de perfil atualizada!", severity: "success" });
@@ -176,6 +179,13 @@ export default function Perfil() {
         email: editForm.email,
         telefone: editForm.telefone,
       });
+      // Registra na auditoria o que mudou (aparece em Atividades para o admingeral)
+      const alteracoes = ["full_name", "email", "telefone"]
+        .filter((campo) => (userData?.[campo] || "") !== (editForm[campo] || ""))
+        .map((campo) => ({ campo, de: userData?.[campo] || "", para: editForm[campo] || "" }));
+      if (alteracoes.length > 0) {
+        logAudit({ action: "perfil_update", userId, userName: userData?.username || "", targetCollection: "users", targetId: userId, targetName: editForm.full_name || userData?.username || "", details: { alteracoes } });
+      }
       setUserData((prev) => ({
         ...prev,
         full_name: editForm.full_name,
@@ -371,6 +381,7 @@ export default function Perfil() {
                   </Typography>
                   <IconButton
                     onClick={handleEditToggle}
+                    aria-label={editing ? "Cancelar edição" : "Editar dados"}
                     sx={{
                       bgcolor: editing
                         ? alpha("#d32f2f", 0.1)
@@ -684,6 +695,7 @@ function FieldRow({
             type={type}
             value={editValue}
             onChange={onChange}
+            slotProps={{ htmlInput: { "aria-label": label } }}
             sx={{
               mt: 0.5,
               "& .MuiOutlinedInput-root": {

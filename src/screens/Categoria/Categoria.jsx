@@ -210,6 +210,7 @@ export default function Categoria() {
                 targetCollection: 'categorias',
                 targetId: data.id,
                 targetName: data.description,
+                details: { alteracoes: editData?.description !== data.description ? [{ campo: 'description', de: editData?.description || '', para: data.description }] : [] },
             });
             filter("");
             setDialogEditOpen(false);
