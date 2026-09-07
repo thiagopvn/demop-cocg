@@ -68,6 +68,7 @@ export default function Usuario() {
   const [userToDeleteId, setUserToDeleteId] = useState(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [userToResetId, setUserToResetId] = useState(null);
+  const [resetResultado, setResetResultado] = useState(null); // { nome, erro }
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [historicoOpen, setHistoricoOpen] = useState(false);
@@ -385,9 +386,11 @@ export default function Usuario() {
         targetName: resetUser?.full_name || resetUser?.username || userToResetId,
       });
       notificar("Senha resetada para 123456. O usuário deverá alterá-la no próximo login.", "warning");
+      setResetResultado({ nome: resetUser?.full_name || resetUser?.username || "o usuário", erro: null });
     } catch (error) {
       console.error("Erro ao resetar senha:", error);
-      notificar("Erro ao resetar senha.", "warning");
+      notificar("Erro ao resetar senha.", "error");
+      setResetResultado({ nome: users.find(u => u.id === userToResetId)?.full_name || "o usuário", erro: error?.message || "Erro ao resetar senha." });
     }
     setResetDialogOpen(false);
     setUserToResetId(null);
@@ -860,6 +863,24 @@ export default function Usuario() {
           tipo="usuario"
         />
 
+        <Dialog open={Boolean(resetResultado)} onClose={() => setResetResultado(null)} PaperProps={{ sx: { borderRadius: 3 } }}>
+          <DialogTitle sx={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 1 }}>
+            {resetResultado?.erro ? <BlockIcon color="error" /> : <CheckCircleIcon color="success" />}
+            {resetResultado?.erro ? "Não foi possível resetar a senha" : "Senha resetada"}
+          </DialogTitle>
+          <DialogContent>
+            {resetResultado?.erro ? (
+              <Typography>{resetResultado.erro}</Typography>
+            ) : (
+              <Typography>
+                A senha de <strong>{resetResultado?.nome}</strong> foi resetada. A nova senha é <strong>123456</strong> e, no primeiro acesso, o sistema vai pedir para ele criar uma senha forte.
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2, pt: 0 }}>
+            <Button variant="contained" onClick={() => setResetResultado(null)} sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}>Entendi</Button>
+          </DialogActions>
+        </Dialog>
         <Snackbar open={snackbar.open} autoHideDuration={4500} onClose={() => setSnackbar((s) => ({ ...s, open: false }))} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
           <Alert onClose={() => setSnackbar((s) => ({ ...s, open: false }))} severity={snackbar.severity} variant="filled" sx={{ borderRadius: 2 }}>{snackbar.message}</Alert>
         </Snackbar>
