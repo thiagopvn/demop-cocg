@@ -32,7 +32,7 @@ service cloud.firestore {
         || (isAuth()
             && request.auth.token.firestoreId == userId
             && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['full_name', 'full_name_lower', 'email', 'telefone', 'foto_url', 'foto_storagePath', 'foto_atualizada_em']));
+                .hasOnly(['full_name', 'full_name_lower', 'email', 'telefone', 'foto_url', 'foto_storagePath', 'foto_atualizada_em', 'posto']));
       allow delete: if isAdminOrBens()
         && (isAdminGeral() || resource.data.role != 'admingeral');
     }
@@ -224,9 +224,9 @@ service cloud.firestore {
     function papelDe(uid) { return get(/databases/$(database)/documents/users/$(uid)).data.role; }
     function outroParticipante(lista) { return lista[0] == meuId() ? lista[1] : lista[0]; }
     // Quem pode abrir conversa com quem: admingeral/admin com qualquer um;
-    // demais papéis só com o admingeral ou com um amigo (pedido aceito).
+    // demais papéis só com administradores (admingeral/admin) ou com um amigo (pedido aceito).
     function podeIniciarConversa(outro) {
-      return isAdmin() || papelDe(outro) == 'admingeral' || saoAmigos(meuId(), outro);
+      return isAdmin() || papelDe(outro) in ['admingeral', 'admin'] || saoAmigos(meuId(), outro);
     }
     function participaDaConversa(convId) {
       return meuId() in get(/databases/$(database)/documents/conversas/$(convId)).data.participantes;
@@ -282,6 +282,18 @@ service cloud.firestore {
         && request.resource.data.status == 'cancelada'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondida_em']);
       allow delete: if isAdminGeral();
+    }
+
+    // ============= POSTOS E OBMs (listas suspensas) =============
+    // postos: só o admingeral inclui. obms: admin/BensPatrimoniais cadastram ao criar usuário.
+    match /postos/{docId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdminGeral();
+    }
+    match /obms/{docId} {
+      allow read: if isAuth();
+      allow create: if isAdminOrBens();
+      allow update, delete: if isAdminGeral();
     }
 
     // ============= TOKENS DE PUSH (notificações no celular) =============

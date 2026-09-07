@@ -4,7 +4,8 @@ import {
 } from '@mui/material';
 import { Search, Close, PersonAdd, Check, Campaign, Draw, AssignmentReturn, SwapHoriz, HourglassEmpty } from '@mui/icons-material';
 import UserAvatar, { ROLE_LABELS } from '../UserAvatar';
-import { podeIniciarConversa, cautelasPendentesDe } from '../../services/chatService';
+import { podeIniciarConversa, cautelasPendentesDe, podeTransferirCautela, PASSAGENS_MAX } from '../../services/chatService';
+import { nomeComPosto } from '../../hooks/useListasMilitares';
 
 const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -42,7 +43,7 @@ export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online,
     const linha = ({ u, secundario, acao }) => (
         <ListItemButton key={u.id} onClick={acao ? undefined : () => onAbrirConversa(u)} sx={{ borderRadius: 2, mb: 0.25 }}>
             <ListItemAvatar><PontoOnline online={online.has(u.id)}><UserAvatar src={u.foto_url} name={u.full_name} role={u.role} size={40} /></PontoOnline></ListItemAvatar>
-            <ListItemText primary={<Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>{u.full_name || u.username}</Typography>} secondary={secundario ?? `${ROLE_LABELS[u.role] || u.role}${u.OBM ? ` · ${u.OBM}` : ''}${u.rg ? ` · RG ${u.rg}` : ''}`} secondaryTypographyProps={{ noWrap: true, variant: 'caption' }} />
+            <ListItemText primary={<Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>{nomeComPosto(u) || u.username}</Typography>} secondary={secundario ?? `${ROLE_LABELS[u.role] || u.role}${u.OBM ? ` · ${u.OBM}` : ''}${u.rg ? ` · RG ${u.rg}` : ''}`} secondaryTypographyProps={{ noWrap: true, variant: 'caption' }} />
             {acao}
         </ListItemButton>
     );
@@ -64,7 +65,7 @@ export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online,
                 )}
                 {aba === 0 && (
                     <>
-                        {!['admingeral', 'admin'].includes(eu.role) && <Alert severity="info" sx={{ mb: 1, borderRadius: 2 }}>Você pode conversar com o Admin Geral e com seus amigos. Para falar com outro militar, envie um pedido de amizade em "Adicionar amigo".</Alert>}
+                        {!['admingeral', 'admin'].includes(eu.role) && <Alert severity="info" sx={{ mb: 1, borderRadius: 2 }}>Você pode conversar com os administradores do DEMOP e com seus amigos. Para falar com outro militar, envie um pedido de amizade em "Adicionar amigo".</Alert>}
                         <List dense disablePadding>
                             {contatos.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>Nenhum contato encontrado.</Typography>}
                             {contatos.slice(0, 200).map(u => linha({ u, secundario: amigosIds.has(u.id) ? `Amigo · ${ROLE_LABELS[u.role] || u.role}${u.OBM ? ` · ${u.OBM}` : ''}` : undefined }))}
@@ -151,7 +152,7 @@ export function DialogoEscolherCautela({ open, onClose, modo, dono, onEscolher }
         let ativo = true;
         setLista(null); setErro('');
         cautelasPendentesDe(dono.id, { apenasNaoAssinadas: modo === 'assinatura' })
-            .then(r => { if (ativo) setLista(r); })
+            .then(r => { if (ativo) setLista(modo === 'transferencia' ? r.filter(podeTransferirCautela) : r); })
             .catch(e => { if (ativo) { setErro(e?.message || 'Erro ao buscar cautelas'); setLista([]); } });
         return () => { ativo = false; };
     }, [open, dono?.id, modo]);
@@ -164,17 +165,17 @@ export function DialogoEscolherCautela({ open, onClose, modo, dono, onEscolher }
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                     {modo === 'assinatura' && `Cautelas de ${nome} ainda sem assinatura. Escolha uma para enviar a cobrança com o card no chat.`}
                     {modo === 'devolucao' && `Cautelas de ${nome} em aberto. Escolha uma para cobrar a devolução.`}
-                    {modo === 'transferencia' && 'Suas cautelas em aberto. Ao aceitar, o amigo assina e passa a ser o responsável pelo material.'}
+                    {modo === 'transferencia' && `Suas cautelas assinadas e em aberto (até ${PASSAGENS_MAX} passagens por cautela; depois disso o material deve voltar ao DEMOP). Ao aceitar, o amigo assina e passa a ser o responsável.`}
                 </Typography>
                 {lista === null && <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={28} /></Box>}
                 {erro && <Alert severity="error">{erro}</Alert>}
-                {lista && lista.length === 0 && !erro && <Alert severity="success" sx={{ borderRadius: 2 }}>{modo === 'assinatura' ? 'Nenhuma cautela pendente de assinatura.' : 'Nenhuma cautela em aberto.'}</Alert>}
+                {lista && lista.length === 0 && !erro && <Alert severity="success" sx={{ borderRadius: 2 }}>{modo === 'assinatura' ? 'Nenhuma cautela pendente de assinatura.' : modo === 'transferencia' ? 'Nenhuma cautela assinada disponível para transferir.' : 'Nenhuma cautela em aberto.'}</Alert>}
                 <List dense disablePadding>
                     {(lista || []).map(m => (
                         <ListItemButton key={m.id} disabled={ocupado} onClick={() => escolher(m)} sx={{ borderRadius: 2, mb: 0.5, border: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
                             <ListItemText
                                 primary={<Typography variant="body2" sx={{ fontWeight: 700 }}>{m.material_description}</Typography>}
-                                secondary={`${m.quantity} un. · ${m.date?.toDate ? m.date.toDate().toLocaleDateString('pt-BR') : ''} · ${m.signed ? 'assinada' : 'sem assinatura'}`}
+                                secondary={`${m.quantity} un. · ${m.date?.toDate ? m.date.toDate().toLocaleDateString('pt-BR') : ''} · ${m.signed ? 'assinada' : 'sem assinatura'}${modo === 'transferencia' ? ` · passagem ${(Number(m.passagens) || 0) + 1} de ${PASSAGENS_MAX}` : ''}`}
                             />
                             <Chip size="small" label={m.signed ? 'Assinada' : 'Pendente'} color={m.signed ? 'success' : 'warning'} sx={{ fontWeight: 700 }} />
                         </ListItemButton>

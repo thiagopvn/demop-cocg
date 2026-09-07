@@ -851,7 +851,7 @@ const Material = () => {
 
         for (const item of materialConferenceDates) {
             const m = item.material;
-            if ((m.estoque_atual || 0) === 0 && (m.estoque_total || 0) > 0) lowStock++;
+            if ((m.estoque_atual || 0) === 0 && (m.estoque_viatura || 0) === 0 && (m.estoque_total || 0) > 0) lowStock++; // em viatura nao conta como zerado
             if (!m.image_url) semImagem++;
             if (!item.confDate || item.confDate < sixMonthsAgo) {
                 if (isAdmin) unchecked.push(item);

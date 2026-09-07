@@ -44,6 +44,7 @@ export default function useCurrentUser() {
                         role: d.role || u.role,
                         fotoUrl: d.foto_url || null,
                         obm: d.OBM || '',
+                        posto: d.posto || '',
                     }));
                 }, () => {});
             });

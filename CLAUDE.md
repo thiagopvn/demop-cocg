@@ -62,6 +62,18 @@ Three roles with cascading permissions defined in `src/App.jsx` via `PrivateRout
 - `historico_manutencoes` - Completed maintenance history
 - `locais_armazenamento` - DEMOP storage locations (prateleira/box/gaveta/armário or custom `tipo`); one may be flagged `inoperantes: true`
 - `material_locais` - Units of each material per location, doc id `${material_id}_${local_id}` (see `src/services/localizacaoService.js`)
+- `conversas/{a_b}` + subcollection `mensagens` - Internal chat (ids are the two user ids sorted, joined by `_`); message `tipo`: texto | cobranca | transferencia | aviso | sistema (see `src/services/chatService.js`)
+- `amizades/{a_b}` - Friend requests (`pendente` → `aceita`); users/chefe/BensPatrimoniais can only start chats with admingeral or friends
+- `transferencias` - Cautela transfer requests between friends; accept/refuse runs in the `responderTransferencia` Cloud Function (original mov → `status: 'transferido'` + `returned_date`, new mov for the receiver with `signed: true` and `passagens + 1`, max 3 passes before the material must return to DEMOP)
+- `presenca/{userId}` and `sessoes` - Online presence (1-min heartbeat, `src/services/presencaService.js`) and login/logout history (screen `/acessos`, admingeral only); stale sessions closed by `encerrarSessoesInativas`
+- `fcm_tokens/{userId}` - Web push tokens (FCM). Needs `VITE_FIREBASE_VAPID_KEY`; `/firebase-messaging-sw.js` is generated at build from `src/sw/firebase-messaging-sw.template.js`
+- `postos`, `obms` - Extra entries for the rank / OBM dropdowns (defaults live in `src/hooks/useListasMilitares.js`)
+
+### Passwords
+Strong-password policy (`src/utils/senha.js`, mirrored in `functions/index.js`): letters + numbers, min 8 chars. `verifyLogin` forces a change (`mustChangePassword` + `motivoTroca: 'reset' | 'fraca'`) when the stored password is weak or was reset. New users are always created with `123456`; the initial `ChangePasswordDialog` (forced) picks the real one. Never write a password into `audit_logs`.
+
+### Testing against production data
+All ~600 users are real. Playwright scripts live in `C:\Users\ASDFGH\android-twa\e2e`; they may only log in as admin and as the test user "Teste" (RG 12345) and must never trigger `enviarAviso` (broadcast) or create data for other users. `window.__demopFs` (exposed only on localhost by `src/firebase/db.js`) gives scripts the Firestore SDK for setup/cleanup.
 
 ### Storage Locations (Locais) — key rule
 A location allocation is the material's *home* inside the DEMOP: units that are not permanently in a vehicle (`unidadesDemop = estoque_total - estoque_viatura`). Cautela, devolução and reparo do NOT change `material_locais`; those flows only show "Guardar em / Retirar de" hints (`MaterialLocalHint`). Changes to `qtd_inoperante` must go through `aoAlterarInoperancia()` (`src/services/inoperanciaService.js`), which moves units to the inoperantes location and pauses/resumes recurrent maintenances.

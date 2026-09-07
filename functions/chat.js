@@ -137,6 +137,9 @@ exports.responderTransferencia = onCall({ region: REGION }, async (request) => {
     if (!movSnap.exists) throw new HttpsError("not-found", "Cautela original não encontrada.");
     const mov = movSnap.data();
     if (mov.status !== "cautelado" || mov.user !== t.de) throw new HttpsError("failed-precondition", "A cautela original não está mais em aberto com quem transferiu.");
+    if (!mov.signed) throw new HttpsError("failed-precondition", "Só cautelas já assinadas podem ser transferidas.");
+    const passagens = Number(mov.passagens) || 0;
+    if (passagens >= 3) throw new HttpsError("failed-precondition", "Esta cautela já foi transferida 3 vezes. O material precisa ser devolvido ao DEMOP.");
 
     const agora = Timestamp.now();
     const [quemRecebe, quemEnvia] = await Promise.all([nomeDe(t.para), nomeDe(t.de)]);
@@ -169,10 +172,12 @@ exports.responderTransferencia = onCall({ region: REGION }, async (request) => {
         transferido_de_nome: quemEnvia.nome,
         origem_movimentacao: t.movimentacaoId,
         transferencia_id: transferenciaId,
+        passagens: passagens + 1, // contagem de transferencias na cadeia (maximo 3 ate voltar ao DEMOP)
       };
       tx.set(novaRef, nova);
       tx.update(movRef, {
-        status: "transferido",
+        status: "transferido", // equivale a devolvida para quem transferiu
+        returned_date: agora,
         transferido_para: t.para,
         transferido_para_nome: quemRecebe.nome,
         transferido_em: agora,

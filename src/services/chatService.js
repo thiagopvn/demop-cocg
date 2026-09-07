@@ -9,9 +9,9 @@ export const idPar = (a, b) => (a < b ? `${a}_${b}` : `${b}_${a}`);
 
 export const PAPEIS_QUE_INICIAM_COM_QUALQUER_UM = ['admingeral', 'admin'];
 
-/** Quem pode iniciar conversa com quem (mesma regra do firestore.rules). */
+/** Quem pode iniciar conversa com quem (mesma regra do firestore.rules): admins com todos; os demais com administradores ou amigos. */
 export const podeIniciarConversa = ({ meuRole, outroRole, amigos }) =>
-    PAPEIS_QUE_INICIAM_COM_QUALQUER_UM.includes(meuRole) || outroRole === 'admingeral' || Boolean(amigos);
+    PAPEIS_QUE_INICIAM_COM_QUALQUER_UM.includes(meuRole) || PAPEIS_QUE_INICIAM_COM_QUALQUER_UM.includes(outroRole) || Boolean(amigos);
 
 const infoUsuario = (u) => ({ nome: u?.full_name || u?.username || 'Militar', username: u?.username || '', foto: u?.foto_url || null, role: u?.role || 'user' });
 
@@ -108,7 +108,14 @@ export const textoCobranca = (nome, m, subtipo) => {
 };
 
 // ------------------------------------------------------------------ transferência de cautela
+export const PASSAGENS_MAX = 3;
+export const podeTransferirCautela = (m) => Boolean(m) && m.status === 'cautelado' && Boolean(m.signed) && (Number(m.passagens) || 0) < PASSAGENS_MAX;
+
 export async function solicitarTransferencia({ eu, amigo, cautela, conversaId }) {
+    if (!podeTransferirCautela(cautela)) throw new Error('Só cautelas assinadas e com menos de 3 passagens podem ser transferidas.');
+    // (filtra por 'de' para a consulta ser permitida pelas regras: so vejo transferencias minhas)
+    const pend = await getDocs(query(collection(db, 'transferencias'), where('de', '==', eu.userId), where('movimentacaoId', '==', cautela.id), where('status', '==', 'pendente')));
+    if (!pend.empty) throw new Error('Já existe um pedido de transferência pendente para esta cautela.');
     const tRef = doc(collection(db, 'transferencias'));
     const card = { transferenciaId: tRef.id, movimentacaoId: cautela.id, material_description: cautela.material_description || '', quantidade: cautela.quantity || 0, de: eu.userId, de_nome: eu.fullName || eu.username, para: amigo.id, para_nome: amigo.full_name || amigo.username, status: 'pendente' };
     const texto = `${eu.fullName || eu.username} quer transferir para você a cautela de ${cautela.material_description} (${cautela.quantity} un.). Ao aceitar, você assina e passa a ser o responsável pelo material.`;

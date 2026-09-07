@@ -17,6 +17,7 @@ import {
     pedirAmizade, aceitarAmizade, desfazerAmizade, cardDeCautela, textoCobranca, solicitarTransferencia, cancelarTransferencia, idPar,
 } from '../../services/chatService';
 import { estaOnline } from '../../services/presencaService';
+import { nomeComPosto } from '../../hooks/useListasMilitares';
 import { callEnviarAviso, callResponderTransferencia } from '../../firebase/functions';
 import { ativarPush, pushDisponivel, pushPermissao } from '../../services/pushService';
 import { logAudit } from '../../firebase/auditLog';
@@ -140,7 +141,7 @@ export default function Mensagens() {
     // Ações ------------------------------------------------------------------
     const abrirCom = useCallback(async (u) => {
         try { const id = await abrirConversa(euId, u.id); setAtiva(id); setDialogo(null); setTimeout(() => inputRef.current?.focus(), 200); }
-        catch (e) { notificar(e?.code === 'permission-denied' ? 'Você só pode conversar com o Admin Geral ou com amigos. Envie um pedido de amizade.' : (e?.message || 'Erro ao abrir conversa'), 'warning'); }
+        catch (e) { notificar(e?.code === 'permission-denied' ? 'Você só pode conversar com administradores do DEMOP ou com amigos. Envie um pedido de amizade.' : (e?.message || 'Erro ao abrir conversa'), 'warning'); }
     }, [euId]);
 
     const enviarTexto = async () => {
@@ -159,8 +160,8 @@ export default function Mensagens() {
     };
 
     const transferir = async (m) => {
-        await solicitarTransferencia({ eu, amigo: outro, cautela: m, conversaId: ativa });
-        notificar('Pedido de transferência enviado. Aguarde o aceite.', 'success');
+        try { await solicitarTransferencia({ eu, amigo: outro, cautela: m, conversaId: ativa }); notificar('Pedido de transferência enviado. Aguarde o aceite.', 'success'); }
+        catch (e) { notificar(e?.message || 'Não foi possível pedir a transferência.', 'error'); }
     };
 
     const assinarPeloCard = async (msg) => {
@@ -209,7 +210,7 @@ export default function Mensagens() {
             <ListItemButton key={c.id} selected={ativa === c.id} onClick={() => setAtiva(c.id)} sx={{ borderRadius: 2.5, mb: 0.25, alignItems: 'flex-start', py: 1, '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.1) } }}>
                 <ListItemAvatar sx={{ mt: 0.25 }}><PontoOnline online={online.has(o)}><UserAvatar src={u.foto_url} name={u.full_name} role={u.role} size={44} /></PontoOnline></ListItemAvatar>
                 <ListItemText
-                    primary={<Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}><Typography variant="body2" sx={{ fontWeight: n ? 900 : 700, flex: 1 }} noWrap>{u.full_name || u.username}</Typography><Typography variant="caption" color={n ? 'secondary.main' : 'text.disabled'} sx={{ fontWeight: n ? 800 : 500 }}>{c.ultima?.em ? (fmtDia(c.ultima.em) === 'Hoje' ? fmtHora(c.ultima.em) : fmtDia(c.ultima.em)) : ''}</Typography></Box>}
+                    primary={<Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}><Typography variant="body2" sx={{ fontWeight: n ? 900 : 700, flex: 1 }} noWrap>{nomeComPosto(u) || u.username}</Typography><Typography variant="caption" color={n ? 'secondary.main' : 'text.disabled'} sx={{ fontWeight: n ? 800 : 500 }}>{c.ultima?.em ? (fmtDia(c.ultima.em) === 'Hoje' ? fmtHora(c.ultima.em) : fmtDia(c.ultima.em)) : ''}</Typography></Box>}
                     secondary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}><Typography variant="caption" color={n ? 'text.primary' : 'text.secondary'} sx={{ flex: 1, fontWeight: n ? 700 : 400 }} noWrap>{minha ? 'Você: ' : ''}{c.ultima?.texto || 'Sem mensagens'}</Typography>{n > 0 && <Chip label={n} size="small" color="secondary" sx={{ height: 18, fontSize: '0.66rem', fontWeight: 800, '& .MuiChip-label': { px: 0.75 } }} />}</Box>}
                     slotProps={{ secondary: { component: 'div' } }}
                 />
@@ -280,7 +281,7 @@ export default function Mensagens() {
                                             {isMobile && <IconButton onClick={() => setAtiva(null)} aria-label="Voltar"><ArrowBack /></IconButton>}
                                             <PontoOnline online={online.has(outroId)}><UserAvatar src={outro?.foto_url} name={outro?.full_name} role={outro?.role} size={40} /></PontoOnline>
                                             <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.2 }} noWrap>{outro?.full_name || outro?.username}</Typography>
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.2 }} noWrap>{nomeComPosto(outro) || outro?.username}</Typography>
                                                 <Typography variant="caption" sx={{ color: estaOnline(presencaOutro) ? 'success.main' : 'text.secondary', fontWeight: estaOnline(presencaOutro) ? 700 : 400 }} noWrap>
                                                     {ROLE_LABELS[outro?.role] || ''}{outro?.OBM ? ` · ${outro.OBM}` : ''} · {vistoPorUltimo(presencaOutro)}
                                                 </Typography>

@@ -93,6 +93,7 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [motivoTroca, setMotivoTroca] = useState('reset');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -132,6 +133,7 @@ export default function LoginScreen() {
 
       if (userData.mustChangePassword) {
         setLoading(false);
+        setMotivoTroca(userData.motivoTroca || 'reset');
         setShowChangePassword(true);
         return;
       }
@@ -461,6 +463,7 @@ export default function LoginScreen() {
       <ChangePasswordDialog
         open={showChangePassword}
         forced={true}
+        motivo={motivoTroca}
         onClose={(success) => {
           if (success) {
             setShowChangePassword(false);

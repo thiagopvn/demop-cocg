@@ -392,7 +392,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
             if (!filtros.etapa) return true;
             if (m.type !== 'cautela') return false;
             if (filtros.etapa === 'assinadas') return Boolean(m.signed);
-            if (filtros.etapa === 'devolvidas') return m.status === 'devolvido';
+            if (filtros.etapa === 'devolvidas') return m.status === 'devolvido' || m.status === 'transferido';
             return true;
         },
         situacao: (m) => {
@@ -422,8 +422,8 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     // KPIs de fluxo (periodo) --------------------------------------------
     const cautelasPeriodo = movs.filter(m => m.type === 'cautela');
     const cautelasAnt = movsAnt.filter(m => m.type === 'cautela');
-    const devolucoesPeriodo = movsBase.filter(m => (m.status === 'devolvido' || m.status === 'devolvidaDeReparo') && dentro(toDate(m.returned_date), intervalo));
-    const devolucoesAnt = anterior ? movsBase.filter(m => (m.status === 'devolvido' || m.status === 'devolvidaDeReparo') && dentro(toDate(m.returned_date), anterior)) : [];
+    const devolucoesPeriodo = movsBase.filter(m => (m.status === 'devolvido' || m.status === 'devolvidaDeReparo' || m.status === 'transferido') && dentro(toDate(m.returned_date), intervalo));
+    const devolucoesAnt = anterior ? movsBase.filter(m => (m.status === 'devolvido' || m.status === 'devolvidaDeReparo' || m.status === 'transferido') && dentro(toDate(m.returned_date), anterior)) : [];
 
     // KPIs de situacao (agora, respeitando filtros de entidade) ----------
     const abertas = movsBase.filter(m => m.type === 'cautela' && m.status === 'cautelado');
@@ -469,7 +469,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
     const funil = [
         { chave: 'todas', nome: 'Cautelas', valor: cautelasFunil.length },
         { chave: 'assinadas', nome: 'Assinadas', valor: cautelasFunil.filter(m => m.signed).length },
-        { chave: 'devolvidas', nome: 'Devolvidas', valor: cautelasFunil.filter(m => m.status === 'devolvido').length },
+        { chave: 'devolvidas', nome: 'Devolvidas', valor: cautelasFunil.filter(m => m.status === 'devolvido' || m.status === 'transferido').length },
     ];
 
     // Materiais ------------------------------------------------------------
@@ -572,7 +572,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
             if (!dentro(d, intervalo)) continue; // demais indicadores respeitam o periodo do filtro
             r.periodo += 1;
             if (m.status === 'cautelado') { r.abertas += 1; if (d && diasEntre(d, agora) > 30) r.atrasadas += 1; }
-            if (m.status === 'devolvido') { r.devolvidas += 1; const rd = toDate(m.returned_date); if (d && rd) { r.somaDias += diasEntre(d, rd); r.nDias += 1; } }
+            if (m.status === 'devolvido' || m.status === 'transferido') { r.devolvidas += 1; const rd = toDate(m.returned_date); if (d && rd) { r.somaDias += diasEntre(d, rd); r.nDias += 1; } }
         }
         // So entram no ranking militares com cautela dentro do periodo (ou que batem com a busca)
         for (const [id, r] of mapa) if (r.periodo === 0 && !(termos.length && bate(textoUsuario(usersById.get(id) || {}), r.nome, r.rg))) mapa.delete(id);

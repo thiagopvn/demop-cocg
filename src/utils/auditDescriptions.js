@@ -37,6 +37,7 @@ const CAMPO_LABELS = {
     OBM: 'OBM',
     username: 'Username',
     foto: 'Foto',
+    posto: 'Posto',
     prefixo: 'Prefixo',
     ativo: 'Acesso',
 };

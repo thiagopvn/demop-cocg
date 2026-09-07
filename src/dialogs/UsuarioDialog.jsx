@@ -16,82 +16,17 @@ import {
     MenuItem,
     InputLabel,
     Alert,
+    Box,
+    Typography,
+    Stack,
 } from "@mui/material";
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { Add, Check, InfoOutlined } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
 import AvatarUpload from "../components/AvatarUpload";
 import { verifyToken } from "../firebase/token";
-const OBM = [
-    "1º GBM",
-    "2 º GBM",
-    "3 º GBM",
-    "4 º GBM",
-    "5 º GBM",
-    "6 º GBM",
-    "7 º GBM",
-    "8 º GBM",
-    "9 º GBM",
-    "10 º GBM",
-    "11 º GBM",
-    "12 º GBM",
-    "13 º GBM",
-    "14 º GBM",
-    "15 º GBM",
-    "16 º GBM",
-    "17 º GBM",
-    "18 º GBM",
-    "19 º GBM",
-    "20 º GBM",
-    "21 º GBM",
-    "22 º GBM",
-    "23 º GBM",
-    "24 º GBM",
-    "25 º GBM",
-    "26 º GBM",
-    "27 º GBM",
-    "28 º GBM",
-    "29 º GBM",
-    "1 º GMAR",
-    "2 º GMAR",
-    "3 º GMAR",
-    "4 º GMAR",
-    "1 º GSFMA",
-    "2 º GSFMA",
-    "GOCG",
-    "GOPP",
-    "GEP",
-    "GBMUS",
-    "DGP",
-    "DGF",
-    "DGAF",
-    "FUNESBOM",
-    "SUSAU",
-    "SUAD",
-    "DGPAT",
-    "DGVP",
-    "DGSE",
-    "DGO",
-    "DGS",
-    "DGAL",
-    "DGEAO",
-    "DGST",
-    "DPPT",
-    "DGDP",
-    "DGAS",
-    "DI",
-    "DGCCO",
-    "DGEI",
-    "ABMDPII",
-    "CEICS",
-    "ESCBM",
-    "CFAP",
-    "EMG",
-    "QCG",
-    "SEDEC",
-    "CSM",
-];
+import { usePostos, useObms } from "../hooks/useListasMilitares";
 
 export default function UsuarioDialog({ onSubmit, onCancel, open, editData = null }) {
     const theme = useTheme();
@@ -107,9 +42,16 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
         rg: editData?.rg || "",
         telefone: editData?.telefone || "",
         OBM: editData?.OBM || "",
+        posto: editData?.posto || "",
     });
-    const [showPassword, setShowPassword] = useState(false);
     const editMode = !!editData;
+    const { lista: postos, adicionar: adicionarPosto } = usePostos();
+    const { lista: obms, adicionar: adicionarObm } = useObms();
+    const [novoPosto, setNovoPosto] = useState("");
+    const [novaObm, setNovaObm] = useState("");
+    const [criandoPosto, setCriandoPosto] = useState(false);
+    const [criandoObm, setCriandoObm] = useState(false);
+    const [salvandoLista, setSalvandoLista] = useState(false);
     const [loggedUser, setLoggedUser] = useState(null);
     const [errors, setErrors] = useState({});
     useEffect(() => {
@@ -126,6 +68,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                 rg: editData.rg || "",
                 telefone: editData.telefone || "",
                 OBM: editData.OBM || "",
+                posto: editData.posto || "",
             });
         } else {
             // Limpar os campos quando for adicionar um novo usuário
@@ -140,6 +83,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                 rg: "",
                 telefone: "",
                 OBM: "",
+                posto: "",
             });
         }
     }, [editData]);
@@ -155,16 +99,23 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setData({ ...data, [name]: value });
+        // O login e o RG: ao digitar o RG de acesso, preenche o campo RG (se ainda vazio ou igual)
+        if (name === 'username' && !editMode && (!data.rg || data.rg === data.username)) { setData({ ...data, username: value, rg: value }); }
+        else setData({ ...data, [name]: value });
         setErrors(prev => { const { [name]: _removed, general: _general, ...rest } = prev; return rest; });
     };
 
-    const handleClickShowPassword = () => {
-        setShowPassword(!showPassword);
+    const salvarNovoPosto = async () => {
+        setSalvandoLista(true);
+        try { const n = await adicionarPosto(novoPosto); setData(prev => ({ ...prev, posto: n })); setNovoPosto(""); setCriandoPosto(false); }
+        catch (e) { setErrors(prev => ({ ...prev, posto: e?.code === 'permission-denied' ? 'Só o Admin Geral pode incluir postos.' : (e?.message || 'Erro ao incluir posto') })); }
+        finally { setSalvandoLista(false); }
     };
-
-    const handleMouseDownPassword = (event) => {
-        event.preventDefault();
+    const salvarNovaObm = async () => {
+        setSalvandoLista(true);
+        try { const n = await adicionarObm(novaObm); setData(prev => ({ ...prev, OBM: n })); setNovaObm(""); setCriandoObm(false); }
+        catch (e) { setErrors(prev => ({ ...prev, OBM: e?.message || 'Erro ao incluir OBM' })); }
+        finally { setSalvandoLista(false); }
     };
 
     const handleValidateAndSubmit = async () => {
@@ -172,13 +123,7 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
         if (!data.username) newErrors.username = 'RG de login é obrigatório';
         if (!data.full_name) newErrors.full_name = 'Nome de Guerra é obrigatório';
         if (!data.email) newErrors.email = 'Email é obrigatório';
-        if (!editData) {
-            if (!data.password) newErrors.password = 'Senha é obrigatória';
-            if (!data.confirmPassword) newErrors.confirmPassword = 'Confirmação de senha é obrigatória';
-            if (data.password && data.confirmPassword && data.password !== data.confirmPassword) {
-                newErrors.confirmPassword = 'As senhas não são iguais';
-            }
-        }
+        if (!editData && !data.posto) newErrors.posto = 'Posto é obrigatório';
         if (!data.rg) newErrors.rg = 'RG é obrigatório';
         if (!data.telefone) newErrors.telefone = 'Telefone é obrigatório';
         if (!data.OBM) newErrors.OBM = 'OBM é obrigatório';
@@ -190,7 +135,8 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
         }
         setErrors({});
         try {
-            await onSubmit(data);
+            // Senha inicial e sempre 123456 (o militar troca no primeiro acesso)
+            await onSubmit(editData ? data : { ...data, password: '123456' });
         } catch (error) {
             const msg = error?.message || 'Erro ao salvar usuário';
             setErrors({ general: msg });
@@ -264,13 +210,13 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                     )}
                     <TextField
                         fullWidth
-                        label="RG"
+                        label="RG (login)"
                         name="username"
                         value={data.username}
                         onChange={handleChange}
                         disabled={editMode}
                         error={!!errors.username}
-                        helperText={errors.username}
+                        helperText={errors.username || (!editMode ? 'O militar entra no sistema com este RG' : '')}
                         sx={{
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '12px',
@@ -284,6 +230,23 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                             }
                         }}
                     />
+                    <FormControl fullWidth error={!!errors.posto}>
+                        <InputLabel id="posto-select-label">Posto / graduação</InputLabel>
+                        <Select labelId="posto-select-label" id="posto-select" name="posto" value={data.posto} label="Posto / graduação" onChange={handleChange} sx={{ borderRadius: '12px', backgroundColor: 'background.paper' }}>
+                            {postos.map((pst) => <MenuItem key={pst} value={pst}>{pst}</MenuItem>)}
+                        </Select>
+                        {errors.posto && <FormHelperText>{errors.posto}</FormHelperText>}
+                        {loggedUser?.role === "admingeral" && !criandoPosto && (
+                            <Button size="small" startIcon={<Add />} onClick={() => setCriandoPosto(true)} sx={{ alignSelf: 'flex-start', mt: 0.5, textTransform: 'none', fontWeight: 700 }}>Incluir novo posto (admin geral)</Button>
+                        )}
+                        {criandoPosto && (
+                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                                <TextField size="small" fullWidth autoFocus label="Novo posto" value={novoPosto} onChange={(e) => setNovoPosto(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); salvarNovoPosto(); } }} />
+                                <Button variant="contained" size="small" disabled={salvandoLista || !novoPosto.trim()} onClick={salvarNovoPosto} startIcon={<Check />} sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}>Incluir</Button>
+                                <Button size="small" onClick={() => { setCriandoPosto(false); setNovoPosto(""); }} sx={{ textTransform: 'none' }}>Cancelar</Button>
+                            </Stack>
+                        )}
+                    </FormControl>
                     <TextField
                         fullWidth
                         label="Nome de Guerra"
@@ -328,83 +291,15 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         }}
                     />
                     {!editData && (
-                    <div style={{ display: 'grid', gridTemplateColumns: fullScreenDialog ? '1fr' : '1fr 1fr', gap: '16px' }}>
-                        <TextField
-                            fullWidth
-                            label="Senha"
-                            type={showPassword ? "text" : "password"}
-                            name="password"
-                            value={data.password}
-                            onChange={handleChange}
-                            autoComplete="new-password"
-                            error={!!errors.password}
-                            helperText={errors.password}
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '12px',
-                                    backgroundColor: 'background.paper',
-                                    '&:hover': {
-                                        backgroundColor: 'background.default',
-                                    },
-                                    '&.Mui-focused': {
-                                        backgroundColor: 'background.paper',
-                                    }
-                                }
-                            }}
-                            slotProps={{
-                                input: {
-                                    endAdornment: (
-                                        <IconButton
-                                            aria-label="toggle password visibility"
-                                            onClick={handleClickShowPassword}
-                                            onMouseDown={handleMouseDownPassword}
-                                            edge="end"
-                                            sx={{ color: '#1976d2' }}
-                                        >
-                                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                                        </IconButton>
-                                    ),
-                                }
-                            }}
-                        />
-                        <TextField
-                            fullWidth
-                            label="Confirmação de Senha"
-                            type={showPassword ? "text" : "password"}
-                            name="confirmPassword"
-                            value={data.confirmPassword}
-                            onChange={handleChange}
-                            error={!!errors.confirmPassword}
-                            helperText={errors.confirmPassword}
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '12px',
-                                    backgroundColor: 'background.paper',
-                                    '&:hover': {
-                                        backgroundColor: 'background.default',
-                                    },
-                                    '&.Mui-focused': {
-                                        backgroundColor: 'background.paper',
-                                    }
-                                }
-                            }}
-                            slotProps={{
-                                input: {
-                                    endAdornment: (
-                                        <IconButton
-                                            aria-label="toggle password visibility"
-                                            onClick={handleClickShowPassword}
-                                            onMouseDown={handleMouseDownPassword}
-                                            edge="end"
-                                            sx={{ color: '#1976d2' }}
-                                        >
-                                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                                        </IconButton>
-                                    ),
-                                }
-                            }}
-                        />
-                    </div>
+                        <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #ffb74d', backgroundColor: '#fff8e1', display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                            <InfoOutlined sx={{ color: '#ef6c00', mt: 0.25 }} />
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#e65100' }}>Informação importante sobre a senha</Typography>
+                                <Typography variant="body2" sx={{ mt: 0.5, color: '#5d4037', lineHeight: 1.5 }}>
+                                    A partir de agora a senha é escolhida pelo próprio militar após o primeiro login. O primeiro acesso é feito com o <strong>RG</strong> e a senha de primeiro acesso <strong>123456</strong>. Ao entrar, o sistema abre a tela de redefinição e ele cria a senha definitiva.
+                                </Typography>
+                            </Box>
+                        </Box>
                     )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: fullScreenDialog ? '1fr' : '1fr 1fr', gap: '16px' }}>
@@ -431,8 +326,9 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                         />
                         <TextField
                             fullWidth
-                            label="Telefone"
+                            label="Telefone (com DDD)"
                             name="telefone"
+                            placeholder="21999998888"
                             value={data.telefone}
                             onChange={handleChange}
                             error={!!errors.telefone}
@@ -472,13 +368,23 @@ export default function UsuarioDialog({ onSubmit, onCancel, open, editData = nul
                                 }
                             }}
                         >
-                            {OBM.map((obm) => (
+                            {obms.map((obm) => (
                                 <MenuItem key={obm} value={obm}>
                                     {obm}
                                 </MenuItem>
                             ))}
                         </Select>
                         {errors.OBM && <FormHelperText>{errors.OBM}</FormHelperText>}
+                        {!criandoObm && (
+                            <Button size="small" startIcon={<Add />} onClick={() => setCriandoObm(true)} sx={{ alignSelf: 'flex-start', mt: 0.5, textTransform: 'none', fontWeight: 700 }}>OBM não está na lista? Cadastrar</Button>
+                        )}
+                        {criandoObm && (
+                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                                <TextField size="small" fullWidth autoFocus label="Nova OBM" value={novaObm} onChange={(e) => setNovaObm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); salvarNovaObm(); } }} />
+                                <Button variant="contained" size="small" disabled={salvandoLista || !novaObm.trim()} onClick={salvarNovaObm} startIcon={<Check />} sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}>Cadastrar</Button>
+                                <Button size="small" onClick={() => { setCriandoObm(false); setNovaObm(""); }} sx={{ textTransform: 'none' }}>Cancelar</Button>
+                            </Stack>
+                        )}
                     </FormControl>
                     {(loggedUser?.role === "admin" || loggedUser?.role === "admingeral") && (
                         <FormControl component="fieldset" fullWidth>

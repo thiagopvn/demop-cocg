@@ -15,8 +15,9 @@ import CloseIcon from "@mui/icons-material/Close";
 import { callChangeOwnPassword } from "../firebase/functions";
 import { verifyToken } from "../firebase/token";
 import { logAudit } from "../firebase/auditLog";
+import { validarSenhaForte } from "../utils/senha";
 
-export default function ChangePasswordDialog({ open, onClose, forced = false }) {
+export default function ChangePasswordDialog({ open, onClose, forced = false, motivo = 'reset' }) {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -42,13 +43,9 @@ export default function ChangePasswordDialog({ open, onClose, forced = false }) 
             return;
         }
 
-        if (newPassword === "123456") {
-            setError("A nova senha não pode ser 123456.");
-            return;
-        }
-
-        if (newPassword.length < 4) {
-            setError("A nova senha deve ter no mínimo 4 caracteres.");
+        const erroForca = validarSenhaForte(newPassword);
+        if (erroForca) {
+            setError(erroForca);
             return;
         }
 
@@ -70,8 +67,8 @@ export default function ChangePasswordDialog({ open, onClose, forced = false }) 
             const msg = err?.message || "Erro ao alterar senha.";
             if (msg.includes("incorreta")) {
                 setError("Senha atual incorreta.");
-            } else if (msg.includes("123456")) {
-                setError("A nova senha não pode ser 123456.");
+            } else if (msg.includes("letras") || msg.includes("caracteres")) {
+                setError(msg);
             } else {
                 setError("Erro ao alterar senha. Tente novamente.");
             }
@@ -137,7 +134,9 @@ export default function ChangePasswordDialog({ open, onClose, forced = false }) 
             <DialogContent sx={{ padding: { xs: '16px', sm: '24px' } }}>
                 {forced && (
                     <Alert severity="warning" sx={{ mb: 3, borderRadius: '12px' }}>
-                        Sua senha foi resetada. Voce deve criar uma nova senha para continuar.
+                        {motivo === 'fraca'
+                            ? 'Por questões de segurança e devido às novas funcionalidades implementadas, você deverá aderir a uma senha mais forte.'
+                            : 'Sua senha foi resetada. Você deve criar uma nova senha para continuar.'}
                     </Alert>
                 )}
 

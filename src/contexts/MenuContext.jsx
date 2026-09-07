@@ -69,6 +69,8 @@ import UserAvatar, { ROLE_COLORS, ROLE_LABELS } from '../components/UserAvatar';
 import MobileBottomNav, { ALTURA_BARRA } from '../components/navigation/MobileBottomNav';
 import ProfileSheet from '../components/navigation/ProfileSheet';
 import InstallPrompt from '../components/InstallPrompt';
+import CompletarPerfilDialog from '../components/CompletarPerfilDialog';
+import ChatFlutuante from '../components/chat/ChatFlutuante';
 import ForumOutlined from '@mui/icons-material/ForumOutlined';
 import OnlinePredictionOutlined from '@mui/icons-material/OnlinePredictionOutlined';
 import { iniciarPresenca, encerrarPresenca } from '../services/presencaService';
@@ -104,22 +106,35 @@ function MenuContext({ children }) {
   }, [currentUser.userId, currentUser.loading, currentUser.fullName, currentUser.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mensagens não lidas (badge no menu, na barra inferior e no título da aba)
+  // + chat flutuante: abre sozinho quando chega mensagem nova, em qualquer tela (menos na de Mensagens)
+  const [chatFlutuante, setChatFlutuante] = useState(null);
+  const naoLidasRef = useRef(null);
   useEffect(() => {
     if (!currentUser.userId) return undefined;
     const meuId = currentUser.userId;
-    return escutarConversas(meuId, (lista) => setMensagensBadge(lista.reduce((t, c) => t + (c.naoLidas?.[meuId] || 0), 0)), () => {});
+    naoLidasRef.current = null;
+    return escutarConversas(meuId, (lista) => {
+      const atual = new Map(lista.map((c) => [c.id, c.naoLidas?.[meuId] || 0]));
+      setMensagensBadge([...atual.values()].reduce((t, n) => t + n, 0));
+      if (naoLidasRef.current) {
+        const nova = lista.find((c) => (atual.get(c.id) || 0) > (naoLidasRef.current.get(c.id) || 0) && c.ultima?.de !== meuId);
+        if (nova && caminhoAtualRef.current !== '/mensagens') setChatFlutuante(nova.id);
+      }
+      naoLidasRef.current = atual;
+    }, () => {});
   }, [currentUser.userId]);
+  useEffect(() => { if (location.pathname === '/mensagens') setChatFlutuante(null); }, [location.pathname]);
   useEffect(() => {
     document.title = mensagensBadge > 0 ? `(${mensagensBadge}) DEMOP GOCG` : 'DEMOP GOCG';
   }, [mensagensBadge]);
 
-  // Push recebido com o app aberto: mostra um aviso rápido (fora da tela de mensagens)
+  // Push recebido com o app aberto: abre o chat da conversa (fora da tela de mensagens)
   useEffect(() => {
     let parar = null;
     aoReceberPushEmPrimeiroPlano((payload) => {
       if (caminhoAtualRef.current === '/mensagens') return;
-      const n = payload?.notification || {};
-      setSnackbar({ open: true, message: `${n.title ? `${n.title}: ` : ''}${n.body || 'Nova mensagem'}`, severity: 'info' });
+      const id = payload?.data?.conversaId;
+      if (id) setChatFlutuante(id);
     }).then((f) => { parar = f; });
     return () => { if (typeof parar === 'function') parar(); };
   }, []);
@@ -998,6 +1013,8 @@ function MenuContext({ children }) {
         onCleanup={userRole === 'admingeral' ? handleOpenCleanupDialog : null}
       />
       <InstallPrompt />
+      <CompletarPerfilDialog user={currentUser} />
+      {chatFlutuante && <ChatFlutuante conversaId={chatFlutuante} eu={currentUser} onClose={() => setChatFlutuante(null)} />}
 
       {/* Logout Dialog */}
       <Dialog

@@ -40,6 +40,7 @@ import { useNavigate } from "react-router-dom";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import DrawIcon from "@mui/icons-material/Draw";
 import { estaOnline } from "../../services/presencaService";
+import { nomeComPosto } from "../../hooks/useListasMilitares";
 
 const PontoOnline = ({ online, children }) => (
   <Badge overlap="circular" anchorOrigin={{ vertical: "bottom", horizontal: "right" }} variant="dot" invisible={!online} sx={{ "& .MuiBadge-badge": { bgcolor: "#22c55e", boxShadow: "0 0 0 2px #fff", width: 11, height: 11, borderRadius: "50%" } }}>
@@ -219,6 +220,7 @@ export default function Usuario() {
         rg: data.rg,
         telefone: data.telefone,
         obm: data.OBM,
+        posto: data.posto || "",
       });
       logAudit({
         action: 'user_create',
@@ -317,6 +319,7 @@ export default function Usuario() {
         rg: data.rg,
         telefone: data.telefone,
         OBM: data.OBM,
+        posto: data.posto || "",
       };
 
       // Foto do militar: undefined = sem mudanca, null = remover, File = nova
@@ -339,7 +342,7 @@ export default function Usuario() {
 
       await updateDoc(userDocRef, updateData);
       // Auditoria detalhada: o que mudou (nome, papel, RG, OBM, contato, foto...)
-      const alteracoes = ["username", "full_name", "email", "role", "rg", "telefone", "OBM"]
+      const alteracoes = ["username", "full_name", "email", "role", "rg", "telefone", "OBM", "posto"]
         .filter((campo) => String(editData?.[campo] ?? "") !== String(data[campo] ?? ""))
         .map((campo) => ({ campo, de: editData?.[campo] ?? "", para: data[campo] ?? "" }));
       if (data.fotoFile !== undefined) {
@@ -653,7 +656,7 @@ export default function Usuario() {
                 >
                   <PontoOnline online={estaOnline(presencas.get(u.id))}><UserAvatar src={u.foto_url} name={u.full_name || u.username} role={u.role} size={44} /></PontoOnline>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>{u.full_name || u.username}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>{nomeComPosto(u) || u.username}</Typography>
                     <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>RG {u.rg || u.username || "—"}{u.OBM ? ` · ${u.OBM}` : ""}</Typography>
                     <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>{papelChip(u.role)}{u.ativo === false && statusChip(u)}</Box>
                   </Box>
@@ -685,7 +688,7 @@ export default function Usuario() {
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                           <PontoOnline online={estaOnline(presencas.get(u.id))}><UserAvatar src={u.foto_url} name={u.full_name || u.username} role={u.role} size={36} /></PontoOnline>
                           <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>{u.full_name || u.username}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>{nomeComPosto(u) || u.username}</Typography>
                             <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>@{u.username}</Typography>
                           </Box>
                         </Box>
@@ -742,7 +745,7 @@ export default function Usuario() {
                     <PontoOnline online={estaOnline(presencas.get(detalhe.id))}><UserAvatar src={detalhe.foto_url} name={detalhe.full_name || detalhe.username} role={detalhe.role} size={72} sx={{ border: "3px solid #0f2440" }} /></PontoOnline>
                   </Box>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontWeight: 800, fontSize: "1.15rem", lineHeight: 1.2 }}>{detalhe.full_name || detalhe.username}</Typography>
+                    <Typography sx={{ fontWeight: 800, fontSize: "1.15rem", lineHeight: 1.2 }}>{nomeComPosto(detalhe) || detalhe.username}</Typography>
                     <Typography variant="caption" sx={{ opacity: 0.75, display: "block" }}>@{detalhe.username} · {fmtAcesso(presencas.get(detalhe.id))}</Typography>
                     <Box sx={{ display: "flex", gap: 0.5, mt: 0.75, flexWrap: "wrap" }}>
                       <Chip label={ROLE_LABELS[detalhe.role] || detalhe.role} size="small" sx={{ height: 22, fontSize: "0.68rem", fontWeight: 700, bgcolor: alpha(ROLE_COLORS[detalhe.role] || ROLE_COLORS.user, 0.3), color: "#fff", border: `1px solid ${alpha(ROLE_COLORS[detalhe.role] || ROLE_COLORS.user, 0.8)}` }} />

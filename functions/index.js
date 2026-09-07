@@ -26,6 +26,18 @@ function requireAdmin(request) {
 }
 
 // ============================================================
+// Política de senha forte: letras E números, mínimo 8 caracteres
+// ============================================================
+function erroSenhaForte(senha) {
+  const s = String(senha || "");
+  if (!s) return "Informe a nova senha.";
+  if (!/[A-Za-zÀ-ÿ]/.test(s) || !/\d/.test(s)) return "A senha deve conter números e letras.";
+  if (s.length < 8) return "A senha deve ter no mínimo 8 caracteres.";
+  return null;
+}
+const senhaForte = (senha) => erroSenhaForte(senha) === null;
+
+// ============================================================
 // a) verifyLogin — callable
 //    Receives { username, password }, returns user data + custom token
 // ============================================================
@@ -160,7 +172,9 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
     throw new HttpsError("internal", "Erro ao gerar token de autenticação. Tente novamente.");
   }
 
-  const mustChangePassword = secretDoc.exists && secretDoc.data().must_change_password === true;
+  // Troca obrigatória: senha resetada/primeiro acesso OU senha fraca (política nova)
+  const resetada = secretDoc.exists && secretDoc.data().must_change_password === true;
+  const mustChangePassword = resetada || !senhaForte(storedPassword);
 
   return {
     userId,
@@ -169,6 +183,7 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
     role,
     customToken,
     mustChangePassword,
+    motivoTroca: resetada ? "reset" : (mustChangePassword ? "fraca" : null),
   };
 });
 
@@ -235,9 +250,11 @@ exports.createUserAccount = onCall({ region: "southamerica-east1" }, async (requ
   requireAdmin(request);
 
   const data = request.data || {};
-  const { username, full_name, email, password, role, rg, telefone, obm } = data;
+  const { username, full_name, email, role, rg, telefone, obm, posto } = data;
+  // Senha inicial é sempre 123456; o militar escolhe a senha definitiva no primeiro login
+  const password = "123456";
 
-  if (!username || !full_name || !email || !password || !role || !rg || !telefone || !obm) {
+  if (!username || !full_name || !email || !role || !rg || !telefone || !obm) {
     throw new HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
   }
 
@@ -276,6 +293,7 @@ exports.createUserAccount = onCall({ region: "southamerica-east1" }, async (requ
     rg,
     telefone,
     OBM: obm,
+    posto: posto || "",
     created_at: new Date(),
   });
 
@@ -382,8 +400,9 @@ exports.changeOwnPassword = onCall({ region: "southamerica-east1" }, async (requ
     throw new HttpsError("invalid-argument", "Nova senha é obrigatória.");
   }
 
-  if (newPassword === "123456") {
-    throw new HttpsError("invalid-argument", "A nova senha não pode ser 123456.");
+  const erro = erroSenhaForte(newPassword);
+  if (erro) {
+    throw new HttpsError("invalid-argument", erro);
   }
 
   const secretDoc = await db.collection("user_secrets").doc(firestoreId).get();
@@ -393,8 +412,8 @@ exports.changeOwnPassword = onCall({ region: "southamerica-east1" }, async (requ
 
   const secretData = secretDoc.data();
 
-  // If NOT a forced change, verify current password
-  if (!secretData.must_change_password) {
+  // Se NÃO for troca forçada (reset ou senha fraca), confere a senha atual
+  if (!secretData.must_change_password && senhaForte(secretData.password)) {
     if (!currentPassword || currentPassword !== secretData.password) {
       throw new HttpsError("permission-denied", "Senha atual incorreta.");
     }

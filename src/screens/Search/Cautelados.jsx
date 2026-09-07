@@ -143,7 +143,7 @@ export default function Cautelados() {
               ];
               break;
             case 2:
-              constraints = [where("status", "in", ["devolvido", "devolvidaDeReparo"])];
+              constraints = [where("status", "in", ["devolvido", "devolvidaDeReparo", "transferido"])];
               break;
             case 3:
               constraints = [
@@ -223,7 +223,7 @@ export default function Cautelados() {
     const total = displayedMovimentacoes.length;
     const assinados = displayedMovimentacoes.filter(m => m.signed === true && m.status === "cautelado").length;
     const naoAssinados = displayedMovimentacoes.filter(m => m.signed === false && m.status === "cautelado").length;
-    const devolvidos = displayedMovimentacoes.filter(m => m.status === "devolvido").length;
+    const devolvidos = displayedMovimentacoes.filter(m => m.status === "devolvido" || m.status === "transferido").length;
 
     return { total, assinados, naoAssinados, devolvidos };
   }, [displayedMovimentacoes]);
