@@ -144,7 +144,8 @@ const GlassStatCard = ({ icon: Icon, label, value, color }) => (
 
 // ─── Item Card (completely redesigned) ──────────────────────
 const ItemCard = ({ mov, isPendente, onDevolver, formatDate, theme, index }) => {
-  const isDevolvido = mov.status === "devolvido" || mov.status === "devolvidaDeReparo";
+  const isDevolvido = mov.status === "devolvido" || mov.status === "devolvidaDeReparo" || mov.status === "transferido";
+  const isTransferido = mov.status === "transferido";
   const accentColor = isPendente ? theme.palette.warning.main : theme.palette.success.main;
   const accentDark = isPendente ? theme.palette.warning.dark : theme.palette.success.dark;
 
@@ -229,7 +230,7 @@ const ItemCard = ({ mov, isPendente, onDevolver, formatDate, theme, index }) => 
             </Box>
             <Chip
               icon={isDevolvido ? <CheckCircle sx={{ fontSize: 14 }} /> : <AccessTime sx={{ fontSize: 14 }} />}
-              label={isDevolvido ? "Devolvido" : "Pendente"}
+              label={isTransferido ? `Transferida${mov.transferido_para_nome ? ` p/ ${mov.transferido_para_nome}` : ""}` : isDevolvido ? "Devolvido" : "Pendente"}
               size="small"
               sx={{
                 fontWeight: 700,
@@ -432,7 +433,8 @@ export default function Devolucoes() {
     const p = [];
     const d = [];
     movimentacoes.forEach((m) => {
-      if (m.status === "devolvido" || m.status === "devolvidaDeReparo") {
+      // Transferida para outro militar = encerrada para quem transferiu (a devolucao fica com quem recebeu)
+      if (m.status === "devolvido" || m.status === "devolvidaDeReparo" || m.status === "transferido") {
         d.push(m);
       } else {
         p.push(m);

@@ -1286,7 +1286,6 @@ export default function Home() {
         <MenuContext>
           <Container maxWidth="sm" sx={{ py: { xs: 1.5, sm: 2 }, px: { xs: 1, sm: 2 } }}>
             <TransferenciasPendentesCard />
-            <TransferenciasPendentesCard />
           <PedidosAmizadeCard />
             <Paper
               elevation={0}
@@ -1619,6 +1618,7 @@ export default function Home() {
     <PrivateRoute>
       <MenuContext>
         <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 1.5, sm: 3 } }}>
+          <TransferenciasPendentesCard />
           <PedidosAmizadeCard />
           <Fade in timeout={600}>
             <Box>
