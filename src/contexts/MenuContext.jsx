@@ -75,7 +75,7 @@ import ForumOutlined from '@mui/icons-material/ForumOutlined';
 import OnlinePredictionOutlined from '@mui/icons-material/OnlinePredictionOutlined';
 import { iniciarPresenca, encerrarPresenca } from '../services/presencaService';
 import { escutarConversas } from '../services/chatService';
-import { aoReceberPushEmPrimeiroPlano, desativarPushDesteAparelho } from '../services/pushService';
+import { aoReceberPushEmPrimeiroPlano, desativarPushDesteAparelho, ativarPush, pushDisponivel, pushPermissao } from '../services/pushService';
 const ChangePasswordDialog = lazy(() => import('../dialogs/ChangePasswordDialog'));
 
 function MenuContext({ children }) {
@@ -127,6 +127,12 @@ function MenuContext({ children }) {
   useEffect(() => {
     document.title = mensagensBadge > 0 ? `(${mensagensBadge}) DEMOP GOCG` : 'DEMOP GOCG';
   }, [mensagensBadge]);
+
+  // Permissão de notificação já concedida: registra/renova o token deste aparelho a cada abertura do app
+  useEffect(() => {
+    if (!currentUser.userId || !pushDisponivel() || pushPermissao() !== 'granted') return;
+    ativarPush(currentUser.userId);
+  }, [currentUser.userId]);
 
   // Push recebido com o app aberto: abre o chat da conversa (fora da tela de mensagens)
   useEffect(() => {

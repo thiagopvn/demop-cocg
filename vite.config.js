@@ -11,7 +11,7 @@ function firebaseMessagingSw(env) {
     apiKey: env.VITE_FIREBASE_API_KEY, authDomain: env.VITE_FIREBASE_AUTH_DOMAIN, projectId: env.VITE_FIREBASE_PROJECT_ID,
     storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET, messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID, appId: env.VITE_FIREBASE_APP_ID,
   }
-  const codigo = () => readFileSync(resolve(process.cwd(), 'src/sw/firebase-messaging-sw.template.js'), 'utf-8').replace('__FIREBASE_CONFIG__', JSON.stringify(config))
+  const codigo = () => readFileSync(resolve(process.cwd(), 'src/sw/firebase-messaging-sw.template.js'), 'utf-8').split('__FIREBASE_CONFIG__').join(JSON.stringify(config))
   return {
     name: 'demop-firebase-messaging-sw',
     configureServer(server) {

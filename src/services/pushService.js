@@ -27,6 +27,15 @@ async function obterMessaging() {
     return messagingPromise;
 }
 
+/** Espera o service worker do push ficar ativo (senão o PushManager recusa a inscrição). */
+const aguardarAtivo = (registration) => new Promise((resolve) => {
+    if (registration.active) { resolve(); return; }
+    const sw = registration.installing || registration.waiting;
+    if (!sw) { resolve(); return; }
+    const t = setTimeout(resolve, 10000);
+    sw.addEventListener('statechange', () => { if (sw.state === 'activated') { clearTimeout(t); resolve(); } });
+});
+
 /** Pede permissão (se necessário) e registra o token deste aparelho para o militar. */
 export async function ativarPush(userId) {
     if (!pushDisponivel() || !userId) return { ok: false, motivo: 'indisponivel' };
@@ -36,6 +45,7 @@ export async function ativarPush(userId) {
         const messaging = await obterMessaging();
         if (!messaging) return { ok: false, motivo: 'indisponivel' };
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/firebase-cloud-messaging-push-scope' });
+        await aguardarAtivo(registration);
         const { getToken } = await import('firebase/messaging');
         const token = await getToken(messaging, { vapidKey: VAPID, serviceWorkerRegistration: registration });
         if (!token) return { ok: false, motivo: 'sem-token' };
