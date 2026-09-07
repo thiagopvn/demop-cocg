@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    Box, Paper, Typography, TextField, IconButton, InputAdornment, List, ListItemButton, ListItemAvatar, ListItemText, Badge, Chip, Button, Menu, MenuItem, Tooltip, CircularProgress, Snackbar, Alert, alpha, useTheme, useMediaQuery,
+    Box, Paper, Typography, TextField, IconButton, InputAdornment, List, ListItemButton, ListItemAvatar, ListItemText, Badge, Chip, Button, Menu, MenuItem, Tooltip, CircularProgress, Snackbar, Alert, Tabs, Tab, alpha, useTheme, useMediaQuery,
 } from '@mui/material';
 import { Send, Add, Search, ArrowBack, Draw, AssignmentReturn, SwapHoriz, Campaign, PersonAddAlt1, NotificationsActive, Forum, MoreVert } from '@mui/icons-material';
 import { collection, onSnapshot, doc, getDoc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
@@ -57,6 +57,7 @@ export default function Mensagens() {
     const [enviando, setEnviando] = useState(false);
     const [ocupadoCard, setOcupadoCard] = useState(false);
     const [busca, setBusca] = useState('');
+    const [abaLista, setAbaLista] = useState('conversas'); // 'conversas' | 'amigos'
     const [dialogo, setDialogo] = useState(null); // 'contatos' | 'aviso' | 'assinatura' | 'devolucao' | 'transferencia'
     const [menuMais, setMenuMais] = useState(null);
     const [pedirSenha, setPedirSenha] = useState(null); // { tipo: 'transferir' | 'aceitar', cautela | msg, destino? }
@@ -139,6 +140,12 @@ export default function Mensagens() {
     const outro = outroId ? (usuarios.get(outroId) || { id: outroId, full_name: 'Militar' }) : null;
     const outroEhAmigo = outroId ? amigosIds.has(outroId) : false;
     const totalNaoLidas = conversas.reduce((s, c) => s + (c.naoLidas?.[euId] || 0), 0);
+    const amigos = useMemo(() => {
+        const b = norm(busca);
+        return [...amigosIds].map(id => usuarios.get(id)).filter(Boolean)
+            .filter(u => !b || norm(`${u.full_name} ${u.username} ${u.rg} ${u.OBM}`).includes(b))
+            .sort((a, b2) => (online.has(b2.id) ? 1 : 0) - (online.has(a.id) ? 1 : 0) || (a.full_name || '').localeCompare(b2.full_name || '', 'pt-BR'));
+    }, [amigosIds, usuarios, busca, online]);
 
     const conversasFiltradas = useMemo(() => {
         const b = norm(busca);
@@ -265,8 +272,12 @@ export default function Mensagens() {
                                         </IconButton>
                                     </Tooltip>
                                 </Box>
+                                <Tabs value={abaLista} onChange={(_, v) => setAbaLista(v)} variant="fullWidth" sx={{ px: 1.5, minHeight: 38, mb: 0.5, '& .MuiTab-root': { minHeight: 38, textTransform: 'none', fontWeight: 800, fontSize: '0.85rem' } }}>
+                                    <Tab value="conversas" label={<Badge badgeContent={totalNaoLidas} color="secondary" max={99} sx={{ '& .MuiBadge-badge': { right: -12, top: 2 } }}>Conversas</Badge>} />
+                                    <Tab value="amigos" label={<Badge badgeContent={amigosIds.size} color="success" max={99} sx={{ '& .MuiBadge-badge': { right: -12, top: 2 } }}>Amigos</Badge>} />
+                                </Tabs>
                                 <Box sx={{ px: 1.5, pb: 1 }}>
-                                    <TextField fullWidth size="small" placeholder="Buscar conversa" value={busca} onChange={(e) => setBusca(e.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>, sx: { borderRadius: 3 } } }} />
+                                    <TextField fullWidth size="small" placeholder={abaLista === 'amigos' ? 'Buscar amigo' : 'Buscar conversa'} value={busca} onChange={(e) => setBusca(e.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>, sx: { borderRadius: 3 } } }} />
                                 </Box>
                                 {pedidosRecebidos > 0 && (
                                     <Button size="small" startIcon={<PersonAddAlt1 />} onClick={() => setDialogo('contatos')} sx={{ mx: 1.5, mb: 1, borderRadius: 2, textTransform: 'none', fontWeight: 700, justifyContent: 'flex-start', bgcolor: alpha(theme.palette.secondary.main, 0.1) }}>
@@ -274,15 +285,39 @@ export default function Mensagens() {
                                     </Button>
                                 )}
                                 <Box sx={{ flex: 1, overflowY: 'auto', px: 1, pb: 1 }}>
-                                    {erroPermissao && <Alert severity="warning" sx={{ m: 1, borderRadius: 2 }}>Não foi possível carregar as conversas. Saia e entre de novo no app.</Alert>}
-                                    {conversas.length === 0 && !erroPermissao && (
+                                    {abaLista === 'amigos' && (
+                                        <>
+                                            {amigos.length === 0 && (
+                                                <Box sx={{ textAlign: 'center', p: 3, color: 'text.secondary' }}>
+                                                    <PersonAddAlt1 sx={{ fontSize: 40, opacity: 0.3 }} />
+                                                    <Typography variant="body2" sx={{ mt: 1 }}>{amigosIds.size === 0 ? 'Você ainda não tem amigos aceitos.' : 'Nenhum amigo com essa busca.'}</Typography>
+                                                    <Button size="small" startIcon={<Add />} onClick={() => setDialogo('contatos')} sx={{ mt: 1, textTransform: 'none', fontWeight: 700 }}>Adicionar amigo</Button>
+                                                </Box>
+                                            )}
+                                            <List dense disablePadding>
+                                                {amigos.map((u) => (
+                                                    <ListItemButton key={u.id} onClick={() => abrirCom(u)} sx={{ borderRadius: 2.5, mb: 0.25, py: 1 }}>
+                                                        <ListItemAvatar><PontoOnline online={online.has(u.id)}><UserAvatar src={u.foto_url} name={u.full_name} role={u.role} size={44} /></PontoOnline></ListItemAvatar>
+                                                        <ListItemText
+                                                            primary={<Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>{nomeComPosto(u) || u.username}</Typography>}
+                                                            secondary={<Typography variant="caption" color={online.has(u.id) ? 'success.main' : 'text.secondary'} noWrap sx={{ fontWeight: online.has(u.id) ? 700 : 400 }}>{online.has(u.id) ? 'online agora' : `${ROLE_LABELS[u.role] || ''}${u.OBM ? ` · ${u.OBM}` : ''}`}</Typography>}
+                                                            slotProps={{ secondary: { component: 'div' } }}
+                                                        />
+                                                        <Chip size="small" label="Amigo" variant="outlined" color="success" sx={{ fontWeight: 700 }} />
+                                                    </ListItemButton>
+                                                ))}
+                                            </List>
+                                        </>
+                                    )}
+                                    {abaLista === 'conversas' && erroPermissao && <Alert severity="warning" sx={{ m: 1, borderRadius: 2 }}>Não foi possível carregar as conversas. Saia e entre de novo no app.</Alert>}
+                                    {abaLista === 'conversas' && conversas.length === 0 && !erroPermissao && (
                                         <Box sx={{ textAlign: 'center', p: 3, color: 'text.secondary' }}>
                                             <Forum sx={{ fontSize: 40, opacity: 0.3 }} />
                                             <Typography variant="body2" sx={{ mt: 1 }}>Nenhuma conversa ainda.</Typography>
                                             <Button size="small" startIcon={<Add />} onClick={() => setDialogo('contatos')} sx={{ mt: 1, textTransform: 'none', fontWeight: 700 }}>Começar uma conversa</Button>
                                         </Box>
                                     )}
-                                    <List dense disablePadding>{conversasFiltradas.map(itemConversa)}</List>
+                                    {abaLista === 'conversas' && <List dense disablePadding>{conversasFiltradas.map(itemConversa)}</List>}
                                 </Box>
                             </Box>
                         )}

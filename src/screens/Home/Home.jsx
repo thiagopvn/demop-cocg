@@ -91,6 +91,7 @@ import {
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import PedidosAmizadeCard from "../../components/chat/PedidosAmizadeCard";
+import TransferenciasPendentesCard from "../../components/chat/TransferenciasPendentesCard";
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import db from "../../firebase/db";
@@ -1284,7 +1285,9 @@ export default function Home() {
       <PrivateRoute>
         <MenuContext>
           <Container maxWidth="sm" sx={{ py: { xs: 1.5, sm: 2 }, px: { xs: 1, sm: 2 } }}>
-            <PedidosAmizadeCard />
+            <TransferenciasPendentesCard />
+            <TransferenciasPendentesCard />
+          <PedidosAmizadeCard />
             <Paper
               elevation={0}
               sx={{
