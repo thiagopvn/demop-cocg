@@ -25,8 +25,6 @@ async function nomeDe(uid) {
   return { nome: d.full_name || d.username || "Militar", username: d.username || "", rg: d.rg || "", telefone: d.telefone || "", foto: d.foto_url || null, role: d.role || "user" };
 }
 
-const PAPEIS_DEMOP = ["admingeral", "admin", "BensPatrimoniais"];
-
 /** Confere a senha do militar (user_secrets). Lança permission-denied se não bater. */
 async function verificarSenha(uid, senha) {
   if (!senha) throw new HttpsError("invalid-argument", "Confirme com a sua senha.");
@@ -157,7 +155,7 @@ exports.enviarAviso = onCall({ region: REGION, timeoutSeconds: 300 }, async (req
 
 // ------------------------------------------------------------
 // Pedido de transferência de cautela (quem envia confirma com a senha)
-// Destino: amigo (pedido aceito) ou qualquer admin / BensPatrimoniais / admingeral.
+// Destino: somente amigo (pedido aceito). Devolver ao DEMOP é devolução, feita pelo DEMOP.
 // ------------------------------------------------------------
 exports.solicitarTransferencia = onCall({ region: REGION }, async (request) => {
   const uid = exigirAuth(request);
@@ -174,8 +172,8 @@ exports.solicitarTransferencia = onCall({ region: REGION }, async (request) => {
   if (!mov.signed) throw new HttpsError("failed-precondition", "Assine a cautela antes de transferir.");
   const passagens = Number(mov.passagens) || 0;
   if (passagens >= 3) throw new HttpsError("failed-precondition", "Esta cautela já foi transferida 3 vezes. O material precisa ser devolvido ao DEMOP.");
-  const destinoDemop = PAPEIS_DEMOP.includes(paraSnap.data().role);
-  if (!destinoDemop && !(await saoAmigos(uid, para))) throw new HttpsError("permission-denied", "Você só pode transferir para amigos ou para o pessoal do DEMOP.");
+  // Transferência é só entre amigos. Devolver ao DEMOP é devolução (registrada pelo DEMOP), não transferência.
+  if (!(await saoAmigos(uid, para))) throw new HttpsError("permission-denied", "Você só pode transferir cautela para um amigo (pedido de amizade aceito).");
   const pend = await db.collection("transferencias").where("movimentacaoId", "==", movimentacaoId).where("status", "==", "pendente").limit(1).get();
   if (!pend.empty) throw new HttpsError("already-exists", "Já existe um pedido de transferência pendente para esta cautela.");
 

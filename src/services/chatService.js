@@ -109,10 +109,9 @@ export const textoCobranca = (nome, m, subtipo) => {
 
 // ------------------------------------------------------------------ transferência de cautela
 export const PASSAGENS_MAX = 3;
-export const PAPEIS_DEMOP = ['admingeral', 'admin', 'BensPatrimoniais'];
 export const podeTransferirCautela = (m) => Boolean(m) && m.status === 'cautelado' && Boolean(m.signed) && (Number(m.passagens) || 0) < PASSAGENS_MAX;
-/** Para quem posso transferir: amigos ou qualquer militar do DEMOP (admin / Bens / admingeral). */
-export const podeTransferirPara = ({ outroRole, amigos }) => Boolean(amigos) || PAPEIS_DEMOP.includes(outroRole);
+/** Para quem posso transferir: somente amigos (devolver ao DEMOP é devolução, registrada pelo DEMOP). */
+export const podeTransferirPara = ({ amigos }) => Boolean(amigos);
 
 /** Pede a transferência pela Cloud Function (que confere a senha de quem envia e cria o card no chat). */
 export async function solicitarTransferencia({ amigo, cautela, senha }) {

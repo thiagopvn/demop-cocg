@@ -1479,7 +1479,7 @@ export default function Home() {
                               Transferir cautela
                             </Button>
                             <Typography variant="caption" color="text.secondary">
-                              {(Number(cautela.passagens) || 0) === 0 ? "Para um amigo ou para o DEMOP, confirmando com sua senha" : `Passagem ${(Number(cautela.passagens) || 0) + 1} de 3`}
+                              {(Number(cautela.passagens) || 0) === 0 ? "Para um amigo, confirmando com sua senha" : `Passagem ${(Number(cautela.passagens) || 0) + 1} de 3`}
                             </Typography>
                           </Box>
                         )}

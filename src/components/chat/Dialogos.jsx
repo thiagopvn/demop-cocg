@@ -53,7 +53,7 @@ export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online,
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, pt: cheio ? 'max(28px, calc(16px + env(safe-area-inset-top, 0px)))' : 2, position: 'sticky', top: 0, zIndex: 2, bgcolor: 'background.paper' }}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{transferindo ? 'Transferir para quem?' : 'Contatos'}</Typography>
-                    {transferindo && <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{transferindo.material_description} · {transferindo.quantity} un. · amigos e pessoal do DEMOP</Typography>}
+                    {transferindo && <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{transferindo.material_description} · {transferindo.quantity} un. · somente amigos</Typography>}
                 </Box>
                 <IconButton onClick={onClose} aria-label="Fechar" size="large" sx={{ width: 48, height: 48, bgcolor: alpha(theme.palette.text.primary, 0.06), '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.12), color: 'error.main' } }}><Close /></IconButton>
             </DialogTitle>

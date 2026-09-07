@@ -335,7 +335,7 @@ export default function Mensagens() {
                                         <Box sx={{ bgcolor: 'background.paper', borderTop: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
                                             {/* Ações da conversa: botões visíveis (nada escondido em menu) */}
                                             <Box sx={{ display: 'flex', gap: 1, px: { xs: 1, md: 1.5 }, pt: 1, overflowX: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
-                                                <Tooltip title={podeTransferir ? 'Passar esta cautela para este militar. Você confirma com a sua senha e ele assina com a dele.' : 'Você pode transferir para amigos ou para o pessoal do DEMOP. Para este militar, envie um pedido de amizade.'}>
+                                                <Tooltip title={podeTransferir ? 'Passar esta cautela para este militar. Você confirma com a sua senha e ele assina com a dele.' : 'A transferência é só entre amigos. Para este militar, envie um pedido de amizade e aguarde o aceite. Para devolver ao DEMOP, leve o material: o DEMOP registra a devolução e você recebe o comprovante.'}>
                                                     <span style={{ flexShrink: 0 }}>
                                                         <Button
                                                             size="small" variant="contained" disabled={!podeTransferir} onClick={() => setDialogo('transferencia')} startIcon={<SwapHoriz />}
