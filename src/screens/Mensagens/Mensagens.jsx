@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    Box, Paper, Typography, TextField, IconButton, InputAdornment, List, ListItemButton, ListItemAvatar, ListItemText, Badge, Chip, Button, Menu, MenuItem, ListItemIcon, Tooltip, CircularProgress, Snackbar, Alert, Divider, alpha, useTheme, useMediaQuery,
+    Box, Paper, Typography, TextField, IconButton, InputAdornment, List, ListItemButton, ListItemAvatar, ListItemText, Badge, Chip, Button, Menu, MenuItem, Tooltip, CircularProgress, Snackbar, Alert, alpha, useTheme, useMediaQuery,
 } from '@mui/material';
 import { Send, Add, Search, ArrowBack, Draw, AssignmentReturn, SwapHoriz, Campaign, PersonAddAlt1, NotificationsActive, Forum, MoreVert } from '@mui/icons-material';
-import { collection, onSnapshot, doc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import db from '../../firebase/db';
 import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
@@ -59,8 +59,8 @@ export default function Mensagens() {
     const [busca, setBusca] = useState('');
     const [dialogo, setDialogo] = useState(null); // 'contatos' | 'aviso' | 'assinatura' | 'devolucao' | 'transferencia'
     const [menuMais, setMenuMais] = useState(null);
-    const [menuAcoes, setMenuAcoes] = useState(null);
-    const [pedirSenha, setPedirSenha] = useState(null); // { tipo: 'transferir' | 'aceitar', cautela | msg }
+    const [pedirSenha, setPedirSenha] = useState(null); // { tipo: 'transferir' | 'aceitar', cautela | msg, destino? }
+    const [transferirDoDashboard, setTransferirDoDashboard] = useState(null); // cautela escolhida no Dashboard, falta o destinatario
     const [aviso, setAviso] = useState({ open: false, msg: '', sev: 'info' });
     const [erroPermissao, setErroPermissao] = useState('');
     const [pushEstado, setPushEstado] = useState(pushPermissao());
@@ -116,8 +116,17 @@ export default function Mensagens() {
     // Deep-link: ?c=conversaId  |  ?com=userId[&cobrar=assinatura|devolucao]
     useEffect(() => {
         if (!euId) return;
-        const c = params.get('c'); const com = params.get('com'); const cobrar = params.get('cobrar');
-        if (c) { setAtiva(c); return; }
+        const c = params.get('c'); const com = params.get('com'); const cobrar = params.get('cobrar'); const acao = params.get('acao'); const transferir = params.get('transferir');
+        if (transferir) {
+            getDoc(doc(db, 'movimentacoes', transferir)).then((snap) => {
+                if (!snap.exists()) { notificar('Cautela não encontrada.', 'warning'); return; }
+                setTransferirDoDashboard({ id: snap.id, ...snap.data() });
+                setDialogo('contatos');
+            }).catch(() => notificar('Não foi possível abrir a cautela.', 'error'));
+            setParams({}, { replace: true });
+            return;
+        }
+        if (c) { setAtiva(c); if (acao === 'transferir') setTimeout(() => setDialogo('transferencia'), 400); setParams({}, { replace: true }); return; }
         if (com) {
             abrirConversa(euId, com).then((id) => { setAtiva(id); if (cobrar === 'assinatura' || cobrar === 'devolucao') setDialogo(cobrar); })
                 .catch(() => notificar('Você não pode iniciar conversa com este militar. Envie um pedido de amizade.', 'warning'));
@@ -141,9 +150,13 @@ export default function Mensagens() {
 
     // Ações ------------------------------------------------------------------
     const abrirCom = useCallback(async (u) => {
-        try { const id = await abrirConversa(euId, u.id); setAtiva(id); setDialogo(null); setTimeout(() => inputRef.current?.focus(), 200); }
+        try {
+            const id = await abrirConversa(euId, u.id); setAtiva(id); setDialogo(null);
+            if (transferirDoDashboard) { setPedirSenha({ tipo: 'transferir', cautela: transferirDoDashboard, destino: u }); setTransferirDoDashboard(null); }
+            else setTimeout(() => inputRef.current?.focus(), 200);
+        }
         catch (e) { notificar(e?.code === 'permission-denied' ? 'Você só pode conversar com administradores do DEMOP ou com amigos. Envie um pedido de amizade.' : (e?.message || 'Erro ao abrir conversa'), 'warning'); }
-    }, [euId]);
+    }, [euId, transferirDoDashboard]);
 
     const enviarTexto = async () => {
         const t = texto.trim();
@@ -163,7 +176,7 @@ export default function Mensagens() {
     // Transferir: escolhe a cautela e confirma com a senha (a Cloud Function confere)
     const transferir = async (m) => { setPedirSenha({ tipo: 'transferir', cautela: m }); };
     const confirmarTransferencia = async (senha) => {
-        await solicitarTransferencia({ amigo: outro, cautela: pedirSenha.cautela, senha });
+        await solicitarTransferencia({ amigo: pedirSenha.destino || outro, cautela: pedirSenha.cautela, senha });
         notificar('Pedido de transferência enviado. Aguarde o aceite.', 'success');
     };
 
@@ -319,22 +332,27 @@ export default function Mensagens() {
                                             <div ref={fimRef} />
                                         </Box>
 
-                                        <Box sx={{ p: { xs: 1, md: 1.5 }, bgcolor: 'background.paper', borderTop: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
-                                            <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end' }}>
-                                                <Tooltip title="Cobrar ou transferir">
-                                                    <IconButton onClick={(e) => setMenuAcoes(e.currentTarget)} aria-label="Ações" sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.12), color: 'secondary.main' }}><Add /></IconButton>
+                                        <Box sx={{ bgcolor: 'background.paper', borderTop: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
+                                            {/* Ações da conversa: botões visíveis (nada escondido em menu) */}
+                                            <Box sx={{ display: 'flex', gap: 1, px: { xs: 1, md: 1.5 }, pt: 1, overflowX: 'auto', '&::-webkit-scrollbar': { display: 'none' } }}>
+                                                <Tooltip title={podeTransferir ? 'Passar esta cautela para este militar. Você confirma com a sua senha e ele assina com a dele.' : 'Você pode transferir para amigos ou para o pessoal do DEMOP. Para este militar, envie um pedido de amizade.'}>
+                                                    <span style={{ flexShrink: 0 }}>
+                                                        <Button
+                                                            size="small" variant="contained" disabled={!podeTransferir} onClick={() => setDialogo('transferencia')} startIcon={<SwapHoriz />}
+                                                            sx={{ borderRadius: 999, textTransform: 'none', fontWeight: 800, px: 2, whiteSpace: 'nowrap', background: podeTransferir ? `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.secondary.main} 100%)` : undefined, color: '#fff', boxShadow: podeTransferir ? `0 6px 16px ${alpha(theme.palette.secondary.main, 0.35)}` : 'none', '&.Mui-disabled': { bgcolor: alpha(theme.palette.text.primary, 0.08), color: 'text.disabled' } }}
+                                                        >
+                                                            Transferir cautela
+                                                        </Button>
+                                                    </span>
                                                 </Tooltip>
-                                                <Menu anchorEl={menuAcoes} open={Boolean(menuAcoes)} onClose={() => setMenuAcoes(null)} anchorOrigin={{ vertical: 'top', horizontal: 'left' }} transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
-                                                    <MenuItem disabled={!podeCobrar} onClick={() => { setMenuAcoes(null); setDialogo('assinatura'); }}><ListItemIcon><Draw fontSize="small" color="secondary" /></ListItemIcon>Cobrar assinatura</MenuItem>
-                                                    <MenuItem disabled={!podeCobrar} onClick={() => { setMenuAcoes(null); setDialogo('devolucao'); }}><ListItemIcon><AssignmentReturn fontSize="small" color="info" /></ListItemIcon>Cobrar devolução</MenuItem>
-                                                    <Divider />
-                                                    <MenuItem disabled={!podeTransferir} onClick={() => { setMenuAcoes(null); setDialogo('transferencia'); }}><ListItemIcon><SwapHoriz fontSize="small" color="warning" /></ListItemIcon>Transferir minha cautela</MenuItem>
-                                                    {!podeTransferir && (
-                                                        <Box sx={{ px: 2, pb: 1, maxWidth: 280 }}>
-                                                            <Typography variant="caption" color="text.secondary">Você pode transferir para amigos ou para o pessoal do DEMOP (admin, Bens Patrimoniais, admin geral). Para este militar, envie um pedido de amizade em "+ Nova conversa" › "Adicionar amigo".</Typography>
-                                                        </Box>
-                                                    )}
-                                                </Menu>
+                                                {podeCobrar && (
+                                                    <Button size="small" variant="outlined" color="secondary" onClick={() => setDialogo('assinatura')} startIcon={<Draw />} sx={{ borderRadius: 999, textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>Cobrar assinatura</Button>
+                                                )}
+                                                {podeCobrar && (
+                                                    <Button size="small" variant="outlined" color="info" onClick={() => setDialogo('devolucao')} startIcon={<AssignmentReturn />} sx={{ borderRadius: 999, textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>Cobrar devolução</Button>
+                                                )}
+                                            </Box>
+                                            <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end', p: { xs: 1, md: 1.5 } }}>
                                                 <TextField
                                                     inputRef={inputRef} fullWidth multiline maxRows={5} size="small" placeholder="Escreva uma mensagem" value={texto}
                                                     onChange={(e) => setTexto(e.target.value)}
@@ -354,7 +372,8 @@ export default function Mensagens() {
                 </Box>
 
                 <DialogoContatos
-                    open={dialogo === 'contatos'} onClose={() => setDialogo(null)} eu={eu} usuarios={usuarios} amizades={amizades} online={online}
+                    open={dialogo === 'contatos'} onClose={() => { setDialogo(null); setTransferirDoDashboard(null); }} eu={eu} usuarios={usuarios} amizades={amizades} online={online}
+                    transferindo={transferirDoDashboard}
                     onAbrirConversa={abrirCom}
                     onPedirAmizade={async (u) => { try { await pedirAmizade(eu, u); notificar(`Pedido enviado para ${u.full_name}.`, 'success'); } catch (e) { console.error('pedirAmizade:', e); notificar(`Não foi possível enviar o pedido${e?.code ? ` (${e.code})` : ''}.`, 'error'); } }}
                     onAceitarAmizade={async (a) => { try { await aceitarAmizade(a, eu); notificar('Agora vocês são amigos.', 'success'); } catch (e) { console.error('aceitarAmizade:', e); notificar(`Erro ao aceitar${e?.code ? ` (${e.code})` : ''}.`, 'error'); } }}
@@ -368,7 +387,7 @@ export default function Mensagens() {
                     titulo={pedirSenha?.tipo === 'aceitar' ? 'Assinar a cautela' : 'Confirmar transferência'}
                     descricao={pedirSenha?.tipo === 'aceitar'
                         ? `Ao confirmar com a sua senha, você assina a cautela de ${pedirSenha?.msg?.card?.material_description || 'material'} e passa a ser o responsável por ela.`
-                        : `Confirme com a sua senha a transferência de ${pedirSenha?.cautela?.material_description || 'material'} para ${nomeComPosto(outro) || outro?.username || 'o militar'}.`}
+                        : `Confirme com a sua senha a transferência de ${pedirSenha?.cautela?.material_description || 'material'} para ${nomeComPosto(pedirSenha?.destino || outro) || (pedirSenha?.destino || outro)?.username || 'o militar'}.`}
                     rotuloBotao={pedirSenha?.tipo === 'aceitar' ? 'Assinar e aceitar' : 'Confirmar'}
                     onConfirmar={pedirSenha?.tipo === 'aceitar' ? confirmarAceite : confirmarTransferencia}
                 />

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Paper, Box, Typography, IconButton, TextField, CircularProgress, Slide, Tooltip, alpha, useTheme, useMediaQuery, Chip } from '@mui/material';
-import { Close, Send, OpenInNew } from '@mui/icons-material';
+import { Close, Send, OpenInNew, SwapHoriz } from '@mui/icons-material';
+import { Button } from '@mui/material';
 import { doc, onSnapshot } from 'firebase/firestore';
 import db from '../../firebase/db';
 import UserAvatar, { ROLE_LABELS } from '../UserAvatar';
@@ -83,7 +84,10 @@ export default function ChatFlutuante({ conversaId, eu, onClose }) {
                     })}
                     <div ref={fimRef} />
                 </Box>
-                <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end', p: 1, borderTop: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
+                <Box sx={{ px: 1, pt: 0.75, borderTop: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
+                    <Button size="small" variant="contained" startIcon={<SwapHoriz />} onClick={() => { onClose(); navigate(`/mensagens?c=${conversaId}&acao=transferir`); }} sx={{ borderRadius: 999, textTransform: 'none', fontWeight: 800, px: 2, background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.secondary.main} 100%)` }}>Transferir cautela</Button>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end', p: 1 }}>
                     <TextField fullWidth multiline maxRows={3} size="small" placeholder="Responder..." value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !isMobile) { e.preventDefault(); enviar(); } }} slotProps={{ input: { sx: { borderRadius: 3 } }, htmlInput: { 'aria-label': 'Responder', maxLength: 4000 } }} />
                     <IconButton color="primary" onClick={enviar} disabled={!texto.trim() || enviando} aria-label="Enviar resposta" sx={{ bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: alpha(theme.palette.primary.main, 0.25), color: '#fff' } }}>
                         {enviando ? <CircularProgress size={16} color="inherit" /> : <Send fontSize="small" />}

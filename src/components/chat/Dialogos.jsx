@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import { Search, Close, PersonAdd, Check, Campaign, Draw, AssignmentReturn, SwapHoriz, HourglassEmpty } from '@mui/icons-material';
 import UserAvatar, { ROLE_LABELS } from '../UserAvatar';
-import { podeIniciarConversa, cautelasPendentesDe, podeTransferirCautela, PASSAGENS_MAX } from '../../services/chatService';
+import { podeIniciarConversa, cautelasPendentesDe, podeTransferirCautela, podeTransferirPara, PASSAGENS_MAX } from '../../services/chatService';
 import { nomeComPosto } from '../../hooks/useListasMilitares';
 
 const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -21,7 +21,7 @@ const PontoOnline = ({ online, children }) => (
  *  - Pedidos: pedidos de amizade recebidos e enviados.
  *  - Adicionar: procurar qualquer militar e pedir amizade.
  */
-export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online, onAbrirConversa, onPedirAmizade, onAceitarAmizade, onRecusarAmizade }) {
+export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online, onAbrirConversa, onPedirAmizade, onAceitarAmizade, onRecusarAmizade, transferindo = null }) {
     const theme = useTheme();
     const cheio = useMediaQuery(theme.breakpoints.down('sm'));
     const [aba, setAba] = useState(0);
@@ -33,10 +33,10 @@ export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online,
     const pendentesEnviados = useMemo(() => amizades.filter(a => a.status === 'pendente' && a.solicitante === eu.userId), [amizades, eu.userId]);
     const lista = useMemo(() => [...usuarios.values()].filter(u => u.id !== eu.userId && u.ativo !== false).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'pt-BR')), [usuarios, eu.userId]);
     const bate = (u) => !busca || norm(`${u.full_name} ${u.username} ${u.rg} ${u.OBM}`).includes(norm(busca));
-    const contatos = lista.filter(u => bate(u) && podeIniciarConversa({ meuRole: eu.role, outroRole: u.role, amigos: amigosIds.has(u.id) }));
+    const contatos = lista.filter(u => bate(u) && (transferindo ? podeTransferirPara({ outroRole: u.role, amigos: amigosIds.has(u.id) }) : podeIniciarConversa({ meuRole: eu.role, outroRole: u.role, amigos: amigosIds.has(u.id) })));
     const candidatos = lista.filter(u => bate(u) && !amigosIds.has(u.id) && !pendentesEnviados.some(p => p.destinatario === u.id) && !pendentesRecebidos.some(p => p.solicitante === u.id));
 
-    useEffect(() => { if (open) { setBusca(''); setAba(pendentesRecebidos.length ? 1 : 0); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { if (open) { setBusca(''); setAba(transferindo ? 0 : (pendentesRecebidos.length ? 1 : 0)); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const agir = async (chave, fn) => { setOcupado(chave); try { await fn(); } finally { setOcupado(''); } };
 
@@ -51,7 +51,10 @@ export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online,
     return (
         <Dialog open={open} onClose={onClose} fullScreen={cheio} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: cheio ? 0 : 3, height: cheio ? '100%' : '80vh' } }}>
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, pt: cheio ? 'max(28px, calc(16px + env(safe-area-inset-top, 0px)))' : 2, position: 'sticky', top: 0, zIndex: 2, bgcolor: 'background.paper' }}>
-                <Typography variant="h6" sx={{ fontWeight: 800, flex: 1 }}>Contatos</Typography>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{transferindo ? 'Transferir para quem?' : 'Contatos'}</Typography>
+                    {transferindo && <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{transferindo.material_description} · {transferindo.quantity} un. · amigos e pessoal do DEMOP</Typography>}
+                </Box>
                 <IconButton onClick={onClose} aria-label="Fechar" size="large" sx={{ width: 48, height: 48, bgcolor: alpha(theme.palette.text.primary, 0.06), '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.12), color: 'error.main' } }}><Close /></IconButton>
             </DialogTitle>
             <Tabs value={aba} onChange={(_, v) => setAba(v)} variant="fullWidth" sx={{ px: 2, minHeight: 40, '& .MuiTab-root': { minHeight: 40, textTransform: 'none', fontWeight: 700 } }}>

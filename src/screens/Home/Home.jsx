@@ -1467,6 +1467,22 @@ export default function Home() {
                             }}
                           />
                         </Box>
+                        {cautela.signed && (Number(cautela.passagens) || 0) < 3 && (
+                          <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<SwapHoriz />}
+                              onClick={() => navigate(`/mensagens?transferir=${cautela.id}`)}
+                              sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800, px: 2, background: "linear-gradient(135deg, #f59e0b 0%, #ff6b35 100%)", boxShadow: "0 6px 16px rgba(255, 107, 53, 0.35)" }}
+                            >
+                              Transferir cautela
+                            </Button>
+                            <Typography variant="caption" color="text.secondary">
+                              {(Number(cautela.passagens) || 0) === 0 ? "Para um amigo ou para o DEMOP, confirmando com sua senha" : `Passagem ${(Number(cautela.passagens) || 0) + 1} de 3`}
+                            </Typography>
+                          </Box>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
