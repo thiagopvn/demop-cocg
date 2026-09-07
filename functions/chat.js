@@ -309,6 +309,19 @@ exports.encerrarSessoesInativas = onSchedule(
       }
     }
     if (n) await batch.commit();
-    if (n) console.log(`Sessões encerradas por inatividade: ${n}`);
+    // Sessões antigas ainda marcadas como ativas (outra aba/login sem logout): encerra as sem batimento há 3 min
+    const ativas = await db.collection("sessoes").where("ativa", "==", true).get();
+    let m = 0;
+    let lote = db.batch();
+    for (const d of ativas.docs) {
+      const ultima = d.data().ultima_atividade || d.data().inicio;
+      if (!ultima || ultima.toMillis() < limite.toMillis()) {
+        lote.set(d.ref, { fim: ultima || FieldValue.serverTimestamp(), encerrada_por: d.data().encerrada_por || "inatividade", ativa: false }, { merge: true });
+        m += 1;
+        if (m % 400 === 0) { await lote.commit(); lote = db.batch(); }
+      }
+    }
+    if (m % 400 !== 0) await lote.commit();
+    if (n || m) console.log(`Sessões encerradas por inatividade: presenca=${n} sessoes=${m}`);
   }
 );
