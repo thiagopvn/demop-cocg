@@ -74,6 +74,31 @@ exports.notificarMensagem = onDocumentCreated(
 );
 
 // ------------------------------------------------------------
+// Push: pedido de amizade novo avisa quem recebe
+// ------------------------------------------------------------
+exports.notificarAmizade = onDocumentCreated(
+  { document: "amizades/{id}", region: REGION },
+  async (event) => {
+    const a = event.data?.data();
+    if (!a || a.status !== "pendente" || !a.destinatario) return;
+    const tokSnap = await db.collection("fcm_tokens").doc(a.destinatario).get();
+    const tokens = tokSnap.exists ? (tokSnap.data().tokens || []) : [];
+    if (tokens.length === 0) return;
+    const quem = await nomeDe(a.solicitante);
+    const titulo = "Pedido de amizade";
+    const corpo = `${quem.nome} quer conversar e transferir cautelas com você. Toque para responder.`;
+    try {
+      await getMessaging().sendEachForMulticast({
+        tokens,
+        notification: { title: titulo, body: corpo },
+        data: { url: "/home", tipo: "amizade" },
+        webpush: { headers: { Urgency: "high" }, notification: { title: titulo, body: corpo, icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", tag: `amizade-${event.params.id}` }, fcmOptions: { link: "/home" } },
+      });
+    } catch (e) { console.error("Erro ao notificar amizade:", e); }
+  }
+);
+
+// ------------------------------------------------------------
 // Aviso do admingeral para todos os militares ativos
 // ------------------------------------------------------------
 exports.enviarAviso = onCall({ region: REGION, timeoutSeconds: 300 }, async (request) => {

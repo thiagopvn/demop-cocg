@@ -50,9 +50,9 @@ export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online,
 
     return (
         <Dialog open={open} onClose={onClose} fullScreen={cheio} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: cheio ? 0 : 3, height: cheio ? '100%' : '80vh' } }}>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, pt: cheio ? 'max(28px, calc(16px + env(safe-area-inset-top, 0px)))' : 2, position: 'sticky', top: 0, zIndex: 2, bgcolor: 'background.paper' }}>
                 <Typography variant="h6" sx={{ fontWeight: 800, flex: 1 }}>Contatos</Typography>
-                <IconButton onClick={onClose} aria-label="Fechar"><Close /></IconButton>
+                <IconButton onClick={onClose} aria-label="Fechar" size="large" sx={{ width: 48, height: 48, bgcolor: alpha(theme.palette.text.primary, 0.06), '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.12), color: 'error.main' } }}><Close /></IconButton>
             </DialogTitle>
             <Tabs value={aba} onChange={(_, v) => setAba(v)} variant="fullWidth" sx={{ px: 2, minHeight: 40, '& .MuiTab-root': { minHeight: 40, textTransform: 'none', fontWeight: 700 } }}>
                 <Tab label="Conversar" />
@@ -61,15 +61,25 @@ export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online,
             </Tabs>
             <DialogContent sx={{ pt: 1.5 }}>
                 {aba !== 1 && (
-                    <TextField fullWidth size="small" autoFocus placeholder="Buscar por nome, RG, usuário ou OBM" value={busca} onChange={(e) => setBusca(e.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> } }} sx={{ mb: 1 }} />
+                    <TextField fullWidth size="small" autoFocus={!cheio} placeholder="Buscar por nome, RG, usuário ou OBM" value={busca} onChange={(e) => setBusca(e.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> } }} sx={{ mb: 1 }} />
                 )}
                 {aba === 0 && (
                     <>
-                        {!['admingeral', 'admin'].includes(eu.role) && <Alert severity="info" sx={{ mb: 1, borderRadius: 2 }}>Você pode conversar com os administradores do DEMOP e com seus amigos. Para falar com outro militar, envie um pedido de amizade em "Adicionar amigo".</Alert>}
+                        {!['admingeral', 'admin'].includes(eu.role) && amigosIds.size === 0 && <Alert severity="info" sx={{ mb: 1, borderRadius: 2 }}>Você pode conversar com os administradores do DEMOP e com seus amigos. Para falar com outro militar, envie um pedido em "Adicionar amigo"; a conversa abre assim que ele aceitar.</Alert>}
                         <List dense disablePadding>
                             {contatos.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>Nenhum contato encontrado.</Typography>}
                             {contatos.slice(0, 200).map(u => linha({ u, secundario: amigosIds.has(u.id) ? `Amigo · ${ROLE_LABELS[u.role] || u.role}${u.OBM ? ` · ${u.OBM}` : ''}` : undefined }))}
                         </List>
+                        {pendentesEnviados.filter(a => { const u = usuarios.get(a.destinatario); return !u || bate(u); }).length > 0 && (
+                            <>
+                                <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, mt: 1.5, display: 'block' }}>Aguardando aceite</Typography>
+                                <List dense disablePadding>
+                                    {pendentesEnviados.map(a => { const u = usuarios.get(a.destinatario) || { id: a.destinatario, full_name: a.destinatario_nome }; return (
+                                        <Box key={a.id} sx={{ opacity: 0.8 }}>{linha({ u, secundario: 'Pedido enviado · a conversa abre quando ele aceitar', acao: <Chip size="small" icon={<HourglassEmpty sx={{ fontSize: 14 }} />} label="Pendente" variant="outlined" /> })}</Box>
+                                    ); })}
+                                </List>
+                            </>
+                        )}
                     </>
                 )}
                 {aba === 1 && (
@@ -106,6 +116,9 @@ export function DialogoContatos({ open, onClose, eu, usuarios, amizades, online,
                     </List>
                 )}
             </DialogContent>
+            <DialogActions sx={{ p: 1.5, pb: cheio ? 'calc(12px + env(safe-area-inset-bottom, 0px))' : 1.5, borderTop: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
+                <Button fullWidth variant="outlined" onClick={onClose} startIcon={<Close />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>Fechar</Button>
+            </DialogActions>
         </Dialog>
     );
 }
@@ -152,7 +165,7 @@ export function DialogoEscolherCautela({ open, onClose, modo, dono, onEscolher }
         let ativo = true;
         setLista(null); setErro('');
         cautelasPendentesDe(dono.id, { apenasNaoAssinadas: modo === 'assinatura' })
-            .then(r => { if (ativo) setLista(modo === 'transferencia' ? r.filter(podeTransferirCautela) : r); })
+            .then(r => { if (ativo) setLista(r); })
             .catch(e => { if (ativo) { setErro(e?.message || 'Erro ao buscar cautelas'); setLista([]); } });
         return () => { ativo = false; };
     }, [open, dono?.id, modo]);
@@ -169,17 +182,22 @@ export function DialogoEscolherCautela({ open, onClose, modo, dono, onEscolher }
                 </Typography>
                 {lista === null && <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={28} /></Box>}
                 {erro && <Alert severity="error">{erro}</Alert>}
-                {lista && lista.length === 0 && !erro && <Alert severity="success" sx={{ borderRadius: 2 }}>{modo === 'assinatura' ? 'Nenhuma cautela pendente de assinatura.' : modo === 'transferencia' ? 'Nenhuma cautela assinada disponível para transferir.' : 'Nenhuma cautela em aberto.'}</Alert>}
+                {lista && lista.length === 0 && !erro && <Alert severity="success" sx={{ borderRadius: 2 }}>{modo === 'assinatura' ? 'Nenhuma cautela pendente de assinatura.' : 'Nenhuma cautela em aberto.'}</Alert>}
+                {modo === 'transferencia' && lista && lista.length > 0 && !lista.some(podeTransferirCautela) && <Alert severity="warning" sx={{ borderRadius: 2, mb: 1 }}>Nenhuma das suas cautelas pode ser transferida agora: é preciso que ela esteja assinada e com menos de {PASSAGENS_MAX} passagens.</Alert>}
                 <List dense disablePadding>
-                    {(lista || []).map(m => (
-                        <ListItemButton key={m.id} disabled={ocupado} onClick={() => escolher(m)} sx={{ borderRadius: 2, mb: 0.5, border: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
+                    {(lista || []).map(m => {
+                        const bloqueada = modo === 'transferencia' && !podeTransferirCautela(m);
+                        const motivo = !m.signed ? 'Assine esta cautela primeiro (tela inicial › Suas pendências)' : (Number(m.passagens) || 0) >= PASSAGENS_MAX ? `Já passou ${PASSAGENS_MAX} vezes: devolva ao DEMOP` : '';
+                        return (
+                        <ListItemButton key={m.id} disabled={ocupado || bloqueada} onClick={() => escolher(m)} sx={{ borderRadius: 2, mb: 0.5, border: `1px solid ${alpha(theme.palette.divider, 1)}`, opacity: bloqueada ? 0.75 : 1 }}>
                             <ListItemText
                                 primary={<Typography variant="body2" sx={{ fontWeight: 700 }}>{m.material_description}</Typography>}
-                                secondary={`${m.quantity} un. · ${m.date?.toDate ? m.date.toDate().toLocaleDateString('pt-BR') : ''} · ${m.signed ? 'assinada' : 'sem assinatura'}${modo === 'transferencia' ? ` · passagem ${(Number(m.passagens) || 0) + 1} de ${PASSAGENS_MAX}` : ''}`}
+                                secondary={`${m.quantity} un. · ${m.date?.toDate ? m.date.toDate().toLocaleDateString('pt-BR') : ''} · ${m.signed ? 'assinada' : 'sem assinatura'}${modo === 'transferencia' ? ` · passagem ${(Number(m.passagens) || 0) + 1} de ${PASSAGENS_MAX}` : ''}${bloqueada && motivo ? ` · ${motivo}` : ''}`}
                             />
-                            <Chip size="small" label={m.signed ? 'Assinada' : 'Pendente'} color={m.signed ? 'success' : 'warning'} sx={{ fontWeight: 700 }} />
+                            <Chip size="small" label={bloqueada ? 'Não transferível' : m.signed ? 'Assinada' : 'Pendente'} color={bloqueada ? 'default' : m.signed ? 'success' : 'warning'} sx={{ fontWeight: 700 }} />
                         </ListItemButton>
-                    ))}
+                        );
+                    })}
                 </List>
             </DialogContent>
             <DialogActions sx={{ p: 2, pt: 0 }}><Button onClick={onClose} disabled={ocupado} sx={{ textTransform: 'none' }}>Fechar</Button></DialogActions>

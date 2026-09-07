@@ -90,6 +90,7 @@ import {
   Area,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
+import PedidosAmizadeCard from "../../components/chat/PedidosAmizadeCard";
 import MenuContext from "../../contexts/MenuContext";
 import PrivateRoute from "../../contexts/PrivateRoute";
 import db from "../../firebase/db";
@@ -1283,6 +1284,7 @@ export default function Home() {
       <PrivateRoute>
         <MenuContext>
           <Container maxWidth="sm" sx={{ py: { xs: 1.5, sm: 2 }, px: { xs: 1, sm: 2 } }}>
+            <PedidosAmizadeCard />
             <Paper
               elevation={0}
               sx={{
@@ -1598,6 +1600,7 @@ export default function Home() {
     <PrivateRoute>
       <MenuContext>
         <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 }, px: { xs: 1.5, sm: 3 } }}>
+          <PedidosAmizadeCard />
           <Fade in timeout={600}>
             <Box>
               {/* ====== HEADER ====== */}

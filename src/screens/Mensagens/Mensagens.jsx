@@ -313,15 +313,18 @@ export default function Mensagens() {
                                         <Box sx={{ p: { xs: 1, md: 1.5 }, bgcolor: 'background.paper', borderTop: `1px solid ${alpha(theme.palette.divider, 1)}` }}>
                                             <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end' }}>
                                                 <Tooltip title="Cobrar ou transferir">
-                                                    <span>
-                                                        <IconButton onClick={(e) => setMenuAcoes(e.currentTarget)} aria-label="Ações" disabled={!podeCobrar && !podeTransferir} sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.12), color: 'secondary.main' }}><Add /></IconButton>
-                                                    </span>
+                                                    <IconButton onClick={(e) => setMenuAcoes(e.currentTarget)} aria-label="Ações" sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.12), color: 'secondary.main' }}><Add /></IconButton>
                                                 </Tooltip>
                                                 <Menu anchorEl={menuAcoes} open={Boolean(menuAcoes)} onClose={() => setMenuAcoes(null)} anchorOrigin={{ vertical: 'top', horizontal: 'left' }} transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
-                                                    {podeCobrar && <MenuItem onClick={() => { setMenuAcoes(null); setDialogo('assinatura'); }}><ListItemIcon><Draw fontSize="small" color="secondary" /></ListItemIcon>Cobrar assinatura</MenuItem>}
-                                                    {podeCobrar && <MenuItem onClick={() => { setMenuAcoes(null); setDialogo('devolucao'); }}><ListItemIcon><AssignmentReturn fontSize="small" color="info" /></ListItemIcon>Cobrar devolução</MenuItem>}
-                                                    {podeTransferir && <Divider />}
-                                                    {podeTransferir && <MenuItem onClick={() => { setMenuAcoes(null); setDialogo('transferencia'); }}><ListItemIcon><SwapHoriz fontSize="small" color="warning" /></ListItemIcon>Transferir minha cautela</MenuItem>}
+                                                    <MenuItem disabled={!podeCobrar} onClick={() => { setMenuAcoes(null); setDialogo('assinatura'); }}><ListItemIcon><Draw fontSize="small" color="secondary" /></ListItemIcon>Cobrar assinatura</MenuItem>
+                                                    <MenuItem disabled={!podeCobrar} onClick={() => { setMenuAcoes(null); setDialogo('devolucao'); }}><ListItemIcon><AssignmentReturn fontSize="small" color="info" /></ListItemIcon>Cobrar devolução</MenuItem>
+                                                    <Divider />
+                                                    <MenuItem disabled={!podeTransferir} onClick={() => { setMenuAcoes(null); setDialogo('transferencia'); }}><ListItemIcon><SwapHoriz fontSize="small" color="warning" /></ListItemIcon>Transferir minha cautela</MenuItem>
+                                                    {!podeTransferir && (
+                                                        <Box sx={{ px: 2, pb: 1, maxWidth: 280 }}>
+                                                            <Typography variant="caption" color="text.secondary">A transferência só é possível entre amigos. Envie um pedido de amizade em "+ Nova conversa" › "Adicionar amigo" e aguarde o aceite.</Typography>
+                                                        </Box>
+                                                    )}
                                                 </Menu>
                                                 <TextField
                                                     inputRef={inputRef} fullWidth multiline maxRows={5} size="small" placeholder="Escreva uma mensagem" value={texto}
