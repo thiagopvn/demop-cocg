@@ -178,7 +178,7 @@ export function DialogoEscolherCautela({ open, onClose, modo, dono, onEscolher }
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                     {modo === 'assinatura' && `Cautelas de ${nome} ainda sem assinatura. Escolha uma para enviar a cobrança com o card no chat.`}
                     {modo === 'devolucao' && `Cautelas de ${nome} em aberto. Escolha uma para cobrar a devolução.`}
-                    {modo === 'transferencia' && `Suas cautelas assinadas e em aberto (até ${PASSAGENS_MAX} passagens por cautela; depois disso o material deve voltar ao DEMOP). Ao aceitar, o amigo assina e passa a ser o responsável.`}
+                    {modo === 'transferencia' && `Suas cautelas assinadas e em aberto (até ${PASSAGENS_MAX} passagens por cautela; depois disso o material deve voltar ao DEMOP). Você confirma com a sua senha e quem recebe assina com a dele.`}
                 </Typography>
                 {lista === null && <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={28} /></Box>}
                 {erro && <Alert severity="error">{erro}</Alert>}
@@ -201,6 +201,34 @@ export function DialogoEscolherCautela({ open, onClose, modo, dono, onEscolher }
                 </List>
             </DialogContent>
             <DialogActions sx={{ p: 2, pt: 0 }}><Button onClick={onClose} disabled={ocupado} sx={{ textTransform: 'none' }}>Fechar</Button></DialogActions>
+        </Dialog>
+    );
+}
+
+/** Confirmação por senha (transferir / aceitar e assinar). */
+export function DialogoSenha({ open, titulo, descricao, rotuloBotao = 'Confirmar', onClose, onConfirmar }) {
+    const [senha, setSenha] = useState('');
+    const [erro, setErro] = useState('');
+    const [ocupado, setOcupado] = useState(false);
+    useEffect(() => { if (open) { setSenha(''); setErro(''); } }, [open]);
+    const confirmar = async () => {
+        if (!senha) { setErro('Digite a sua senha.'); return; }
+        setOcupado(true); setErro('');
+        try { await onConfirmar(senha); onClose(); }
+        catch (e) { setErro(e?.message?.replace(/^.*?:\s*/, '') || 'Não foi possível confirmar.'); }
+        finally { setOcupado(false); }
+    };
+    return (
+        <Dialog open={open} onClose={ocupado ? undefined : onClose} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 3 } }}>
+            <DialogTitle sx={{ fontWeight: 800 }}>{titulo}</DialogTitle>
+            <DialogContent>
+                {descricao && <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{descricao}</Typography>}
+                <TextField fullWidth autoFocus type="password" label="Sua senha" value={senha} onChange={(e) => { setSenha(e.target.value); setErro(''); }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmar(); } }} error={Boolean(erro)} helperText={erro || ' '} autoComplete="current-password" />
+            </DialogContent>
+            <DialogActions sx={{ p: 2, pt: 0 }}>
+                <Button onClick={onClose} disabled={ocupado} sx={{ textTransform: 'none' }}>Cancelar</Button>
+                <Button variant="contained" onClick={confirmar} disabled={ocupado || !senha} startIcon={ocupado ? <CircularProgress size={14} color="inherit" /> : null} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 800 }}>{rotuloBotao}</Button>
+            </DialogActions>
         </Dialog>
     );
 }

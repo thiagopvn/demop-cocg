@@ -59,7 +59,7 @@ export function CardCautela({ msg, euId, ocupado, onAssinar, onResponderTransfer
                 )}
                 {ehTransf && c.status === 'pendente' && souDestinatario && (
                     <Box sx={{ display: 'flex', gap: 1, mt: 1.25, flexWrap: 'wrap' }}>
-                        <Button size="small" variant="contained" color="success" startIcon={ocupado ? <CircularProgress size={14} color="inherit" /> : <CheckCircle />} disabled={ocupado} onClick={() => onResponderTransferencia?.(msg, true)} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 800 }}>Aceitar e assinar</Button>
+                        <Button size="small" variant="contained" color="success" startIcon={ocupado ? <CircularProgress size={14} color="inherit" /> : <CheckCircle />} disabled={ocupado} onClick={() => onResponderTransferencia?.(msg, true)} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 800 }}>Aceitar e assinar (senha)</Button>
                         <Button size="small" variant="outlined" color="error" startIcon={<Cancel />} disabled={ocupado} onClick={() => onResponderTransferencia?.(msg, false)} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>Recusar</Button>
                     </Box>
                 )}

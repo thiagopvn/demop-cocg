@@ -83,8 +83,14 @@ export async function callEnviarAviso(texto) {
   return result.data;
 }
 
-export async function callResponderTransferencia(transferenciaId, aceitar) {
+export async function callResponderTransferencia(transferenciaId, aceitar, senha) {
   const fn = getCallable('responderTransferencia');
-  const result = await fn({ transferenciaId, aceitar });
+  const result = await fn({ transferenciaId, aceitar, senha: senha || null });
+  return result.data;
+}
+
+export async function callSolicitarTransferencia({ movimentacaoId, para, senha }) {
+  const fn = getCallable('solicitarTransferencia');
+  const result = await fn({ movimentacaoId, para, senha });
   return result.data;
 }

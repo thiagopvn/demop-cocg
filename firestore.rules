@@ -232,7 +232,10 @@ service cloud.firestore {
       return meuId() in get(/databases/$(database)/documents/conversas/$(convId)).data.participantes;
     }
     match /conversas/{convId} {
-      allow read: if isAuth() && (isAdminGeral() || meuId() in resource.data.participantes);
+      // O id é `a_b` (ids ordenados): permite ler pelo id mesmo antes da conversa existir (abrir conversa nova).
+      allow read: if isAuth() && (isAdminGeral()
+        || (resource != null && meuId() in resource.data.participantes)
+        || meuId() in convId.split('_'));
       allow create: if isAuth()
         && request.resource.data.participantes.size() == 2
         && meuId() in request.resource.data.participantes
@@ -267,16 +270,12 @@ service cloud.firestore {
       allow delete: if isAuth() && (isAdminGeral() || meuId() in resource.data.usuarios);
     }
 
-    // ============= TRANSFERÊNCIAS DE CAUTELA (entre amigos, pelo chat) =============
-    // Criada por quem tem a cautela; aceita/recusada pela Cloud Function responderTransferencia.
+    // ============= TRANSFERÊNCIAS DE CAUTELA (pelo chat) =============
+    // Criada pela Cloud Function solicitarTransferencia (confere a senha de quem envia);
+    // aceita/recusada pela Cloud Function responderTransferencia (quem recebe assina com a senha).
     match /transferencias/{docId} {
       allow read: if isAuth() && (isAdminGeral() || resource.data.de == meuId() || resource.data.para == meuId());
-      allow create: if isAuth()
-        && request.resource.data.de == meuId()
-        && request.resource.data.status == 'pendente'
-        && saoAmigos(meuId(), request.resource.data.para)
-        && get(/databases/$(database)/documents/movimentacoes/$(request.resource.data.movimentacaoId)).data.user == meuId()
-        && get(/databases/$(database)/documents/movimentacoes/$(request.resource.data.movimentacaoId)).data.status == 'cautelado';
+      allow create: if false;
       // Quem enviou pode cancelar enquanto pendente
       allow update: if isAuth() && resource.data.de == meuId() && resource.data.status == 'pendente'
         && request.resource.data.status == 'cancelada'

@@ -11,10 +11,10 @@ import PrivateRoute from '../../contexts/PrivateRoute';
 import useCurrentUser from '../../hooks/useCurrentUser';
 import UserAvatar, { ROLE_LABELS } from '../../components/UserAvatar';
 import { Bolha, fmtDia, fmtHora } from '../../components/chat/Bolhas';
-import { DialogoContatos, DialogoAviso, DialogoEscolherCautela } from '../../components/chat/Dialogos';
+import { DialogoContatos, DialogoAviso, DialogoEscolherCautela, DialogoSenha } from '../../components/chat/Dialogos';
 import {
     escutarConversas, escutarMensagens, escutarAmizades, escutarPresencaOnline, abrirConversa, enviarMensagem, marcarConversaLida,
-    pedirAmizade, aceitarAmizade, desfazerAmizade, cardDeCautela, textoCobranca, solicitarTransferencia, cancelarTransferencia, idPar,
+    pedirAmizade, aceitarAmizade, desfazerAmizade, cardDeCautela, textoCobranca, solicitarTransferencia, cancelarTransferencia, idPar, podeTransferirPara,
 } from '../../services/chatService';
 import { estaOnline } from '../../services/presencaService';
 import { nomeComPosto } from '../../hooks/useListasMilitares';
@@ -60,6 +60,7 @@ export default function Mensagens() {
     const [dialogo, setDialogo] = useState(null); // 'contatos' | 'aviso' | 'assinatura' | 'devolucao' | 'transferencia'
     const [menuMais, setMenuMais] = useState(null);
     const [menuAcoes, setMenuAcoes] = useState(null);
+    const [pedirSenha, setPedirSenha] = useState(null); // { tipo: 'transferir' | 'aceitar', cautela | msg }
     const [aviso, setAviso] = useState({ open: false, msg: '', sev: 'info' });
     const [erroPermissao, setErroPermissao] = useState('');
     const [pushEstado, setPushEstado] = useState(pushPermissao());
@@ -159,9 +160,11 @@ export default function Mensagens() {
         notificar('Cobrança enviada.', 'success');
     };
 
-    const transferir = async (m) => {
-        try { await solicitarTransferencia({ eu, amigo: outro, cautela: m, conversaId: ativa }); notificar('Pedido de transferência enviado. Aguarde o aceite.', 'success'); }
-        catch (e) { notificar(e?.message || 'Não foi possível pedir a transferência.', 'error'); }
+    // Transferir: escolhe a cautela e confirma com a senha (a Cloud Function confere)
+    const transferir = async (m) => { setPedirSenha({ tipo: 'transferir', cautela: m }); };
+    const confirmarTransferencia = async (senha) => {
+        await solicitarTransferencia({ amigo: outro, cautela: pedirSenha.cautela, senha });
+        notificar('Pedido de transferência enviado. Aguarde o aceite.', 'success');
     };
 
     const assinarPeloCard = async (msg) => {
@@ -175,11 +178,17 @@ export default function Mensagens() {
         finally { setOcupadoCard(false); }
     };
 
+    // Aceitar = assinar com a senha; recusar não pede senha
     const responderTransferencia = async (msg, aceitar) => {
+        if (aceitar) { setPedirSenha({ tipo: 'aceitar', msg }); return; }
         setOcupadoCard(true);
-        try { await callResponderTransferencia(msg.card.transferenciaId, aceitar); notificar(aceitar ? 'Transferência aceita. A cautela agora está no seu nome.' : 'Transferência recusada.', aceitar ? 'success' : 'info'); }
+        try { await callResponderTransferencia(msg.card.transferenciaId, false); notificar('Transferência recusada.', 'info'); }
         catch (e) { notificar(e?.message || 'Erro ao responder.', 'error'); }
         finally { setOcupadoCard(false); }
+    };
+    const confirmarAceite = async (senha) => {
+        await callResponderTransferencia(pedirSenha.msg.card.transferenciaId, true, senha);
+        notificar('Transferência aceita e assinada. A cautela agora está no seu nome.', 'success');
     };
 
     const cancelarTransf = async (msg) => {
@@ -199,7 +208,7 @@ export default function Mensagens() {
 
     // Render ------------------------------------------------------------------
     const podeCobrar = Boolean(outro) && (['admingeral', 'admin', 'BensPatrimoniais', 'chefe'].includes(eu.role) || outroEhAmigo);
-    const podeTransferir = Boolean(outro) && outroEhAmigo;
+    const podeTransferir = Boolean(outro) && podeTransferirPara({ outroRole: outro?.role, amigos: outroEhAmigo });
     const mostrarLista = !isMobile || !ativa;
     const mostrarChat = !isMobile || Boolean(ativa);
 
@@ -322,7 +331,7 @@ export default function Mensagens() {
                                                     <MenuItem disabled={!podeTransferir} onClick={() => { setMenuAcoes(null); setDialogo('transferencia'); }}><ListItemIcon><SwapHoriz fontSize="small" color="warning" /></ListItemIcon>Transferir minha cautela</MenuItem>
                                                     {!podeTransferir && (
                                                         <Box sx={{ px: 2, pb: 1, maxWidth: 280 }}>
-                                                            <Typography variant="caption" color="text.secondary">A transferência só é possível entre amigos. Envie um pedido de amizade em "+ Nova conversa" › "Adicionar amigo" e aguarde o aceite.</Typography>
+                                                            <Typography variant="caption" color="text.secondary">Você pode transferir para amigos ou para o pessoal do DEMOP (admin, Bens Patrimoniais, admin geral). Para este militar, envie um pedido de amizade em "+ Nova conversa" › "Adicionar amigo".</Typography>
                                                         </Box>
                                                     )}
                                                 </Menu>
@@ -354,6 +363,15 @@ export default function Mensagens() {
                 <DialogoAviso open={dialogo === 'aviso'} onClose={() => setDialogo(null)} onEnviar={enviarAviso} totalDestinatarios={[...usuarios.values()].filter(u => u.ativo !== false && u.id !== euId).length} />
                 <DialogoEscolherCautela open={dialogo === 'assinatura' || dialogo === 'devolucao'} modo={dialogo === 'devolucao' ? 'devolucao' : 'assinatura'} dono={outro} onClose={() => setDialogo(null)} onEscolher={(m) => enviarCobranca(m, dialogo)} />
                 <DialogoEscolherCautela open={dialogo === 'transferencia'} modo="transferencia" dono={{ id: euId, full_name: eu.fullName }} onClose={() => setDialogo(null)} onEscolher={transferir} />
+                <DialogoSenha
+                    open={Boolean(pedirSenha)} onClose={() => setPedirSenha(null)}
+                    titulo={pedirSenha?.tipo === 'aceitar' ? 'Assinar a cautela' : 'Confirmar transferência'}
+                    descricao={pedirSenha?.tipo === 'aceitar'
+                        ? `Ao confirmar com a sua senha, você assina a cautela de ${pedirSenha?.msg?.card?.material_description || 'material'} e passa a ser o responsável por ela.`
+                        : `Confirme com a sua senha a transferência de ${pedirSenha?.cautela?.material_description || 'material'} para ${nomeComPosto(outro) || outro?.username || 'o militar'}.`}
+                    rotuloBotao={pedirSenha?.tipo === 'aceitar' ? 'Assinar e aceitar' : 'Confirmar'}
+                    onConfirmar={pedirSenha?.tipo === 'aceitar' ? confirmarAceite : confirmarTransferencia}
+                />
 
                 <Snackbar open={aviso.open} autoHideDuration={4000} onClose={() => setAviso(a => ({ ...a, open: false }))} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
                     <Alert severity={aviso.sev} variant="filled" onClose={() => setAviso(a => ({ ...a, open: false }))} sx={{ borderRadius: 2 }}>{aviso.msg}</Alert>

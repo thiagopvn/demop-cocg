@@ -25,6 +25,20 @@ async function nomeDe(uid) {
   return { nome: d.full_name || d.username || "Militar", username: d.username || "", rg: d.rg || "", telefone: d.telefone || "", foto: d.foto_url || null, role: d.role || "user" };
 }
 
+const PAPEIS_DEMOP = ["admingeral", "admin", "BensPatrimoniais"];
+
+/** Confere a senha do militar (user_secrets). Lança permission-denied se não bater. */
+async function verificarSenha(uid, senha) {
+  if (!senha) throw new HttpsError("invalid-argument", "Confirme com a sua senha.");
+  const sec = await db.collection("user_secrets").doc(uid).get();
+  if (!sec.exists || String(sec.data().password) !== String(senha)) throw new HttpsError("permission-denied", "Senha incorreta.");
+}
+
+async function saoAmigos(a, b) {
+  const snap = await db.collection("amizades").doc(idPar(a, b)).get();
+  return snap.exists && snap.data().status === "aceita";
+}
+
 function resumoMensagem(m) {
   if (m.tipo === "cobranca") return m.card?.subtipo === "devolucao" ? "Cobrança de devolução" : "Cobrança de assinatura";
   if (m.tipo === "transferencia") return `Transferência de cautela: ${m.card?.material_description || "material"}`;
@@ -142,12 +156,54 @@ exports.enviarAviso = onCall({ region: REGION, timeoutSeconds: 300 }, async (req
 });
 
 // ------------------------------------------------------------
-// Transferência de cautela entre amigos: aceitar (assinando) ou recusar
+// Pedido de transferência de cautela (quem envia confirma com a senha)
+// Destino: amigo (pedido aceito) ou qualquer admin / BensPatrimoniais / admingeral.
+// ------------------------------------------------------------
+exports.solicitarTransferencia = onCall({ region: REGION }, async (request) => {
+  const uid = exigirAuth(request);
+  const { movimentacaoId, para, senha } = request.data || {};
+  if (!movimentacaoId || !para) throw new HttpsError("invalid-argument", "Cautela e destinatário são obrigatórios.");
+  if (para === uid) throw new HttpsError("invalid-argument", "Escolha outro militar.");
+  await verificarSenha(uid, senha);
+
+  const [movSnap, paraSnap] = await Promise.all([db.collection("movimentacoes").doc(movimentacaoId).get(), db.collection("users").doc(para).get()]);
+  if (!movSnap.exists) throw new HttpsError("not-found", "Cautela não encontrada.");
+  if (!paraSnap.exists || paraSnap.data().ativo === false) throw new HttpsError("not-found", "Militar de destino não encontrado ou inativo.");
+  const mov = movSnap.data();
+  if (mov.type !== "cautela" || mov.status !== "cautelado" || mov.user !== uid) throw new HttpsError("failed-precondition", "Só é possível transferir uma cautela sua que esteja em aberto.");
+  if (!mov.signed) throw new HttpsError("failed-precondition", "Assine a cautela antes de transferir.");
+  const passagens = Number(mov.passagens) || 0;
+  if (passagens >= 3) throw new HttpsError("failed-precondition", "Esta cautela já foi transferida 3 vezes. O material precisa ser devolvido ao DEMOP.");
+  const destinoDemop = PAPEIS_DEMOP.includes(paraSnap.data().role);
+  if (!destinoDemop && !(await saoAmigos(uid, para))) throw new HttpsError("permission-denied", "Você só pode transferir para amigos ou para o pessoal do DEMOP.");
+  const pend = await db.collection("transferencias").where("movimentacaoId", "==", movimentacaoId).where("status", "==", "pendente").limit(1).get();
+  if (!pend.empty) throw new HttpsError("already-exists", "Já existe um pedido de transferência pendente para esta cautela.");
+
+  const [eu, ele] = await Promise.all([nomeDe(uid), nomeDe(para)]);
+  const convId = idPar(uid, para);
+  const convRef = db.collection("conversas").doc(convId);
+  const tRef = db.collection("transferencias").doc();
+  const msgRef = convRef.collection("mensagens").doc();
+  const agora = FieldValue.serverTimestamp();
+  const card = { transferenciaId: tRef.id, movimentacaoId, material_description: mov.material_description || "", quantidade: mov.quantity || 0, de: uid, de_nome: eu.nome, para, para_nome: ele.nome, status: "pendente" };
+  const texto = `${eu.nome} quer transferir para você a cautela de ${mov.material_description} (${mov.quantity} un.). Ao aceitar, você assina com a sua senha e passa a ser o responsável pelo material.`;
+  const batch = db.batch();
+  batch.set(msgRef, { de: uid, de_nome: eu.nome, para, texto, tipo: "transferencia", card, criada_em: agora, lida: false });
+  batch.set(convRef, { participantes: [uid, para].sort(), tipo: "direta", criada_em: agora, atualizada_em: agora, ultima: { texto: `Transferência: ${mov.material_description || "cautela"}`, de: uid, em: agora, tipo: "transferencia" }, naoLidas: { [para]: FieldValue.increment(1), [uid]: 0 } }, { merge: true });
+  batch.set(tRef, { movimentacaoId, de: uid, de_nome: eu.nome, para, para_nome: ele.nome, material: mov.material || null, material_description: mov.material_description || "", quantidade: mov.quantity || 0, status: "pendente", criada_em: agora, respondida_em: null, conversaId: convId, mensagemId: msgRef.id, novaMovimentacaoId: null, confirmada_com_senha: true });
+  batch.set(db.collection("audit_logs").doc(), { action: "cautela_transferencia_solicitada", userId: uid, userName: eu.username || eu.nome, targetCollection: "movimentacoes", targetId: movimentacaoId, targetName: mov.material_description || "", details: { para: ele.nome, para_id: para, quantidade: mov.quantity || 0, confirmada_com_senha: true }, timestamp: agora });
+  await batch.commit();
+  return { transferenciaId: tRef.id, conversaId: convId };
+});
+
+// ------------------------------------------------------------
+// Transferência de cautela: aceitar (assinando com a senha) ou recusar
 // ------------------------------------------------------------
 exports.responderTransferencia = onCall({ region: REGION }, async (request) => {
   const uid = exigirAuth(request);
-  const { transferenciaId, aceitar } = request.data || {};
+  const { transferenciaId, aceitar, senha } = request.data || {};
   if (!transferenciaId) throw new HttpsError("invalid-argument", "Transferência não informada.");
+  if (aceitar) await verificarSenha(uid, senha); // aceitar = assinar
 
   const tRef = db.collection("transferencias").doc(transferenciaId);
   const resultado = await db.runTransaction(async (tx) => {
@@ -192,7 +248,8 @@ exports.responderTransferencia = onCall({ region: REGION }, async (request) => {
         status: "cautelado",
         signed: true,
         signed_date: agora,
-        observacoes: `Recebida por transferência de ${quemEnvia.nome} (cautela original ${t.movimentacaoId})`,
+        observacoes: `Recebida por transferência de ${quemEnvia.nome} (cautela original ${t.movimentacaoId}); assinada com senha pelo app`,
+        assinatura_por_senha: true,
         transferido_de: t.de,
         transferido_de_nome: quemEnvia.nome,
         origem_movimentacao: t.movimentacaoId,

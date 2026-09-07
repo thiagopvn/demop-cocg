@@ -109,24 +109,16 @@ export const textoCobranca = (nome, m, subtipo) => {
 
 // ------------------------------------------------------------------ transferência de cautela
 export const PASSAGENS_MAX = 3;
+export const PAPEIS_DEMOP = ['admingeral', 'admin', 'BensPatrimoniais'];
 export const podeTransferirCautela = (m) => Boolean(m) && m.status === 'cautelado' && Boolean(m.signed) && (Number(m.passagens) || 0) < PASSAGENS_MAX;
+/** Para quem posso transferir: amigos ou qualquer militar do DEMOP (admin / Bens / admingeral). */
+export const podeTransferirPara = ({ outroRole, amigos }) => Boolean(amigos) || PAPEIS_DEMOP.includes(outroRole);
 
-export async function solicitarTransferencia({ eu, amigo, cautela, conversaId }) {
+/** Pede a transferência pela Cloud Function (que confere a senha de quem envia e cria o card no chat). */
+export async function solicitarTransferencia({ amigo, cautela, senha }) {
     if (!podeTransferirCautela(cautela)) throw new Error('Só cautelas assinadas e com menos de 3 passagens podem ser transferidas.');
-    // (filtra por 'de' para a consulta ser permitida pelas regras: so vejo transferencias minhas)
-    const pend = await getDocs(query(collection(db, 'transferencias'), where('de', '==', eu.userId), where('movimentacaoId', '==', cautela.id), where('status', '==', 'pendente')));
-    if (!pend.empty) throw new Error('Já existe um pedido de transferência pendente para esta cautela.');
-    const tRef = doc(collection(db, 'transferencias'));
-    const card = { transferenciaId: tRef.id, movimentacaoId: cautela.id, material_description: cautela.material_description || '', quantidade: cautela.quantity || 0, de: eu.userId, de_nome: eu.fullName || eu.username, para: amigo.id, para_nome: amigo.full_name || amigo.username, status: 'pendente' };
-    const texto = `${eu.fullName || eu.username} quer transferir para você a cautela de ${cautela.material_description} (${cautela.quantity} un.). Ao aceitar, você assina e passa a ser o responsável pelo material.`;
-    const mensagemId = await enviarMensagem({ conversaId, de: eu.userId, deNome: eu.fullName || eu.username, para: amigo.id, texto, tipo: 'transferencia', card });
-    await setDoc(tRef, {
-        movimentacaoId: cautela.id, de: eu.userId, de_nome: eu.fullName || eu.username, para: amigo.id, para_nome: amigo.full_name || amigo.username,
-        material: cautela.material || null, material_description: cautela.material_description || '', quantidade: cautela.quantity || 0,
-        status: 'pendente', criada_em: serverTimestamp(), respondida_em: null, conversaId, mensagemId, novaMovimentacaoId: null,
-    });
-    logAudit({ action: 'cautela_transferencia_solicitada', userId: eu.userId, userName: eu.username, targetCollection: 'movimentacoes', targetId: cautela.id, targetName: cautela.material_description, details: { para: amigo.full_name || amigo.username, para_id: amigo.id, quantidade: cautela.quantity || 0 } });
-    return tRef.id;
+    const { callSolicitarTransferencia } = await import('../firebase/functions');
+    return callSolicitarTransferencia({ movimentacaoId: cautela.id, para: amigo.id, senha });
 }
 
 export async function cancelarTransferencia(transferenciaId) {
