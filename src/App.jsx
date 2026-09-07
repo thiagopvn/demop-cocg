@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CircularProgress, Box, Typography } from '@mui/material';
 import './App.css';
 import PrivateRoute from './contexts/PrivateRoute';
@@ -167,6 +167,7 @@ function App() {
               <Usuario />
             </PrivateRoute>
           } />
+          <Route path='*' element={<Navigate to='/home' replace />} />
         </Routes>
       </Suspense>
     </Router>

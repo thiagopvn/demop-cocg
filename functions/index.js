@@ -63,19 +63,27 @@ exports.verifyLogin = onCall({ region: "southamerica-east1" }, async (request) =
       .get();
   }
 
-  if (snap.empty) {
-    snap = await db
-      .collection("users")
-      .where("rg", "==", username)
-      .limit(1)
-      .get();
+  let userDoc = snap.empty ? null : snap.docs[0];
+
+  if (!userDoc) {
+    // Login por RG: pode haver mais de um cadastro com o mesmo RG. Escolhe o que tem a senha informada
+    // (e, entre esses, o ativo); assim ninguém entra na conta errada.
+    const porRg = await db.collection("users").where("rg", "==", username).get();
+    if (porRg.empty) {
+      throw new HttpsError("not-found", "Usuário não encontrado.");
+    }
+    if (porRg.size === 1) {
+      userDoc = porRg.docs[0];
+    } else {
+      const candidatos = [];
+      for (const d of porRg.docs) {
+        const sec = await db.collection("user_secrets").doc(d.id).get();
+        if (sec.exists && String(sec.data().password) === String(password)) candidatos.push(d);
+      }
+      userDoc = candidatos.find((d) => d.data().ativo !== false) || candidatos[0] || porRg.docs[0];
+    }
   }
 
-  if (snap.empty) {
-    throw new HttpsError("not-found", "Usuário não encontrado.");
-  }
-
-  const userDoc = snap.docs[0];
   const userData = userDoc.data();
   const userId = userDoc.id;
 
