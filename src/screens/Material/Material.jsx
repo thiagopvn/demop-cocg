@@ -684,7 +684,7 @@ const Material = () => {
         // Apply stock filter
         if (filterEstoque) {
             if (filterEstoque === 'zerado') {
-                result = result.filter(m => (m.estoque_atual || 0) === 0);
+                result = result.filter(m => (m.estoque_atual || 0) === 0 && (m.estoque_viatura || 0) === 0); // em viatura nao conta como zerado
             } else if (filterEstoque === 'em_estoque') {
                 result = result.filter(m => (m.estoque_atual || 0) > 0);
             }

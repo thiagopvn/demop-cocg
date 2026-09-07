@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { firebaseAuthSignOut } from '../firebase/authSync';
 import brasao from '../assets/brasao.png';
@@ -69,6 +69,11 @@ import UserAvatar, { ROLE_COLORS, ROLE_LABELS } from '../components/UserAvatar';
 import MobileBottomNav, { ALTURA_BARRA } from '../components/navigation/MobileBottomNav';
 import ProfileSheet from '../components/navigation/ProfileSheet';
 import InstallPrompt from '../components/InstallPrompt';
+import ForumOutlined from '@mui/icons-material/ForumOutlined';
+import OnlinePredictionOutlined from '@mui/icons-material/OnlinePredictionOutlined';
+import { iniciarPresenca, encerrarPresenca } from '../services/presencaService';
+import { escutarConversas } from '../services/chatService';
+import { aoReceberPushEmPrimeiroPlano, desativarPushDesteAparelho } from '../services/pushService';
 const ChangePasswordDialog = lazy(() => import('../dialogs/ChangePasswordDialog'));
 
 function MenuContext({ children }) {
@@ -88,12 +93,44 @@ function MenuContext({ children }) {
   const [userName, setUserName] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
   const [maintenanceBadge, setMaintenanceBadge] = useState({ overdue: 0, today: 0, total: 0 });
+  const [mensagensBadge, setMensagensBadge] = useState(0);
+  const caminhoAtualRef = useRef(location.pathname);
+  caminhoAtualRef.current = location.pathname;
+
+  // Presença (online / sessões): batimento enquanto o app está aberto
+  useEffect(() => {
+    if (!currentUser.userId || currentUser.loading) return undefined;
+    return iniciarPresenca(currentUser);
+  }, [currentUser.userId, currentUser.loading, currentUser.fullName, currentUser.role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mensagens não lidas (badge no menu, na barra inferior e no título da aba)
+  useEffect(() => {
+    if (!currentUser.userId) return undefined;
+    const meuId = currentUser.userId;
+    return escutarConversas(meuId, (lista) => setMensagensBadge(lista.reduce((t, c) => t + (c.naoLidas?.[meuId] || 0), 0)), () => {});
+  }, [currentUser.userId]);
+  useEffect(() => {
+    document.title = mensagensBadge > 0 ? `(${mensagensBadge}) DEMOP GOCG` : 'DEMOP GOCG';
+  }, [mensagensBadge]);
+
+  // Push recebido com o app aberto: mostra um aviso rápido (fora da tela de mensagens)
+  useEffect(() => {
+    let parar = null;
+    aoReceberPushEmPrimeiroPlano((payload) => {
+      if (caminhoAtualRef.current === '/mensagens') return;
+      const n = payload?.notification || {};
+      setSnackbar({ open: true, message: `${n.title ? `${n.title}: ` : ''}${n.body || 'Nova mensagem'}`, severity: 'info' });
+    }).then((f) => { parar = f; });
+    return () => { if (typeof parar === 'function') parar(); };
+  }, []);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const allMenuItems = [
     { icon: Dashboard, label: 'Dashboard', path: '/home', id: 0, roles: ['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: ForumOutlined, label: 'Mensagens', path: '/mensagens', id: 15, roles: ['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: AssessmentOutlined, label: 'Atividades', path: '/atividades', id: 11, roles: ['admingeral'] },
+    { icon: OnlinePredictionOutlined, label: 'Acessos', path: '/acessos', id: 16, roles: ['admingeral'] },
     { icon: SwapHorizOutlined, label: 'Movimentação', path: '/movimentacoes', id: 5, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
@@ -192,6 +229,8 @@ function MenuContext({ children }) {
   }, [location.pathname]);
 
   const handleLogout = async () => {
+    await encerrarPresenca(currentUser.userId);
+    await desativarPushDesteAparelho(currentUser.userId);
     await firebaseAuthSignOut();
     localStorage.removeItem('token');
     navigate('/');
@@ -495,7 +534,11 @@ function MenuContext({ children }) {
                       color: isActive ? '#ff6b35' : 'rgba(255,255,255,0.7)',
                     }}
                   >
-                    {item.path === '/manutencao' && maintenanceBadge.total > 0 ? (
+                    {item.path === '/mensagens' && mensagensBadge > 0 ? (
+                      <Badge badgeContent={mensagensBadge} color="secondary" max={99} sx={{ '& .MuiBadge-badge': { fontSize: '0.65rem', height: 16, minWidth: 16, padding: '0 4px', fontWeight: 700 } }}>
+                        <Icon sx={{ fontSize: 22 }} />
+                      </Badge>
+                    ) : item.path === '/manutencao' && maintenanceBadge.total > 0 ? (
                       <Badge
                         badgeContent={maintenanceBadge.total}
                         color={maintenanceBadge.overdue > 0 ? 'error' : 'warning'}
@@ -661,6 +704,11 @@ function MenuContext({ children }) {
             DEMOP
           </Typography>
         </Box>
+        <IconButton onClick={() => handleNavigation('/mensagens')} aria-label="Mensagens" sx={{ color: location.pathname === '/mensagens' ? 'primary.main' : 'text.secondary' }}>
+          <Badge badgeContent={mensagensBadge} color="secondary" max={99} invisible={!mensagensBadge} sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', height: 16, minWidth: 16, padding: '0 4px', fontWeight: 700 } }}>
+            <ForumOutlined />
+          </Badge>
+        </IconButton>
         {podeVerManutencao ? (
           <IconButton
             onClick={() => handleNavigation('/manutencao')}
@@ -934,6 +982,7 @@ function MenuContext({ children }) {
         activePath={location.pathname}
         onNavigate={handleNavigation}
         maintenanceBadge={maintenanceBadge}
+        mensagensBadge={mensagensBadge}
         mode={mode}
         toggleMode={toggleMode}
       />

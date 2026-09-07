@@ -76,3 +76,15 @@ export async function callGetCalendarMaintenances(year, month) {
   const result = await fn({ year, month });
   return result.data;
 }
+
+export async function callEnviarAviso(texto) {
+  const fn = getCallable('enviarAviso');
+  const result = await fn({ texto });
+  return result.data;
+}
+
+export async function callResponderTransferencia(transferenciaId, aceitar) {
+  const fn = getCallable('responderTransferencia');
+  const result = await fn({ transferenciaId, aceitar });
+  return result.data;
+}

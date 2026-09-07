@@ -78,3 +78,7 @@ export const materialLocaisCollection = collection(db, 'material_locais');
 // ------------------------------------
 
 export default db;
+// Somente em localhost (scripts de manutencao/testes): expoe o SDK do Firestore para o Playwright.
+if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    import('firebase/firestore').then((fs) => { window.__demopFs = { db, fs }; });
+}

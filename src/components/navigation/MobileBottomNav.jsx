@@ -3,7 +3,7 @@ import { Box, ButtonBase, Typography, Badge, SwipeableDrawer, alpha, useTheme, I
 import { GridViewRounded, Close, DarkModeOutlined, LightModeOutlined } from '@mui/icons-material';
 
 /** Ordem de prioridade para escolher o que fica na barra inferior. */
-const PRIORIDADE = ['/home', '/movimentacoes', '/material', '/devolucoes', '/bens-patrimoniais', '/manutencao', '/viaturas', '/locais', '/search', '/perfil'];
+const PRIORIDADE = ['/home', '/mensagens', '/movimentacoes', '/material', '/devolucoes', '/bens-patrimoniais', '/manutencao', '/viaturas', '/locais', '/search', '/perfil'];
 const MAX_NA_BARRA = 4;
 
 export const ALTURA_BARRA = 64;
@@ -69,7 +69,7 @@ function Tab({ icon, label, active, onClick, badge, badgeColor, cor }) {
  * Barra inferior estilo app social + folha "Mais" com o restante do menu.
  * Recebe os itens ja filtrados por papel.
  */
-export default function MobileBottomNav({ items, activePath, onNavigate, maintenanceBadge, mode, toggleMode }) {
+export default function MobileBottomNav({ items, activePath, onNavigate, maintenanceBadge, mensagensBadge = 0, mode, toggleMode }) {
     const theme = useTheme();
     const [maisOpen, setMaisOpen] = useState(false);
     const isDark = theme.palette.mode === 'dark';
@@ -86,7 +86,7 @@ export default function MobileBottomNav({ items, activePath, onNavigate, mainten
     }, [items]);
 
     const maisAtivo = noMais.some(i => i.path === activePath);
-    const badgeDe = (item) => (item.path === '/manutencao' && maintenanceBadge?.total > 0 ? maintenanceBadge.total : 0);
+    const badgeDe = (item) => (item.path === '/manutencao' && maintenanceBadge?.total > 0 ? maintenanceBadge.total : item.path === '/mensagens' ? (mensagensBadge || 0) : 0);
     const badgeCor = maintenanceBadge?.overdue > 0 ? 'error' : 'warning';
     const badgeNoMais = noMais.reduce((acc, i) => acc + badgeDe(i), 0);
 
@@ -129,7 +129,7 @@ export default function MobileBottomNav({ items, activePath, onNavigate, mainten
                         active={activePath === item.path}
                         onClick={() => navegar(item.path)}
                         badge={badgeDe(item)}
-                        badgeColor={badgeCor}
+                        badgeColor={item.path === '/mensagens' ? 'secondary' : badgeCor}
                         cor={cor}
                     />
                 ))}

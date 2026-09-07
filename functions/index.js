@@ -858,3 +858,8 @@ exports.getCalendarMaintenances = onCall({ region: "southamerica-east1" }, async
 
   return { calendarDays, year, month };
 });
+
+// ============================================================
+// Chat interno, avisos, transferencia de cautela, presenca e push
+// ============================================================
+Object.assign(exports, require("./chat"));

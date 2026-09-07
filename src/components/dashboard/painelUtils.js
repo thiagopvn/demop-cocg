@@ -32,6 +32,7 @@ export const STATUS_MOV = {
     descartado: 'Saída concluída',
     emReparo: 'Em reparo',
     devolvidaDeReparo: 'Voltou do reparo',
+    transferido: 'Transferida',
 };
 
 /* ------------------------------------------------------------------ */
@@ -331,7 +332,7 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         ? new Set([...manutencoes.filter(x => manNaSituacao(x, filtros.situacaoMan, false)), ...historico.filter(h => manNaSituacao(h, filtros.situacaoMan, true))].map(x => x.materialId))
         : null;
     const bateKpiMaterial = (m) => {
-        if (filtros.zerado && !((Number(m.estoque_atual) || 0) === 0 && getTotalUnidades(m) > 0)) return false;
+        if (filtros.zerado && !((Number(m.estoque_atual) || 0) === 0 && (Number(m.estoque_viatura) || 0) === 0 && getTotalUnidades(m) > 0)) return false;
         if (filtros.comLocal || filtros.semLocal) {
             const alocs = alocacoesPorMaterial?.get(m.id) || [];
             if (filtros.comLocal && alocs.reduce((t, a) => t + (Number(a.quantidade) || 0), 0) <= 0) return false;
@@ -503,7 +504,9 @@ export function calcularPainel({ dados, materials, locais, alocacoesPorMaterial,
         }
         return [...mapa.values()].sort((a, b) => (b.disponivel + b.viatura + b.inoperante) - (a.disponivel + a.viatura + a.inoperante)).slice(0, 12);
     })();
-    const estoqueZerado = materiaisFiltrados.filter(m => (Number(m.estoque_atual) || 0) === 0 && getTotalUnidades(m) > 0);
+    // Zerado = nada disponivel no DEMOP e nada em viatura (material embarcado nao conta como zerado)
+    const ehZerado = (m) => (Number(m.estoque_atual) || 0) === 0 && (Number(m.estoque_viatura) || 0) === 0 && getTotalUnidades(m) > 0;
+    const estoqueZerado = materiaisFiltrados.filter(ehZerado);
     const semLocal = materiaisFiltrados
         .map(m => ({ m, r: resumirLocalizacao(m, alocacoesPorMaterial?.get(m.id) || []) }))
         .filter(x => x.r.semLocal > 0)

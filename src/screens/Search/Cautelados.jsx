@@ -603,6 +603,8 @@ export default function Cautelados() {
             return { color: 'warning', icon: <AssignmentIcon sx={{ fontSize: 14 }} /> };
           case 'descartado':
             return { color: 'secondary', icon: <OutIcon sx={{ fontSize: 14 }} /> };
+          case 'transferido':
+            return { color: 'info', icon: <AssignmentIcon sx={{ fontSize: 14 }} />, label: `Transferida${row.transferido_para_nome ? ` p/ ${row.transferido_para_nome}` : ''}` };
           default:
             return { color: 'default', icon: null };
         }
@@ -613,7 +615,7 @@ export default function Cautelados() {
       return (
         <Chip
           icon={config.icon}
-          label={row.status || '-'}
+          label={config.label || row.status || '-'}
           size="small"
           color={config.color}
           variant="filled"

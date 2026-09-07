@@ -241,6 +241,33 @@ export function descreverLog(log) {
         case 'perfil_senha_change':
             out.frase = d.forcada ? 'Definiu a nova senha no primeiro acesso' : 'Alterou a própria senha';
             break;
+        case 'mensagem_aviso':
+            out.frase = `Enviou aviso para ${alvo}${d.texto ? `: "${String(d.texto).slice(0, 120)}"` : ''}`;
+            break;
+        case 'movimentacao_cobranca':
+            out.frase = `Cobrou ${d.tipo === 'devolucao' ? 'a devolução' : 'a assinatura'} de ${alvo} de ${d.militar || '—'} pelo chat`;
+            out.envolvido = d.militar || null;
+            break;
+        case 'amizade_solicitada':
+            out.frase = `Pediu amizade a ${alvo}`;
+            out.envolvido = alvo || null;
+            break;
+        case 'amizade_aceita':
+            out.frase = `Aceitou o pedido de amizade de ${alvo}`;
+            out.envolvido = alvo || null;
+            break;
+        case 'cautela_transferencia_solicitada':
+            out.frase = `Pediu para transferir a cautela de ${alvo}${d.quantidade ? ` (${un(d.quantidade)})` : ''} para ${d.para || '—'}`;
+            out.envolvido = d.para || null;
+            break;
+        case 'cautela_transferida':
+            out.frase = `Aceitou e assinou a transferência de ${alvo}${d.quantidade ? ` (${un(d.quantidade)})` : ''} vinda de ${d.de || '—'}`;
+            out.envolvido = d.de || null;
+            break;
+        case 'cautela_transferencia_recusada':
+            out.frase = `Recusou a transferência de ${alvo} vinda de ${d.de || '—'}`;
+            out.envolvido = d.de || null;
+            break;
         case 'tarefa_create':
             out.frase = `Criou a missão "${alvo}"${d.priority ? ` (prioridade ${d.priority})` : ''}`;
             break;

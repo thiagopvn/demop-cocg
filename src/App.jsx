@@ -32,6 +32,8 @@ const Categoria = lazyRetry(() => import('./screens/Categoria/Categoria'));
 const Movimentacoes = lazyRetry(() => import('./screens/Movimentacoes/Movimentacoes'));
 const Material = lazyRetry(() => import('./screens/Material/Material'));
 const Usuario = lazyRetry(() => import('./screens/Usuario/Usuario'));
+const Mensagens = lazyRetry(() => import('./screens/Mensagens/Mensagens'));
+const Acessos = lazyRetry(() => import('./screens/Acessos/Acessos'));
 const Viaturas = lazyRetry(() => import('./screens/Viaturas/Viaturas'));
 const Home = lazyRetry(() => import('./screens/Home/Home'));
 const Devolucoes = lazyRetry(() => import('./screens/Devolucoes/Devolucoes'));
@@ -158,6 +160,8 @@ function App() {
           } />
 
           {/* Rota restrita apenas a admin */}
+          <Route path='/mensagens' element={<Mensagens />} />
+          <Route path='/acessos' element={<Acessos />} />
           <Route path='/usuario' element={
             <PrivateRoute allowedRoles={['admin', 'admingeral', 'BensPatrimoniais']}>
               <Usuario />

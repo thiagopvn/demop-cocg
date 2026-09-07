@@ -199,5 +199,94 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['progress', 'status', 'completedAt', 'completedBy', 'completedByName']));
     }
+    // ============= PRESENÇA E SESSÕES (quem está online, entradas e saídas) =============
+    function meuId() { return request.auth.token.firestoreId; }
+    // presenca/{userId}: o próprio militar mantém; todos leem (bolinha online no chat).
+    match /presenca/{userId} {
+      allow read: if isAuth();
+      allow create, update: if isAuth() && meuId() == userId;
+      allow delete: if isAdminGeral();
+    }
+    // sessoes: histórico de login/logout. Só o admingeral lê; o militar cria/atualiza a própria.
+    match /sessoes/{docId} {
+      allow read: if isAdminGeral();
+      allow create: if isAuth() && request.resource.data.userId == meuId();
+      allow update: if isAuth() && resource.data.userId == meuId();
+      allow delete: if isAdminGeral();
+    }
+
+    // ============= MENSAGENS (chat interno) =============
+    function idPar(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
+    function saoAmigos(a, b) {
+      return exists(/databases/$(database)/documents/amizades/$(idPar(a, b)))
+        && get(/databases/$(database)/documents/amizades/$(idPar(a, b))).data.status == 'aceita';
+    }
+    function papelDe(uid) { return get(/databases/$(database)/documents/users/$(uid)).data.role; }
+    function outroParticipante(lista) { return lista[0] == meuId() ? lista[1] : lista[0]; }
+    // Quem pode abrir conversa com quem: admingeral/admin com qualquer um;
+    // demais papéis só com o admingeral ou com um amigo (pedido aceito).
+    function podeIniciarConversa(outro) {
+      return isAdmin() || papelDe(outro) == 'admingeral' || saoAmigos(meuId(), outro);
+    }
+    function participaDaConversa(convId) {
+      return meuId() in get(/databases/$(database)/documents/conversas/$(convId)).data.participantes;
+    }
+    match /conversas/{convId} {
+      allow read: if isAuth() && (isAdminGeral() || meuId() in resource.data.participantes);
+      allow create: if isAuth()
+        && request.resource.data.participantes.size() == 2
+        && meuId() in request.resource.data.participantes
+        && convId == idPar(request.resource.data.participantes[0], request.resource.data.participantes[1])
+        && podeIniciarConversa(outroParticipante(request.resource.data.participantes));
+      allow update: if isAuth() && meuId() in resource.data.participantes
+        && request.resource.data.participantes == resource.data.participantes;
+      allow delete: if isAdminGeral();
+
+      match /mensagens/{msgId} {
+        allow read: if isAuth() && (isAdminGeral() || participaDaConversa(convId));
+        allow create: if isAuth() && participaDaConversa(convId)
+          && request.resource.data.de == meuId();
+        // Só o destinatário marca como lida / responde um card (status)
+        allow update: if isAuth() && participaDaConversa(convId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lida', 'lida_em', 'card']);
+        allow delete: if isAdminGeral();
+      }
+    }
+
+    // ============= AMIZADES (pedido aceito pelo outro) =============
+    match /amizades/{docId} {
+      allow read: if isAuth() && (isAdminGeral() || meuId() in resource.data.usuarios);
+      allow create: if isAuth()
+        && request.resource.data.usuarios.size() == 2
+        && request.resource.data.solicitante == meuId()
+        && meuId() in request.resource.data.usuarios
+        && docId == idPar(request.resource.data.usuarios[0], request.resource.data.usuarios[1])
+        && request.resource.data.status == 'pendente';
+      allow update: if isAuth() && resource.data.destinatario == meuId()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'aceita_em']);
+      allow delete: if isAuth() && (isAdminGeral() || meuId() in resource.data.usuarios);
+    }
+
+    // ============= TRANSFERÊNCIAS DE CAUTELA (entre amigos, pelo chat) =============
+    // Criada por quem tem a cautela; aceita/recusada pela Cloud Function responderTransferencia.
+    match /transferencias/{docId} {
+      allow read: if isAuth() && (isAdminGeral() || resource.data.de == meuId() || resource.data.para == meuId());
+      allow create: if isAuth()
+        && request.resource.data.de == meuId()
+        && request.resource.data.status == 'pendente'
+        && saoAmigos(meuId(), request.resource.data.para)
+        && get(/databases/$(database)/documents/movimentacoes/$(request.resource.data.movimentacaoId)).data.user == meuId()
+        && get(/databases/$(database)/documents/movimentacoes/$(request.resource.data.movimentacaoId)).data.status == 'cautelado';
+      // Quem enviou pode cancelar enquanto pendente
+      allow update: if isAuth() && resource.data.de == meuId() && resource.data.status == 'pendente'
+        && request.resource.data.status == 'cancelada'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondida_em']);
+      allow delete: if isAdminGeral();
+    }
+
+    // ============= TOKENS DE PUSH (notificações no celular) =============
+    match /fcm_tokens/{userId} {
+      allow read, create, update, delete: if isAuth() && meuId() == userId;
+    }
   }
 }

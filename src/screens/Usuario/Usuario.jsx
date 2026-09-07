@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   IconButton, Table, TableHead, TableBody, TableRow, TableCell, Typography, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, InputAdornment, Chip, Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Paper, Drawer, Skeleton, Snackbar, Alert,
-  FormControl, InputLabel, Select, alpha, useTheme, useMediaQuery,
+  FormControl, InputLabel, Select, alpha, useTheme, useMediaQuery, Badge,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -36,6 +36,22 @@ import PrivateRoute from "../../contexts/PrivateRoute";
 import { useDebounce } from "../../hooks/useDebounce";
 import UserAvatar, { ROLE_COLORS, ROLE_LABELS } from "../../components/UserAvatar";
 import { compressAvatar, uploadImageFile, deleteStorageFile } from "../../utils/imageUpload";
+import { useNavigate } from "react-router-dom";
+import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import DrawIcon from "@mui/icons-material/Draw";
+import { estaOnline } from "../../services/presencaService";
+
+const PontoOnline = ({ online, children }) => (
+  <Badge overlap="circular" anchorOrigin={{ vertical: "bottom", horizontal: "right" }} variant="dot" invisible={!online} sx={{ "& .MuiBadge-badge": { bgcolor: "#22c55e", boxShadow: "0 0 0 2px #fff", width: 11, height: 11, borderRadius: "50%" } }}>
+    {children}
+  </Badge>
+);
+const fmtAcesso = (p) => {
+  if (!p) return "Nunca acessou";
+  if (estaOnline(p)) return "Online agora";
+  const d = (p.ultimo_logout || p.ultima_atividade || p.ultimo_login)?.toDate?.();
+  return d ? `Último acesso ${d.toLocaleDateString("pt-BR")} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "Sem registro";
+};
 
 const ORDEM_PAPEIS = ["admingeral", "admin", "chefe", "BensPatrimoniais", "user"];
 
@@ -70,6 +86,12 @@ export default function Usuario() {
   const [visiveis, setVisiveis] = useState(60);
   const [detalheId, setDetalheId] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
+  const navigate = useNavigate();
+  const [presencas, setPresencas] = useState(new Map());
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "presenca"), (snap) => { const m = new Map(); snap.forEach((d) => m.set(d.id, d.data())); setPresencas(m); }, () => {});
+    return () => unsub();
+  }, []);
   const notificar = (message, severity = "info") => setSnackbar({ open: true, message, severity });
 
   const handleMenuOpen = (event, user) => {
@@ -629,7 +651,7 @@ export default function Usuario() {
                   onClick={() => abrirDetalhe(u)}
                   sx={{ p: 1.5, borderRadius: 2.5, border: `1px solid ${alpha(theme.palette.divider, 1)}`, display: "flex", alignItems: "center", gap: 1.25, opacity: u.ativo === false ? 0.6 : 1, cursor: "pointer", "&:active": { transform: "scale(0.99)" } }}
                 >
-                  <UserAvatar src={u.foto_url} name={u.full_name || u.username} role={u.role} size={44} />
+                  <PontoOnline online={estaOnline(presencas.get(u.id))}><UserAvatar src={u.foto_url} name={u.full_name || u.username} role={u.role} size={44} /></PontoOnline>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>{u.full_name || u.username}</Typography>
                     <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>RG {u.rg || u.username || "—"}{u.OBM ? ` · ${u.OBM}` : ""}</Typography>
@@ -661,7 +683,7 @@ export default function Usuario() {
                     <TableRow key={u.id} hover onClick={() => abrirDetalhe(u)} sx={{ cursor: "pointer", opacity: u.ativo === false ? 0.6 : 1, "& td": { py: 1 } }}>
                       <TableCell>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                          <UserAvatar src={u.foto_url} name={u.full_name || u.username} role={u.role} size={36} />
+                          <PontoOnline online={estaOnline(presencas.get(u.id))}><UserAvatar src={u.foto_url} name={u.full_name || u.username} role={u.role} size={36} /></PontoOnline>
                           <Box sx={{ minWidth: 0 }}>
                             <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>{u.full_name || u.username}</Typography>
                             <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>@{u.username}</Typography>
@@ -676,7 +698,7 @@ export default function Usuario() {
                         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block", maxWidth: 200 }}>{u.email || ""}</Typography>
                       </TableCell>
                       <TableCell>{statusChip(u)}</TableCell>
-                      <TableCell><Typography variant="caption" color="text.secondary">{formatarData(u.created_at)}</Typography></TableCell>
+                      <TableCell><Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{formatarData(u.created_at)}</Typography><Typography variant="caption" sx={{ color: estaOnline(presencas.get(u.id)) ? "success.main" : "text.disabled", fontWeight: estaOnline(presencas.get(u.id)) ? 700 : 400 }}>{fmtAcesso(presencas.get(u.id))}</Typography></TableCell>
                       {isAdmin && (
                         <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                           <Tooltip title="Editar"><IconButton size="small" color="primary" onClick={() => handleOpenEditDialog(u)}><EditIcon fontSize="small" /></IconButton></Tooltip>
@@ -717,11 +739,11 @@ export default function Usuario() {
                 <IconButton onClick={fecharDetalhe} size="small" sx={{ position: "absolute", top: 10, right: 10, color: "#fff", bgcolor: alpha("#fff", 0.12) }}><ClearIcon fontSize="small" /></IconButton>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <Box sx={{ p: "3px", borderRadius: "50%", background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, rgba(255,255,255,0.6) 100%)` }}>
-                    <UserAvatar src={detalhe.foto_url} name={detalhe.full_name || detalhe.username} role={detalhe.role} size={72} sx={{ border: "3px solid #0f2440" }} />
+                    <PontoOnline online={estaOnline(presencas.get(detalhe.id))}><UserAvatar src={detalhe.foto_url} name={detalhe.full_name || detalhe.username} role={detalhe.role} size={72} sx={{ border: "3px solid #0f2440" }} /></PontoOnline>
                   </Box>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography sx={{ fontWeight: 800, fontSize: "1.15rem", lineHeight: 1.2 }}>{detalhe.full_name || detalhe.username}</Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.75, display: "block" }}>@{detalhe.username}</Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.75, display: "block" }}>@{detalhe.username} · {fmtAcesso(presencas.get(detalhe.id))}</Typography>
                     <Box sx={{ display: "flex", gap: 0.5, mt: 0.75, flexWrap: "wrap" }}>
                       <Chip label={ROLE_LABELS[detalhe.role] || detalhe.role} size="small" sx={{ height: 22, fontSize: "0.68rem", fontWeight: 700, bgcolor: alpha(ROLE_COLORS[detalhe.role] || ROLE_COLORS.user, 0.3), color: "#fff", border: `1px solid ${alpha(ROLE_COLORS[detalhe.role] || ROLE_COLORS.user, 0.8)}` }} />
                       <Chip label={detalhe.ativo === false ? "Inativo" : "Ativo"} size="small" sx={{ height: 22, fontSize: "0.68rem", fontWeight: 700, bgcolor: alpha(detalhe.ativo === false ? theme.palette.error.main : theme.palette.success.main, 0.35), color: "#fff" }} />
@@ -751,6 +773,12 @@ export default function Usuario() {
                   </Button>
                 )}
               </Box>
+              {detalhe.id !== userId && (
+                <Box sx={{ px: 2, pt: 2, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+                  <Button variant="contained" color="secondary" startIcon={<ForumOutlinedIcon />} onClick={() => navigate(`/mensagens?com=${detalhe.id}`)} sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}>Mensagem</Button>
+                  <Button variant="outlined" color="secondary" startIcon={<DrawIcon />} onClick={() => navigate(`/mensagens?com=${detalhe.id}&cobrar=assinatura`)} sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}>Cobrar assinatura</Button>
+                </Box>
+              )}
               {isAdmin && (
                 <Box sx={{ p: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 1)}`, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                   <Button variant="contained" startIcon={<EditIcon />} onClick={() => { handleOpenEditDialog(detalhe); fecharDetalhe(); }} sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}>Editar</Button>
