@@ -23,12 +23,35 @@ export const MAINTENANCE_STATUS_COLORS = {
 export const getMaintenanceStatusLabel = (status) => MAINTENANCE_STATUS_LABELS[status] || 'Operante';
 export const getMaintenanceStatusColor = (status) => MAINTENANCE_STATUS_COLORS[status] || 'default';
 
-/** Total de unidades do material (cai para estoque_atual quando estoque_total nao existe). */
+/** Unidades disponiveis no DEMOP + unidades embarcadas em viatura (piso do total). */
+export const getSomaAtualViatura = (material) => {
+    const atual = Math.max(0, Number(material?.estoque_atual) || 0);
+    const viatura = Math.max(0, Number(material?.estoque_viatura) || 0);
+    return atual + viatura;
+};
+
+/**
+ * Total de unidades do material.
+ *
+ * `estoque_total` e a fonte principal, mas nunca pode ser menor que
+ * disponivel + em viatura (as duas parcelas sao unidades fisicas contadas
+ * separadamente). Cadastros antigos ficaram com o total defasado depois de
+ * embarcar material em viatura; aqui o total e "levantado" ate a soma para a
+ * leitura ficar coerente ("2 disponiveis de 4, 2 em viatura"). Quem grava
+ * (MaterialDialog, Movimentacoes, guardar em local) usa este valor como base,
+ * corrigindo o documento aos poucos.
+ */
 export const getTotalUnidades = (material) => {
     const total = Number(material?.estoque_total);
-    if (Number.isFinite(total) && total > 0) return total;
-    const atual = Number(material?.estoque_atual);
-    return Number.isFinite(atual) && atual > 0 ? atual : 0;
+    const cadastrado = Number.isFinite(total) && total > 0 ? total : 0;
+    return Math.max(cadastrado, getSomaAtualViatura(material));
+};
+
+/** true quando o estoque_total gravado esta abaixo de disponivel + em viatura. */
+export const totalEstaDefasado = (material) => {
+    const total = Number(material?.estoque_total);
+    const cadastrado = Number.isFinite(total) && total > 0 ? total : 0;
+    return getSomaAtualViatura(material) > cadastrado;
 };
 
 /**

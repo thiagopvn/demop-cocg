@@ -30,15 +30,19 @@ import {
     Tune,
     ReportProblem,
     Inventory,
+    PlaylistAdd,
+    DirectionsCar,
 } from '@mui/icons-material';
 import {
     getTipoInfo,
     resumirLocalizacao,
-    adicionarNoLocal,
+    guardarNoLocal,
+    calcularEntradaAoGuardar,
     definirQuantidadeNoLocal,
     moverEntreLocais,
 } from '../services/localizacaoService';
 import { TipoLocalIcon } from '../components/locais/LocalChip';
+import QuantidadeField from '../components/QuantidadeField';
 import { descreverInoperanciaPeloLocal } from '../services/inoperanciaService';
 
 /**
@@ -101,19 +105,31 @@ export default function LocalConteudoDialog({
 
     const totalUnidades = linhas.reduce((acc, l) => acc + (Number(l.aloc.quantidade) || 0), 0);
 
+    // Todos os materiais entram na lista — inclusive os que estao so em viatura ou zerados:
+    // guardar acima do que ha sem local sobe o quantitativo (guardarNoLocal).
+    const grupoDe = (resumo) => {
+        if (resumo.semLocal > 0) return 0;
+        if (resumo.unidadesDemop > 0) return 1;
+        return 2;
+    };
+    const GRUPOS = ['Com unidades sem local', 'Já totalmente guardados', 'Sem unidades no DEMOP (só em viatura ou zerado) — guardar atualiza o estoque'];
     const opcoesMateriais = useMemo(() => {
         const jaAqui = new Set(alocacoes.map(a => a.material_id));
         return materials
             .map(m => ({ material: m, resumo: resumirLocalizacao(m, alocacoesPorMaterial?.get(m.id) || []) }))
-            .filter(o => o.resumo.unidadesDemop > 0)
             .sort((a, b) => {
-                const sa = a.resumo.semLocal > 0 ? 0 : 1;
-                const sb = b.resumo.semLocal > 0 ? 0 : 1;
-                if (sa !== sb) return sa - sb;
+                const ga = grupoDe(a.resumo);
+                const gb = grupoDe(b.resumo);
+                if (ga !== gb) return ga - gb;
                 return (a.material.description || '').localeCompare(b.material.description || '', 'pt-BR');
             })
             .map(o => ({ ...o, jaAqui: jaAqui.has(o.material.id) }));
     }, [materials, alocacoesPorMaterial, alocacoes]);
+
+    const entradaPrevista = novoMaterial
+        ? calcularEntradaAoGuardar(novoMaterial.material, alocacoesPorMaterial?.get(novoMaterial.material.id) || [], novaQtd)
+        : 0;
+    const totalAtualNovo = novoMaterial ? novoMaterial.resumo.unidadesDemop + novoMaterial.resumo.emViatura : 0;
 
     const user = { userId: loggedUserId, userName: loggedUserName };
     const executar = async (fn, sucesso) => {
@@ -133,13 +149,15 @@ export default function LocalConteudoDialog({
     const handleAdicionar = () => {
         if (!novoMaterial) return;
         const qtd = Math.max(0, Math.floor(Number(novaQtd) || 0));
-        if (qtd <= 0) return;
-        if (qtd > novoMaterial.resumo.semLocal) {
-            return setMsg({ tipo: 'warning', texto: `"${novoMaterial.material.description}" tem só ${novoMaterial.resumo.semLocal} unidade(s) sem local. Para trazer mais, mova a partir do outro local.` });
-        }
+        if (qtd <= 0) return setMsg({ tipo: 'warning', texto: 'Informe uma quantidade maior que zero.' });
+        const descricao = novoMaterial.material.description;
         executar(
-            () => adicionarNoLocal({ material: novoMaterial.material, local, quantidade: qtd, ...user }),
-            (r) => [`${qtd} un. de "${novoMaterial.material.description}" guardada(s) em ${local.nome}.`, descreverInoperanciaPeloLocal(r?.inoperancia)].filter(Boolean).join(' · ')
+            () => guardarNoLocal({ material: novoMaterial.material, local, quantidade: qtd, ...user }),
+            (r) => [
+                `${qtd} un. de "${descricao}" guardada(s) em ${local.nome}.`,
+                r?.entrada > 0 ? `Quantitativo atualizado: total ${r.totalAntes} → ${r.totalDepois}.` : null,
+                descreverInoperanciaPeloLocal(r?.inoperancia),
+            ].filter(Boolean).join(' · ')
         ).then(() => { setNovoMaterial(null); setNovaQtd(1); });
     };
 
@@ -149,7 +167,7 @@ export default function LocalConteudoDialog({
         if (nova === atual) return;
         const outras = linha.resumo.alocadas - atual;
         if (outras + nova > linha.resumo.unidadesDemop) {
-            return setMsg({ tipo: 'warning', texto: `Máximo aqui: ${Math.max(0, linha.resumo.unidadesDemop - outras)} (o DEMOP tem ${linha.resumo.unidadesDemop} un. deste material).` });
+            return setMsg({ tipo: 'warning', texto: `Máximo aqui: ${Math.max(0, linha.resumo.unidadesDemop - outras)} (o DEMOP tem ${linha.resumo.unidadesDemop} un. deste material). Para dar entrada de unidades novas, use "Guardar material aqui" abaixo.` });
         }
         executar(
             () => definirQuantidadeNoLocal({ material: linha.material, local, quantidade: nova, ...user }),
@@ -264,8 +282,8 @@ export default function LocalConteudoDialog({
                                                 renderInput={(params) => <TextField {...params} label="Mover para" />}
                                                 sx={{ flex: 1, minWidth: 180 }}
                                             />
-                                            <TextField size="small" type="number" label="Qtd" value={moverQtd} onChange={(e) => setMoverQtd(Math.min(qtd, Math.max(1, parseInt(e.target.value) || 1)))} slotProps={{ input: { inputProps: { min: 1, max: qtd } } }} sx={{ width: 84 }} />
-                                            <Button size="small" variant="contained" onClick={handleMover} disabled={busy || !moverPara} sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}>Mover</Button>
+                                            <QuantidadeField value={moverQtd} onChange={setMoverQtd} min={1} max={qtd} width={128} disabled={busy} helper={`de ${qtd}`} />
+                                            <Button size="small" variant="contained" onClick={handleMover} disabled={busy || !moverPara || !(Number(moverQtd) > 0)} sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}>Mover</Button>
                                             <Button size="small" onClick={() => setMoverDe(null)} sx={{ textTransform: 'none' }}>Cancelar</Button>
                                         </Box>
                                     </Collapse>
@@ -289,7 +307,7 @@ export default function LocalConteudoDialog({
                         isOptionEqualToValue={(a, b) => a.material.id === b.material.id}
                         value={novoMaterial}
                         onChange={(_, v) => { setNovoMaterial(v); setNovaQtd(v ? Math.max(1, v.resumo.semLocal) : 1); }}
-                        groupBy={(o) => (o.resumo.semLocal > 0 ? 'Com unidades sem local' : 'Já totalmente guardados')}
+                        groupBy={(o) => GRUPOS[grupoDe(o.resumo)]}
                         renderOption={(props, o) => {
                             const { key, ...rest } = props;
                             return (
@@ -298,6 +316,7 @@ export default function LocalConteudoDialog({
                                         <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word' }}>{o.material.description}</Typography>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mt: 0.4 }}>
                                             <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>{o.material.categoria || 'Sem categoria'} · DEMOP {o.resumo.unidadesDemop}</Typography>
+                                            {o.resumo.emViatura > 0 && <Chip icon={<DirectionsCar sx={{ fontSize: '0.75rem !important' }} />} label={o.resumo.emViatura} size="small" color="info" variant="outlined" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }} />}
                                             {o.jaAqui && <Chip label="já aqui" size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />}
                                             {o.resumo.semLocal > 0 && <Chip label={`${o.resumo.semLocal} sem local`} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }} />}
                                         </Box>
@@ -309,13 +328,39 @@ export default function LocalConteudoDialog({
                         slotProps={{ listbox: { sx: { maxHeight: { xs: 220, sm: 320 } } } }}
                         sx={{ flex: 1, minWidth: 220 }}
                         disabled={busy}
-                        noOptionsText="Nenhum material com unidades no DEMOP"
+                        noOptionsText="Nenhum material encontrado"
                     />
-                    <TextField size="small" type="number" label="Qtd" value={novaQtd} onChange={(e) => setNovaQtd(Math.max(1, parseInt(e.target.value) || 1))} slotProps={{ input: { inputProps: { min: 1 } } }} sx={{ width: 90 }} disabled={busy} />
-                    <Button variant="contained" color="success" onClick={handleAdicionar} disabled={busy || !novoMaterial} startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <Add />} sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700, whiteSpace: 'nowrap', height: 40 }}>
-                        Guardar
+                    <QuantidadeField
+                        value={novaQtd}
+                        onChange={setNovaQtd}
+                        min={1}
+                        disabled={busy}
+                        helper={!novoMaterial ? undefined : entradaPrevista > 0 ? `+${entradaPrevista} no estoque` : novoMaterial.resumo.semLocal > 0 ? `${novoMaterial.resumo.semLocal} sem local` : 'nenhuma sem local'}
+                        helperDestaque={entradaPrevista > 0}
+                    />
+                    <Button
+                        variant="contained"
+                        color={entradaPrevista > 0 ? 'warning' : 'success'}
+                        onClick={handleAdicionar}
+                        disabled={busy || !novoMaterial || !(Number(novaQtd) > 0)}
+                        startIcon={busy ? <CircularProgress size={16} color="inherit" /> : entradaPrevista > 0 ? <PlaylistAdd /> : <Add />}
+                        sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700, whiteSpace: 'nowrap', height: 40 }}
+                    >
+                        {entradaPrevista > 0 ? 'Guardar e atualizar estoque' : 'Guardar'}
                     </Button>
                 </Box>
+
+                <Collapse in={entradaPrevista > 0}>
+                    <Alert severity="warning" icon={<PlaylistAdd fontSize="inherit" />} sx={{ mt: 1.5, borderRadius: 2, '& .MuiAlert-message': { width: '100%' } }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                            {entradaPrevista} unidade(s) a mais do que há sem local
+                        </Typography>
+                        <Typography variant="body2" sx={{ lineHeight: 1.35 }}>
+                            Ao guardar, o quantitativo de "{novoMaterial?.material.description}" é atualizado de <strong>{totalAtualNovo}</strong> para <strong>{totalAtualNovo + entradaPrevista}</strong>.
+                            Se as unidades já existem em outro local, prefira <strong>Mover</strong>.
+                        </Typography>
+                    </Alert>
+                </Collapse>
 
                 <Collapse in={Boolean(msg)}>
                     {msg && <Alert severity={msg.tipo} sx={{ mt: 2, borderRadius: 2 }} onClose={() => setMsg(null)}>{msg.texto}</Alert>}

@@ -61,7 +61,7 @@ import PrivateRoute from "../../contexts/PrivateRoute";
 import MaterialSearch from "../../components/MaterialSearch";
 import UserSearch from "../../components/UserSearch";
 import db from "../../firebase/db";
-import { getQtdInoperante, montarPatchInoperancia } from '../../utils/materialStatus';
+import { getQtdInoperante, getTotalUnidades, montarPatchInoperancia } from '../../utils/materialStatus';
 import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, serverTimestamp, writeBatch } from "firebase/firestore";
 import { verifyToken } from "../../firebase/token";
 import { logAudit } from '../../firebase/auditLog';
@@ -654,8 +654,10 @@ export default function Movimentacao() {
             if (motivoReparo) movementData.motivoReparo = motivoReparo;
 
             let updateData = {};
-            let newEstoqueTotal = materialSelected.estoque_total;
-            let newEstoqueAtual = materialSelected.estoque_atual;
+            // Base coerente: o total nunca fica abaixo de disponivel + em viatura
+            // (corrige cadastros defasados na proxima movimentacao).
+            let newEstoqueTotal = getTotalUnidades(materialSelected);
+            let newEstoqueAtual = Number(materialSelected.estoque_atual) || 0;
             let estoqueViatura = materialSelected.estoque_viatura || 0;
 
             switch (tipoMovimentacao) {

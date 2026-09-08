@@ -530,6 +530,72 @@ export async function adicionarNoLocal({ material, local, quantidade, userId, us
     return definirQuantidadeNoLocal({ material, local, quantidade: anterior + Math.max(0, Number(quantidade) || 0), userId, userName, motivo });
 }
 
+/**
+ * Quantas unidades de `quantidade` passam do que ainda esta sem local — ou seja,
+ * quantas precisariam entrar no estoque para caber no local.
+ */
+export const calcularEntradaAoGuardar = (material, alocacoes, quantidade) => {
+    const qtd = Math.max(0, Math.floor(Number(quantidade) || 0));
+    const { semLocal } = resumirLocalizacao(material, alocacoes);
+    return Math.max(0, qtd - semLocal);
+};
+
+/**
+ * Guarda `quantidade` unidades num local e, se passar do que existe sem local,
+ * sobe o estoque pela diferenca (estoque_total e estoque_atual juntos). E tratado
+ * como uma edicao normal do quantitativo: fica so no log de auditoria, NAO gera
+ * registro em `movimentacoes` (decisao do usuario em 2026-09-08).
+ *
+ * Existe para evitar o vai-e-volta "editar quantidade do material -> voltar ->
+ * guardar": quem esta com o material na mao ao guardar sabe quantas unidades tem.
+ * Le o material e as alocacoes de novo para nao confiar em dados velhos do dialog.
+ *
+ * @returns {{ anterior, atual, inoperancia, entrada: number, totalAntes: number, totalDepois: number }}
+ */
+export async function guardarNoLocal({ material, local, quantidade, userId, userName, motivo }) {
+    const qtd = Math.max(0, Math.floor(Number(quantidade) || 0));
+    if (qtd <= 0) throw new Error('Informe uma quantidade maior que zero.');
+    if (!material?.id || !local?.id) throw new Error('Material ou local inválido.');
+
+    const materialRef = doc(db, 'materials', material.id);
+    const [materialSnap, alocacoes] = await Promise.all([getDoc(materialRef), listarAlocacoesDoMaterial(material.id)]);
+    if (!materialSnap.exists()) throw new Error('Material não encontrado.');
+    const atualizado = { id: material.id, ...materialSnap.data() };
+
+    const entrada = calcularEntradaAoGuardar(atualizado, alocacoes, qtd);
+    const totalAntes = getTotalUnidades(atualizado);
+    let totalDepois = totalAntes;
+
+    if (entrada > 0) {
+        const disponivelAntes = Math.max(0, Number(atualizado.estoque_atual) || 0);
+        totalDepois = totalAntes + entrada;
+        await updateDoc(materialRef, {
+            estoque_total: totalDepois,
+            estoque_atual: disponivelAntes + entrada,
+            ultima_movimentacao: serverTimestamp(),
+        });
+        logAudit({
+            action: 'material_update',
+            userId,
+            userName,
+            targetCollection: 'materials',
+            targetId: material.id,
+            targetName: atualizado.description || material.description,
+            details: {
+                motivo: `Quantitativo ajustado (+${entrada} un.) ao guardar em ${local.nome}`,
+                estoque_total: { de: totalAntes, para: totalDepois },
+                estoque_atual: { de: disponivelAntes, para: disponivelAntes + entrada },
+            },
+        });
+    }
+
+    const materialParaGravar = entrada > 0
+        ? { ...atualizado, estoque_total: totalDepois, estoque_atual: (Number(atualizado.estoque_atual) || 0) + entrada }
+        : atualizado;
+    const r = await adicionarNoLocal({ material: materialParaGravar, local, quantidade: qtd, userId, userName, motivo });
+    return { ...r, entrada, totalAntes, totalDepois };
+}
+
 /** Move unidades de um local para outro numa unica gravacao. */
 export async function moverEntreLocais({ material, deLocal, paraLocal, quantidade, userId, userName, motivo }) {
     const qtd = Math.max(0, Math.floor(Number(quantidade) || 0));

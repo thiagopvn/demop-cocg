@@ -79,6 +79,7 @@ import {
     getQtdInoperante,
     getQtdOperante,
     getTotalUnidades,
+    totalEstaDefasado,
     STATUS_PARCIAL,
 } from '../../utils/materialStatus';
 const MaterialDialog = lazy(() => import('../../dialogs/MaterialDialog'));
@@ -1678,9 +1679,20 @@ const Material = () => {
                                                     >
                                                         {material.estoque_atual || 0}
                                                     </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        de {material.estoque_total || 0}
-                                                    </Typography>
+                                                    {totalEstaDefasado(material) ? (
+                                                        <Tooltip
+                                                            arrow
+                                                            title={`O cadastro diz ${material.estoque_total || 0} no total, mas há ${material.estoque_atual || 0} disponível(is) + ${material.estoque_viatura || 0} em viatura. O total é exibido como ${getTotalUnidades(material)} e será corrigido na próxima edição ou movimentação.`}
+                                                        >
+                                                            <Typography variant="caption" sx={{ color: 'warning.main', fontWeight: 600, cursor: 'help', borderBottom: '1px dotted currentColor' }}>
+                                                                de {getTotalUnidades(material)}
+                                                            </Typography>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            de {getTotalUnidades(material)}
+                                                        </Typography>
+                                                    )}
                                                 </Box>
                                             </StyledTableCell>
                                             <StyledTableCell align="center" sx={{ maxWidth: 220 }}>

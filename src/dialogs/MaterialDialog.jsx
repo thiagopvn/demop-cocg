@@ -45,6 +45,7 @@ import { applySelectedMaintenances } from '../utils/seedMaintenances';
 import MaintenanceSuggestionDialog from './MaintenanceSuggestionDialog';
 import {
     getQtdInoperante,
+    getTotalUnidades,
     montarPatchInoperancia,
     derivarStatus,
     getMaintenanceStatusLabel,
@@ -146,7 +147,14 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
     const isEditing = material != null;
 
-    const totalPreview = Number(estoqueTotal) || 0;
+    // Unidades embarcadas em viatura fazem parte do total, mas nao do "disponivel".
+    // O total nunca pode ficar abaixo de disponivel + em viatura: se o usuario digitar
+    // menos, salvamos o piso (e avisamos no campo) em vez de gravar um cadastro incoerente.
+    const emViatura = isEditing ? Math.max(0, Number(material?.estoque_viatura) || 0) : 0;
+    const pisoTotal = Math.max(0, Number(estoqueAtual) || 0) + emViatura;
+    const totalDigitado = Number(estoqueTotal) || 0;
+    const totalPreview = Math.max(totalDigitado, pisoTotal);
+    const totalSeraAjustado = estoqueTotal !== '' && pisoTotal > totalDigitado;
     const qtdOperantePreview = Math.max(0, totalPreview - (Number(qtdInoperante) || 0));
     const statusPreview = derivarStatus(qtdInoperante, totalPreview, material?.maintenance_status);
 
@@ -160,7 +168,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             if (isEditing && material) {
                 setDescription(material.description || '');
                 setCategoriaId(material.categoria_id || '');
-                setEstoqueTotal(material.estoque_total ?? 1);
+                setEstoqueTotal(getTotalUnidades(material) || (material.estoque_total ?? 1));
                 setEstoqueAtual(material.estoque_atual ?? 0);
                 setQtdInoperante(getQtdInoperante(material));
                 setExistingImageUrl(material.image_url || null);
@@ -377,7 +385,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             description_lower: description.toLowerCase(),
             categoria: selectedCategoria?.description || selectedCategoria?.name || '',
             categoria_id: categoriaId,
-            estoque_total: Number(estoqueTotal),
+            estoque_total: totalPreview,
             estoque_atual: Number(estoqueAtual),
             ultima_movimentacao: serverTimestamp(),
             conferido_por: loggedUserName || null,
@@ -392,7 +400,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
 
                 // qtd_inoperante + maintenance_status derivado (limpa SEI/motivo ao zerar)
                 Object.assign(data, montarPatchInoperancia(
-                    { estoque_total: Number(estoqueTotal) },
+                    { estoque_total: totalPreview },
                     qtdInoperante,
                     material?.maintenance_status,
                 ));
@@ -484,7 +492,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     created_by_nome: loggedUserName || null,
                     // paraCriacao: addDoc nao aceita sentinelas deleteField()
                     ...montarPatchInoperancia(
-                        { estoque_total: Number(estoqueTotal) },
+                        { estoque_total: totalPreview },
                         qtdInoperante,
                         material?.maintenance_status,
                         { paraCriacao: true },
@@ -891,8 +899,14 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                         setErrors(prev => { const { estoqueTotal: _estoqueTotal, ...rest } = prev; return rest; });
                     }}
                     error={!!errors.estoqueTotal}
-                    helperText={errors.estoqueTotal}
-                    InputProps={{ inputProps: { min: 0 } }}
+                    helperText={
+                        errors.estoqueTotal
+                        || (totalSeraAjustado
+                            ? `Disponível + em viatura = ${pisoTotal}. O total será salvo como ${pisoTotal}.`
+                            : emViatura > 0 ? `Inclui ${emViatura} unidade(s) em viatura.` : undefined)
+                    }
+                    FormHelperTextProps={totalSeraAjustado ? { sx: { color: 'warning.main', fontWeight: 600 } } : undefined}
+                    InputProps={{ inputProps: { min: pisoTotal } }}
                     sx={{ mb: 2 }}
                 />
                 <TextField
@@ -903,7 +917,8 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     variant="outlined"
                     value={estoqueAtual}
                     onChange={(e) => setEstoqueAtual(e.target.value)}
-                    InputProps={{ inputProps: { min: 0, max: estoqueTotal } }}
+                    helperText={emViatura > 0 ? `No DEMOP, fora das ${emViatura} em viatura. Total = disponível + em viatura + cautelado/reparo.` : undefined}
+                    InputProps={{ inputProps: { min: 0 } }}
                     sx={{ mb: 2 }}
                 />
                 <Box sx={{ mt: 1, p: 2, borderRadius: 2, border: 1, borderColor: 'divider' }}>

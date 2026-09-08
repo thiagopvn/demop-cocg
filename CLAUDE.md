@@ -78,6 +78,8 @@ All ~600 users are real. Playwright scripts live in `C:\Users\ASDFGH\android-twa
 ### Storage Locations (Locais) — key rule
 A location allocation is the material's *home* inside the DEMOP: units that are not permanently in a vehicle (`unidadesDemop = estoque_total - estoque_viatura`). Cautela, devolução and reparo do NOT change `material_locais`; those flows only show "Guardar em / Retirar de" hints (`MaterialLocalHint`). Changes to `qtd_inoperante` must go through `aoAlterarInoperancia()` (`src/services/inoperanciaService.js`), which moves units to the inoperantes location and pauses/resumes recurrent maintenances.
 
+Stock totals: `getTotalUnidades()` (`src/utils/materialStatus.js`) never returns less than `estoque_atual + estoque_viatura` (legacy docs had a stale `estoque_total`); writers (MaterialDialog, Movimentacoes, guardar em local) use it as the base so documents self-heal. Storing more units than are "sem local" is allowed: `guardarNoLocal()` raises `estoque_total`/`estoque_atual` by the difference. This is a plain quantity edit (audit log only) and must NOT create a `movimentacoes` record. Quantity inputs in dialogs use `src/components/QuantidadeField.jsx` (allows clearing while typing, clamps on blur).
+
 ### Context System (src/contexts/)
 - **MenuContext.jsx** (~876 lines) - Main layout wrapper: sidebar navigation, role-based menu filtering, mobile drawer, logout, maintenance notification badge, admin cleanup FAB
 - **CategoriaContext.jsx** - Category list (non-real-time, uses getDocs)
