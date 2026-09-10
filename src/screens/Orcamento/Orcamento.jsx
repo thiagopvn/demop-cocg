@@ -31,7 +31,7 @@ import MenuContext from '../../contexts/MenuContext';
 import PrivateRoute from '../../contexts/PrivateRoute';
 import useCurrentUser from '../../hooks/useCurrentUser';
 import { useFornecedores, useMovimentosCaixa, useNotasFiscais, useSetoresOrcamento, useSugestoesMilitares, useValoresDistintos } from '../../hooks/useOrcamento';
-import { calcularSaldoCaixa, excluirMovimentoCaixa, excluirNota, fmtMoeda, TIPOS_CAIXA } from '../../services/orcamentoService';
+import { alterarPagamentoNota, calcularSaldoCaixa, excluirMovimentoCaixa, excluirNota, fmtMoeda, TIPOS_CAIXA } from '../../services/orcamentoService';
 import OrcamentoPainel from './OrcamentoPainel';
 import OrcamentoNotas from './OrcamentoNotas';
 import OrcamentoCaixa from './OrcamentoCaixa';
@@ -39,6 +39,7 @@ import OrcamentoSetores from './OrcamentoSetores';
 
 const NotaFiscalDialog = lazy(() => import('../../dialogs/NotaFiscalDialog'));
 const CaixaMovimentoDialog = lazy(() => import('../../dialogs/CaixaMovimentoDialog'));
+const SetorDialog = lazy(() => import('../../dialogs/SetorDialog'));
 
 const ABAS = [
     { chave: 'painel', label: 'Painel', icon: BarChartOutlined },
@@ -77,6 +78,8 @@ export default function Orcamento() {
     const [aba, setAba] = useState('painel');
     const [notaDialog, setNotaDialog] = useState({ open: false, nota: null });
     const [caixaDialog, setCaixaDialog] = useState({ open: false, movimento: null, tipo: 'saque' });
+    const [setorDialog, setSetorDialog] = useState(false);
+    const [alterandoPagamento, setAlterandoPagamento] = useState(null);
     const [confirmar, setConfirmar] = useState(null); // { titulo, texto, onConfirm }
     const [excluindo, setExcluindo] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -96,6 +99,19 @@ export default function Orcamento() {
 
     const abrirNota = (nota = null) => setNotaDialog({ open: true, nota });
     const abrirCaixa = (tipo = 'saque', movimento = null) => setCaixaDialog({ open: true, movimento, tipo });
+
+    const alterarPagamento = async (nota, pago) => {
+        setAlterandoPagamento(nota.id);
+        try {
+            await alterarPagamentoNota(nota, pago, user);
+            avisar(pago ? `Nota de ${fmtMoeda(nota.valor)} marcada como paga.` : `Nota de ${fmtMoeda(nota.valor)} marcada como não paga.`);
+        } catch (e) {
+            console.error(e);
+            avisar(e?.message || 'Não foi possível alterar o pagamento.', 'error');
+        } finally {
+            setAlterandoPagamento(null);
+        }
+    };
 
     const pedirExclusaoNota = (nota) => setConfirmar({
         titulo: 'Excluir nota fiscal?',
@@ -197,7 +213,7 @@ export default function Orcamento() {
                         <OrcamentoPainel notas={notas} movimentos={movimentos} setores={setores} saldoCaixa={saldoCaixa} loading={loading} onNovaNota={() => abrirNota()} />
                     )}
                     {aba === 'notas' && (
-                        <OrcamentoNotas notas={notas} setores={setores} sugestoesMilitares={sugestoesMilitares} loading={loadingNotas} onNova={() => abrirNota()} onEditar={abrirNota} onExcluir={pedirExclusaoNota} onAviso={avisar} />
+                        <OrcamentoNotas notas={notas} setores={setores} sugestoesMilitares={sugestoesMilitares} loading={loadingNotas} onNova={() => abrirNota()} onNovoSetor={() => setSetorDialog(true)} onEditar={abrirNota} onExcluir={pedirExclusaoNota} onAlterarPagamento={alterarPagamento} alterandoPagamento={alterandoPagamento} onAviso={avisar} emitidoPor={user.userName} />
                     )}
                     {aba === 'caixa' && (
                         <OrcamentoCaixa movimentos={movimentos} notas={notas} saldoCaixa={saldoCaixa} loading={loadingCaixa} onNovo={abrirCaixa} onEditar={(m) => abrirCaixa(m.tipo, m)} onExcluir={pedirExclusaoMovimento} />
@@ -220,6 +236,9 @@ export default function Orcamento() {
                             user={user}
                             onSaved={avisar}
                         />
+                    )}
+                    {setorDialog && (
+                        <SetorDialog open onClose={() => setSetorDialog(false)} setores={setores} user={user} onSaved={(msg) => avisar(msg)} />
                     )}
                     {caixaDialog.open && (
                         <CaixaMovimentoDialog

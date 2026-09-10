@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { Close, ReceiptLong, Edit, Add } from '@mui/icons-material';
 import { CampoCaixaAlta, CampoCnpj, CampoMilitar, CampoMoeda, CampoTextoSugestoes } from '../components/orcamento/CamposOrcamento';
+import PagamentoChip from '../components/orcamento/PagamentoChip';
 import { adicionarSetor, atualizarNota, cnpjValido, criarNota, dataParaInput, inputParaDate, fmtMoeda, caixaAlta } from '../services/orcamentoService';
 
 const NOVO_SETOR = '__novo';
@@ -36,6 +37,8 @@ const formVazio = () => ({
     observacoes: '',
     numeroNota: '',
     data: dataParaInput(new Date()),
+    pago: true,
+    pagoEm: null,
 });
 
 /**
@@ -77,6 +80,8 @@ export default function NotaFiscalDialog({ open, onClose, nota = null, setores =
                 observacoes: nota.observacoes || '',
                 numeroNota: nota.numeroNota || '',
                 data: dataParaInput(nota.data),
+                pago: nota.pago !== false,
+                pagoEm: nota.pagoEm || null,
             });
         } else {
             setForm(formVazio());
@@ -232,8 +237,12 @@ export default function NotaFiscalDialog({ open, onClose, nota = null, setores =
                         sugestoes={sugestoesMilitares}
                     />
 
-                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
                         <CampoCaixaAlta label="Nº da nota (opcional)" value={form.numeroNota} onChange={set('numeroNota')} sx={{ width: { xs: '100%', sm: 200 } }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body2" color="text.secondary">Pagamento:</Typography>
+                            <PagamentoChip pago={form.pago} pagoEm={form.pagoEm} onChange={(pago) => setForm((f) => ({ ...f, pago, pagoEm: pago ? (f.pagoEm || new Date()) : null }))} />
+                        </Box>
                     </Box>
 
                     <CampoCaixaAlta

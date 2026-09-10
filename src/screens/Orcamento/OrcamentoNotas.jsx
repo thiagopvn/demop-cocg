@@ -3,6 +3,7 @@ import {
     Box,
     Button,
     Chip,
+    CircularProgress,
     FormControl,
     IconButton,
     InputAdornment,
@@ -25,11 +26,13 @@ import {
     useMediaQuery,
     useTheme,
 } from '@mui/material';
-import { Add, Clear, Delete, Edit, FileDownload, FilterAltOff, Search, StickyNote2Outlined } from '@mui/icons-material';
+import { Add, Category, Clear, Delete, Edit, FileDownload, FilterAltOff, PictureAsPdf, Search, StickyNote2Outlined } from '@mui/icons-material';
 import { useDebounce } from '../../hooks/useDebounce';
 import { CampoCaixaAlta } from '../../components/orcamento/CamposOrcamento';
-import { MESES, anosDisponiveis, caixaAlta, filtrarNotas, fmtData, fmtMoeda, somenteDigitos } from '../../services/orcamentoService';
+import PagamentoChip from '../../components/orcamento/PagamentoChip';
+import { MESES, anosDisponiveis, caixaAlta, estaPaga, filtrarNotas, fmtData, fmtMoeda, resumoPendentes, somenteDigitos } from '../../services/orcamentoService';
 import { exportToExcel } from '../../firebase/xlsx';
+import { exportarNotasPdf } from '../../utils/orcamentoPdf';
 
 const HeaderCell = styled(TableCell)(({ theme }) => ({
     color: 'white',
@@ -42,13 +45,13 @@ const HeaderCell = styled(TableCell)(({ theme }) => ({
     [theme.breakpoints.down('md')]: { fontSize: '0.72rem' },
 }));
 
-const FILTRO_VAZIO = { ano: 'todos', mes: 'todos', militarNome: '', militarRg: '', setor: 'todos', busca: '' };
+const FILTRO_VAZIO = { ano: 'todos', mes: 'todos', militarNome: '', militarRg: '', setor: 'todos', pagamento: 'todos', busca: '' };
 
 /**
  * Tabela de consulta das notas fiscais (CRUD) com filtros por ano, mês, nome de guerra,
  * RG, setor e busca livre (CNPJ, empresa, objeto, observações).
  */
-export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loading, onNova, onEditar, onExcluir, onAviso }) {
+export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loading, onNova, onNovoSetor, onEditar, onExcluir, onAlterarPagamento, alterandoPagamento, onAviso, emitidoPor = '' }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -58,7 +61,7 @@ export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loa
     const rgDebounced = useDebounce(filtro.militarRg, 300);
     const [pagina, setPagina] = useState(0);
     const [porPagina, setPorPagina] = useState(25);
-    const [exportando, setExportando] = useState(false);
+    const [exportando, setExportando] = useState(null); // 'excel' | 'pdf'
 
     const anos = useMemo(() => anosDisponiveis(notas), [notas]);
     const nomesSetor = useMemo(() => {
@@ -72,6 +75,7 @@ export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loa
         [notas, filtro, buscaDebounced, nomeDebounced, rgDebounced],
     );
     const total = useMemo(() => filtradas.reduce((s, n) => s + (Number(n.valor) || 0), 0), [filtradas]);
+    const pendentes = useMemo(() => resumoPendentes(filtradas), [filtradas]);
     useEffect(() => { setPagina(0); }, [filtradas.length]);
 
     const set = (campo) => (v) => setFiltro((f) => ({ ...f, [campo]: v }));
@@ -80,7 +84,7 @@ export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loa
 
     const exportar = async () => {
         if (filtradas.length === 0) return;
-        setExportando(true);
+        setExportando('excel');
         try {
             const linhas = filtradas.map((n) => ({
                 data: fmtData(n.data),
@@ -88,6 +92,8 @@ export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loa
                 empresa: n.empresa || '',
                 objeto: n.objeto || '',
                 setor: n.setor || '',
+                pagamento: estaPaga(n) ? 'PAGO' : 'NÃO PAGO',
+                pagoEm: estaPaga(n) && n.pagoEm ? fmtData(n.pagoEm) : '',
                 militar: n.militarNome || '',
                 rg: n.militarRg || '',
                 valor: Number(n.valor) || 0,
@@ -95,14 +101,29 @@ export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loa
                 observacoes: n.observacoes || '',
             }));
             await exportToExcel(linhas, 'notas_fiscais_gocg', 'Notas fiscais', {
-                data: 'Data', cnpj: 'CNPJ', empresa: 'Empresa', objeto: 'Objeto', setor: 'Setor', militar: 'Militar', rg: 'RG', valor: 'Valor (R$)', numeroNota: 'Nº da nota', observacoes: 'Observações',
+                data: 'Data', cnpj: 'CNPJ', empresa: 'Empresa', objeto: 'Objeto', setor: 'Setor', pagamento: 'Pagamento', pagoEm: 'Pago em', militar: 'Militar', rg: 'RG', valor: 'Valor (R$)', numeroNota: 'Nº da nota', observacoes: 'Observações',
             });
             onAviso?.(`${linhas.length} nota(s) exportada(s).`);
         } catch (e) {
             console.error(e);
             onAviso?.('Não foi possível exportar.', 'error');
         } finally {
-            setExportando(false);
+            setExportando(null);
+        }
+    };
+
+    const exportarPdf = async () => {
+        if (filtradas.length === 0) return;
+        setExportando('pdf');
+        try {
+            const filtroAtual = { ...filtro, busca: buscaDebounced, militarNome: nomeDebounced, militarRg: rgDebounced };
+            await exportarNotasPdf(filtradas, filtroAtual, { emitidoPor });
+            onAviso?.(`PDF com ${filtradas.length} nota(s) gerado.`);
+        } catch (e) {
+            console.error(e);
+            onAviso?.('Não foi possível gerar o PDF.', 'error');
+        } finally {
+            setExportando(null);
         }
     };
 
@@ -145,6 +166,14 @@ export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loa
                             {nomesSetor.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
                         </Select>
                     </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                        <InputLabel id="notas-pagamento">Pagamento</InputLabel>
+                        <Select labelId="notas-pagamento" label="Pagamento" value={filtro.pagamento} onChange={(e) => set('pagamento')(e.target.value)} sx={{ borderRadius: 2 }}>
+                            <MenuItem value="todos">Todas</MenuItem>
+                            <MenuItem value="pagas">Pagas</MenuItem>
+                            <MenuItem value="pendentes">Não pagas</MenuItem>
+                        </Select>
+                    </FormControl>
                     <CampoCaixaAlta
                         label="Nome de guerra"
                         value={filtro.militarNome}
@@ -171,11 +200,22 @@ export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loa
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
                     <Typography variant="body2" color="text.secondary">
-                        {loading ? 'Carregando…' : <>{filtradas.length} nota(s) · total <b style={{ color: theme.palette.text.primary }}>{fmtMoeda(total)}</b></>}
+                        {loading ? 'Carregando…' : (
+                            <>
+                                {filtradas.length} nota(s) · total <b style={{ color: theme.palette.text.primary }}>{fmtMoeda(total)}</b>
+                                {pendentes.qtd > 0 && <> · <b style={{ color: theme.palette.warning.main }}>{pendentes.qtd} não paga(s) · {fmtMoeda(pendentes.valor)}</b></>}
+                            </>
+                        )}
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button size="small" variant="outlined" startIcon={<FileDownload />} onClick={exportar} disabled={exportando || filtradas.length === 0} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Button size="small" variant="outlined" startIcon={<Category />} onClick={onNovoSetor} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                            Novo setor
+                        </Button>
+                        <Button size="small" variant="outlined" startIcon={exportando === 'excel' ? <CircularProgress size={14} /> : <FileDownload />} onClick={exportar} disabled={Boolean(exportando) || filtradas.length === 0} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
                             Excel
+                        </Button>
+                        <Button size="small" variant="outlined" startIcon={exportando === 'pdf' ? <CircularProgress size={14} /> : <PictureAsPdf />} onClick={exportarPdf} disabled={Boolean(exportando) || filtradas.length === 0} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
+                            PDF
                         </Button>
                         <Button size="small" variant="contained" startIcon={<Add />} onClick={onNova} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}>
                             Lançar nota
@@ -226,6 +266,7 @@ export default function OrcamentoNotas({ notas, setores, sugestoesMilitares, loa
                                     </TableCell>
                                     <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: 800 }}>{fmtMoeda(n.valor)}</TableCell>
                                     <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                                        <PagamentoChip pago={estaPaga(n)} pagoEm={n.pagoEm} busy={alterandoPagamento === n.id} onChange={(pago) => onAlterarPagamento(n, pago)} sx={{ mr: 0.5 }} />
                                         {n.observacoes && (
                                             <Tooltip title={n.observacoes} arrow>
                                                 <IconButton size="small" aria-label="Observações"><StickyNote2Outlined fontSize="small" /></IconButton>

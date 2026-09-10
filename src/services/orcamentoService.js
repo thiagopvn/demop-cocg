@@ -146,7 +146,14 @@ export function montarNota(form) {
         observacoes: limpar(form.observacoes),
         numeroNota: limpar(form.numeroNota),
         ...camposDeData(form.data),
+        ...camposDePagamento(form.pago !== false, form.pagoEm),
     };
+}
+
+/** Situação do pagamento. Notas antigas (sem o campo) contam como pagas. */
+export const estaPaga = (n) => n?.pago !== false;
+function camposDePagamento(pago, pagoEm) {
+    return { pago: Boolean(pago), pagoEm: pago ? Timestamp.fromDate(paraDate(pagoEm) || new Date()) : null };
 }
 
 export function montarMovimentoCaixa(form) {
@@ -170,11 +177,25 @@ export function montarMovimentoCaixa(form) {
 /** Quanto um movimento soma (ou subtrai) do caixa. */
 export const efeitoNoCaixa = (m) => (TIPOS_CAIXA[m.tipo]?.sinal ?? 1) * (Number(m.valor) || 0);
 
-/** Saldo em caixa = saques − devoluções ± ajustes − notas fiscais pagas. */
+/** Saldo em caixa = saques − devoluções ± ajustes − notas fiscais PAGAS (as não pagas ainda não saíram do caixa). */
 export function calcularSaldoCaixa(movimentos, notas) {
     const entradas = movimentos.reduce((s, m) => s + efeitoNoCaixa(m), 0);
-    const gastos = notas.reduce((s, n) => s + (Number(n.valor) || 0), 0);
+    const gastos = notas.filter(estaPaga).reduce((s, n) => s + (Number(n.valor) || 0), 0);
     return centavos(entradas - gastos);
+}
+
+/** Total e quantidade das notas ainda não pagas. */
+export function resumoPendentes(notas) {
+    const pendentes = notas.filter((n) => !estaPaga(n));
+    return { qtd: pendentes.length, valor: centavos(pendentes.reduce((s, n) => s + (Number(n.valor) || 0), 0)) };
+}
+
+/** Marca a nota como paga / não paga direto na tabela. */
+export async function alterarPagamentoNota(nota, pago, user) {
+    const a = autor(user);
+    const dados = camposDePagamento(pago, pago ? new Date() : null);
+    await updateDoc(doc(db, 'orcamento_notas', nota.id), { ...dados, atualizadoEm: serverTimestamp(), atualizadoPor: a.userId, atualizadoPorNome: a.userName });
+    logAudit({ action: 'orcamento_nota_pagamento', ...a, targetCollection: 'orcamento_notas', targetId: nota.id, targetName: resumoNota(nota), details: { pago, valor: nota.valor, setor: nota.setor } });
 }
 
 /* ------------------------------------------------------------------ */
@@ -308,6 +329,8 @@ export function filtrarNotas(notas, f = {}) {
         if (f.ano && f.ano !== 'todos' && Number(n.ano) !== Number(f.ano)) return false;
         if (f.mes && f.mes !== 'todos' && Number(n.mes) !== Number(f.mes)) return false;
         if (f.setor && f.setor !== 'todos' && (n.setor || '') !== f.setor) return false;
+        if (f.pagamento === 'pagas' && !estaPaga(n)) return false;
+        if (f.pagamento === 'pendentes' && estaPaga(n)) return false;
         if (nome && !contem(n.militarNome, nome)) return false;
         if (rg && !String(n.militarRg || '').includes(rg)) return false;
         if (busca) {

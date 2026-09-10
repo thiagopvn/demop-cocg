@@ -53,6 +53,7 @@ export const ACTION_LABELS = {
     orcamento_nota_create: 'Lançou nota fiscal (Orçamento GOCG)',
     orcamento_nota_update: 'Editou nota fiscal (Orçamento GOCG)',
     orcamento_nota_delete: 'Excluiu nota fiscal (Orçamento GOCG)',
+    orcamento_nota_pagamento: 'Alterou situação de pagamento da nota (Orçamento GOCG)',
     orcamento_caixa_create: 'Lançou movimento de caixa (Orçamento GOCG)',
     orcamento_caixa_update: 'Editou movimento de caixa (Orçamento GOCG)',
     orcamento_caixa_delete: 'Excluiu movimento de caixa (Orçamento GOCG)',

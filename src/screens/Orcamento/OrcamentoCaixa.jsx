@@ -22,8 +22,8 @@ import {
     styled,
     useTheme,
 } from '@mui/material';
-import { AccountBalanceWallet, Delete, Edit, FactCheck, Savings, Undo, Tune } from '@mui/icons-material';
-import { MESES, TIPOS_CAIXA, anosDisponiveis, efeitoNoCaixa, filtrarMovimentos, fmtData, fmtMoeda } from '../../services/orcamentoService';
+import { AccountBalanceWallet, Delete, Edit, ErrorOutline, FactCheck, Savings, Undo, Tune } from '@mui/icons-material';
+import { MESES, TIPOS_CAIXA, anosDisponiveis, efeitoNoCaixa, estaPaga, filtrarMovimentos, fmtData, fmtMoeda, resumoPendentes } from '../../services/orcamentoService';
 
 const HeaderCell = styled(TableCell)(() => ({
     color: 'white', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.03em', textTransform: 'uppercase', whiteSpace: 'nowrap', borderBottom: 'none',
@@ -58,7 +58,8 @@ export default function OrcamentoCaixa({ movimentos, notas, saldoCaixa, loading,
     const anos = useMemo(() => anosDisponiveis(movimentos, notas), [movimentos, notas]);
     const totais = useMemo(() => {
         const soma = (tipo) => movimentos.filter((m) => m.tipo === tipo).reduce((s, m) => s + (Number(m.valor) || 0), 0);
-        return { sacado: soma('saque'), devolvido: soma('retorno'), ajustes: soma('ajuste'), gasto: notas.reduce((s, n) => s + (Number(n.valor) || 0), 0) };
+        const pagas = notas.filter(estaPaga);
+        return { sacado: soma('saque'), devolvido: soma('retorno'), ajustes: soma('ajuste'), gasto: pagas.reduce((s, n) => s + (Number(n.valor) || 0), 0), qtdPagas: pagas.length, pendentes: resumoPendentes(notas) };
     }, [movimentos, notas]);
 
     const filtrados = useMemo(() => filtrarMovimentos(movimentos, filtro), [movimentos, filtro]);
@@ -72,11 +73,12 @@ export default function OrcamentoCaixa({ movimentos, notas, saldoCaixa, loading,
     return (
         <Box>
             <Box sx={{ display: 'flex', gap: { xs: 1, sm: 2 }, mb: 2, flexWrap: 'wrap' }}>
-                <Resumo icon={AccountBalanceWallet} titulo="Saldo em caixa" valor={loading ? '…' : fmtMoeda(saldoCaixa)} cor={corSaldo} ajuda="saques − devoluções ± ajustes − notas" />
+                <Resumo icon={AccountBalanceWallet} titulo="Saldo em caixa" valor={loading ? '…' : fmtMoeda(saldoCaixa)} cor={corSaldo} ajuda="saques − devoluções ± ajustes − notas pagas" />
                 <Resumo icon={Savings} titulo="Total sacado no banco" valor={loading ? '…' : fmtMoeda(totais.sacado)} cor={theme.palette.success.main} onClick={() => set('tipo')('saque')} />
                 <Resumo icon={Undo} titulo="Devolvido ao banco" valor={loading ? '…' : fmtMoeda(totais.devolvido)} cor={theme.palette.warning.main} onClick={() => set('tipo')('retorno')} />
                 <Resumo icon={Tune} titulo="Ajustes de conferência" valor={loading ? '…' : fmtMoeda(totais.ajustes)} cor={theme.palette.info.main} onClick={() => set('tipo')('ajuste')} />
-                <Resumo icon={FactCheck} titulo="Pago em notas fiscais" valor={loading ? '…' : fmtMoeda(totais.gasto)} cor={theme.palette.secondary.main} ajuda={`${notas.length} nota(s)`} />
+                <Resumo icon={FactCheck} titulo="Pago em notas fiscais" valor={loading ? '…' : fmtMoeda(totais.gasto)} cor={theme.palette.secondary.main} ajuda={`${totais.qtdPagas} nota(s)`} />
+                <Resumo icon={ErrorOutline} titulo="Notas a pagar" valor={loading ? '…' : fmtMoeda(totais.pendentes.valor)} cor={theme.palette.error.main} ajuda={`${totais.pendentes.qtd} nota(s) — ainda não saíram do caixa`} />
             </Box>
 
             <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2 }, mb: 2, borderRadius: 3, border: `1px solid ${theme.palette.divider}`, display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
