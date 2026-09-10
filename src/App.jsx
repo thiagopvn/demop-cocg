@@ -45,6 +45,7 @@ const Atividades = lazyRetry(() => import('./screens/Atividades/Atividades'));
 const Perfil = lazyRetry(() => import('./screens/Perfil/Perfil'));
 const BensPatrimoniais = lazyRetry(() => import('./screens/BensPatrimoniais/BensPatrimoniais'));
 const Locais = lazyRetry(() => import('./screens/Locais/Locais'));
+const Orcamento = lazyRetry(() => import('./screens/Orcamento/Orcamento'));
 
 const SuspenseFallback = (
   <Box
@@ -97,6 +98,13 @@ function App() {
           <Route path='/bens-patrimoniais' element={
             <PrivateRoute allowedRoles={['BensPatrimoniais', 'admingeral']}>
               <BensPatrimoniais />
+            </PrivateRoute>
+          } />
+
+          {/* Orçamento do GOCG (notas fiscais e caixa) — módulo isolado do BensPatrimoniais */}
+          <Route path='/orcamento' element={
+            <PrivateRoute allowedRoles={['BensPatrimoniais', 'admingeral']}>
+              <Orcamento />
             </PrivateRoute>
           } />
 

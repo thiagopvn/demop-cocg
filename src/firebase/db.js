@@ -77,6 +77,15 @@ export const locaisArmazenamentoCollection = collection(db, 'locais_armazenament
 export const materialLocaisCollection = collection(db, 'material_locais');
 // ------------------------------------
 
+// --- ORÇAMENTO DO GOCG (módulo do BensPatrimoniais) ---
+// orcamento_notas: notas fiscais lançadas (CNPJ, valor, objeto, setor, militar que comprou)
+// orcamento_caixa: saques no banco, devoluções ao banco e ajustes de conferência do caixa
+// orcamento_setores: lista editável de setores de destino (DEMOP, SST, SSCO, SSMT, ...)
+export const orcamentoNotasCollection = collection(db, 'orcamento_notas');
+export const orcamentoCaixaCollection = collection(db, 'orcamento_caixa');
+export const orcamentoSetoresCollection = collection(db, 'orcamento_setores');
+// ------------------------------------
+
 export default db;
 // Somente em localhost (scripts de manutencao/testes): expoe o SDK do Firestore para o Playwright.
 if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {

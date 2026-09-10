@@ -188,6 +188,18 @@ service cloud.firestore {
       allow read, create, update, delete: if isBensRole() || isAdminGeral();
     }
 
+    // ============= ORÇAMENTO DO GOCG (notas fiscais, caixa e setores) =============
+    // Módulo isolado do BensPatrimoniais: somente BensPatrimoniais ou admingeral.
+    match /orcamento_notas/{docId} {
+      allow read, create, update, delete: if isBensRole() || isAdminGeral();
+    }
+    match /orcamento_caixa/{docId} {
+      allow read, create, update, delete: if isBensRole() || isAdminGeral();
+    }
+    match /orcamento_setores/{docId} {
+      allow read, create, update, delete: if isBensRole() || isAdminGeral();
+    }
+
     // ============= TAREFAS DEMOP =============
     // Leitura: todos autenticados. Create/Delete: admingeral. Update:
     // admingeral OU admin/BensPatrimoniais (só campos de progresso/conclusão).

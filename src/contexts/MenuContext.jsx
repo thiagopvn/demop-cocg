@@ -73,6 +73,7 @@ import CompletarPerfilDialog from '../components/CompletarPerfilDialog';
 import ChatFlutuante from '../components/chat/ChatFlutuante';
 import ForumOutlined from '@mui/icons-material/ForumOutlined';
 import OnlinePredictionOutlined from '@mui/icons-material/OnlinePredictionOutlined';
+import PaidOutlined from '@mui/icons-material/PaidOutlined';
 import { iniciarPresenca, encerrarPresenca } from '../services/presencaService';
 import { escutarConversas } from '../services/chatService';
 import { aoReceberPushEmPrimeiroPlano, desativarPushDesteAparelho, ativarPush, pushDisponivel, pushPermissao } from '../services/pushService';
@@ -163,6 +164,7 @@ function MenuContext({ children }) {
     { icon: Inventory, label: 'Anéis', path: '/aneis', id: 8, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: Search, label: 'Pesquisar', path: '/search', id: 9, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: AccountBalance, label: 'Bens Patrimoniais', path: '/bens-patrimoniais', id: 13, roles: ['BensPatrimoniais', 'admingeral'] },
+    { icon: PaidOutlined, label: 'Orçamento GOCG', path: '/orcamento', id: 17, roles: ['BensPatrimoniais', 'admingeral'] },
     { icon: AccountCircle, label: 'Meu Perfil', path: '/perfil', id: 12, roles: ['user', 'chefe', 'admin', 'admingeral', 'BensPatrimoniais'] },
   ];
 

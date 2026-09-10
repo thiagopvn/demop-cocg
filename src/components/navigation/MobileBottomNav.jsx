@@ -3,7 +3,7 @@ import { Box, ButtonBase, Typography, Badge, SwipeableDrawer, alpha, useTheme, I
 import { GridViewRounded, Close, DarkModeOutlined, LightModeOutlined } from '@mui/icons-material';
 
 /** Ordem de prioridade para escolher o que fica na barra inferior. */
-const PRIORIDADE = ['/home', '/mensagens', '/movimentacoes', '/material', '/devolucoes', '/bens-patrimoniais', '/manutencao', '/viaturas', '/locais', '/search', '/perfil'];
+const PRIORIDADE = ['/home', '/mensagens', '/movimentacoes', '/material', '/devolucoes', '/bens-patrimoniais', '/orcamento', '/manutencao', '/viaturas', '/locais', '/search', '/perfil'];
 const MAX_NA_BARRA = 4;
 
 export const ALTURA_BARRA = 64;
