@@ -89,6 +89,13 @@ export async function callResponderTransferencia(transferenciaId, aceitar, senha
   return result.data;
 }
 
+/** Busca por foto: manda a imagem (base64 JPEG) e recebe { objeto, termos, categoria, descricao, confianca, modelo, tokens }. */
+export async function callIdentificarMaterialPorFoto({ imagemBase64, mediaType }) {
+  const fn = getCallable('identificarMaterialPorFoto');
+  const result = await fn({ imagemBase64, mediaType });
+  return result.data;
+}
+
 export async function callSolicitarTransferencia({ movimentacaoId, para, senha }) {
   const fn = getCallable('solicitarTransferencia');
   const result = await fn({ movimentacaoId, para, senha });

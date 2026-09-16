@@ -64,29 +64,47 @@ export const extractSerialAndBase = (name) => {
 /**
  * Calcula similaridade apenas entre bases textuais (Jaccard + containment).
  */
-const calculateBaseSimilarity = (base1, base2) => {
-  const norm1 = normalizeName(base1);
-  const norm2 = normalizeName(base2);
+/**
+ * Perfil pré-calculado de um nome (serial, base normalizada e palavras significativas).
+ * Calcular isso uma vez por material, em vez de uma vez por par, é o que torna a
+ * detecção de duplicados barata com centenas de itens.
+ */
+export const perfilNome = (name) => {
+  const { serial, base } = extractSerialAndBase(name);
+  return { serial, norm: normalizeName(base), words: new Set(getSignificantWords(base)) };
+};
 
-  if (norm1 === norm2) return 1.0;
-  if (!norm1 || !norm2) return 0;
+const similaridadeBasePerfis = (a, b) => {
+  if (a.norm === b.norm) return 1.0;
+  if (!a.norm || !b.norm) return 0;
+  if (a.words.size === 0 || b.words.size === 0) return 0;
 
-  const words1 = new Set(getSignificantWords(base1));
-  const words2 = new Set(getSignificantWords(base2));
-
-  if (words1.size === 0 || words2.size === 0) return 0;
-
-  const intersection = [...words1].filter(w => words2.has(w)).length;
-  const union = new Set([...words1, ...words2]).size;
+  let intersection = 0;
+  for (const w of a.words) if (b.words.has(w)) intersection++;
+  const union = a.words.size + b.words.size - intersection;
   const jaccard = intersection / union;
 
   // Boost se uma base contém a outra
-  if (norm1.includes(norm2) || norm2.includes(norm1)) {
+  if (a.norm.includes(b.norm) || b.norm.includes(a.norm)) {
     return Math.max(jaccard, 0.7);
   }
 
   return jaccard;
 };
+
+/** Mesma regra de calculateSimilarity, mas sobre perfis já calculados. */
+export const similaridadePerfis = (a, b) => {
+  if (a.serial && b.serial && a.serial !== b.serial) {
+    if (similaridadeBasePerfis(a, b) >= 0.5) return 0;
+  }
+  return similaridadeBasePerfis(a, b);
+};
+
+const calculateBaseSimilarity = (base1, base2) =>
+  similaridadeBasePerfis(
+    { norm: normalizeName(base1), words: new Set(getSignificantWords(base1)) },
+    { norm: normalizeName(base2), words: new Set(getSignificantWords(base2)) },
+  );
 
 /**
  * Calcula similaridade com inteligência para números de série.
@@ -137,15 +155,31 @@ export const findDuplicateGroups = (materials, threshold = 0.6) => {
   const groups = [];
   const assigned = new Set();
 
+  // Perfis calculados uma vez por material + índice palavra -> materiais.
+  // Só pares que compartilham ao menos uma palavra significativa podem passar
+  // do limiar (Jaccard > 0 ou contenção), então comparamos apenas esses.
+  const perfis = materials.map(m => perfilNome(m.description));
+  const porPalavra = new Map();
+  perfis.forEach((p, idx) => {
+    for (const w of p.words) {
+      if (!porPalavra.has(w)) porPalavra.set(w, []);
+      porPalavra.get(w).push(idx);
+    }
+  });
+
   for (let i = 0; i < materials.length; i++) {
     if (assigned.has(materials[i].id)) continue;
 
     const group = [{ ...materials[i], similarity: 1.0 }];
+    const candidatos = new Set();
+    for (const w of perfis[i].words) {
+      for (const j of porPalavra.get(w)) if (j > i) candidatos.add(j);
+    }
 
-    for (let j = i + 1; j < materials.length; j++) {
+    for (const j of [...candidatos].sort((a, b) => a - b)) {
       if (assigned.has(materials[j].id)) continue;
 
-      const sim = calculateSimilarity(materials[i].description, materials[j].description);
+      const sim = similaridadePerfis(perfis[i], perfis[j]);
       if (sim >= threshold) {
         group.push({ ...materials[j], similarity: sim });
         assigned.add(materials[j].id);

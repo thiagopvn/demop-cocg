@@ -45,6 +45,7 @@ import { useMateriaisEmViatura, useOperacoes } from '../../hooks/useOperacoes';
 import { CATEGORIAS_OPERACAO, combinaBusca, contarItens, excluirOperacao, resumirOperacao, salvarSecoes, semearOperacoes, textoBusca } from '../../services/operacoesService';
 import { SOBRE_LEVANTAMENTO } from '../../data/operacoesCbmerj';
 import OperacaoIcone from '../../components/operacoes/OperacaoIcone';
+import BuscaPorFoto from '../../components/BuscaPorFoto';
 import OperacaoDetalhe from './OperacaoDetalhe';
 
 const OperacaoDialog = lazy(() => import('../../dialogs/OperacaoDialog'));
@@ -291,7 +292,12 @@ export default function Operacoes() {
                         slotProps={{
                             input: {
                                 startAdornment: <InputAdornment position="start"><Search color="action" /></InputAdornment>,
-                                endAdornment: busca ? <InputAdornment position="end"><IconButton size="small" onClick={() => setBusca('')} aria-label="Limpar busca"><Clear fontSize="small" /></IconButton></InputAdornment> : null,
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        {busca && <IconButton size="small" onClick={() => setBusca('')} aria-label="Limpar busca"><Clear fontSize="small" /></IconButton>}
+                                        <BuscaPorFoto onTermo={(termo) => setBusca(termo)} />
+                                    </InputAdornment>
+                                ),
                             },
                         }}
                         sx={{ mb: 2.5, '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: 'background.paper' } }}

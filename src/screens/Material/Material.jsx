@@ -98,7 +98,18 @@ import { findDuplicateGroups } from '../../utils/materialSimilarity';
 import { useLocaisArmazenamento, useAlocacoesLocais } from '../../hooks/useLocais';
 import { resumirLocalizacao, alocacaoComoLocal, ordenarLocais, normalizarTexto, removerAlocacoesDoMaterial } from '../../services/localizacaoService';
 import LocalChip, { TipoLocalIcon } from '../../components/locais/LocalChip';
+import BuscaPorFoto from '../../components/BuscaPorFoto';
 const SeedMaintenancesDialog = lazy(() => import('../../dialogs/SeedMaintenancesDialog'));
+
+/** Executa `fn` fora do caminho crítico de render (idle callback, com fallback em timeout). */
+const agendarOcioso = (fn) => {
+    if (typeof window !== 'undefined' && window.requestIdleCallback) {
+        const id = window.requestIdleCallback(fn, { timeout: 4000 });
+        return () => window.cancelIdleCallback(id);
+    }
+    const id = setTimeout(fn, 300);
+    return () => clearTimeout(id);
+};
 
 // Limite de itens por página
 const ITEMS_PER_PAGE = 50;
@@ -653,6 +664,16 @@ const Material = () => {
         setFilterLocal('');
     }, []);
 
+    // Texto pesquisável de cada material, normalizado uma única vez (e não a cada tecla)
+    const indiceBusca = useMemo(() => {
+        const mapa = new Map();
+        for (const material of materials) {
+            const locaisTexto = (alocacoesPorMaterial.get(material.id) || []).map(a => a.local_nome || '').join(' ');
+            mapa.set(material.id, normalizarTexto(`${material.description || ''} ${material.categoria || ''} ${locaisTexto}`));
+        }
+        return mapa;
+    }, [materials, alocacoesPorMaterial]);
+
     // Filtro otimizado - retorna todos os materiais filtrados e ordenados
     const allFilteredMaterials = useMemo(() => {
         let result;
@@ -663,8 +684,7 @@ const Material = () => {
             const keywords = searchLower.split(/\s+/).filter(k => k.length > 0);
 
             result = materials.filter(material => {
-                const locaisTexto = (alocacoesPorMaterial.get(material.id) || []).map(a => a.local_nome || '').join(' ');
-                const text = normalizarTexto(`${material.description || ''} ${material.categoria || ''} ${locaisTexto}`);
+                const text = indiceBusca.get(material.id) || '';
                 for (const keyword of keywords) {
                     if (!text.includes(keyword)) return false;
                 }
@@ -742,7 +762,7 @@ const Material = () => {
         }
 
         return result;
-    }, [materials, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque, filterImagem, filterLocal, alocacoesPorMaterial]);
+    }, [materials, indiceBusca, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque, filterImagem, filterLocal, alocacoesPorMaterial]);
 
     // Materiais visíveis (limitados pelo visibleCount)
     const filteredMaterials = useMemo(() => {
@@ -876,9 +896,12 @@ const Material = () => {
         };
     }, [materialConferenceDates, materials, allFilteredMaterials, filteredMaterials, isAdmin]);
 
-    const duplicateGroups = useMemo(() => {
-        if (!isAdminGeral) return [];
-        return findDuplicateGroups(materials);
+    // Detecção de duplicados (só admingeral): roda fora do render, quando o navegador
+    // estiver ocioso, para não travar a abertura da tela nem cada atualização do estoque.
+    const [duplicateGroups, setDuplicateGroups] = useState([]);
+    useEffect(() => {
+        if (!isAdminGeral) { setDuplicateGroups([]); return undefined; }
+        return agendarOcioso(() => setDuplicateGroups(findDuplicateGroups(materials)));
     }, [materials, isAdminGeral]);
 
     // Celula "Local no DEMOP": chips dos locais + alerta de unidades sem local / excedentes
@@ -1255,23 +1278,26 @@ const Material = () => {
                                         />
                                     </InputAdornment>
                                 ),
-                                endAdornment: searchTerm && (
+                                endAdornment: (
                                     <InputAdornment position="end">
-                                        <Tooltip title="Limpar busca (Esc)">
-                                            <IconButton
-                                                size="small"
-                                                onClick={handleClearSearch}
-                                                sx={{
-                                                    color: 'text.secondary',
-                                                    '&:hover': {
-                                                        color: 'primary.main',
-                                                        backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                                    },
-                                                }}
-                                            >
-                                                <Clear fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
+                                        {searchTerm && (
+                                            <Tooltip title="Limpar busca (Esc)">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={handleClearSearch}
+                                                    sx={{
+                                                        color: 'text.secondary',
+                                                        '&:hover': {
+                                                            color: 'primary.main',
+                                                            backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                                        },
+                                                    }}
+                                                >
+                                                    <Clear fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+                                        <BuscaPorFoto onTermo={(termo) => setSearchTerm(termo)} />
                                     </InputAdornment>
                                 ),
                             },
@@ -1624,6 +1650,11 @@ const Material = () => {
                                                         component="img"
                                                         src={material.image_url}
                                                         alt={material.description}
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        fetchPriority="low"
+                                                        width={40}
+                                                        height={40}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setLightboxImage(material.image_url);

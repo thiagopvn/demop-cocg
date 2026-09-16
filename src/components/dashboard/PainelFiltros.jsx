@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Box, Chip, Popover, TextField, InputAdornment, Typography, ToggleButtonGroup, ToggleButton, Checkbox, ButtonBase, Divider, alpha, useTheme } from '@mui/material';
 import { ArrowDropDown, Search, Check, Close } from '@mui/icons-material';
 import UserAvatar from '../UserAvatar';
+import BuscaPorFoto from '../BuscaPorFoto';
 import { PERIODOS, TIPOS_MOV, corTipo } from './painelUtils';
 
 /**
@@ -181,8 +182,18 @@ export default function PainelFiltros({ filtros, setFiltro, categorias, militare
             placeholder="Buscar em tudo..."
             value={filtros.busca}
             onChange={(e) => setFiltro('busca', e.target.value)}
-            sx={{ width: empilhado ? '100%' : 260, '& .MuiOutlinedInput-root': { borderRadius: 999, height: 34, bgcolor: alpha(theme.palette.text.primary, 0.03) } }}
-            slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>, endAdornment: filtros.busca ? <InputAdornment position="end"><ButtonBase onClick={() => setFiltro('busca', '')} sx={{ borderRadius: '50%', p: 0.25 }}><Close sx={{ fontSize: 16 }} /></ButtonBase></InputAdornment> : null } }}
+            sx={{ width: empilhado ? '100%' : 290, '& .MuiOutlinedInput-root': { borderRadius: 999, height: 34, bgcolor: alpha(theme.palette.text.primary, 0.03), pr: 0.5 } }}
+            slotProps={{
+                input: {
+                    startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
+                    endAdornment: (
+                        <InputAdornment position="end">
+                            {filtros.busca ? <ButtonBase onClick={() => setFiltro('busca', '')} sx={{ borderRadius: '50%', p: 0.25 }}><Close sx={{ fontSize: 16 }} /></ButtonBase> : null}
+                            <BuscaPorFoto onTermo={(termo) => setFiltro('busca', termo)} sx={{ p: 0.5 }} />
+                        </InputAdornment>
+                    ),
+                },
+            }}
         />
     );
 

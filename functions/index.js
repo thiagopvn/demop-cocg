@@ -889,4 +889,123 @@ exports.getCalendarMaintenances = onCall({ region: "southamerica-east1" }, async
 // ============================================================
 // Chat interno, avisos, transferencia de cautela, presenca e push
 // ============================================================
+// ============================================================
+// Busca por foto: identifica o material fotografado com o Claude
+// (claude-opus-5) e devolve nome + termos de busca. A pesquisa
+// entre os materiais do DEMOP é feita no app (sem custo).
+// Segredo: `firebase functions:secrets:set ANTHROPIC_API_KEY`
+// ============================================================
+const { defineSecret } = require("firebase-functions/params");
+const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
+
+const VISAO_MODELO = "claude-opus-5";
+const VISAO_ROLES = new Set(["admin", "admingeral", "BensPatrimoniais"]);
+const VISAO_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const VISAO_MAX_BYTES = 4 * 1024 * 1024;
+
+const VISAO_SISTEMA = [
+  "Você identifica materiais e equipamentos operacionais fotografados no depósito (DEMOP) de um quartel do Corpo de Bombeiros Militar do Estado do Rio de Janeiro (CBMERJ).",
+  "Responda em português do Brasil, com os nomes usados por bombeiros em estoque: bomba costal, abafador, halligan, tesourão, alavanca, esguicho, mangueira, extintor PQS, capacete Gallet F1, cilindro de ar, EPR, corda de salvamento, luva de raspa, jardineira, etc.",
+  "Concentre-se no objeto principal da foto. Se houver dúvida entre objetos parecidos, liste os candidatos nos termos de busca, do mais provável para o menos provável.",
+  "Os termos devem ser curtos (1 a 4 palavras), no singular, sem marca quando ela não estiver visível.",
+].join(" ");
+
+const VISAO_ESQUEMA = {
+  type: "object",
+  properties: {
+    objeto: { type: "string", description: "Nome curto do objeto principal, como usado no estoque de bombeiros" },
+    termos: {
+      type: "array",
+      items: { type: "string" },
+      description: "De 3 a 6 termos de busca (sinônimos, variações e nomes de modelo), do mais provável para o menos provável",
+    },
+    categoria: { type: "string", description: "Categoria genérica: combate a incêndio, salvamento, EPI, ferramenta, comunicação, mergulho, outro" },
+    descricao: { type: "string", description: "Uma frase sobre o que se vê: cor, marca, estado, quantidade" },
+    confianca: { type: "string", enum: ["alta", "media", "baixa"] },
+  },
+  required: ["objeto", "termos", "categoria", "descricao", "confianca"],
+  additionalProperties: false,
+};
+
+function extrairJson(texto) {
+  try { return JSON.parse(texto); } catch (_) { /* tenta recortar */ }
+  const ini = texto.indexOf("{");
+  const fim = texto.lastIndexOf("}");
+  if (ini >= 0 && fim > ini) {
+    try { return JSON.parse(texto.slice(ini, fim + 1)); } catch (_) { /* cai no erro abaixo */ }
+  }
+  throw new HttpsError("internal", "A resposta do reconhecimento veio em formato inesperado.");
+}
+
+exports.identificarMaterialPorFoto = onCall(
+  { region: "southamerica-east1", secrets: [ANTHROPIC_API_KEY], memory: "512MiB", timeoutSeconds: 60 },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+    if (!VISAO_ROLES.has(request.auth.token.role)) {
+      throw new HttpsError("permission-denied", "Seu perfil não pode usar a busca por foto.");
+    }
+    const { imagemBase64, mediaType } = request.data || {};
+    if (typeof imagemBase64 !== "string" || imagemBase64.length < 100) {
+      throw new HttpsError("invalid-argument", "Envie a foto em base64.");
+    }
+    if (!VISAO_MEDIA_TYPES.has(mediaType)) {
+      throw new HttpsError("invalid-argument", "Formato de imagem não suportado (use JPEG, PNG ou WebP).");
+    }
+    if (imagemBase64.length * 0.75 > VISAO_MAX_BYTES) {
+      throw new HttpsError("invalid-argument", "Foto muito grande. Tente novamente (o app comprime antes de enviar).");
+    }
+
+    const Anthropic = require("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY.value() });
+
+    let response;
+    try {
+      response = await client.beta.messages.create({
+        model: VISAO_MODELO,
+        max_tokens: 1024,
+        // Fallback automático caso o classificador de segurança recuse a imagem.
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        output_config: { effort: "low", format: { type: "json_schema", schema: VISAO_ESQUEMA } },
+        system: VISAO_SISTEMA,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: mediaType, data: imagemBase64 } },
+              { type: "text", text: "Identifique o material desta foto e devolva o JSON pedido." },
+            ],
+          },
+        ],
+      });
+    } catch (e) {
+      if (e instanceof Anthropic.AuthenticationError) throw new HttpsError("failed-precondition", "Chave da API de reconhecimento inválida. Avise o administrador.");
+      if (e instanceof Anthropic.RateLimitError) throw new HttpsError("resource-exhausted", "Muitas fotos em pouco tempo. Aguarde alguns segundos e tente de novo.");
+      if (e instanceof Anthropic.BadRequestError) throw new HttpsError("invalid-argument", `Imagem recusada pelo reconhecimento: ${e.message}`);
+      console.error("identificarMaterialPorFoto:", e);
+      throw new HttpsError("unavailable", "O serviço de reconhecimento não respondeu. Tente novamente.");
+    }
+
+    if (response.stop_reason === "refusal") {
+      throw new HttpsError("failed-precondition", "O reconhecimento não pôde analisar esta foto. Tente outro ângulo.");
+    }
+    const texto = (response.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+    const dados = extrairJson(texto);
+    const termos = Array.isArray(dados.termos) ? dados.termos.map((t) => String(t).trim()).filter(Boolean).slice(0, 6) : [];
+    const objeto = String(dados.objeto || termos[0] || "").trim();
+    if (!objeto) throw new HttpsError("internal", "Não foi possível identificar o material na foto.");
+
+    const usage = response.usage || {};
+    return {
+      objeto,
+      termos: termos.length ? termos : [objeto],
+      categoria: String(dados.categoria || ""),
+      descricao: String(dados.descricao || ""),
+      confianca: ["alta", "media", "baixa"].includes(dados.confianca) ? dados.confianca : "media",
+      modelo: response.model || VISAO_MODELO,
+      tokens: { entrada: usage.input_tokens || 0, saida: usage.output_tokens || 0 },
+    };
+  }
+);
+
 Object.assign(exports, require("./chat"));
