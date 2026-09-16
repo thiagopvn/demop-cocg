@@ -116,37 +116,21 @@ export default function BuscaPorFoto({ onTermo, onSelecionarMaterial, variant = 
                 <Tooltip title="Fotografe o material e o app encontra no estoque, como uma busca digitada" arrow>
                     <Button
                         onClick={abrirCamera}
-                        startIcon={<PhotoCameraOutlined sx={{ fontSize: '22px !important' }} />}
+                        variant="outlined"
+                        size="small"
+                        startIcon={<PhotoCameraOutlined sx={{ fontSize: '18px !important' }} />}
                         sx={{
-                            position: 'relative',
-                            borderRadius: 3,
+                            borderRadius: 2,
                             textTransform: 'none',
-                            fontWeight: 800,
-                            fontSize: '0.95rem',
+                            fontWeight: 600,
+                            fontSize: '0.8rem',
                             whiteSpace: 'nowrap',
-                            px: 2.5,
-                            minHeight: 56,
-                            color: '#fff',
-                            background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, #e2531f 55%, ${theme.palette.primary.main} 140%)`,
-                            boxShadow: `0 8px 22px ${alpha(theme.palette.secondary.main, 0.38)}`,
-                            transition: 'transform .18s, box-shadow .18s',
-                            '&:hover': { transform: 'translateY(-2px)', boxShadow: `0 12px 28px ${alpha(theme.palette.secondary.main, 0.5)}` },
-                            '&:active': { transform: 'translateY(0)' },
-                            '&::after': {
-                                content: '"NOVO"',
-                                position: 'absolute',
-                                top: -9,
-                                right: 10,
-                                fontSize: '0.58rem',
-                                fontWeight: 900,
-                                letterSpacing: 1,
-                                px: 0.75,
-                                py: 0.15,
-                                borderRadius: 1,
-                                bgcolor: '#fff',
-                                color: theme.palette.secondary.dark || '#c2410c',
-                                boxShadow: `0 2px 6px ${alpha('#000', 0.2)}`,
-                            },
+                            px: 1.5,
+                            alignSelf: 'center',
+                            color: 'text.secondary',
+                            borderColor: alpha(theme.palette.divider, 0.8),
+                            bgcolor: 'background.paper',
+                            '&:hover': { color: cor, borderColor: cor, bgcolor: alpha(cor, 0.06) },
                             ...sx,
                         }}
                     >
