@@ -1257,6 +1257,7 @@ const Material = () => {
                 </StatsContainer>
 
                 <StyledSearchContainer>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'stretch', flexDirection: { xs: 'column', sm: 'row' } }}>
                     <StyledTextField
                         ref={searchRef}
                         fullWidth
@@ -1297,12 +1298,13 @@ const Material = () => {
                                                 </IconButton>
                                             </Tooltip>
                                         )}
-                                        <BuscaPorFoto onTermo={(termo) => setSearchTerm(termo)} />
                                     </InputAdornment>
                                 ),
                             },
                         }}
                     />
+                    <BuscaPorFoto variant="button" onTermo={(termo) => setSearchTerm(termo)} />
+                    </Box>
 
                     {/* Ordenação rápida */}
                     <Box sx={{ mt: 1.5, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>

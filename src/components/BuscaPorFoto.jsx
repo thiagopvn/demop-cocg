@@ -113,9 +113,46 @@ export default function BuscaPorFoto({ onTermo, onSelecionarMaterial, variant = 
             <input ref={inputRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => processar(e.target.files?.[0])} />
 
             {variant === 'button' ? (
-                <Button size={size} variant="outlined" startIcon={<CameraAltOutlined />} onClick={abrirCamera} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap', ...sx }}>
-                    Buscar por foto
-                </Button>
+                <Tooltip title="Fotografe o material e o app encontra no estoque, como uma busca digitada" arrow>
+                    <Button
+                        onClick={abrirCamera}
+                        startIcon={<PhotoCameraOutlined sx={{ fontSize: '22px !important' }} />}
+                        sx={{
+                            position: 'relative',
+                            borderRadius: 3,
+                            textTransform: 'none',
+                            fontWeight: 800,
+                            fontSize: '0.95rem',
+                            whiteSpace: 'nowrap',
+                            px: 2.5,
+                            minHeight: 56,
+                            color: '#fff',
+                            background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, #e2531f 55%, ${theme.palette.primary.main} 140%)`,
+                            boxShadow: `0 8px 22px ${alpha(theme.palette.secondary.main, 0.38)}`,
+                            transition: 'transform .18s, box-shadow .18s',
+                            '&:hover': { transform: 'translateY(-2px)', boxShadow: `0 12px 28px ${alpha(theme.palette.secondary.main, 0.5)}` },
+                            '&:active': { transform: 'translateY(0)' },
+                            '&::after': {
+                                content: '"NOVO"',
+                                position: 'absolute',
+                                top: -9,
+                                right: 10,
+                                fontSize: '0.58rem',
+                                fontWeight: 900,
+                                letterSpacing: 1,
+                                px: 0.75,
+                                py: 0.15,
+                                borderRadius: 1,
+                                bgcolor: '#fff',
+                                color: theme.palette.secondary.dark || '#c2410c',
+                                boxShadow: `0 2px 6px ${alpha('#000', 0.2)}`,
+                            },
+                            ...sx,
+                        }}
+                    >
+                        Buscar por foto
+                    </Button>
+                </Tooltip>
             ) : (
                 <Tooltip title="Buscar por foto: fotografe o material e o app encontra no estoque" arrow>
                     <IconButton size={size} onClick={abrirCamera} aria-label="Buscar por foto" sx={{ color: cor, '&:hover': { bgcolor: alpha(cor, 0.1) }, ...sx }}>

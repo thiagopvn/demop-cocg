@@ -283,25 +283,23 @@ export default function Operacoes() {
                     </Collapse>
 
                     {/* Busca */}
-                    <TextField
-                        fullWidth
-                        size="medium"
-                        placeholder="Buscar operação, nota, boletim ou material… (ex.: Pluvian, rádio, tesourão)"
-                        value={busca}
-                        onChange={(e) => setBusca(e.target.value)}
-                        slotProps={{
-                            input: {
-                                startAdornment: <InputAdornment position="start"><Search color="action" /></InputAdornment>,
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        {busca && <IconButton size="small" onClick={() => setBusca('')} aria-label="Limpar busca"><Clear fontSize="small" /></IconButton>}
-                                        <BuscaPorFoto onTermo={(termo) => setBusca(termo)} />
-                                    </InputAdornment>
-                                ),
-                            },
-                        }}
-                        sx={{ mb: 2.5, '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: 'background.paper' } }}
-                    />
+                    <Box sx={{ display: 'flex', gap: 1.5, mb: 2.5, flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'stretch' }}>
+                        <TextField
+                            fullWidth
+                            size="medium"
+                            placeholder="Buscar operação, nota, boletim ou material… (ex.: Pluvian, rádio, tesourão)"
+                            value={busca}
+                            onChange={(e) => setBusca(e.target.value)}
+                            slotProps={{
+                                input: {
+                                    startAdornment: <InputAdornment position="start"><Search color="action" /></InputAdornment>,
+                                    endAdornment: busca ? <InputAdornment position="end"><IconButton size="small" onClick={() => setBusca('')} aria-label="Limpar busca"><Clear fontSize="small" /></IconButton></InputAdornment> : null,
+                                },
+                            }}
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: 'background.paper' } }}
+                        />
+                        <BuscaPorFoto variant="button" onTermo={(termo) => setBusca(termo)} />
+                    </Box>
 
                     {/* Lista + detalhe */}
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(280px, 340px) 1fr' }, gap: { xs: 2, md: 3 }, alignItems: 'start' }}>
@@ -341,7 +339,11 @@ export default function Operacoes() {
                                 viaturaPorMaterial={viaturaPorMaterial}
                                 podeEditar={podeEditar}
                                 termoBusca={termo}
-                                onVoltar={isMobile ? () => selecionar(null) : undefined}
+                                onVoltar={() => {
+                                    if (isMobile && selecionada) selecionar(null);
+                                    else if (window.history.length > 1) navigate(-1);
+                                    else navigate('/home');
+                                }}
                                 onEditar={(op) => setOpDialog({ open: true, operacao: op })}
                                 onExcluir={pedirExclusaoOperacao}
                                 onNovoItem={(secaoId) => setItemDialog({ open: true, item: null, secaoId })}

@@ -84,9 +84,11 @@ export default function OperacaoDetalhe({
             >
                 <Box sx={{ display: 'flex', gap: { xs: 1.5, sm: 2 }, alignItems: 'flex-start', position: 'relative' }}>
                     {onVoltar && (
-                        <IconButton onClick={onVoltar} sx={{ color: '#fff', bgcolor: alpha('#fff', 0.14), display: { md: 'none' }, mt: 0.25 }} size="small" aria-label="Voltar para a lista">
-                            <ArrowBackRounded />
-                        </IconButton>
+                        <Tooltip title="Voltar" arrow>
+                            <IconButton onClick={onVoltar} sx={{ color: '#fff', bgcolor: alpha('#fff', 0.16), mt: 0.25, '&:hover': { bgcolor: alpha('#fff', 0.28) } }} size="small" aria-label="Voltar">
+                                <ArrowBackRounded />
+                            </IconButton>
+                        </Tooltip>
                     )}
                     <OperacaoIcone icone={op.icone} cor="#fff" tamanho={52} sx={{ bgcolor: alpha('#fff', 0.18), color: '#fff', display: { xs: 'none', sm: 'flex' } }} />
                     <Box sx={{ flex: 1, minWidth: 0 }}>

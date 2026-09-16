@@ -189,7 +189,7 @@ export default function PainelFiltros({ filtros, setFiltro, categorias, militare
                     endAdornment: (
                         <InputAdornment position="end">
                             {filtros.busca ? <ButtonBase onClick={() => setFiltro('busca', '')} sx={{ borderRadius: '50%', p: 0.25 }}><Close sx={{ fontSize: 16 }} /></ButtonBase> : null}
-                            <BuscaPorFoto onTermo={(termo) => setFiltro('busca', termo)} sx={{ p: 0.5 }} />
+                            <BuscaPorFoto onTermo={(termo) => setFiltro('busca', termo)} corIcone={theme.palette.secondary.main} sx={{ p: 0.5, bgcolor: alpha(theme.palette.secondary.main, 0.12) }} />
                         </InputAdornment>
                     ),
                 },
