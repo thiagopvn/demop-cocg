@@ -37,6 +37,11 @@ const CAMPO_LABELS = {
     OBM: 'OBM',
     username: 'Username',
     foto: 'Foto',
+    termos: 'Termos sugeridos',
+    confianca: 'Confiança',
+    modelo: 'Modelo',
+    tokens: 'Tokens',
+    encontrados: 'Encontrados no estoque',
     posto: 'Posto',
     prefixo: 'Prefixo',
     ativo: 'Acesso',
@@ -278,6 +283,12 @@ export function descreverLog(log) {
         case 'tarefa_cancel':
             out.frase = `Cancelou a missão "${alvo}"`;
             break;
+        case 'busca_por_foto': {
+            const achados = Array.isArray(d.encontrados) ? d.encontrados.length : 0;
+            out.frase = `Buscou por foto: reconheceu "${alvo}"${achados ? ` e encontrou ${achados} material(is) no estoque` : ' (nada parecido no estoque)'}`;
+            out.quantidade = achados || null;
+            break;
+        }
         default:
             out.frase = `${ACTION_LABELS[log?.action] || log?.action || 'Ação'}${alvo ? `: ${alvo}` : ''}`;
             out.envolvido = d.militar || d.viatura || null;

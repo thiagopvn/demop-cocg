@@ -116,21 +116,20 @@ export default function BuscaPorFoto({ onTermo, onSelecionarMaterial, variant = 
                 <Tooltip title="Fotografe o material e o app encontra no estoque, como uma busca digitada" arrow>
                     <Button
                         onClick={abrirCamera}
-                        variant="outlined"
+                        variant="text"
                         size="small"
-                        startIcon={<PhotoCameraOutlined sx={{ fontSize: '18px !important' }} />}
+                        startIcon={<PhotoCameraOutlined sx={{ fontSize: '17px !important' }} />}
                         sx={{
                             borderRadius: 2,
                             textTransform: 'none',
-                            fontWeight: 600,
-                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            fontSize: '0.78rem',
                             whiteSpace: 'nowrap',
-                            px: 1.5,
-                            alignSelf: 'center',
+                            px: 1.25,
+                            alignSelf: { xs: 'flex-end', sm: 'center' },
                             color: 'text.secondary',
-                            borderColor: alpha(theme.palette.divider, 0.8),
-                            bgcolor: 'background.paper',
-                            '&:hover': { color: cor, borderColor: cor, bgcolor: alpha(cor, 0.06) },
+                            opacity: 0.85,
+                            '&:hover': { color: cor, bgcolor: alpha(cor, 0.06), opacity: 1 },
                             ...sx,
                         }}
                     >

@@ -437,6 +437,7 @@ export default function Atividades() {
                     manutencoes: 0,
                     categorias: 0,
                     bens: 0,
+                    fotos: 0,
                     outros: 0,
                 };
             }
@@ -480,6 +481,7 @@ export default function Atividades() {
                 case 'bem_viatura_update':
                 case 'bem_viatura_delete':
                     s.bens++; break;
+                case 'busca_por_foto': s.fotos++; break;
                 default: s.outros++; break;
             }
         });
@@ -807,6 +809,11 @@ export default function Atividades() {
                                                         </Tooltip>
                                                     </TableCell>
                                                     <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
+                                                        <Tooltip title="Buscas de material por foto">
+                                                            <span>Fotos</span>
+                                                        </Tooltip>
+                                                    </TableCell>
+                                                    <TableCell sx={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center', display: { xs: 'none', sm: 'table-cell' } }}>
                                                         <Tooltip title="Viaturas + Categorias + Usuários">
                                                             <span>Outros</span>
                                                         </Tooltip>
@@ -881,6 +888,12 @@ export default function Atividades() {
                                                             <Typography variant="body2" fontWeight={stat.bens > 0 ? 600 : 400}
                                                                 color={stat.bens > 0 ? '#1e3a5f' : 'text.disabled'}>
                                                                 {stat.bens}
+                                                            </Typography>
+                                                        </StyledTableCell>
+                                                        <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                                                            <Typography variant="body2" fontWeight={stat.fotos > 0 ? 600 : 400}
+                                                                color={stat.fotos > 0 ? '#7c3aed' : 'text.disabled'}>
+                                                                {stat.fotos}
                                                             </Typography>
                                                         </StyledTableCell>
                                                         <StyledTableCell align="center" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
