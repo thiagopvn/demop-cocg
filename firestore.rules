@@ -200,6 +200,13 @@ service cloud.firestore {
       allow read, create, update, delete: if isBensRole() || isAdminGeral();
     }
 
+    // ============= OPERAÇÕES DO CBMERJ (material previsto por nota) =============
+    // Consulta: admin, admingeral e BensPatrimoniais. Cadastro/edição/exclusão: só admingeral.
+    match /operacoes/{docId} {
+      allow read: if isAdminOrBens();
+      allow create, update, delete: if isAdminGeral();
+    }
+
     // ============= TAREFAS DEMOP =============
     // Leitura: todos autenticados. Create/Delete: admingeral. Update:
     // admingeral OU admin/BensPatrimoniais (só campos de progresso/conclusão).

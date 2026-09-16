@@ -86,6 +86,13 @@ export const orcamentoCaixaCollection = collection(db, 'orcamento_caixa');
 export const orcamentoSetoresCollection = collection(db, 'orcamento_setores');
 // ------------------------------------
 
+// --- OPERAÇÕES DO CBMERJ (material previsto por nota/boletim) ---
+// operacoes: uma por operação/norma (nome, nota, boletim, vigência, links do Drive,
+//   seções de material com quantidade fixada pela nota e vínculo opcional com `materials`).
+//   Leitura: admin/admingeral/BensPatrimoniais. Escrita: somente admingeral.
+export const operacoesCollection = collection(db, 'operacoes');
+// ------------------------------------
+
 export default db;
 // Somente em localhost (scripts de manutencao/testes): expoe o SDK do Firestore para o Playwright.
 if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {

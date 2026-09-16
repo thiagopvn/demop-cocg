@@ -46,6 +46,7 @@ const Perfil = lazyRetry(() => import('./screens/Perfil/Perfil'));
 const BensPatrimoniais = lazyRetry(() => import('./screens/BensPatrimoniais/BensPatrimoniais'));
 const Locais = lazyRetry(() => import('./screens/Locais/Locais'));
 const Orcamento = lazyRetry(() => import('./screens/Orcamento/Orcamento'));
+const Operacoes = lazyRetry(() => import('./screens/Operacoes/Operacoes'));
 
 const SuspenseFallback = (
   <Box
@@ -127,6 +128,12 @@ function App() {
           <Route path='/locais' element={
             <PrivateRoute allowedRoles={['admin', 'admingeral', 'BensPatrimoniais']}>
               <Locais />
+            </PrivateRoute>
+          } />
+          {/* Materiais das Operações do CBMERJ (consulta: admin/BensPatrimoniais; edição: admingeral) */}
+          <Route path='/operacoes/:id?' element={
+            <PrivateRoute allowedRoles={['admin', 'admingeral', 'BensPatrimoniais']}>
+              <Operacoes />
             </PrivateRoute>
           } />
           <Route path='/viaturas' element={

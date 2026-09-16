@@ -114,6 +114,11 @@ export const ACTION_LABELS = {
     bem_viatura_create: 'Cadastrou viatura (bens)',
     bem_viatura_update: 'Editou viatura (bens)',
     bem_viatura_delete: 'Excluiu viatura (bens)',
+    operacao_create: 'Cadastrou operação do CBMERJ',
+    operacao_update: 'Editou operação do CBMERJ',
+    operacao_delete: 'Excluiu operação do CBMERJ',
+    operacao_material: 'Alterou material previsto de operação',
+    operacao_seed: 'Carregou operações padrão do CBMERJ',
 };
 
 // Cores para cada tipo de ação
@@ -172,4 +177,9 @@ export const ACTION_COLORS = {
     bem_viatura_create: '#4caf50',
     bem_viatura_update: '#2196f3',
     bem_viatura_delete: '#f44336',
+    operacao_create: '#4caf50',
+    operacao_update: '#2196f3',
+    operacao_delete: '#f44336',
+    operacao_material: '#ea580c',
+    operacao_seed: '#1e3a5f',
 };

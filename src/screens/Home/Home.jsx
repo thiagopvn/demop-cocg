@@ -101,6 +101,7 @@ import CautelaStrip from "../../components/CautelaStrip";
 import DevolucaoReceiptStrip from "../../components/DevolucaoReceiptStrip";
 import UpcomingMaintenances from "../../components/maintenance/UpcomingMaintenances";
 import CompressorQuickCard from "../../components/compressor/CompressorQuickCard";
+import OperacoesQuickCard from "../../components/operacoes/OperacoesQuickCard";
 import PainelAnalitico from "../../components/dashboard/PainelAnalitico";
 import { createNextRecurrentMaintenance } from "../../services/maintenanceNotificationService";
 import { sincronizarStatusAposConclusao } from "../../utils/materialStatus";
@@ -1911,12 +1912,15 @@ export default function Home() {
                 </Box>
               )}
 
-              {/* ====== CONTROLE DO COMPRESSOR FIXO (admins) ====== */}
+              {/* ====== COMPRESSOR FIXO + MATERIAIS DAS OPERAÇÕES DO CBMERJ (admins) ====== */}
               {(userRole === 'admin' || userRole === 'admingeral') && (
                 <Box sx={{ mb: 3 }}>
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6} md={4}>
                       <CompressorQuickCard />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={8}>
+                      <OperacoesQuickCard />
                     </Grid>
                   </Grid>
                 </Box>

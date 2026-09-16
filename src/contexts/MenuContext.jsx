@@ -25,6 +25,7 @@ import {
   DarkModeOutlined,
   LightModeOutlined,
   WarehouseOutlined,
+  ShieldOutlined,
   NotificationsNoneOutlined
 } from '@mui/icons-material';
 import {
@@ -157,6 +158,7 @@ function MenuContext({ children }) {
     { icon: AssignmentReturnOutlined, label: 'Devoluções', path: '/devolucoes', id: 7, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: BuildOutlined, label: 'Material', path: '/material', id: 2, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: WarehouseOutlined, label: 'Locais', path: '/locais', id: 14, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
+    { icon: ShieldOutlined, label: 'Operações CBMERJ', path: '/operacoes', id: 18, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: CalendarMonth, label: 'Manutenção', path: '/manutencao', id: 10, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: LocalShippingOutlined, label: 'Viaturas', path: '/viaturas', id: 3, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
     { icon: CategoryOutlined, label: 'Categorias', path: '/categoria', id: 4, roles: ['admin', 'admingeral', 'BensPatrimoniais'] },
@@ -245,7 +247,9 @@ function MenuContext({ children }) {
 
   useEffect(() => {
     const path = location.pathname;
-    const item = allMenuItems.find(item => item.path === path);
+    // Rotas com parâmetro (ex.: /operacoes/:id) destacam o item do caminho-base
+    const item = allMenuItems.find(item => item.path === path)
+      || allMenuItems.find(item => item.path !== '/' && path.startsWith(`${item.path}/`));
     if (item) {
       setActive(item.id);
     }
