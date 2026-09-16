@@ -95,7 +95,7 @@ export default function OperacaoDetalhe({
                         <Typography variant="overline" sx={{ opacity: 0.8, letterSpacing: 1.2, lineHeight: 1.4, display: 'block' }}>
                             {op.categoria === 'norma' ? 'Norma de base' : op.categoria === 'outra' ? 'Outra operação' : 'Operação recorrente'}
                         </Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 900, lineHeight: 1.15, fontSize: { xs: '1.25rem', sm: '1.6rem' } }}>{op.nome}</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 900, lineHeight: 1.15, fontSize: { xs: '1.2rem', sm: '1.5rem' }, textTransform: 'uppercase', letterSpacing: 0.5 }}>{op.nome}</Typography>
                         {op.subtitulo && <Typography variant="body1" sx={{ opacity: 0.9, mt: 0.25 }}>{op.subtitulo}</Typography>}
                         {chips.length > 0 && (
                             <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1.5 }}>
@@ -157,7 +157,7 @@ export default function OperacaoDetalhe({
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: { xs: 1.5, sm: 2 }, py: 1.25, bgcolor: alpha(cor, dark ? 0.16 : 0.06), borderBottom: `1px solid ${alpha(cor, 0.15)}` }}>
                         <Box sx={{ width: 6, alignSelf: 'stretch', borderRadius: 3, bgcolor: cor, mr: 0.5 }} />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{secao.titulo}</Typography>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2, textTransform: 'uppercase', letterSpacing: 0.3, fontSize: '0.95rem' }}>{secao.titulo}</Typography>
                             {secao.referencia && <Typography variant="caption" color="text.secondary">{secao.referencia}</Typography>}
                         </Box>
                         <Chip size="small" label={`${(secao.itens || []).length} ${(secao.itens || []).length === 1 ? 'item' : 'itens'}`} sx={{ height: 22, fontWeight: 700, bgcolor: alpha(cor, 0.12), color: cor }} />

@@ -45,6 +45,7 @@ import { useMateriaisEmViatura, useOperacoes } from '../../hooks/useOperacoes';
 import { CATEGORIAS_OPERACAO, combinaBusca, contarItens, excluirOperacao, resumirOperacao, salvarSecoes, semearOperacoes, textoBusca } from '../../services/operacoesService';
 import { SOBRE_LEVANTAMENTO } from '../../data/operacoesCbmerj';
 import OperacaoIcone from '../../components/operacoes/OperacaoIcone';
+import { LogoGocg } from '../../components/operacoes/OperacoesQuickCard';
 import BuscaPorFoto from '../../components/BuscaPorFoto';
 import OperacaoDetalhe from './OperacaoDetalhe';
 
@@ -80,7 +81,7 @@ function OperacaoListaItem({ op, selecionada, resumo, onClick }) {
         >
             <OperacaoIcone icone={op.icone} cor={cor} tamanho={40} variante={selecionada ? 'solida' : 'suave'} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.2 }} noWrap>{op.nome}</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.2, textTransform: 'uppercase', letterSpacing: 0.3 }} noWrap>{op.nome}</Typography>
                 <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
                     {op.nota || op.subtitulo || '—'}{op.nota && op.subtitulo ? ` · ${op.subtitulo}` : ''}
                 </Typography>
@@ -242,13 +243,16 @@ export default function Operacoes() {
                 <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
                     {/* Cabeçalho */}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 2, py: { xs: 1, sm: 2 } }}>
-                        <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main', fontSize: { xs: '1.15rem', sm: '1.5rem' }, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <ShieldOutlined /> Materiais das Operações do CBMERJ
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Material previsto por nota, links do Drive e onde cada item está no DEMOP · quantidades fixadas pela nota
-                            </Typography>
+                        <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 1.75 }}>
+                            <LogoGocg tamanho={56} />
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="h4" sx={{ fontWeight: 900, color: 'primary.main', fontSize: { xs: '1.05rem', sm: '1.35rem' }, textTransform: 'uppercase', letterSpacing: 0.5, lineHeight: 1.2 }}>
+                                    Materiais das Operações do CBMERJ
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.72rem', letterSpacing: 0.5, fontWeight: 600 }}>
+                                    GOCG · material previsto por nota, links do Drive e onde cada item está no DEMOP
+                                </Typography>
+                            </Box>
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                             <Tooltip title="Sobre o levantamento">
