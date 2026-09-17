@@ -120,6 +120,7 @@ export const ACTION_LABELS = {
     operacao_material: 'Alterou material previsto de operação',
     operacao_seed: 'Carregou operações padrão do CBMERJ',
     busca_por_foto: 'Buscou material por foto',
+    material_carga: 'Registrou cheios/vazios (carga)',
 };
 
 // Cores para cada tipo de ação
@@ -184,4 +185,5 @@ export const ACTION_COLORS = {
     operacao_material: '#ea580c',
     operacao_seed: '#1e3a5f',
     busca_por_foto: '#7c3aed',
+    material_carga: '#d97706',
 };

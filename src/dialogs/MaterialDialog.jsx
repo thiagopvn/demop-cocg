@@ -26,6 +26,8 @@ import {
 } from '@mui/material';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { criarCategoria, nomeCategoria, normalizarNomeCategoria } from '../services/categoriaService';
+import { controlaCarga, getQtdVazios, sugereControleCarga } from '../utils/carga';
+import CargaBadge from '../components/CargaBadge';
 
 const filtrarCategorias = createFilterOptions();
 import { useTheme } from '@mui/material/styles';
@@ -131,6 +133,9 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const [estoqueTotal, setEstoqueTotal] = useState(1);
     const [estoqueAtual, setEstoqueAtual] = useState(1);
     const [qtdInoperante, setQtdInoperante] = useState(0);
+    // Controle de carga (cheio/vazio) — extintores e cilindros; separado da inoperância
+    const [controlaCargaMat, setControlaCargaMat] = useState(false);
+    const [qtdVazios, setQtdVazios] = useState(0);
     const [loading, setLoading] = useState(false);
     const [similarMaterials, setSimilarMaterials] = useState([]);
     const [errors, setErrors] = useState({});
@@ -174,6 +179,8 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             if (isEditing && material) {
                 setDescription(material.description || '');
                 setCategoriaId(material.categoria_id || '');
+                setControlaCargaMat(controlaCarga(material));
+                setQtdVazios(getQtdVazios(material));
                 setEstoqueTotal(getTotalUnidades(material) || (material.estoque_total ?? 1));
                 setEstoqueAtual(material.estoque_atual ?? 0);
                 setQtdInoperante(getQtdInoperante(material));
@@ -181,6 +188,8 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
             } else {
                 setDescription('');
                 setCategoriaId('');
+                setControlaCargaMat(false);
+                setQtdVazios(0);
                 setEstoqueTotal(1);
                 setEstoqueAtual(1);
                 setQtdInoperante(0);
@@ -410,6 +419,9 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     qtdInoperante,
                     material?.maintenance_status,
                 ));
+                // Carga (cheio/vazio): vazios nunca acima do disponível
+                data.controla_carga = controlaCargaMat;
+                data.qtd_vazios = controlaCargaMat ? Math.max(0, Math.min(Number(qtdVazios) || 0, Number(estoqueAtual) || 0)) : 0;
 
                 // Handle image removal (without upload)
                 if (removeImage && !imageFile) {
@@ -503,6 +515,8 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                         material?.maintenance_status,
                         { paraCriacao: true },
                     ),
+                    controla_carga: controlaCargaMat,
+                    qtd_vazios: controlaCargaMat ? Math.max(0, Math.min(Number(qtdVazios) || 0, Number(estoqueAtual) || 0)) : 0,
                     created_at: serverTimestamp(),
                     image_url: null,
                     image_storagePath: null,
@@ -998,6 +1012,42 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                             <Box sx={{ flex: qtdOperantePreview, bgcolor: 'success.main', transition: 'flex 0.2s' }} />
                             <Box sx={{ flex: Number(qtdInoperante) || 0, bgcolor: 'error.main', transition: 'flex 0.2s' }} />
                         </Box>
+                    )}
+                </Box>
+
+                {/* Carga (cheio/vazio) — extintores e cilindros */}
+                <Box sx={{ mt: 2, p: 2, borderRadius: 2, border: 1, borderColor: controlaCargaMat ? alpha('#d97706', 0.5) : 'divider', bgcolor: controlaCargaMat ? alpha('#d97706', 0.04) : 'transparent' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <Box sx={{ flex: 1, minWidth: 200 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Controle de carga (cheio / vazio)</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Para extintores e cilindros. Vazio não é inoperante: o material está íntegro, só aguarda recarga.
+                                {!controlaCargaMat && sugereControleCarga(description) ? ' Sugerido pelo nome deste material.' : ''}
+                            </Typography>
+                        </Box>
+                        <Button size="small" variant={controlaCargaMat ? 'contained' : 'outlined'} color="warning" onClick={() => setControlaCargaMat(v => !v)} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
+                            {controlaCargaMat ? 'Ativado' : 'Ativar'}
+                        </Button>
+                    </Box>
+                    {controlaCargaMat && (
+                        <>
+                            <TextField
+                                margin="dense"
+                                label="Unidades vazias (aguardando recarga)"
+                                type="number"
+                                fullWidth
+                                variant="outlined"
+                                value={qtdVazios}
+                                onChange={(e) => {
+                                    const v = e.target.value === '' ? 0 : Number(e.target.value);
+                                    setQtdVazios(Math.max(0, Math.min(v, Number(estoqueAtual) || 0)));
+                                }}
+                                InputProps={{ inputProps: { min: 0, max: Number(estoqueAtual) || 0 } }}
+                                helperText={`${Math.max(0, (Number(estoqueAtual) || 0) - (Number(qtdVazios) || 0))} cheio(s) de ${Number(estoqueAtual) || 0} disponível(is)`}
+                                sx={{ mt: 1.5 }}
+                            />
+                            <CargaBadge material={{ estoque_atual: Number(estoqueAtual) || 0, qtd_vazios: Number(qtdVazios) || 0, controla_carga: true }} compact sx={{ mt: 1 }} />
+                        </>
                     )}
                 </Box>
             </DialogContent>

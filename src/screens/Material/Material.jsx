@@ -68,6 +68,7 @@ import {
     History,
     Sync,
     HideImage,
+    LocalFireDepartment,
     Warehouse
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
@@ -101,6 +102,9 @@ import { useLocaisArmazenamento, useAlocacoesLocais } from '../../hooks/useLocai
 import { resumirLocalizacao, alocacaoComoLocal, ordenarLocais, normalizarTexto, removerAlocacoesDoMaterial } from '../../services/localizacaoService';
 import LocalChip, { TipoLocalIcon } from '../../components/locais/LocalChip';
 import BuscaPorFoto from '../../components/BuscaPorFoto';
+import CargaBadge from '../../components/CargaBadge';
+import { controlaCarga, resumoCarga, totalizarCarga, CORES_CARGA } from '../../utils/carga';
+const CargaDialog = lazy(() => import('../../dialogs/CargaDialog'));
 const SeedMaintenancesDialog = lazy(() => import('../../dialogs/SeedMaintenancesDialog'));
 
 /** Executa `fn` fora do caminho crítico de render (idle callback, com fallback em timeout). */
@@ -291,6 +295,7 @@ const Material = () => {
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
     const [historicoOpen, setHistoricoOpen] = useState(false);
     const [historicoTarget, setHistoricoTarget] = useState(null);
+    const [cargaDialogMaterial, setCargaDialogMaterial] = useState(null);
 
     // Ordenação por coluna (clique no cabeçalho)
     const [sortField, setSortField] = useState('description');
@@ -723,6 +728,10 @@ const Material = () => {
                 result = result.filter(m => (m.estoque_atual || 0) === 0 && (m.estoque_viatura || 0) === 0); // em viatura nao conta como zerado
             } else if (filterEstoque === 'em_estoque') {
                 result = result.filter(m => (m.estoque_atual || 0) > 0);
+            } else if (filterEstoque === 'com_vazios') {
+                result = result.filter(m => controlaCarga(m) && resumoCarga(m).vazios > 0);
+            } else if (filterEstoque === 'carga') {
+                result = result.filter(m => controlaCarga(m));
             }
         }
 
@@ -884,6 +893,7 @@ const Material = () => {
         let lowStock = 0;
         let semImagem = 0;
         const unchecked = [];
+        const carga = totalizarCarga(materials);
 
         for (const item of materialConferenceDates) {
             const m = item.material;
@@ -903,6 +913,7 @@ const Material = () => {
                 filtered: allFilteredMaterials.length,
                 lowStock,
                 semImagem,
+                carga,
                 semConferencia: unchecked.length,
                 showing: filteredMaterials.length,
                 totalFiltered: allFilteredMaterials.length,
@@ -1198,6 +1209,36 @@ const Material = () => {
                         </StatCard>
                     )}
 
+                    {stats.carga.materiais > 0 && (
+                        <StatCard
+                            sx={{
+                                flex: 1, minWidth: { xs: 168, sm: 220 }, cursor: 'pointer',
+                                background: `linear-gradient(135deg, ${alpha(stats.carga.vazios ? CORES_CARGA.vazio : CORES_CARGA.cheio, 0.1)} 0%, ${alpha(stats.carga.vazios ? CORES_CARGA.vazio : CORES_CARGA.cheio, 0.03)} 100%)`,
+                                border: `1px solid ${alpha(stats.carga.vazios ? CORES_CARGA.vazio : CORES_CARGA.cheio, 0.2)}`,
+                                ...(filterEstoque === 'com_vazios' && { borderColor: alpha(CORES_CARGA.vazio, 0.6), boxShadow: `0 0 0 2px ${alpha(CORES_CARGA.vazio, 0.2)}` }),
+                                '&:hover': { transform: 'translateY(-3px)', boxShadow: `0 8px 24px ${alpha(CORES_CARGA.vazio, 0.15)}` },
+                            }}
+                            onClick={() => setFilterEstoque(prev => prev === 'com_vazios' ? '' : (stats.carga.vazios ? 'com_vazios' : 'carga'))}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{ p: 1.5, borderRadius: 2.5, bgcolor: alpha(stats.carga.vazios ? CORES_CARGA.vazio : CORES_CARGA.cheio, 0.15), color: stats.carga.vazios ? CORES_CARGA.vazio : CORES_CARGA.cheio, display: 'flex' }}>
+                                    <LocalFireDepartment />
+                                </Box>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                                        <Typography variant="h5" fontWeight={800} sx={{ color: stats.carga.vazios ? CORES_CARGA.vazio : CORES_CARGA.cheio, lineHeight: 1.2 }}>{stats.carga.vazios}</Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>vazios</Typography>
+                                        <Typography variant="h6" fontWeight={800} sx={{ color: CORES_CARGA.cheio, lineHeight: 1.2 }}>{stats.carga.cheios}</Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>cheios</Typography>
+                                    </Box>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                        Extintores e cilindros · {stats.carga.comVazios} item(ns) com vazios
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </StatCard>
+                    )}
+
                     {isAdminGeral && stats.semImagem > 0 && (
                         <StatCard
                             sx={{
@@ -1417,6 +1458,8 @@ const Material = () => {
                                 <MenuItem value="">Todos</MenuItem>
                                 <MenuItem value="zerado">Estoque Zerado</MenuItem>
                                 <MenuItem value="em_estoque">Em Estoque</MenuItem>
+                                <MenuItem value="carga">Com controle de carga</MenuItem>
+                                <MenuItem value="com_vazios" sx={{ color: CORES_CARGA.vazio, fontWeight: 600 }}>Com vazios (recarga)</MenuItem>
                             </Select>
                         </FormControl>
                         <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 190 } }}>
@@ -1742,6 +1785,9 @@ const Material = () => {
                                                             de {getTotalUnidades(material)}
                                                         </Typography>
                                                     )}
+                                                    {controlaCarga(material) && (
+                                                        <CargaBadge material={material} compact onClick={isAdmin ? setCargaDialogMaterial : undefined} sx={{ mt: 0.75 }} />
+                                                    )}
                                                 </Box>
                                             </StyledTableCell>
                                             <StyledTableCell align="center" sx={{ maxWidth: 220 }}>
@@ -2046,6 +2092,16 @@ const Material = () => {
                         loggedUserName={loggedUserName}
                         loggedUserId={loggedUserId}
                         materials={materials}
+                    />
+                )}
+
+                {cargaDialogMaterial && (
+                    <CargaDialog
+                        open
+                        onClose={() => setCargaDialogMaterial(null)}
+                        material={materials.find(m => m.id === cargaDialogMaterial.id) || cargaDialogMaterial}
+                        user={{ userId: loggedUserId, userName: loggedUserName }}
+                        onSaved={(msg) => setSnackbar({ open: true, message: msg, severity: 'success' })}
                     />
                 )}
 

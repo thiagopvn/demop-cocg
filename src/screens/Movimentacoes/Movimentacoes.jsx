@@ -62,6 +62,7 @@ import MaterialSearch from "../../components/MaterialSearch";
 import UserSearch from "../../components/UserSearch";
 import db from "../../firebase/db";
 import { getQtdInoperante, getTotalUnidades, montarPatchInoperancia } from '../../utils/materialStatus';
+import { controlaCarga, getQtdCheios, getQtdVazios } from '../../utils/carga';
 import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, where, orderBy, serverTimestamp, writeBatch } from "firebase/firestore";
 import { verifyToken } from "../../firebase/token";
 import { logAudit } from '../../firebase/auditLog';
@@ -220,6 +221,11 @@ export default function Movimentacao() {
             if (materialSelected.estoque_atual < qtd) {
                 showFeedback('warning', 'Estoque insuficiente', 'Quantidade maior que o estoque atual.');
                 return;
+            }
+            // Extintor/cilindro com unidades vazias: avisa, mas não bloqueia (vazio não é inoperante)
+            if (controlaCarga(materialSelected) && getQtdCheios(materialSelected) < qtd) {
+                const cheios = getQtdCheios(materialSelected);
+                showFeedback('warning', 'Atenção: há unidades vazias', `Só ${cheios} cheio(s) disponível(is) e ${getQtdVazios(materialSelected)} vazio(s) aguardando recarga. ${qtd - cheios} unidade(s) desta cautela sairá(ão) vazia(s).`);
             }
             const materialExistente = materiaisSelected.find(m => m.material.id === materialSelected.id);
             if (materialExistente) {
