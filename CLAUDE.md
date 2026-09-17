@@ -88,7 +88,7 @@ Stock totals: `getTotalUnidades()` (`src/utils/materialStatus.js`) never returns
 
 ### Context System (src/contexts/)
 - **MenuContext.jsx** (~876 lines) - Main layout wrapper: sidebar navigation, role-based menu filtering, mobile drawer, logout, maintenance notification badge, admin cleanup FAB
-- **CategoriaContext.jsx** - Category list (non-real-time, uses getDocs)
+- **CategoriaContext.jsx** - Category list in real time (onSnapshot), exposes `useCategorias()`. Business rules in `src/services/categoriaService.js`: names in caixa alta; `renomearCategoria` propagates the new name to every material (`categoria` + `categoria_id`); `excluirCategoria` requires a destination category when materials exist; `materiaisSemCategoria` feeds the "Sem categoria" card and the `?categoria=__sem_categoria__` filter of `/material`. MaterialDialog's category field is an Autocomplete that creates a category inline ("Criar categoria X").
 - **MaterialContext.jsx** - Materials list (real-time via onSnapshot), exposes `useMaterials()` hook
 - **ThemeContext.jsx** - Light/dark mode toggle
 - **PrivateRoute.jsx** - Auth guard with `useRef` to prevent re-render loops

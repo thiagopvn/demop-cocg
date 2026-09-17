@@ -20,9 +20,14 @@ import {
     Chip,
     LinearProgress,
     alpha,
-    Collapse
+    Collapse,
+    Autocomplete,
+    createFilterOptions
 } from '@mui/material';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { criarCategoria, nomeCategoria, normalizarNomeCategoria } from '../services/categoriaService';
+
+const filtrarCategorias = createFilterOptions();
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
@@ -122,6 +127,7 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
     const { categorias } = useContext(CategoriaContext);
     const [description, setDescription] = useState('');
     const [categoriaId, setCategoriaId] = useState('');
+    const [criandoCategoria, setCriandoCategoria] = useState(false);
     const [estoqueTotal, setEstoqueTotal] = useState(1);
     const [estoqueAtual, setEstoqueAtual] = useState(1);
     const [qtdInoperante, setQtdInoperante] = useState(0);
@@ -869,24 +875,64 @@ const MaterialDialog = ({ open, onClose, material, loggedUserName, loggedUserId,
                     )}
                 </Collapse>
 
-                <FormControl fullWidth margin="dense" sx={{ mb: 2 }} error={!!errors.categoriaId}>
-                    <InputLabel>Categoria</InputLabel>
-                    <Select
-                        value={categoriaId}
-                        label="Categoria"
-                        onChange={(e) => {
-                            setCategoriaId(e.target.value);
-                            setErrors(prev => { const { categoriaId: _categoriaId, ...rest } = prev; return rest; });
-                        }}
-                    >
-                        {categorias.map(cat => (
-                            <MenuItem key={cat.id} value={cat.id}>
-                                {cat.description || cat.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                    {errors.categoriaId && <FormHelperText>{errors.categoriaId}</FormHelperText>}
-                </FormControl>
+                {/* Categoria: lista em tempo real + criação inline ("Criar categoria X") */}
+                <Autocomplete
+                    options={categorias}
+                    value={categorias.find(c => c.id === categoriaId) || null}
+                    getOptionLabel={(o) => (typeof o === 'string' ? o : (o.novaCategoria ? `Criar categoria "${o.novaCategoria}"` : nomeCategoria(o)))}
+                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                    filterOptions={(opts, params) => {
+                        const filtradas = filtrarCategorias(opts, params);
+                        const digitado = normalizarNomeCategoria(params.inputValue);
+                        if (digitado && !opts.some(c => nomeCategoria(c).toLowerCase() === digitado.toLowerCase())) {
+                            filtradas.push({ id: `__nova__${digitado}`, novaCategoria: digitado });
+                        }
+                        return filtradas;
+                    }}
+                    onChange={async (_, opt) => {
+                        setErrors(prev => { const { categoriaId: _categoriaId, ...rest } = prev; return rest; });
+                        if (!opt) { setCategoriaId(''); return; }
+                        if (opt.novaCategoria) {
+                            try {
+                                setCriandoCategoria(true);
+                                const nova = await criarCategoria(opt.novaCategoria, { userId: loggedUserId, userName: loggedUserName });
+                                setCategoriaId(nova.id);
+                            } catch (e) {
+                                console.error(e);
+                                setErrors(prev => ({ ...prev, categoriaId: e?.message || 'Não foi possível criar a categoria.' }));
+                            } finally {
+                                setCriandoCategoria(false);
+                            }
+                            return;
+                        }
+                        setCategoriaId(opt.id);
+                    }}
+                    selectOnFocus
+                    clearOnBlur
+                    handleHomeEndKeys
+                    noOptionsText="Digite para criar uma categoria"
+                    loading={criandoCategoria}
+                    renderOption={(props, o) => {
+                        const { key, ...rest } = props;
+                        return (
+                            <Box component="li" key={key} {...rest} sx={{ fontWeight: o.novaCategoria ? 700 : 500, color: o.novaCategoria ? 'primary.main' : 'inherit' }}>
+                                {o.novaCategoria ? `+ Criar categoria "${o.novaCategoria}"` : nomeCategoria(o)}
+                            </Box>
+                        );
+                    }}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            margin="dense"
+                            label="Categoria"
+                            placeholder="Escolha ou digite uma nova"
+                            error={!!errors.categoriaId}
+                            helperText={errors.categoriaId || 'Digite um nome que não existe para criá-lo na hora.'}
+                            slotProps={{ input: { ...params.InputProps, endAdornment: (<>{criandoCategoria ? <CircularProgress size={16} /> : null}{params.InputProps.endAdornment}</>) } }}
+                        />
+                    )}
+                    sx={{ mb: 2 }}
+                />
                 <TextField
                     margin="dense"
                     label="Estoque Total"

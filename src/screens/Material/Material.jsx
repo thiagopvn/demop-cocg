@@ -72,6 +72,7 @@ import {
 } from '@mui/icons-material';
 import MenuContext from '../../contexts/MenuContext';
 import { useMaterials } from '../../contexts/MaterialContext';
+import { useCategorias } from '../../contexts/CategoriaContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import {
     getMaintenanceStatusLabel,
@@ -89,7 +90,8 @@ const MaterialLocalDialog = lazy(() => import('../../dialogs/MaterialLocalDialog
 import { deleteDoc, doc, collection, query, where, getDocs, orderBy, onSnapshot, addDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import db from '../../firebase/db';
 import { verifyToken } from '../../firebase/token';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { SEM_CATEGORIA } from '../../services/categoriaService';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { logAudit } from '../../firebase/auditLog';
@@ -232,6 +234,9 @@ const StatCard = styled(Card)(({ theme }) => ({
 
 const Material = () => {
     const { materials, loading } = useMaterials();
+    const { categorias: categoriasCadastradas } = useCategorias();
+    // Nomes das categorias cadastradas (em tempo real): base do filtro "Sem categoria"
+    const uniqueCategoriesCadastradas = useMemo(() => categoriasCadastradas.map(c => c.description || c.name || ''), [categoriasCadastradas]);
     // Locais de armazenamento (prateleiras/box/gavetas/armarios) e alocacoes por material — tempo real
     const { locais, tipos: tiposLocais } = useLocaisArmazenamento();
     const { porMaterial: alocacoesPorMaterial } = useAlocacoesLocais();
@@ -644,6 +649,13 @@ const Material = () => {
         setFilterLocal('');
     }, [debouncedSearchTerm]);
 
+    // Chegou de /categoria com ?categoria=NOME (ou o marcador "sem categoria"): aplica o filtro
+    const [searchParams] = useSearchParams();
+    const categoriaParam = searchParams.get('categoria') || '';
+    useEffect(() => {
+        if (categoriaParam) setFilterCategoria(categoriaParam);
+    }, [categoriaParam]);
+
     // Unique categories for filter dropdown
     const uniqueCategories = useMemo(() => {
         const cats = new Set();
@@ -692,8 +704,11 @@ const Material = () => {
             });
         }
 
-        // Apply category filter
-        if (filterCategoria) {
+        // Apply category filter ("sem categoria" = vazia ou que não existe mais)
+        if (filterCategoria === SEM_CATEGORIA) {
+            const nomes = new Set(uniqueCategoriesCadastradas);
+            result = result.filter(m => !m.categoria || !nomes.has(m.categoria));
+        } else if (filterCategoria) {
             result = result.filter(m => m.categoria === filterCategoria);
         }
 
@@ -762,7 +777,7 @@ const Material = () => {
         }
 
         return result;
-    }, [materials, indiceBusca, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque, filterImagem, filterLocal, alocacoesPorMaterial]);
+    }, [materials, indiceBusca, uniqueCategoriesCadastradas, debouncedSearchTerm, sortField, sortDirection, filterCategoria, filterStatus, filterEstoque, filterImagem, filterLocal, alocacoesPorMaterial]);
 
     // Materiais visíveis (limitados pelo visibleCount)
     const filteredMaterials = useMemo(() => {
@@ -1368,6 +1383,7 @@ const Material = () => {
                                 sx={{ borderRadius: 2, fontSize: '0.85rem' }}
                             >
                                 <MenuItem value="">Todas</MenuItem>
+                                <MenuItem value={SEM_CATEGORIA} sx={{ fontStyle: 'italic', color: 'warning.main' }}>Sem categoria</MenuItem>
                                 {uniqueCategories.map(cat => (
                                     <MenuItem key={cat} value={cat}>{cat}</MenuItem>
                                 ))}
