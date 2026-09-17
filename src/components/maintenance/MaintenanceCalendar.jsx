@@ -46,6 +46,7 @@ import {
     Search,
     ClearAll
 } from '@mui/icons-material';
+import { gerarDetalheConclusao, separarNotas } from '../../utils/maintenanceNotes';
 import { collection, query, getDocs, updateDoc, deleteDoc, doc, addDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import db from '../../firebase/db';
@@ -715,17 +716,24 @@ const MaintenanceCalendar = () => {
                                 return (
                                     <TableRow
                                         key={maintenance.id}
+                                        hover
                                         sx={{
-                                            backgroundColor: isOverdue(maintenance.dueDate, maintenance.status)
-                                                ? 'error.light'
+                                            bgcolor: isOverdue(maintenance.dueDate, maintenance.status)
+                                                ? (t) => alpha(t.palette.error.main, t.palette.mode === 'dark' ? 0.16 : 0.07)
                                                 : 'inherit',
-                                            opacity: maintenance.status === 'concluida' ? 0.7 : 1
+                                            opacity: maintenance.status === 'concluida' ? 0.7 : 1,
+                                            '& td': { verticalAlign: 'top', py: 1.25, whiteSpace: 'normal', wordBreak: 'break-word' },
+                                            borderLeft: '4px solid',
+                                            borderLeftColor: isOverdue(maintenance.dueDate, maintenance.status) ? 'error.main'
+                                                : maintenance.priority === 'critica' ? 'error.main'
+                                                    : maintenance.priority === 'alta' ? 'warning.main'
+                                                        : 'transparent',
                                         }}
                                     >
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <TableCell sx={{ minWidth: 130 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                                                 {getTypeIcon(maintenance.type)}
-                                                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                                <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
                                                     {getMaintenanceTypeLabel(maintenance.type, maintenance.customRecurrenceDays)}
                                                 </Typography>
                                                 {maintenance.isRecurrent && (
@@ -735,10 +743,13 @@ const MaintenanceCalendar = () => {
                                                 )}
                                             </Box>
                                         </TableCell>
-                                        <TableCell>
-                                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                        <TableCell sx={{ minWidth: 200 }}>
+                                            <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 700, lineHeight: 1.35 }}>
                                                 {maintenance.materialDescription}
                                             </Typography>
+                                            {maintenance.materialCategory && (
+                                                <Typography variant="caption" color="text.secondary">{maintenance.materialCategory}</Typography>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             {getStatusChip(maintenance.status)}
@@ -785,10 +796,19 @@ const MaintenanceCalendar = () => {
                                                 sx={{ fontSize: '0.7rem', height: 24 }}
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ minWidth: 250, maxWidth: 400 }}>
-                                            <Typography variant="body2" sx={{ fontSize: '0.8rem', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                        <TableCell sx={{ minWidth: 280 }}>
+                                            <Typography variant="body2" sx={{ fontSize: '0.82rem', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.45 }}>
                                                 {maintenance.description || '-'}
                                             </Typography>
+                                            {maintenance.status === 'concluida' && maintenance.completionNotes && (() => {
+                                                const { conformePrevisto, texto } = separarNotas(maintenance.completionNotes);
+                                                return (
+                                                    <Box sx={{ mt: 0.75, display: 'flex', gap: 0.5, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                                        {conformePrevisto && <Chip label="Conforme previsto" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }} />}
+                                                        {texto && <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'normal', lineHeight: 1.4, width: '100%' }}>{texto}</Typography>}
+                                                    </Box>
+                                                );
+                                            })()}
                                         </TableCell>
                                         <TableCell align="center">
                                             <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap' }}>
@@ -892,7 +912,7 @@ const MaintenanceCalendar = () => {
                 <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
                     {completionData.maintenance && (
                         <>
-                            <Box sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200', mb: 2.5 }}>
+                            <Box sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.12 : 0.04), border: '1px solid', borderColor: (t) => alpha(t.palette.primary.main, 0.15), mb: 2.5 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>Material</Typography>
                                 <Typography variant="body1" fontWeight={600} gutterBottom>
                                     {completionData.maintenance.materialDescription}
@@ -915,15 +935,21 @@ const MaintenanceCalendar = () => {
                                 control={
                                     <Checkbox
                                         checked={completionData.confirmedAsPlanned}
-                                        onChange={(e) => setCompletionData(prev => ({ ...prev, confirmedAsPlanned: e.target.checked }))}
+                                        onChange={(e) => setCompletionData(prev => ({
+                                            ...prev,
+                                            confirmedAsPlanned: e.target.checked,
+                                            // Ao confirmar, sugere o detalhe do que foi executado (editável)
+                                            completionNotes: e.target.checked && !prev.completionNotes.trim() ? gerarDetalheConclusao(prev.maintenance) : prev.completionNotes,
+                                        }))}
                                         color="success"
                                         sx={{ '& .MuiSvgIcon-root': { fontSize: 28 } }}
                                     />
                                 }
                                 label={
-                                    <Typography variant="body1" fontWeight={600}>
-                                        Manutenção realizada conforme o previsto
-                                    </Typography>
+                                    <Box>
+                                        <Typography variant="body1" fontWeight={600}>Manutenção realizada conforme o previsto</Typography>
+                                        <Typography variant="caption" color="text.secondary">Ao marcar, o detalhe do que foi executado é preenchido abaixo; ajuste se algo saiu diferente.</Typography>
+                                    </Box>
                                 }
                                 sx={{
                                     mb: 2,
@@ -943,11 +969,13 @@ const MaintenanceCalendar = () => {
                                 fullWidth
                                 multiline
                                 rows={3}
-                                label="Observações (opcional)"
+                                label="O que foi feito"
                                 placeholder="Peças trocadas, desvios do procedimento, problemas encontrados..."
                                 value={completionData.completionNotes}
                                 onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
                                 helperText="Este registro ficará no histórico de manutenções do equipamento"
+                                minRows={3}
+                                maxRows={8}
                             />
 
                             {completionData.maintenance.isRecurrent && (

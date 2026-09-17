@@ -40,6 +40,8 @@ import { collection, query, orderBy, getDocs, deleteDoc, doc, where, Timestamp }
 import db from '../../firebase/db';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
+import { alpha } from '@mui/material';
+import { separarNotas } from '../../utils/maintenanceNotes';
 
 const MaintenanceHistory = ({ materialIdFilter = '' }) => {
     const [history, setHistory] = useState([]);
@@ -355,7 +357,7 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
             <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
                 <Table sx={{ minWidth: 700 }}>
                     <TableHead>
-                        <TableRow>
+                        <TableRow sx={{ bgcolor: 'primary.main', '& th': { color: '#fff', fontWeight: 700, whiteSpace: 'nowrap' } }}>
                             <TableCell>Tipo</TableCell>
                             <TableCell>Material</TableCell>
                             <TableCell>Data Prevista</TableCell>
@@ -388,11 +390,12 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                                             </Box>
                                         </TableCell>
                                         <TableCell>
-                                            <Tooltip title={record.materialDescription}>
-                                                <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                                                    {record.materialDescription}
-                                                </Typography>
-                                            </Tooltip>
+                                            <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.35, minWidth: 180 }}>
+                                                {record.materialDescription}
+                                            </Typography>
+                                            {record.materialCategory && (
+                                                <Typography variant="caption" color="text.secondary">{record.materialCategory}</Typography>
+                                            )}
                                         </TableCell>
                                         <TableCell>{formatDate(record.dueDate)}</TableCell>
                                         <TableCell>{formatDate(record.completedAt)}</TableCell>
@@ -404,11 +407,22 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            <Tooltip title={record.completionNotes || 'Sem registro'}>
-                                                <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                                                    {record.completionNotes || '-'}
-                                                </Typography>
-                                            </Tooltip>
+                                            {(() => {
+                                                const { conformePrevisto, texto } = separarNotas(record.completionNotes);
+                                                return (
+                                                    <Box sx={{ minWidth: 260, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
+                                                        {conformePrevisto && <Chip label="Conforme previsto" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }} />}
+                                                        <Typography variant="body2" sx={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.45, fontSize: '0.82rem', color: texto ? 'text.primary' : 'text.disabled' }}>
+                                                            {texto || (conformePrevisto ? '' : 'Sem registro do que foi feito')}
+                                                        </Typography>
+                                                        {record.description && (
+                                                            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'normal', lineHeight: 1.35 }}>
+                                                                Previsto: {record.description}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                );
+                                            })()}
                                         </TableCell>
                                         <TableCell align="center">
                                             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
@@ -485,19 +499,25 @@ const MaintenanceHistory = ({ materialIdFilter = '' }) => {
                             </Grid>
                             <Grid item xs={12}>
                                 <Typography variant="subtitle2" gutterBottom>Descrição Prevista</Typography>
-                                <Paper elevation={1} sx={{ p: 2, backgroundColor: 'grey.50' }}>
-                                    <Typography variant="body2">
+                                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.12 : 0.04), border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.15)}` }}>
+                                    <Typography variant="body2" sx={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>
                                         {selectedRecord.description || 'Nenhuma descrição fornecida.'}
                                     </Typography>
                                 </Paper>
                             </Grid>
                             <Grid item xs={12}>
                                 <Typography variant="subtitle2" gutterBottom>O que foi realizado</Typography>
-                                <Paper elevation={1} sx={{ p: 2, backgroundColor: 'success.light', border: '1px solid', borderColor: 'success.main' }}>
-                                    <Typography variant="body2">
-                                        {selectedRecord.completionNotes || 'Nenhuma nota de conclusão registrada.'}
-                                    </Typography>
-                                </Paper>
+                                {(() => {
+                                    const { conformePrevisto, texto } = separarNotas(selectedRecord.completionNotes);
+                                    return (
+                                        <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: (t) => alpha(t.palette.success.main, t.palette.mode === 'dark' ? 0.14 : 0.07), border: (t) => `1px solid ${alpha(t.palette.success.main, 0.4)}` }}>
+                                            {conformePrevisto && <Chip label="Conforme previsto" size="small" color="success" sx={{ mb: 1, fontWeight: 700 }} />}
+                                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.55 }}>
+                                                {texto || 'Nenhuma nota de conclusão registrada.'}
+                                            </Typography>
+                                        </Paper>
+                                    );
+                                })()}
                             </Grid>
                         </Grid>
                     </DialogContent>

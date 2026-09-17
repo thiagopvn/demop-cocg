@@ -52,6 +52,7 @@ import { verifyToken } from '../../firebase/token';
 import { logAudit } from '../../firebase/auditLog';
 import { createNextRecurrentMaintenance } from '../../services/maintenanceNotificationService';
 import UpcomingMaintenances from './UpcomingMaintenances';
+import { gerarDetalheConclusao } from '../../utils/maintenanceNotes';
 import NotificationSettings from './NotificationSettings';
 import CompressorQuickCard from '../compressor/CompressorQuickCard';
 import { getMaintenanceTypeLabel } from '../../data/maintenanceTemplates';
@@ -533,7 +534,7 @@ const MaintenanceDashboard = () => {
                                     }}
                                 >
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                                        <Typography variant="body2" fontWeight={600} noWrap>
+                                        <Typography variant="body2" fontWeight={600} sx={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.3 }}>
                                             {item.materialDescription}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'normal', lineHeight: 1.3 }}>
@@ -601,7 +602,7 @@ const MaintenanceDashboard = () => {
                                     }}
                                 >
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                                        <Typography variant="body2" fontWeight={600} noWrap>
+                                        <Typography variant="body2" fontWeight={600} sx={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.3 }}>
                                             {item.materialDescription}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', whiteSpace: 'normal', lineHeight: 1.3 }}>
@@ -665,10 +666,12 @@ const MaintenanceDashboard = () => {
                                             variant="caption"
                                             sx={{
                                                 display: 'block',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap',
-                                                fontSize: '0.7rem'
+                                                whiteSpace: 'normal',
+                                                lineHeight: 1.25,
+                                                fontSize: '0.7rem',
+                                                fontWeight: 600,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.3,
                                             }}
                                         >
                                             {card.title}
@@ -904,7 +907,7 @@ const MaintenanceDashboard = () => {
                 <DialogContent sx={{ px: 3, py: 2 }}>
                     {completionData.maintenance && (
                         <>
-                            <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200', mb: 2.5 }}>
+                            <Box sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.04), border: '1px solid', borderColor: alpha(theme.palette.primary.main, 0.15), mb: 2.5 }}>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>Material</Typography>
                                 <Typography variant="body1" fontWeight={600} gutterBottom>
                                     {completionData.maintenance.materialDescription}
@@ -925,15 +928,20 @@ const MaintenanceDashboard = () => {
                                 control={
                                     <Checkbox
                                         checked={completionData.confirmedAsPlanned}
-                                        onChange={(e) => setCompletionData(prev => ({ ...prev, confirmedAsPlanned: e.target.checked }))}
+                                        onChange={(e) => setCompletionData(prev => ({
+                                            ...prev,
+                                            confirmedAsPlanned: e.target.checked,
+                                            completionNotes: e.target.checked && !prev.completionNotes.trim() ? gerarDetalheConclusao(prev.maintenance) : prev.completionNotes,
+                                        }))}
                                         color="success"
                                         sx={{ '& .MuiSvgIcon-root': { fontSize: 28 } }}
                                     />
                                 }
                                 label={
-                                    <Typography variant="body1" fontWeight={600}>
-                                        Manutenção realizada conforme o previsto
-                                    </Typography>
+                                    <Box>
+                                        <Typography variant="body1" fontWeight={600}>Manutenção realizada conforme o previsto</Typography>
+                                        <Typography variant="caption" color="text.secondary">Ao marcar, o detalhe do que foi executado é preenchido abaixo; ajuste se algo saiu diferente.</Typography>
+                                    </Box>
                                 }
                                 sx={{
                                     mb: 2, p: 1.5, borderRadius: 2,
@@ -949,11 +957,13 @@ const MaintenanceDashboard = () => {
                                 fullWidth
                                 multiline
                                 rows={3}
-                                label="Observações (opcional)"
+                                label="O que foi feito"
                                 placeholder="Peças trocadas, desvios do procedimento, problemas encontrados..."
                                 value={completionData.completionNotes}
                                 onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
                                 helperText="Este registro ficará no histórico de manutenções do equipamento"
+                                minRows={3}
+                                maxRows={8}
                             />
 
                             {completionData.maintenance.isRecurrent && (
